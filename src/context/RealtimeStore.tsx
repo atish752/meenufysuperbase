@@ -1500,12 +1500,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeMenu = onValue(ref(db, `menuItems/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const items: MenuItem[] = data ? Object.values(data) as MenuItem[] : [];
+      const itemsWithId = items.map(item => ({
+        ...item,
+        restaurantId: item.restaurantId || targetRestaurantId
+      }));
       dispatch({ 
         type: 'SET_STATE', 
         payload: { 
           menuItems: [
             ...stateRef.current.menuItems.filter(item => item.restaurantId !== targetRestaurantId),
-            ...items
+            ...itemsWithId
           ] 
         } 
       });
@@ -1515,12 +1519,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeCat = onValue(ref(db, `categories/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const cats: MenuCategory[] = data ? Object.values(data) as MenuCategory[] : [];
+      const catsWithId = cats.map(c => ({
+        ...c,
+        restaurantId: c.restaurantId || targetRestaurantId
+      }));
       dispatch({ 
         type: 'SET_STATE', 
         payload: { 
           categories: [
             ...stateRef.current.categories.filter(c => c.restaurantId !== targetRestaurantId),
-            ...cats
+            ...catsWithId
           ] 
         } 
       });
@@ -1530,12 +1538,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeOrder = onValue(ref(db, `orders/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const ords: Order[] = data ? Object.values(data) as Order[] : [];
+      const ordsWithId = ords.map(o => ({
+        ...o,
+        restaurantId: o.restaurantId || targetRestaurantId
+      }));
       dispatch({ 
         type: 'SET_STATE', 
         payload: { 
           orders: [
             ...stateRef.current.orders.filter(o => o.restaurantId !== targetRestaurantId),
-            ...ords
+            ...ordsWithId
           ] 
         } 
       });
@@ -1545,12 +1557,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeWaiter = onValue(ref(db, `waiterRequests/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const reqs: WaiterRequest[] = data ? Object.values(data) as WaiterRequest[] : [];
+      const reqsWithId = reqs.map(r => ({
+        ...r,
+        restaurantId: r.restaurantId || targetRestaurantId
+      }));
       dispatch({ 
         type: 'SET_STATE', 
         payload: { 
           waiterRequests: [
             ...stateRef.current.waiterRequests.filter(r => r.restaurantId !== targetRestaurantId),
-            ...reqs
+            ...reqsWithId
           ] 
         } 
       });
@@ -1565,6 +1581,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           type: 'SET_STATE',
           payload: { tables: tbls }
         });
+      } else if (!isCustomer && stateRef.current.tables.length > 0) {
+        // If DB has no tables, upload the local tables to initialize it
+        set(ref(db!, `tables/${targetRestaurantId}`), stateRef.current.tables);
       }
     });
 
