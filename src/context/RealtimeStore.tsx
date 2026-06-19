@@ -1478,9 +1478,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const data = snapshot.val();
       const accounts: RestaurantAccount[] = data ? Object.values(data) as RestaurantAccount[] : [];
       if (accounts.length > 0) {
+        const currentAdmin = stateRef.current.admin;
+        let activeBalance = stateRef.current.walletBalance;
+        if (currentAdmin && !currentAdmin.isSuperAdmin) {
+          const matched = accounts.find(acc => acc.id === currentAdmin.id);
+          if (matched) {
+            activeBalance = matched.walletBalance;
+          }
+        }
         dispatch({
           type: 'SET_STATE',
-          payload: { restaurantAccounts: accounts }
+          payload: { 
+            restaurantAccounts: accounts,
+            walletBalance: activeBalance
+          }
         });
       }
     });
@@ -1545,6 +1556,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
+    // 7. Listen to tables
+    const unsubscribeTables = onValue(ref(db, `tables/${targetRestaurantId}`), (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const tbls = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)) as TableInfo[];
+        dispatch({
+          type: 'SET_STATE',
+          payload: { tables: tbls }
+        });
+      }
+    });
+
+    // 8. Listen to schedules
+    const unsubscribeSchedules = onValue(ref(db, `schedules/${targetRestaurantId}`), (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const schs = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)) as MealSchedule[];
+        dispatch({
+          type: 'SET_STATE',
+          payload: { schedules: schs }
+        });
+      }
+    });
+
+    // 9. Listen to Gemini API keys
+    const unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)) as string[];
+        dispatch({
+          type: 'SET_STATE',
+          payload: { geminiApiKeys: keys }
+        });
+      }
+    });
+
     return () => {
       unsubscribeRestaurant();
       unsubscribeAccounts();
@@ -1552,6 +1599,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeCat();
       unsubscribeOrder();
       unsubscribeWaiter();
+      unsubscribeTables();
+      unsubscribeSchedules();
+      unsubscribeGeminiKeys();
     };
   }, [state.admin?.restaurantId, state.currentView]);
 
@@ -1569,7 +1619,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'ADD_MENU_ITEM':
           case 'UPDATE_MENU_ITEM': {
             const itemRestId = action.payload.restaurantId || restId;
-            set(ref(db, `menuItems/${itemRestId}/${action.payload.id}`), action.payload);
+            set(ref(db, `menuItems/${itemRestId}/${action.payload.id}`), {
+              ...action.payload,
+              restaurantId: itemRestId
+            });
             break;
           }
           case 'DELETE_MENU_ITEM': {
@@ -1580,7 +1633,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'ADD_CATEGORY':
           case 'UPDATE_CATEGORY': {
             const catRestId = action.payload.restaurantId || restId;
-            set(ref(db, `categories/${catRestId}/${action.payload.id}`), action.payload);
+            set(ref(db, `categories/${catRestId}/${action.payload.id}`), {
+              ...action.payload,
+              restaurantId: catRestId
+            });
             break;
           }
           case 'DELETE_CATEGORY': {
@@ -1590,7 +1646,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'PLACE_ORDER': {
             const orderRestId = action.payload.restaurantId || restId;
-            set(ref(db, `orders/${orderRestId}/${action.payload.id}`), action.payload);
+            set(ref(db, `orders/${orderRestId}/${action.payload.id}`), {
+              ...action.payload,
+              restaurantId: orderRestId
+            });
             break;
           }
           case 'UPDATE_ORDER_STATUS': {
@@ -1606,14 +1665,64 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             });
             break;
           }
+          case 'RATE_ORDER': {
+            const orderRestId = currentState.orders.find(o => o.id === action.payload.id)?.restaurantId || restId;
+            update(ref(db, `orders/${orderRestId}/${action.payload.id}`), {
+              ratings: action.payload.ratings,
+              updatedAt: Date.now()
+            });
+            break;
+          }
           case 'CALL_WAITER': {
             const waiterRestId = action.payload.restaurantId || restId;
-            set(ref(db, `waiterRequests/${waiterRestId}/${action.payload.id}`), action.payload);
+            set(ref(db, `waiterRequests/${waiterRestId}/${action.payload.id}`), {
+              ...action.payload,
+              restaurantId: waiterRestId
+            });
             break;
           }
           case 'RESOLVE_WAITER': {
             const waiterRestId = currentState.waiterRequests.find(r => r.id === action.payload)?.restaurantId || restId;
             update(ref(db, `waiterRequests/${waiterRestId}/${action.payload}`), { resolved: true });
+            break;
+          }
+          case 'SET_TABLES': {
+            set(ref(db, `tables/${restId}`), action.payload);
+            break;
+          }
+          case 'UPDATE_TABLE_STATUS': {
+            const updatedTables = currentState.tables.map(t =>
+              t.id === action.payload.id ? { ...t, status: action.payload.status } : t
+            );
+            set(ref(db, `tables/${restId}`), updatedTables);
+            break;
+          }
+          case 'ADD_SCHEDULE':
+          case 'UPDATE_SCHEDULE': {
+            set(ref(db, `schedules/${restId}/${action.payload.id}`), action.payload);
+            break;
+          }
+          case 'DELETE_SCHEDULE': {
+            remove(ref(db, `schedules/${restId}/${action.payload}`));
+            break;
+          }
+          case 'ADD_GEMINI_KEY': {
+            set(ref(db, 'geminiApiKeys'), [...currentState.geminiApiKeys, action.payload]);
+            break;
+          }
+          case 'REMOVE_GEMINI_KEY': {
+            set(ref(db, 'geminiApiKeys'), currentState.geminiApiKeys.filter(key => key !== action.payload));
+            break;
+          }
+          case 'UNFEATURED_ALL_ITEMS': {
+            const targetItems = currentState.menuItems.filter(item => item.restaurantId === restId);
+            targetItems.forEach(item => {
+              update(ref(db!, `menuItems/${restId}/${item.id}`), { isFeatured: false });
+            });
+            break;
+          }
+          case 'DELETE_ALL_MENU_ITEMS': {
+            remove(ref(db, `menuItems/${restId}`));
             break;
           }
           case 'UPDATE_RESTAURANT':
