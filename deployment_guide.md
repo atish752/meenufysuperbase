@@ -1,8 +1,8 @@
 # Meenufy Deployment Guide: Vercel & Google Firebase
 
-This guide provides step-by-step instructions to deploy Meenufy to **Vercel** and connect it with **Google Firebase** for Authentication, Realtime Database sync, and Storage (for menu images).
+This guide provides step-by-step instructions to deploy Meenufy to **Vercel** and connect it with **Google Firebase** for Authentication and Realtime Database sync.
 
-All features run on **Firebase's free tier (Spark plan)**. You do NOT need to enable billing or enter a credit card.
+All features run on **Firebase's free tier (Spark plan)**. You do NOT need to enable billing, upgrade your project, or enter a credit card.
 
 ---
 
@@ -11,8 +11,7 @@ All features run on **Firebase's free tier (Spark plan)**. You do NOT need to en
 2. [Step 1: Set Up a Firebase Project](#step-1-set-up-a-firebase-project)
 3. [Step 2: Configure Firebase Services](#step-2-configure-firebase-services)
    - [Authentication (Email & Google)](#authentication-email--google)
-   - [Realtime Database (Data Sync)](#realtime-database-data-sync)
-   - [Firebase Storage (Menu Images)](#firebase-storage-menu-images)
+   - [Realtime Database (Data & Image Sync)](#realtime-database-data--image-sync)
 4. [Step 3: Push Code to GitHub](#step-3-push-code-to-github)
 5. [Step 4: Deploy to Vercel](#step-4-deploy-to-vercel)
 6. [Step 5: Testing & Verification](#step-5-testing--verification)
@@ -44,7 +43,6 @@ All features run on **Firebase's free tier (Spark plan)**. You do NOT need to en
      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
      projectId: "YOUR_PROJECT_ID",
-     storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
      appId: "YOUR_APP_ID"
    };
@@ -65,7 +63,7 @@ All features run on **Firebase's free tier (Spark plan)**. You do NOT need to en
    - Choose a project support email from the dropdown.
    - Click **Save**.
 
-### Realtime Database (Data Sync)
+### Realtime Database (Data & Image Sync)
 1. In the Firebase sidebar, click **Build** -> **Realtime Database**, then click **Create database**.
 2. Select your **Database location** (choose the one closest to your restaurant/customers) and click **Next**.
 3. Select **Start in test mode** (this allows quick configuration without strict security constraints during launch) and click **Enable**.
@@ -81,24 +79,6 @@ All features run on **Firebase's free tier (Spark plan)**. You do NOT need to en
 5. Click **Publish**.
 6. Copy the **database URL** shown at the top of the Data tab (e.g. `https://your-project-id-default-rtdb.firebaseio.com/` or `https://your-project-id-default-rtdb.asia-southeast1.firebasedatabase.app/`). This is your `VITE_FIREBASE_DATABASE_URL`.
 
-### Firebase Storage (Menu Images)
-1. In the Firebase sidebar, click **Build** -> **Storage**, then click **Get started**.
-2. Select **Start in test mode** and click **Next**.
-3. Choose your Storage location (usually matches database location) and click **Done**.
-4. Once initialized, go to the **Rules** tab at the top and replace the rules with the following to allow image uploads and reads:
-   ```javascript
-   rules_version = '2';
-
-   service firebase.storage {
-     match /b/{bucket}/o {
-       match /{allPaths=**} {
-         allow read, write: if true;
-       }
-     }
-   }
-   ```
-5. Click **Publish**.
-
 ---
 
 ## Step 3: Push Code to GitHub
@@ -107,7 +87,7 @@ All features run on **Firebase's free tier (Spark plan)**. You do NOT need to en
    ```powershell
    git init
    git add .
-   git commit -m "feat: integrate firebase realtime database, auth, storage, and build verification"
+   git commit -m "feat: integrate firebase realtime database, auth, auto-image-compression, and build verification"
    ```
 2. Create a new repository on your [GitHub](https://github.com/) account (set it to private or public).
 3. Copy the remote commands from GitHub and push:
@@ -124,7 +104,7 @@ All features run on **Firebase's free tier (Spark plan)**. You do NOT need to en
 1. Log in to [Vercel](https://vercel.com/) and click **Add New** -> **Project**.
 2. Find your `Meenufy` repository in the list and click **Import**.
 3. Expand the **Environment Variables** section.
-4. Add the following **7 Environment Variables** corresponding to your Firebase configuration details:
+4. Add the following **5 Environment Variables** corresponding to your Firebase configuration details:
 
 | Name | Value | Description |
 | :--- | :--- | :--- |
@@ -132,8 +112,6 @@ All features run on **Firebase's free tier (Spark plan)**. You do NOT need to en
 | `VITE_FIREBASE_AUTH_DOMAIN` | *Your Firebase authDomain* | Auth Domain |
 | `VITE_FIREBASE_DATABASE_URL` | *Your Realtime Database URL* | E.g. `https://project-rtdb.firebaseio.com/` |
 | `VITE_FIREBASE_PROJECT_ID` | *Your Firebase projectId* | Project ID |
-| `VITE_FIREBASE_STORAGE_BUCKET` | *Your Firebase storageBucket* | Storage Bucket |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | *Your Firebase messagingSenderId* | Messaging Sender ID |
 | `VITE_FIREBASE_APP_ID` | *Your Firebase appId* | App ID |
 
 5. Click **Deploy**. Vercel will build and launch your application in under a minute!
@@ -147,10 +125,11 @@ Once deployed, visit your Vercel URL and check these features:
    - Go to `/admin` (the admin login page).
    - Enter your email and password, choose **Sign Up**, and create an account.
    - Go to your Firebase Console -> Realtime Database. You should see a new `restaurantAccounts` node created with your admin record.
-2. **Menu Creation & Storage Upload**:
+2. **Menu Creation & Compressed Image Sync**:
    - In the Admin Panel, click **Add Item**.
    - Fill in details and upload an image using the upload dropzone or camera capture.
-   - Verify that the image is saved in Firebase Storage (`menu_photos/YOUR_ADMIN_ID/...`) and successfully rendered on screen.
+   - The image will be compressed automatically on the client side (down to 15KB-30KB) and saved directly in the Realtime Database inside the menu item object.
+   - Verify that the image renders on the admin screen.
 3. **Multi-device Realtime Sync**:
    - Scan the Table QR code or go to the Customer Panel URL on another browser or phone: `https://YOUR-VERCEL-APP.vercel.app/?restaurant=YOUR_UID&table=table-1` (replace `YOUR_UID` with your Firebase Auth UID from the database console).
    - In the Customer Panel, add items and place an order.

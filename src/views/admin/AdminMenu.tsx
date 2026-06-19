@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import type { MenuItem, MealSchedule, NutritionInfo } from '../../context/RealtimeStore';
 import { Plus, Pencil, Trash2, Search, Tag, X, Sparkles, Camera, UploadCloud, Loader2, Check, CalendarClock, FlaskConical, Palette } from 'lucide-react';
-import { hasFirebaseConfig, storage } from '../../utils/firebase';
 
 function CategoryRow({ cat, onUpdate, onDelete, isDeleting }: { 
   cat: any; 
@@ -549,6 +548,48 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     setNewCat({ name: '', icon: '🍽️' });
   };
 
+  const compressImage = (file: File, maxDim = 400, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const handleItemImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -560,21 +601,13 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
     setUploadingImage(true);
     try {
-      if (hasFirebaseConfig && storage) {
-        const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-        const storageRef = ref(storage, `menu_photos/${adminId}/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-        setNewItem(prev => ({ ...prev, image: downloadUrl }));
-        addToast('success', 'Image uploaded to cloud storage successfully! 📸');
-      } else {
-        const base64 = await fileToBase64(file);
-        setNewItem(prev => ({ ...prev, image: base64 }));
-        addToast('success', 'Image processed successfully (Local Dev)! 📸');
-      }
+      // Compress the image and convert to Base64 data URL directly
+      const compressedDataUrl = await compressImage(file, 400, 0.7);
+      setNewItem(prev => ({ ...prev, image: compressedDataUrl }));
+      addToast('success', 'Image compressed and saved successfully! 📸');
     } catch (err: any) {
       console.error(err);
-      addToast('error', `❌ Image upload failed: ${err.message || err}`);
+      addToast('error', `❌ Image processing failed: ${err.message || err}`);
     } finally {
       setUploadingImage(false);
     }
@@ -1161,8 +1194,8 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                     </div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
                       {newItem.image 
-                        ? (newItem.image.startsWith('data:') ? 'Stored locally (Base64)' : 'Hosted on Firebase Cloud')
-                        : 'Supports JPG, PNG, WebP (Max 5MB)'}
+                        ? 'Stored in database (Base64)'
+                        : 'Supports JPG, PNG, WebP (Auto-compressed)'}
                     </div>
                   </div>
                 </div>
