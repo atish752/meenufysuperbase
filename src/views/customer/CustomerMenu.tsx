@@ -845,7 +845,7 @@ export default function CustomerMenu() {
 
             <div style={{
               width: '100%',
-              height: 180,
+              aspectRatio: '1 / 1',
               borderRadius: 'var(--radius-lg)',
               overflow: 'hidden',
               position: 'relative',

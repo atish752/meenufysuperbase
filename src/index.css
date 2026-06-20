@@ -589,7 +589,7 @@ input, textarea, select {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 68px;
+  height: calc(68px + env(safe-area-inset-bottom, 0px));
   background: var(--bg-glass);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -601,6 +601,19 @@ input, textarea, select {
   padding: 0 8px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* Customer container overrides to keep floating elements centered inside 480px width */
+.customer-layout-container .bottom-nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+}
+.customer-layout-container .modal-backdrop {
+  position: absolute;
+}
+
 .bottom-nav-item {
   display: flex;
   flex-direction: column;

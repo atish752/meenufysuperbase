@@ -245,7 +245,7 @@ export default function CustomerLayout({ tableId }: Props) {
   const hasActiveOrUnrated = activeOrders.length > 0 || unratedServedOrders.length > 0;
 
   return (
-    <div style={{
+    <div className="customer-layout-container" style={{
       display: 'flex', flexDirection: 'column',
       height: '100dvh', background: 'var(--customer-bg-override, var(--bg-primary))',
       maxWidth: 480, margin: '0 auto', position: 'relative',
@@ -305,7 +305,7 @@ export default function CustomerLayout({ tableId }: Props) {
       )}
 
       {/* Page */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 68 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 'calc(68px + env(safe-area-inset-bottom, 0px))' }}>
         {renderTab()}
       </div>
 
@@ -317,8 +317,8 @@ export default function CustomerLayout({ tableId }: Props) {
         <div
           onClick={() => setShowStatusModal(true)}
           style={{
-            position: 'fixed',
-            bottom: cartCount > 0 ? 142 : 82,
+            position: 'absolute',
+            bottom: `calc(${(cartCount > 0 ? 142 : 82)}px + env(safe-area-inset-bottom, 0px))`,
             right: 16,
             zIndex: 200,
             background: unratedServedOrders.length > 0 

@@ -548,7 +548,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     setNewCat({ name: '', icon: '🍽️' });
   };
 
-  const compressImage = (file: File, maxDim = 400, quality = 0.7): Promise<string> => {
+  const compressImage = (file: File, maxDim = 500, targetKb = 100): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -557,31 +557,38 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
+          
+          // Center-crop to a perfect square
+          const size = Math.min(img.width, img.height);
+          const sx = (img.width - size) / 2;
+          const sy = (img.height - size) / 2;
 
-          if (width > height) {
-            if (width > maxDim) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
+          // Target dimension (at most maxDim)
+          const targetSize = Math.min(size, maxDim);
+          canvas.width = targetSize;
+          canvas.height = targetSize;
 
-          canvas.width = width;
-          canvas.height = height;
           const ctx = canvas.getContext('2d');
           if (!ctx) {
             resolve(event.target?.result as string);
             return;
           }
 
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          // Crop and draw
+          ctx.drawImage(img, sx, sy, size, size, 0, 0, targetSize, targetSize);
+
+          let quality = 0.85;
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+          // Base64 size is roughly 1.34 times binary size. 100KB binary is ~137,000 chars.
+          const maxBase64Length = Math.round(targetKb * 1024 * 1.34);
+
+          // Iteratively decrease quality if image size exceeds our target limit
+          while (dataUrl.length > maxBase64Length && quality > 0.3) {
+            quality -= 0.08;
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+
           resolve(dataUrl);
         };
         img.onerror = (err) => reject(err);
@@ -601,10 +608,10 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
     setUploadingImage(true);
     try {
-      // Compress the image and convert to Base64 data URL directly
-      const compressedDataUrl = await compressImage(file, 400, 0.7);
+      // Compress the image to a square and convert to Base64 data URL directly (~100kb target size)
+      const compressedDataUrl = await compressImage(file, 500, 100);
       setNewItem(prev => ({ ...prev, image: compressedDataUrl }));
-      addToast('success', 'Image compressed and saved successfully! 📸');
+      addToast('success', 'Image auto-cropped to square, compressed to ~100kb, and saved! 📸');
     } catch (err: any) {
       console.error(err);
       addToast('error', `❌ Image processing failed: ${err.message || err}`);

@@ -94,7 +94,7 @@ export default function AdminLayout() {
         </div>
 
         {/* Page Content */}
-        <div className="page-content" style={{ paddingBottom: 80 }}>
+        <div className="page-content" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
           <div className="desktop-only" style={{ paddingBottom: 0 }}>
             {/* desktop doesn't need bottom padding */}
           </div>
