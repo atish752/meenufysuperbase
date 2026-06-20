@@ -760,11 +760,72 @@ type Action =
   | { type: 'REMAP_ORPHAN_DATA'; payload: { fromId: string; toId: string } }
   | { type: 'UNFEATURED_ALL_ITEMS' }
   | { type: 'DELETE_ALL_MENU_ITEMS' }
-  | { type: 'SET_LOADING'; payload: boolean };
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SYNC_MENU_ITEMS'; payload: { restaurantId: string; items: MenuItem[] } }
+  | { type: 'SYNC_CATEGORIES'; payload: { restaurantId: string; categories: MenuCategory[] } }
+  | { type: 'SYNC_ORDERS'; payload: { restaurantId: string; orders: Order[] } }
+  | { type: 'SYNC_WAITER_REQUESTS'; payload: { restaurantId: string; requests: WaiterRequest[] } }
+  | { type: 'SYNC_RESTAURANT_ACCOUNTS'; payload: RestaurantAccount[] };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_STATE': return { ...state, ...action.payload };
+    case 'SYNC_MENU_ITEMS': {
+      const { restaurantId, items } = action.payload;
+      return {
+        ...state,
+        menuItems: [
+          ...state.menuItems.filter(item => item.restaurantId !== restaurantId),
+          ...items
+        ]
+      };
+    }
+    case 'SYNC_CATEGORIES': {
+      const { restaurantId, categories } = action.payload;
+      return {
+        ...state,
+        categories: [
+          ...state.categories.filter(c => c.restaurantId !== restaurantId),
+          ...categories
+        ]
+      };
+    }
+    case 'SYNC_ORDERS': {
+      const { restaurantId, orders } = action.payload;
+      return {
+        ...state,
+        orders: [
+          ...state.orders.filter(o => o.restaurantId !== restaurantId),
+          ...orders
+        ]
+      };
+    }
+    case 'SYNC_WAITER_REQUESTS': {
+      const { restaurantId, requests } = action.payload;
+      return {
+        ...state,
+        waiterRequests: [
+          ...state.waiterRequests.filter(r => r.restaurantId !== restaurantId),
+          ...requests
+        ]
+      };
+    }
+    case 'SYNC_RESTAURANT_ACCOUNTS': {
+      const accounts = action.payload;
+      const currentAdmin = state.admin;
+      let activeBalance = state.walletBalance;
+      if (currentAdmin && !currentAdmin.isSuperAdmin) {
+        const matched = accounts.find(acc => acc.id === currentAdmin.id);
+        if (matched) {
+          activeBalance = matched.walletBalance;
+        }
+      }
+      return {
+        ...state,
+        restaurantAccounts: accounts,
+        walletBalance: activeBalance
+      };
+    }
     case 'SET_ADMIN_TAB': return { ...state, adminTab: action.payload };
     case 'SET_CUSTOMER_TAB': return { ...state, customerTab: action.payload };
     case 'SET_VIEW': return { ...state, currentView: action.payload };
@@ -1253,6 +1314,15 @@ export function useStore() {
   return ctx;
 }
 
+export function getActiveRestaurantId(state: AppState): string {
+  if (typeof window === 'undefined') return 'admin-1';
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('restaurant') || 
+         state.admin?.restaurantId || 
+         localStorage.getItem('meenufy_active_restaurant_id') || 
+         'admin-1';
+}
+
 // ─── Provider ────────────────────────────────────────────────
 const STORAGE_KEY = 'meenufy_state_v1';
 const CHANNEL_NAME = 'meenufy_realtime';
@@ -1264,11 +1334,12 @@ function loadState(): Partial<AppState> {
     const parsed = JSON.parse(raw) as Partial<AppState>;
 
     // ── Step 1: Detect the admin's old dynamic ID (if any) ───────────────────────
-    // If the saved admin is 'atish3477' but has a non-admin-1 ID, that's the old dynamic ID
+    // If the saved admin is 'atish3477' or 'atish3477@gmail.com' but has a non-admin-1 ID, that's the old dynamic ID
     let oldDynamicId: string | null = null;
     if (
       parsed.admin &&
-      parsed.admin.email?.trim().toLowerCase() === 'atish3477' &&
+      (parsed.admin.email?.trim().toLowerCase() === 'atish3477' ||
+       parsed.admin.email?.trim().toLowerCase() === 'atish3477@gmail.com') &&
       parsed.admin.id !== 'admin-1'
     ) {
       oldDynamicId = parsed.admin.id;
@@ -1276,9 +1347,11 @@ function loadState(): Partial<AppState> {
 
     // ── Step 2: Remap restaurant accounts ────────────────────────────────────────
     if (parsed.restaurantAccounts) {
-      // Find dynamic account for 'atish3477' via email (alternative detection)
+      // Find dynamic account for 'atish3477' or 'atish3477@gmail.com' via email (alternative detection)
       const dynamicAccount = parsed.restaurantAccounts.find(
-        acc => acc.id !== 'admin-1' && acc.ownerEmail?.trim().toLowerCase() === 'atish3477'
+        acc => acc.id !== 'admin-1' && 
+        (acc.ownerEmail?.trim().toLowerCase() === 'atish3477' ||
+         acc.ownerEmail?.trim().toLowerCase() === 'atish3477@gmail.com')
       );
       if (dynamicAccount && !oldDynamicId) {
         oldDynamicId = dynamicAccount.id;
@@ -1294,7 +1367,9 @@ function loadState(): Partial<AppState> {
 
       // Remove duplicate dynamic account
       parsed.restaurantAccounts = parsed.restaurantAccounts.filter(
-        acc => !(acc.id !== 'admin-1' && acc.ownerEmail?.trim().toLowerCase() === 'atish3477')
+        acc => !(acc.id !== 'admin-1' && 
+                 (acc.ownerEmail?.trim().toLowerCase() === 'atish3477' ||
+                  acc.ownerEmail?.trim().toLowerCase() === 'atish3477@gmail.com'))
       );
     }
 
@@ -1318,9 +1393,22 @@ function loadState(): Partial<AppState> {
     }
 
     // ── Step 4: Fix the active admin session ─────────────────────────────────────
-    if (parsed.admin && parsed.admin.email?.trim().toLowerCase() === 'atish3477') {
+    if (
+      parsed.admin && 
+      (parsed.admin.email?.trim().toLowerCase() === 'atish3477' ||
+       parsed.admin.email?.trim().toLowerCase() === 'atish3477@gmail.com')
+    ) {
       parsed.admin = { ...parsed.admin, id: 'admin-1', restaurantId: 'admin-1' };
     }
+
+    // Decouple transient and tab-specific UI states
+    delete parsed.currentView;
+    delete parsed.adminTab;
+    delete parsed.customerTab;
+    delete parsed.cart;
+    delete parsed.toasts;
+    delete parsed.isLoading;
+    delete parsed.newOrderAlert;
 
     return parsed;
   } catch {
@@ -1331,8 +1419,8 @@ function loadState(): Partial<AppState> {
 
 function saveState(state: AppState) {
   try {
-    // Don't persist transient UI state
-    const { toasts, isLoading, newOrderAlert, cart, ...rest } = state;
+    // Don't persist transient UI state or tab-local states
+    const { toasts, isLoading, newOrderAlert, cart, currentView, adminTab, customerTab, ...rest } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
   } catch {}
 }
@@ -1350,6 +1438,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     currentView: 'admin', // always start admin
     adminTab: 'home',
   });
+
+  const addToast = useCallback((type: Toast['type'], message: string) => {
+    const id = `toast-${Date.now()}`;
+    dispatch({ type: 'ADD_TOAST', payload: { id, type, message } });
+    setTimeout(() => dispatch({ type: 'REMOVE_TOAST', payload: id }), 4000);
+  }, []);
 
   const channelRef = useRef<BroadcastChannel | null>(null);
   const isBroadcasting = useRef(false);
@@ -1454,11 +1548,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hasFirebaseConfig || !db) return;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const isCustomer = urlParams.get('view') === 'customer';
-    const targetRestaurantId = isCustomer 
-      ? (urlParams.get('restaurant') || 'admin-1')
-      : (state.admin?.restaurantId || 'admin-1');
+    // 0. Connection state listener (silent — no toasts)
+    const unsubscribeConnected = onValue(ref(db, '.info/connected'), (_snapshot) => {
+      // Connection state changes are handled silently
+    });
+
+    const targetRestaurantId = getActiveRestaurantId(state);
+    const isCustomer = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'customer';
 
     if (!targetRestaurantId) return;
 
@@ -1478,20 +1574,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const data = snapshot.val();
       const accounts: RestaurantAccount[] = data ? Object.values(data) as RestaurantAccount[] : [];
       if (accounts.length > 0) {
-        const currentAdmin = stateRef.current.admin;
-        let activeBalance = stateRef.current.walletBalance;
-        if (currentAdmin && !currentAdmin.isSuperAdmin) {
-          const matched = accounts.find(acc => acc.id === currentAdmin.id);
-          if (matched) {
-            activeBalance = matched.walletBalance;
-          }
-        }
         dispatch({
-          type: 'SET_STATE',
-          payload: { 
-            restaurantAccounts: accounts,
-            walletBalance: activeBalance
-          }
+          type: 'SYNC_RESTAURANT_ACCOUNTS',
+          payload: accounts
         });
       }
     });
@@ -1505,34 +1590,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         restaurantId: item.restaurantId || targetRestaurantId
       }));
       dispatch({ 
-        type: 'SET_STATE', 
-        payload: { 
-          menuItems: [
-            ...stateRef.current.menuItems.filter(item => item.restaurantId !== targetRestaurantId),
-            ...itemsWithId
-          ] 
-        } 
+        type: 'SYNC_MENU_ITEMS', 
+        payload: { restaurantId: targetRestaurantId, items: itemsWithId } 
       });
     });
 
     // 4. Listen to categories
     const unsubscribeCat = onValue(ref(db, `categories/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
-      const cats: MenuCategory[] = data ? Object.values(data) as MenuCategory[] : [];
-      const catsWithId = cats.map(c => ({
-        ...c,
-        restaurantId: c.restaurantId || targetRestaurantId
-      }));
-      dispatch({ 
-        type: 'SET_STATE', 
-        payload: { 
-          categories: [
-            ...stateRef.current.categories.filter(c => c.restaurantId !== targetRestaurantId),
-            ...catsWithId
-          ] 
-        } 
-      });
+      if (data) {
+        // DB has categories - sync them to state
+        const cats: MenuCategory[] = Object.values(data) as MenuCategory[];
+        const catsWithId = cats.map(c => ({
+          ...c,
+          restaurantId: c.restaurantId || targetRestaurantId
+        }));
+        dispatch({ 
+          type: 'SYNC_CATEGORIES', 
+          payload: { restaurantId: targetRestaurantId, categories: catsWithId } 
+        });
+      } else if (!isCustomer) {
+        // Admin tab + DB has no categories → seed the current state categories to DB
+        const localCats = stateRef.current.categories.filter(c => c.restaurantId === targetRestaurantId);
+        if (localCats.length > 0) {
+          const catsObj: Record<string, any> = {};
+          localCats.forEach(cat => { catsObj[cat.id] = cat; });
+          set(ref(db!, `categories/${targetRestaurantId}`), catsObj);
+        }
+      }
+      // If customer tab and DB has no categories, do nothing - keep the local default categories in state
     });
+
 
     // 5. Listen to orders
     const unsubscribeOrder = onValue(ref(db, `orders/${targetRestaurantId}`), (snapshot) => {
@@ -1543,13 +1631,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         restaurantId: o.restaurantId || targetRestaurantId
       }));
       dispatch({ 
-        type: 'SET_STATE', 
-        payload: { 
-          orders: [
-            ...stateRef.current.orders.filter(o => o.restaurantId !== targetRestaurantId),
-            ...ordsWithId
-          ] 
-        } 
+        type: 'SYNC_ORDERS', 
+        payload: { restaurantId: targetRestaurantId, orders: ordsWithId } 
       });
     });
 
@@ -1562,13 +1645,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         restaurantId: r.restaurantId || targetRestaurantId
       }));
       dispatch({ 
-        type: 'SET_STATE', 
-        payload: { 
-          waiterRequests: [
-            ...stateRef.current.waiterRequests.filter(r => r.restaurantId !== targetRestaurantId),
-            ...reqsWithId
-          ] 
-        } 
+        type: 'SYNC_WAITER_REQUESTS', 
+        payload: { restaurantId: targetRestaurantId, requests: reqsWithId } 
       });
     });
 
@@ -1612,6 +1690,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      unsubscribeConnected();
       unsubscribeRestaurant();
       unsubscribeAccounts();
       unsubscribeMenu();
@@ -1632,120 +1711,201 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (hasFirebaseConfig && db) {
       try {
         const currentState = stateRef.current;
-        const restId = currentState.admin?.restaurantId || 'admin-1';
+        const restId = getActiveRestaurantId(currentState);
+
+        const handleDbPromise = (promise: Promise<any>, errorMsg: string) => {
+          promise.catch((err: any) => {
+            console.error(`${errorMsg}:`, err);
+            addToast('error', `${errorMsg}: ${err.message || err}`);
+          });
+        };
+
+        const sanitizeDbData = (obj: any): any => {
+          if (obj === null || obj === undefined) return null;
+          if (Array.isArray(obj)) {
+            return obj.map(sanitizeDbData);
+          }
+          if (typeof obj === 'object') {
+            const cleaned: any = {};
+            for (const key of Object.keys(obj)) {
+              if (obj[key] !== undefined) {
+                cleaned[key] = sanitizeDbData(obj[key]);
+              }
+            }
+            return cleaned;
+          }
+          return obj;
+        };
         
         switch (action.type) {
           case 'ADD_MENU_ITEM':
           case 'UPDATE_MENU_ITEM': {
             const itemRestId = action.payload.restaurantId || restId;
-            set(ref(db, `menuItems/${itemRestId}/${action.payload.id}`), {
-              ...action.payload,
-              restaurantId: itemRestId
-            });
+            handleDbPromise(
+              set(ref(db, `menuItems/${itemRestId}/${action.payload.id}`), sanitizeDbData({
+                ...action.payload,
+                restaurantId: itemRestId
+              })),
+              'Failed to sync menu item to database'
+            );
             break;
           }
           case 'DELETE_MENU_ITEM': {
             const itemRestId = currentState.menuItems.find(i => i.id === action.payload)?.restaurantId || restId;
-            remove(ref(db, `menuItems/${itemRestId}/${action.payload}`));
+            handleDbPromise(
+              remove(ref(db, `menuItems/${itemRestId}/${action.payload}`)),
+              'Failed to delete menu item from database'
+            );
             break;
           }
           case 'ADD_CATEGORY':
           case 'UPDATE_CATEGORY': {
             const catRestId = action.payload.restaurantId || restId;
-            set(ref(db, `categories/${catRestId}/${action.payload.id}`), {
-              ...action.payload,
-              restaurantId: catRestId
-            });
+            handleDbPromise(
+              set(ref(db, `categories/${catRestId}/${action.payload.id}`), sanitizeDbData({
+                ...action.payload,
+                restaurantId: catRestId
+              })),
+              'Failed to sync category to database'
+            );
             break;
           }
           case 'DELETE_CATEGORY': {
             const catRestId = currentState.categories.find(c => c.id === action.payload)?.restaurantId || restId;
-            remove(ref(db, `categories/${catRestId}/${action.payload}`));
+            handleDbPromise(
+              remove(ref(db, `categories/${catRestId}/${action.payload}`)),
+              'Failed to delete category from database'
+            );
             break;
           }
           case 'PLACE_ORDER': {
             const orderRestId = action.payload.restaurantId || restId;
-            set(ref(db, `orders/${orderRestId}/${action.payload.id}`), {
-              ...action.payload,
-              restaurantId: orderRestId
-            });
+            handleDbPromise(
+              set(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({
+                ...action.payload,
+                restaurantId: orderRestId
+              })),
+              'Failed to place order in database'
+            );
             break;
           }
           case 'UPDATE_ORDER_STATUS': {
             const orderRestId = currentState.orders.find(o => o.id === action.payload.id)?.restaurantId || restId;
-            update(ref(db, `orders/${orderRestId}/${action.payload.id}`), { status: action.payload.status });
+            handleDbPromise(
+              update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({ status: action.payload.status })),
+              'Failed to update order status'
+            );
             break;
           }
           case 'UPDATE_ORDER_PAYMENT': {
             const orderRestId = currentState.orders.find(o => o.id === action.payload.id)?.restaurantId || restId;
-            update(ref(db, `orders/${orderRestId}/${action.payload.id}`), {
-              ...(action.payload.method ? { paymentMethod: action.payload.method } : {}),
-              ...(action.payload.status ? { paymentStatus: action.payload.status } : {}),
-            });
+            handleDbPromise(
+              update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({
+                ...(action.payload.method ? { paymentMethod: action.payload.method } : {}),
+                ...(action.payload.status ? { paymentStatus: action.payload.status } : {}),
+              })),
+              'Failed to update order payment status'
+            );
             break;
           }
           case 'RATE_ORDER': {
             const orderRestId = currentState.orders.find(o => o.id === action.payload.id)?.restaurantId || restId;
-            update(ref(db, `orders/${orderRestId}/${action.payload.id}`), {
-              ratings: action.payload.ratings,
-              updatedAt: Date.now()
-            });
+            handleDbPromise(
+              update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({
+                ratings: action.payload.ratings,
+                updatedAt: Date.now()
+              })),
+              'Failed to submit ratings'
+            );
             break;
           }
           case 'CALL_WAITER': {
             const waiterRestId = action.payload.restaurantId || restId;
-            set(ref(db, `waiterRequests/${waiterRestId}/${action.payload.id}`), {
-              ...action.payload,
-              restaurantId: waiterRestId
-            });
+            handleDbPromise(
+              set(ref(db, `waiterRequests/${waiterRestId}/${action.payload.id}`), sanitizeDbData({
+                ...action.payload,
+                restaurantId: waiterRestId
+              })),
+              'Failed to request waiter'
+            );
             break;
           }
           case 'RESOLVE_WAITER': {
             const waiterRestId = currentState.waiterRequests.find(r => r.id === action.payload)?.restaurantId || restId;
-            update(ref(db, `waiterRequests/${waiterRestId}/${action.payload}`), { resolved: true });
+            handleDbPromise(
+              update(ref(db, `waiterRequests/${waiterRestId}/${action.payload}`), { resolved: true }),
+              'Failed to resolve waiter request'
+            );
             break;
           }
           case 'SET_TABLES': {
-            set(ref(db, `tables/${restId}`), action.payload);
+            handleDbPromise(
+              set(ref(db, `tables/${restId}`), sanitizeDbData(action.payload)),
+              'Failed to update tables'
+            );
             break;
           }
           case 'UPDATE_TABLE_STATUS': {
             const updatedTables = currentState.tables.map(t =>
               t.id === action.payload.id ? { ...t, status: action.payload.status } : t
             );
-            set(ref(db, `tables/${restId}`), updatedTables);
+            handleDbPromise(
+              set(ref(db, `tables/${restId}`), sanitizeDbData(updatedTables)),
+              'Failed to update table status'
+            );
             break;
           }
           case 'ADD_SCHEDULE':
           case 'UPDATE_SCHEDULE': {
-            set(ref(db, `schedules/${restId}/${action.payload.id}`), action.payload);
+            handleDbPromise(
+              set(ref(db, `schedules/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              'Failed to save schedule'
+            );
             break;
           }
           case 'DELETE_SCHEDULE': {
-            remove(ref(db, `schedules/${restId}/${action.payload}`));
+            handleDbPromise(
+              remove(ref(db, `schedules/${restId}/${action.payload}`)),
+              'Failed to delete schedule'
+            );
             break;
           }
           case 'ADD_GEMINI_KEY': {
-            set(ref(db, 'geminiApiKeys'), [...currentState.geminiApiKeys, action.payload]);
+            handleDbPromise(
+              set(ref(db, 'geminiApiKeys'), sanitizeDbData([...currentState.geminiApiKeys, action.payload])),
+              'Failed to add Gemini API key'
+            );
             break;
           }
           case 'REMOVE_GEMINI_KEY': {
-            set(ref(db, 'geminiApiKeys'), currentState.geminiApiKeys.filter(key => key !== action.payload));
+            handleDbPromise(
+              set(ref(db, 'geminiApiKeys'), sanitizeDbData(currentState.geminiApiKeys.filter(key => key !== action.payload))),
+              'Failed to remove Gemini API key'
+            );
             break;
           }
           case 'UNFEATURED_ALL_ITEMS': {
             const targetItems = currentState.menuItems.filter(item => item.restaurantId === restId);
             targetItems.forEach(item => {
-              update(ref(db!, `menuItems/${restId}/${item.id}`), { isFeatured: false });
+              handleDbPromise(
+                update(ref(db!, `menuItems/${restId}/${item.id}`), { isFeatured: false }),
+                'Failed to unfeature items'
+              );
             });
             break;
           }
           case 'DELETE_ALL_MENU_ITEMS': {
-            remove(ref(db, `menuItems/${restId}`));
+            handleDbPromise(
+              remove(ref(db, `menuItems/${restId}`)),
+              'Failed to delete all menu items'
+            );
             break;
           }
           case 'UPDATE_RESTAURANT':
-            update(ref(db, `restaurants/${restId}`), action.payload);
+            handleDbPromise(
+              update(ref(db, `restaurants/${restId}`), sanitizeDbData(action.payload)),
+              'Failed to update restaurant info'
+            );
             break;
           case 'LOGIN_ADMIN': {
             if (!action.payload.isSuperAdmin) {
@@ -1760,7 +1920,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 createdAt: Date.now(),
                 ...(action.payload.password ? { password: action.payload.password } : {})
               };
-              update(ref(db, `restaurantAccounts/${action.payload.id}`), accountData);
+              handleDbPromise(
+                update(ref(db, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData)),
+                'Failed to update restaurant account'
+              );
             }
             break;
           }
@@ -1776,24 +1939,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               if (action.type === 'SUPER_ADMIN_DEDUCT') nextBalance = Math.max(0, nextBalance - action.payload.amount);
               if (action.type === 'SUPER_ADMIN_TOGGLE_BLOCK') nextStatus = matchedAcc.status === 'active' ? 'blocked' : 'active';
               
-              update(ref(db, `restaurantAccounts/${matchedAcc.id}`), {
-                walletBalance: nextBalance,
-                status: nextStatus
-              });
+              handleDbPromise(
+                update(ref(db, `restaurantAccounts/${matchedAcc.id}`), sanitizeDbData({
+                  walletBalance: nextBalance,
+                  status: nextStatus
+                })),
+                'Failed to update account (Super Admin action)'
+              );
             }
             break;
           }
           default:
             break;
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('RTDB sync error:', err);
+        addToast('error', `Database sync error: ${err.message || err}`);
       }
     }
 
     // Broadcast to other tabs after state change
+    // Skip broadcasting Firebase sync actions — both tabs have their own Firebase listeners
+    const FIREBASE_SYNC_ACTIONS = new Set([
+      'SYNC_MENU_ITEMS', 'SYNC_CATEGORIES', 'SYNC_ORDERS', 'SYNC_WAITER_REQUESTS',
+      'SYNC_RESTAURANT_ACCOUNTS', 'SET_STATE'
+    ]);
     setTimeout(() => {
-      if (channelRef.current && !isBroadcasting.current) {
+      if (channelRef.current && !isBroadcasting.current && !FIREBASE_SYNC_ACTIONS.has(action.type)) {
         const savedRaw = localStorage.getItem(STORAGE_KEY);
         if (savedRaw) {
           channelRef.current.postMessage({
@@ -1803,12 +1975,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }, 50);
-  }, []);
-
-  const addToast = useCallback((type: Toast['type'], message: string) => {
-    const id = `toast-${Date.now()}`;
-    dispatch({ type: 'ADD_TOAST', payload: { id, type, message } });
-    setTimeout(() => dispatch({ type: 'REMOVE_TOAST', payload: id }), 4000);
   }, []);
 
   return (

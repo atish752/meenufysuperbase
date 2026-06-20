@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, useTranslation, getActiveRestaurantInfo } from '../../context/RealtimeStore';
+import { useStore, useTranslation, getActiveRestaurantInfo, getActiveRestaurantId } from '../../context/RealtimeStore';
 import type { TableInfo, MenuItem } from '../../context/RealtimeStore';
 import { MapPin, Phone, Clock, ChevronRight, Star, Utensils, X } from 'lucide-react';
 
@@ -41,8 +41,7 @@ export default function CustomerHome({ table }: Props) {
   const { state, dispatch, addToast } = useStore();
   const t = useTranslation();
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const restaurantId = urlParams.get('restaurant') || 'admin-1';
+  const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
 
   const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);

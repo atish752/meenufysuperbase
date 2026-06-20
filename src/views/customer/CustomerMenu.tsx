@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, useTranslation } from '../../context/RealtimeStore';
+import { useStore, useTranslation, getActiveRestaurantId } from '../../context/RealtimeStore';
 import type { MenuItem } from '../../context/RealtimeStore';
 import { Search, X } from 'lucide-react';
 
@@ -54,8 +54,7 @@ export default function CustomerMenu() {
     setVariantQty(1);
   };
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const restaurantId = urlParams.get('restaurant') || 'admin-1';
+  const restaurantId = getActiveRestaurantId(state);
 
   const restaurantCategories = state.categories.filter(c => c.restaurantId === restaurantId);
   const allCategoriesList = [{ id: 'all', name: 'All', icon: '🍽️' }, ...restaurantCategories];
@@ -331,7 +330,7 @@ export default function CustomerMenu() {
           </div>
         ) : (
           <>
-            {(selectedCat === 'all' ? state.categories : state.categories.filter(c => c.id === selectedCat)).map(cat => {
+            {(selectedCat === 'all' ? restaurantCategories : restaurantCategories.filter(c => c.id === selectedCat)).map(cat => {
               const catItems = sortedItems.filter(i => i.category === cat.id);
               if (catItems.length === 0) return null;
               return (
@@ -602,6 +601,185 @@ export default function CustomerMenu() {
                 </div>
               );
             })}
+            {/* Fallback: show items whose category doesn't match any known category */}
+            {(() => {
+              const knownCatIds = new Set(restaurantCategories.map(c => c.id));
+              const uncategorized = sortedItems.filter(i => !knownCatIds.has(i.category));
+              if (uncategorized.length === 0) return null;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', borderRadius: '8px',
+                    borderLeft: '4px solid var(--brand)',
+                    background: 'linear-gradient(90deg, rgba(255, 125, 0, 0.15) 0%, rgba(255, 125, 0, 0) 100%)',
+                    marginBottom: 4,
+                  }}>
+                    <h2 style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 800, color: 'var(--brand)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>🍽️ All Items</span>
+                    </h2>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: '#000', background: 'var(--brand)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {uncategorized.length} {uncategorized.length === 1 ? 'item' : 'items'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {uncategorized.map(item => {
+                      const qty = getCartQty(item.id);
+                      return (
+                        <div key={item.id} className="card" style={{
+                          padding: 12,
+                          background: 'var(--bg-glass)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius-lg)',
+                          display: 'flex',
+                          gap: 12,
+                          alignItems: 'stretch'
+                        }}>
+                          {/* Left: Food Image */}
+                          <div style={{
+                            width: 100,
+                            height: 100,
+                            borderRadius: 'var(--radius-md)',
+                            overflow: 'hidden',
+                            position: 'relative',
+                            background: 'var(--bg-elevated)',
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ fontSize: 32 }}>🍽️</div>
+                            )}
+                          </div>
+
+                          {/* Right: Content details */}
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
+                            {/* Top Row: Name and Veg/Non-Veg indicator */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                              <h3 style={{
+                                fontSize: 14,
+                                fontFamily: 'var(--font-display)',
+                                fontWeight: 500,
+                                color: 'var(--customer-item-name-color, var(--brand))',
+                                lineHeight: 1.2,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {item.name}
+                              </h3>
+                              <VegNonVegIndicator isVeg={item.isVeg} />
+                            </div>
+
+                            {/* Middle description */}
+                            {item.description && (
+                              <p style={{
+                                fontSize: 11,
+                                color: 'var(--customer-item-desc-color, var(--text-secondary))',
+                                lineHeight: 1.35,
+                                marginTop: 3,
+                                marginBottom: 4,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {item.description}
+                              </p>
+                            )}
+
+                            {/* Bottom Row: Price, Rating, Cart controls */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 'auto' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span className="item-price-tag">
+                                    {item.variants && item.variants.length > 0 ? `From ₹${item.price}` : `₹${item.price}`}
+                                  </span>
+                                  <span style={{ fontSize: 9.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <span style={{ color: '#f59e0b' }}>★</span>
+                                    <span>{getRatingDetails(item.id).rating}</span>
+                                    <span>({getRatingDetails(item.id).reviews})</span>
+                                  </span>
+                                </div>
+                                {item.isFeatured && (
+                                  <div style={{
+                                    alignSelf: 'flex-start',
+                                    background: 'var(--customer-bestseller-bg, var(--brand-dim))',
+                                    color: 'var(--customer-bestseller-text, var(--brand))',
+                                    border: '1px solid var(--customer-bestseller-border, var(--border-brand))',
+                                    fontSize: 8, fontWeight: 800, padding: '1px 5px',
+                                    borderRadius: 3, letterSpacing: '0.02em',
+                                    whiteSpace: 'nowrap', textTransform: 'uppercase'
+                                  }}>
+                                    {t('bestseller')}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Cart Controls */}
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                {item.variants && item.variants.length > 0 ? (
+                                  <>
+                                    {hasActiveOrders && (
+                                      <button
+                                        className="btn btn-secondary"
+                                        onClick={() => handleOpenVariantModal(item)}
+                                        style={{ padding: '5px 10px', fontSize: 10, fontWeight: 700, height: 28, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+                                      >
+                                        {t('add_on')} {qty > 0 ? `(${qty})` : ''}
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleOpenVariantModal(item)}
+                                      style={{ padding: '5px 12px', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, height: 28, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
+                                    >
+                                      {t('add')} {qty > 0 ? `(${qty})` : ''} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
+                                    </button>
+                                  </>
+                                ) : qty === 0 ? (
+                                  <>
+                                    {hasActiveOrders && (
+                                      <button
+                                        className="btn btn-secondary"
+                                        onClick={() => { handleAddToCart(item); addToast('success', `${item.name} added as add-on! 🛒`); }}
+                                        style={{ padding: '5px 10px', fontSize: 10, fontWeight: 700, height: 28, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+                                      >
+                                        {t('add_on')}
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleAddToCart(item)}
+                                      style={{ padding: '5px 12px', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, height: 28, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
+                                    >
+                                      {t('add')} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', background: 'var(--customer-add-to-cart-bg, #ffffff)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', height: 28 }}>
+                                    <button
+                                      onClick={() => handleDecrement(item.id)}
+                                      style={{ width: 26, height: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--customer-add-to-cart-text, #000000)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    >−</button>
+                                    <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--customer-add-to-cart-text, #000000)', minWidth: 16, textAlign: 'center' }}>{qty}</span>
+                                    <button
+                                      onClick={() => handleIncrement(item.id, item.name, item.price)}
+                                      style={{ width: 26, height: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--customer-add-to-cart-text, #000000)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    >+</button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>

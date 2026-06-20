@@ -20,8 +20,8 @@ function AppInner() {
   if (state.isLoading) return <SplashScreen />;
 
   // Route to customer view if URL param present
-  if (viewParam === 'customer' && tableParam) {
-    return <CustomerLayout tableId={tableParam} />;
+  if (viewParam === 'customer') {
+    return <CustomerLayout tableId={tableParam || 'table-1'} />;
   }
 
   // Admin view

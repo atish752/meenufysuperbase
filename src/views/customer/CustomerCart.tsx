@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, getActiveRestaurantInfo } from '../../context/RealtimeStore';
+import { useStore, getActiveRestaurantInfo, getActiveRestaurantId } from '../../context/RealtimeStore';
 import type { Order } from '../../context/RealtimeStore';
 import { ShoppingBag, Trash2, ArrowRight, ChevronUp, MapPin, Check, X, Loader2 } from 'lucide-react';
 import { hasFirebaseConfig, auth, googleProvider } from '../../utils/firebase';
@@ -37,8 +37,7 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
 export default function CustomerCart() {
   const { state, dispatch, addToast } = useStore();
   
-  const urlParams = new URLSearchParams(window.location.search);
-  const restaurantId = urlParams.get('restaurant') || 'admin-1';
+  const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
 
   const [open, setOpen] = useState(false);

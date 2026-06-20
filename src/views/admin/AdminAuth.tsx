@@ -69,13 +69,26 @@ export default function AdminAuth() {
         }
 
         const fbUser = userCredential.user;
-        const adminId = fbUser.uid;
+        const fbEmail = fbUser.email?.trim().toLowerCase() || '';
+        
+        let resolvedAdminId = fbUser.uid;
+        if (fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477') {
+          resolvedAdminId = 'admin-1';
+        } else {
+          const existingAccount = state.restaurantAccounts?.find(
+            acc => acc.id === fbUser.uid || 
+            acc.ownerEmail.trim().toLowerCase() === fbEmail
+          );
+          if (existingAccount) {
+            resolvedAdminId = existingAccount.id;
+          }
+        }
 
-        // Block check
-        const existingAccount = state.restaurantAccounts?.find(
-          acc => acc.id === adminId || acc.ownerEmail.trim().toLowerCase() === emailLower
+        const existingAccountForBlock = state.restaurantAccounts?.find(
+          acc => acc.id === resolvedAdminId || 
+          acc.ownerEmail.trim().toLowerCase() === fbEmail
         );
-        if (existingAccount && existingAccount.status === 'blocked') {
+        if (existingAccountForBlock && existingAccountForBlock.status === 'blocked') {
           addToast('error', '❌ Your account has been blocked. Please contact support@meenufy.com');
           setLoading(false);
           await auth.signOut();
@@ -83,10 +96,10 @@ export default function AdminAuth() {
         }
 
         const adminUser = {
-          id: adminId,
+          id: resolvedAdminId,
           name: form.name || fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
           email: fbUser.email || form.email,
-          restaurantId: adminId,
+          restaurantId: resolvedAdminId,
           isLoggedIn: true,
         };
 
@@ -114,7 +127,8 @@ export default function AdminAuth() {
 
     // 3. Fallback Local storage authentication
     const existingAccount = state.restaurantAccounts?.find(
-      acc => acc.ownerEmail.trim().toLowerCase() === emailLower
+      acc => acc.ownerEmail.trim().toLowerCase() === emailLower ||
+      (acc.ownerEmail.trim().toLowerCase() === 'atish3477' && emailLower === 'atish3477@gmail.com')
     );
 
     if (existingAccount) {
@@ -141,7 +155,10 @@ export default function AdminAuth() {
       }
     }
 
-    const adminId = existingAccount ? existingAccount.id : `admin-${Date.now()}`;
+    let adminId = existingAccount ? existingAccount.id : `admin-${Date.now()}`;
+    if (emailLower === 'atish3477' || emailLower === 'atish3477@gmail.com') {
+      adminId = 'admin-1';
+    }
     const adminUser = {
       id: adminId,
       name: existingAccount ? existingAccount.ownerName : (form.name || form.email.split('@')[0]),
@@ -170,11 +187,21 @@ export default function AdminAuth() {
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
       const adminId = fbUser.uid;
-      const emailLower = fbUser.email?.trim().toLowerCase() || '';
+      const fbEmail = fbUser.email?.trim().toLowerCase() || '';
 
+      let resolvedAdminId = adminId;
       const existingAccount = state.restaurantAccounts?.find(
-        acc => acc.id === adminId || acc.ownerEmail.trim().toLowerCase() === emailLower
+        acc => acc.id === adminId || 
+        acc.ownerEmail.trim().toLowerCase() === fbEmail ||
+        ((fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477') && (acc.id === 'admin-1' || acc.ownerEmail.trim().toLowerCase() === 'atish3477'))
       );
+
+      if (fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477') {
+        resolvedAdminId = 'admin-1';
+      } else if (existingAccount) {
+        resolvedAdminId = existingAccount.id;
+      }
+
       if (existingAccount && existingAccount.status === 'blocked') {
         addToast('error', '❌ Your account has been blocked. Please contact support@meenufy.com');
         setLoading(false);
@@ -183,10 +210,10 @@ export default function AdminAuth() {
       }
 
       const adminUser = {
-        id: adminId,
+        id: resolvedAdminId,
         name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
         email: fbUser.email || '',
-        restaurantId: adminId,
+        restaurantId: resolvedAdminId,
         isLoggedIn: true,
       };
 

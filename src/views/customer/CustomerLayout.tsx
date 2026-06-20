@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { useStore } from '../../context/RealtimeStore';
+import { useStore, getActiveRestaurantId } from '../../context/RealtimeStore';
+import { hasFirebaseConfig } from '../../utils/firebase';
 import CustomerHome from './CustomerHome';
 import CustomerMenu from './CustomerMenu';
 import CustomerOrders from './CustomerOrders';
@@ -43,9 +44,9 @@ export default function CustomerLayout({ tableId }: Props) {
     dispatch({ type: 'SET_CUSTOMER_TABLE', payload: tableId });
     dispatch({ type: 'SET_VIEW', payload: 'customer' });
 
-    // Clear cart if scanning a different restaurant
+    // Always derive restaurantId from URL params (most reliable - doesn't depend on admin login state)
     const urlParams = new URLSearchParams(window.location.search);
-    const rId = urlParams.get('restaurant') || 'admin-1';
+    const rId = urlParams.get('restaurant') || getActiveRestaurantId(state);
     const prevRestaurantId = localStorage.getItem('meenufy_active_restaurant_id');
     if (prevRestaurantId && prevRestaurantId !== rId) {
       dispatch({ type: 'CLEAR_CART' });
@@ -249,6 +250,24 @@ export default function CustomerLayout({ tableId }: Props) {
       height: '100dvh', background: 'var(--customer-bg-override, var(--bg-primary))',
       maxWidth: 480, margin: '0 auto', position: 'relative',
     }}>
+      {!hasFirebaseConfig && (
+        <div style={{
+          background: '#d97706',
+          color: '#fff',
+          padding: '8px 16px',
+          textAlign: 'center',
+          fontSize: '11px',
+          fontWeight: 600,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
+          flexShrink: 0
+        }}>
+          <span>⚠️ Demo Mode (Firebase Offline): Restart local server to save changes.</span>
+        </div>
+      )}
       {notificationPermission === 'default' && (
         <div style={{
           background: 'linear-gradient(135deg, rgba(255,125,0,0.15) 0%, rgba(255,125,0,0.05) 100%)',

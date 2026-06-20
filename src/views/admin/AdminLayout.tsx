@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
+import { hasFirebaseConfig } from '../../utils/firebase';
 import AdminAuth from './AdminAuth';
 import AdminHome from './AdminHome';
 import AdminMenu from './AdminMenu';
@@ -66,27 +67,48 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="app-layout" style={{ height: '100dvh' }}>
-      {/* Desktop Sidebar */}
-      <div className="desktop-only">
-        <AdminSidebar />
-      </div>
-
-      {/* Page Content */}
-      <div className="page-content" style={{ paddingBottom: 80 }}>
-        <div className="desktop-only" style={{ paddingBottom: 0 }}>
-          {/* desktop doesn't need bottom padding */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
+      {!hasFirebaseConfig && (
+        <div style={{
+          background: '#e11d48',
+          color: '#fff',
+          padding: '10px 16px',
+          textAlign: 'center',
+          fontSize: '13px',
+          fontWeight: 600,
+          zIndex: 9999,
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          flexShrink: 0
+        }}>
+          <span>⚠️ Firebase Offline: Local dev server was not restarted since creating the .env file. Please stop your dev server (Ctrl+C) and start it again with `npm run dev`.</span>
         </div>
-        {renderTab()}
-      </div>
+      )}
+      <div className="app-layout" style={{ flex: 1, minHeight: 0 }}>
+        {/* Desktop Sidebar */}
+        <div className="desktop-only">
+          <AdminSidebar />
+        </div>
 
-      {/* Mobile Bottom Nav */}
-      <div className="mobile-only">
-        <AdminBottomNav />
-      </div>
+        {/* Page Content */}
+        <div className="page-content" style={{ paddingBottom: 80 }}>
+          <div className="desktop-only" style={{ paddingBottom: 0 }}>
+            {/* desktop doesn't need bottom padding */}
+          </div>
+          {renderTab()}
+        </div>
 
-      {/* New Order Alert overlay */}
-      {state.newOrderAlert && <NewOrderAlert order={state.newOrderAlert} />}
+        {/* Mobile Bottom Nav */}
+        <div className="mobile-only">
+          <AdminBottomNav />
+        </div>
+
+        {/* New Order Alert overlay */}
+        {state.newOrderAlert && <NewOrderAlert order={state.newOrderAlert} />}
+      </div>
     </div>
   );
 }
