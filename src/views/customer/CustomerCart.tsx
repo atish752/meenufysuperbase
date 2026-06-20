@@ -285,8 +285,10 @@ export default function CustomerCart() {
       {/* Floating Cart Button */}
       {!open && (
         <div style={{
-          position: 'absolute', bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))', left: 16, right: 16,
+          position: 'fixed', bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))', left: 16, right: 16,
           zIndex: 200,
+          maxWidth: 448,
+          margin: '0 auto',
         }}>
           <button
             className="btn btn-primary btn-full"
@@ -349,11 +351,11 @@ export default function CustomerCart() {
       {/* Cart Drawer */}
       {open && (
         <div style={{
-          position: 'absolute', inset: 0, zIndex: 300,
+          position: 'fixed', inset: 0, zIndex: 300,
           background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
         }} onClick={e => e.target === e.currentTarget && setOpen(false)}>
           <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
+            position: 'fixed', bottom: 0, left: 0, right: 0,
             background: 'var(--bg-secondary)',
             borderRadius: '24px 24px 0 0',
             border: '1px solid var(--border-elevated)',

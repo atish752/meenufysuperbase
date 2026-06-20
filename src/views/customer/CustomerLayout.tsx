@@ -318,7 +318,7 @@ export default function CustomerLayout({ tableId }: Props) {
         <div
           onClick={() => setShowStatusModal(true)}
           style={{
-            position: 'absolute',
+            position: 'fixed',
             bottom: `calc(${(cartCount > 0 ? 142 : 82)}px + env(safe-area-inset-bottom, 0px))`,
             right: 16,
             zIndex: 200,

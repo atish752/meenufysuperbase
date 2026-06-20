@@ -607,15 +607,19 @@ input, textarea, select {
   height: 100vh;
   height: 100dvh;
 }
-.customer-layout-container .bottom-nav {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 480px;
-}
-.customer-layout-container .modal-backdrop {
-  position: absolute;
+
+/* On desktop, center the bottom nav and modal inside the 480px container */
+@media (min-width: 481px) {
+  .customer-layout-container .bottom-nav {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+  }
+  .customer-layout-container .modal-backdrop {
+    position: absolute;
+  }
 }
 
 .bottom-nav-item {
