@@ -249,6 +249,7 @@ export default function CustomerLayout({ tableId }: Props) {
       display: 'flex', flexDirection: 'column',
       height: '100dvh', background: 'var(--customer-bg-override, var(--bg-primary))',
       maxWidth: 480, margin: '0 auto', position: 'relative',
+      overflow: 'hidden',
     }}>
       {!hasFirebaseConfig && (
         <div style={{
