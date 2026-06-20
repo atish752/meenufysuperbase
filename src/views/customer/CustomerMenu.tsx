@@ -301,9 +301,9 @@ export default function CustomerMenu() {
         </div>
 
         {/* Lower Row: Category Filter Row (2 horizontal scrolling rows) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', minWidth: 0 }}>
           {/* Row 1 */}
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, width: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="hide-scrollbar">
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, width: '100%', maxWidth: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="hide-scrollbar">
             {row1.map(cat => {
               const isSelected = selectedCat === cat.id;
               return (
@@ -328,7 +328,7 @@ export default function CustomerMenu() {
             })}
           </div>
           {/* Row 2 */}
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, width: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="hide-scrollbar">
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, width: '100%', maxWidth: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="hide-scrollbar">
             {row2.map(cat => {
               const isSelected = selectedCat === cat.id;
               return (
@@ -450,6 +450,9 @@ export default function CustomerMenu() {
                                 fontWeight: 500,
                                 color: 'var(--customer-item-name-color, var(--brand))',
                                 lineHeight: 1.2,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis'
                               }}>
@@ -478,7 +481,7 @@ export default function CustomerMenu() {
                             )}
 
                             {/* Bottom Row: Price, Rating, Cart controls */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 'auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
                                   <span className="item-price-tag" style={{ lineHeight: 1.1 }}>
@@ -698,6 +701,9 @@ export default function CustomerMenu() {
                                 fontWeight: 500,
                                 color: 'var(--customer-item-name-color, var(--brand))',
                                 lineHeight: 1.2,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis'
                               }}>
@@ -725,7 +731,7 @@ export default function CustomerMenu() {
                             )}
 
                             {/* Bottom Row: Price, Rating, Cart controls */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 'auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
                                   <span className="item-price-tag" style={{ lineHeight: 1.1 }}>

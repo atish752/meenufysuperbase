@@ -114,7 +114,7 @@ export default function CustomerOrders({ tableId }: Props) {
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease', paddingBottom: 80 }}>
       {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>My Orders</h2>
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{filteredOrders.length} order(s) shown</p>
@@ -137,8 +137,9 @@ export default function CustomerOrders({ tableId }: Props) {
         flexDirection: 'column',
         gap: 8,
         borderBottom: '1px solid var(--border)',
+        minWidth: 0,
       }}>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, width: '100%', maxWidth: '100%', scrollbarWidth: 'none' }} className="hide-scrollbar">
           {[
             { key: 'all', label: 'All Orders' },
             { key: 'today', label: 'Today' },
@@ -303,7 +304,7 @@ function OrderStatusCard({ order }: { order: Order }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'right' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'right', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--brand)' }}>₹{order.totalAmount}</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{order.items.length} items</div>
