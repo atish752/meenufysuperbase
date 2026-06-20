@@ -259,6 +259,7 @@ export default function CustomerLayout({ tableId }: Props) {
     <div className="customer-layout-container" style={{
       display: 'flex', flexDirection: 'column',
       height: 'var(--app-height, 100dvh)',
+      width: '100%',
       background: 'var(--customer-bg-override, var(--bg-primary))',
       maxWidth: 480, margin: '0 auto', position: 'relative',
       overflow: 'hidden',
@@ -318,7 +319,15 @@ export default function CustomerLayout({ tableId }: Props) {
       )}
 
       {/* Page */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 'calc(68px + env(safe-area-inset-bottom, 0px))' }}>
+      <div style={{ 
+        flex: 1, 
+        minHeight: 0, 
+        overflowY: 'auto', 
+        overflowX: 'hidden',
+        width: '100%',
+        maxWidth: '100%',
+        paddingBottom: 'calc(68px + env(safe-area-inset-bottom, 0px))' 
+      }}>
         {renderTab()}
       </div>
 

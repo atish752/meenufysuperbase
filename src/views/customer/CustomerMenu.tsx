@@ -164,7 +164,13 @@ export default function CustomerMenu() {
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease', paddingBottom: 80 }}>
+    <div style={{ 
+      animation: 'fadeIn 0.3s ease', 
+      paddingBottom: 80,
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden'
+    }}>
       {isLimitExceeded && (
         <div style={{
           background: 'rgba(239, 68, 68, 0.1)',
@@ -195,7 +201,10 @@ export default function CustomerMenu() {
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
-        borderBottom: '1px solid var(--border)'
+        borderBottom: '1px solid var(--border)',
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box'
       }}>
         {/* Upper Filter Row */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

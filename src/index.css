@@ -604,6 +604,7 @@ input, textarea, select {
 
 /* Customer container overrides to keep floating elements centered inside 480px width */
 .customer-layout-container {
+  width: 100%;
   height: 100dvh; /* dvh fallback if JS hasn't run yet */
   height: var(--app-height, 100dvh); /* JS-measured actual window.innerHeight - fixes Android Chrome dvh bug */
 }

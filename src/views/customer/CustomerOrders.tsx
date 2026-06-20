@@ -95,7 +95,13 @@ export default function CustomerOrders({ tableId }: Props) {
 
   if (myOrders.length === 0) {
     return (
-      <div style={{ padding: 20, textAlign: 'center', paddingTop: 60 }}>
+      <div style={{ 
+        padding: 20, 
+        textAlign: 'center', 
+        paddingTop: 60,
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>🍽️</div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 8 }}>No Orders Yet</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
@@ -112,7 +118,15 @@ export default function CustomerOrders({ tableId }: Props) {
   }
 
   return (
-    <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease', paddingBottom: 80 }}>
+    <div style={{ 
+      padding: '20px', 
+      animation: 'fadeIn 0.3s ease', 
+      paddingBottom: 80,
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      overflowX: 'hidden'
+    }}>
       {/* Page Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div>
