@@ -292,20 +292,20 @@ export default function AdminHome() {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Wallet Balance Display - Clickable */}
+          {/* Subscription Plan Display - Clickable */}
           <button
             onClick={() => {
               localStorage.setItem('meenufy_admin_more_section', 'subscription');
               dispatch({ type: 'SET_ADMIN_TAB', payload: 'more' });
             }}
             style={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
+              background: 'var(--brand)',
+              border: 'none',
               borderRadius: 12,
               padding: '8px 14px',
               fontSize: 13,
               fontWeight: 800,
-              color: 'var(--brand)',
+              color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
@@ -313,10 +313,10 @@ export default function AdminHome() {
               cursor: 'pointer',
               transition: 'var(--transition)',
             }}
-            title="Go to Wallet & Pricing settings"
+            title="Go to Subscription & Pricing settings"
           >
-            <span>👛</span>
-            <span>₹{state.walletBalance}</span>
+            <span>⭐️</span>
+            <span style={{ textTransform: 'capitalize', color: '#ffffff' }}>{state.subscriptionPlan} Plan</span>
           </button>
 
           <button

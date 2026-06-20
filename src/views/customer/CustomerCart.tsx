@@ -40,6 +40,12 @@ export default function CustomerCart() {
   const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
 
+  const activeAccount = state.restaurantAccounts?.find(acc => acc.id === restaurantId);
+  const plan = activeAccount?.subscriptionPlan || 'free';
+  const usage = activeAccount?.ordersPlacedThisMonth || 0;
+  const limit = plan === 'free' ? 100 : plan === 'base' ? 1000 : plan === 'standard' ? 2000 : Infinity;
+  const isLimitExceeded = usage >= limit;
+
   const [open, setOpen] = useState(false);
   const [googleUser, setGoogleUser] = useState<{ name: string; email: string; phone: string } | null>(() => {
     const raw = localStorage.getItem('meenufy_customer_google_user');
@@ -668,7 +674,30 @@ export default function CustomerCart() {
                 </div>
               </div>
 
-              {restaurant.mustLoginBeforeOrder && !googleUser ? (
+              {isLimitExceeded ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: 'var(--error)',
+                    borderRadius: 12,
+                    padding: 12,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    lineHeight: 1.5,
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    textAlign: 'center'
+                  }}>
+                    ⚠️ Checkout is temporarily unavailable as this restaurant has reached its monthly order capacity limit. Please contact the administrator.
+                  </div>
+                  <button
+                    className="btn btn-secondary btn-full btn-lg"
+                    disabled={true}
+                    style={{ cursor: 'not-allowed', opacity: 0.6 }}
+                  >
+                    Ordering Unavailable
+                  </button>
+                </div>
+              ) : restaurant.mustLoginBeforeOrder && !googleUser ? (
                 <button
                   className="btn btn-full btn-lg"
                   onClick={handleGoogleSignIn}

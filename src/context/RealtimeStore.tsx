@@ -12,6 +12,32 @@ import {
   onValue 
 } from 'firebase/database';
 
+export function detectBillingCountry(): 'IN' | 'global' {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (
+      tz === 'Asia/Kolkata' || 
+      tz === 'Asia/Calcutta' || 
+      tz.toLowerCase().includes('kolkata') || 
+      tz.toLowerCase().includes('calcutta') ||
+      tz.toLowerCase().includes('india') ||
+      tz.toLowerCase().includes('delhi') ||
+      tz.toLowerCase().includes('mumbai') ||
+      tz.toLowerCase().includes('chennai')
+    ) {
+      return 'IN';
+    }
+  } catch (e) {}
+  
+  try {
+    if (new Date().getTimezoneOffset() === -330) {
+      return 'IN';
+    }
+  } catch (e) {}
+
+  return 'global';
+}
+
 // ─── Types ──────────────────────────────────────────────────
 export type MenuCategory = {
   id: string;
@@ -160,6 +186,11 @@ export type RestaurantAccount = {
   status: 'active' | 'blocked';
   createdAt: number;
   password?: string;
+  subscriptionPlan?: 'free' | 'base' | 'standard' | 'advance';
+  ordersPlacedThisMonth?: number;
+  subscriptionRenewalDate?: number;
+  billingCountry?: 'IN' | 'global';
+  billingPeriod?: 'monthly' | 'yearly';
 };
 
 export type SupportRequest = {
@@ -240,6 +271,12 @@ export type AppState = {
   // Wallet
   walletBalance: number;
   walletTransactions: WalletTransaction[];
+  // Subscription
+  subscriptionPlan: 'free' | 'base' | 'standard' | 'advance';
+  ordersPlacedThisMonth: number;
+  subscriptionRenewalDate: number;
+  billingCountry: 'IN' | 'global';
+  billingPeriod: 'monthly' | 'yearly';
   // Restaurant Accounts (Super Admin)
   restaurantAccounts: RestaurantAccount[];
   // Gemini API Keys & Support / Feedback
@@ -617,6 +654,11 @@ const DEFAULT_STATE: AppState = {
       createdAt: Date.now() - 3 * 24 * 60 * 60 * 1000
     }
   ],
+  subscriptionPlan: 'free',
+  ordersPlacedThisMonth: 0,
+  subscriptionRenewalDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
+  billingCountry: detectBillingCountry(),
+  billingPeriod: 'monthly',
   restaurantAccounts: [
     {
       id: 'admin-1',
@@ -628,6 +670,10 @@ const DEFAULT_STATE: AppState = {
       status: 'active' as const,
       createdAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
       password: 'atish3477',
+      subscriptionPlan: 'free',
+      ordersPlacedThisMonth: 12,
+      subscriptionRenewalDate: Date.now() + 15 * 24 * 60 * 60 * 1000,
+      billingCountry: 'IN'
     },
     {
       id: 'admin-2',
@@ -639,6 +685,10 @@ const DEFAULT_STATE: AppState = {
       status: 'active' as const,
       createdAt: Date.now() - 15 * 24 * 60 * 60 * 1000,
       password: 'priya@cafedelight.com',
+      subscriptionPlan: 'base',
+      ordersPlacedThisMonth: 145,
+      subscriptionRenewalDate: Date.now() + 20 * 24 * 60 * 60 * 1000,
+      billingCountry: 'IN'
     },
     {
       id: 'admin-3',
@@ -650,6 +700,10 @@ const DEFAULT_STATE: AppState = {
       status: 'active' as const,
       createdAt: Date.now() - 45 * 24 * 60 * 60 * 1000,
       password: 'amit@biryanihouse.com',
+      subscriptionPlan: 'standard',
+      ordersPlacedThisMonth: 890,
+      subscriptionRenewalDate: Date.now() + 5 * 24 * 60 * 60 * 1000,
+      billingCountry: 'IN'
     },
     {
       id: 'admin-4',
@@ -661,6 +715,10 @@ const DEFAULT_STATE: AppState = {
       status: 'blocked' as const,
       createdAt: Date.now() - 60 * 24 * 60 * 60 * 1000,
       password: 'vikram@pizzerianapoli.in',
+      subscriptionPlan: 'advance',
+      ordersPlacedThisMonth: 1250,
+      subscriptionRenewalDate: Date.now() + 2 * 24 * 60 * 60 * 1000,
+      billingCountry: 'global'
     }
   ],
   geminiApiKeys: [
@@ -749,6 +807,8 @@ type Action =
   | { type: 'SUPER_ADMIN_TOP_UP'; payload: { email: string; amount: number } }
   | { type: 'SUPER_ADMIN_DEDUCT'; payload: { email: string; amount: number } }
   | { type: 'SUPER_ADMIN_TOGGLE_BLOCK'; payload: { email: string } }
+  | { type: 'UPDATE_SUBSCRIPTION_PLAN'; payload: { planName: 'free' | 'base' | 'standard' | 'advance'; billingPeriod: 'monthly' | 'yearly' } }
+  | { type: 'SUPER_ADMIN_UPDATE_SUBSCRIPTION'; payload: { id: string; subscriptionPlan: 'free' | 'base' | 'standard' | 'advance'; ordersPlacedThisMonth: number; subscriptionRenewalDate: number; billingCountry: 'IN' | 'global'; billingPeriod: 'monthly' | 'yearly' } }
   | { type: 'ADD_GEMINI_KEY'; payload: string }
   | { type: 'REMOVE_GEMINI_KEY'; payload: string }
   | { type: 'SUBMIT_SUPPORT_REQUEST'; payload: { message: string; attemptsCount: number } }
@@ -814,16 +874,32 @@ function reducer(state: AppState, action: Action): AppState {
       const accounts = action.payload;
       const currentAdmin = state.admin;
       let activeBalance = state.walletBalance;
+      let subscriptionPlan = state.subscriptionPlan;
+      let ordersPlacedThisMonth = state.ordersPlacedThisMonth;
+      let subscriptionRenewalDate = state.subscriptionRenewalDate;
+      let billingCountry = state.billingCountry;
+      let billingPeriod = state.billingPeriod;
+      
       if (currentAdmin && !currentAdmin.isSuperAdmin) {
         const matched = accounts.find(acc => acc.id === currentAdmin.id);
         if (matched) {
           activeBalance = matched.walletBalance;
+          subscriptionPlan = matched.subscriptionPlan || 'free';
+          ordersPlacedThisMonth = matched.ordersPlacedThisMonth || 0;
+          subscriptionRenewalDate = matched.subscriptionRenewalDate || (matched.createdAt + 30 * 24 * 60 * 60 * 1000);
+          billingCountry = matched.billingCountry || detectBillingCountry();
+          billingPeriod = matched.billingPeriod || 'monthly';
         }
       }
       return {
         ...state,
         restaurantAccounts: accounts,
-        walletBalance: activeBalance
+        walletBalance: activeBalance,
+        subscriptionPlan,
+        ordersPlacedThisMonth,
+        subscriptionRenewalDate,
+        billingCountry,
+        billingPeriod
       };
     }
     case 'SET_ADMIN_TAB': return { ...state, adminTab: action.payload };
@@ -847,6 +923,9 @@ function reducer(state: AppState, action: Action): AppState {
         acc => acc.ownerEmail.trim().toLowerCase() === email.trim().toLowerCase()
       );
       
+      // Determine default country based on timezone
+      const detectedCountry = detectBillingCountry();
+      
       if (!isSuper && !existingAccount) {
         existingAccount = {
           id: action.payload.id,
@@ -857,19 +936,34 @@ function reducer(state: AppState, action: Action): AppState {
           walletBalance: 300,
           status: 'active',
           createdAt: Date.now(),
-          password: action.payload.password
+          password: action.payload.password,
+          subscriptionPlan: 'free',
+          ordersPlacedThisMonth: 0,
+          subscriptionRenewalDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          billingCountry: detectedCountry,
+          billingPeriod: 'monthly'
         };
         newAccounts.push(existingAccount);
       }
       
       const activeBalance = existingAccount ? existingAccount.walletBalance : state.walletBalance;
+      const subscriptionPlan = existingAccount ? (existingAccount.subscriptionPlan || 'free') : state.subscriptionPlan;
+      const ordersPlacedThisMonth = existingAccount ? (existingAccount.ordersPlacedThisMonth || 0) : state.ordersPlacedThisMonth;
+      const subscriptionRenewalDate = existingAccount ? (existingAccount.subscriptionRenewalDate || (Date.now() + 30 * 24 * 60 * 60 * 1000)) : state.subscriptionRenewalDate;
+      const billingCountry = existingAccount ? (existingAccount.billingCountry || detectedCountry) : state.billingCountry;
+      const billingPeriod = existingAccount ? (existingAccount.billingPeriod || 'monthly') : state.billingPeriod;
       
       return { 
         ...state, 
         admin: action.payload, 
         isAdminLoggedIn: true,
         restaurantAccounts: newAccounts,
-        walletBalance: isSuper ? state.walletBalance : activeBalance
+        walletBalance: isSuper ? state.walletBalance : activeBalance,
+        subscriptionPlan,
+        ordersPlacedThisMonth,
+        subscriptionRenewalDate,
+        billingCountry,
+        billingPeriod
       };
     }
     case 'LOGOUT_ADMIN': return { ...state, admin: null, isAdminLoggedIn: false };
@@ -952,49 +1046,34 @@ function reducer(state: AppState, action: Action): AppState {
           isVip: false,
         });
       }
-      return { ...state, orders: newOrders, customers, newOrderAlert: action.payload };
+      
+      const orderRestId = action.payload.restaurantId || state.admin?.id || 'admin-1';
+      const newAccounts = state.restaurantAccounts.map(acc => {
+        if (acc.id === orderRestId) {
+          return {
+            ...acc,
+            ordersPlacedThisMonth: (acc.ordersPlacedThisMonth || 0) + 1
+          };
+        }
+        return acc;
+      });
+      const isCurrent = state.admin && state.admin.id === orderRestId;
+      
+      return { 
+        ...state, 
+        orders: newOrders, 
+        customers, 
+        newOrderAlert: action.payload,
+        restaurantAccounts: newAccounts,
+        ordersPlacedThisMonth: isCurrent ? state.ordersPlacedThisMonth + 1 : state.ordersPlacedThisMonth
+      };
     }
     case 'UPDATE_ORDER_STATUS': {
       const orderId = action.payload.id;
       const targetStatus = action.payload.status;
-      const targetOrder = state.orders.find(o => o.id === orderId);
-      
-      let newBalance = state.walletBalance;
-      let newTransactions = state.walletTransactions;
-      let newAccounts = state.restaurantAccounts;
-      
-      if (targetStatus === 'served' && targetOrder && targetOrder.status !== 'served') {
-        newBalance -= 1;
-        newTransactions = [
-          {
-            id: `tx-deduct-${Date.now()}`,
-            amount: 1,
-            type: 'deduction',
-            description: `Order #${orderId.slice(-4).toUpperCase()} marked as served/delivered`,
-            createdAt: Date.now()
-          },
-          ...state.walletTransactions
-        ];
-        
-        if (state.admin && state.admin.email) {
-          newAccounts = state.restaurantAccounts.map(acc => {
-            if (acc.ownerEmail === state.admin!.email) {
-              return {
-                ...acc,
-                walletBalance: Math.max(0, acc.walletBalance - 1)
-              };
-            }
-            return acc;
-          });
-        }
-      }
-      
       return {
         ...state,
-        orders: state.orders.map(o => o.id === orderId ? { ...o, status: targetStatus, updatedAt: Date.now() } : o),
-        walletBalance: newBalance,
-        walletTransactions: newTransactions,
-        restaurantAccounts: newAccounts
+        orders: state.orders.map(o => o.id === orderId ? { ...o, status: targetStatus, updatedAt: Date.now() } : o)
       };
     }
     case 'UPDATE_ORDER_PAYMENT': return {
@@ -1218,6 +1297,60 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         restaurantAccounts: newAccounts,
         ...(shouldLogout ? { admin: null, isAdminLoggedIn: false } : {})
+      };
+    }
+    case 'UPDATE_SUBSCRIPTION_PLAN': {
+      const { planName, billingPeriod } = action.payload;
+      const targetId = state.admin?.id || 'admin-1';
+      const days = billingPeriod === 'yearly' ? 365 : 30;
+      const newRenewalDate = Date.now() + days * 24 * 60 * 60 * 1000;
+      
+      const newAccounts = state.restaurantAccounts.map(acc => {
+        if (acc.id === targetId) {
+          return {
+            ...acc,
+            subscriptionPlan: planName,
+            subscriptionRenewalDate: newRenewalDate,
+            billingPeriod
+          };
+        }
+        return acc;
+      });
+      
+      return {
+        ...state,
+        subscriptionPlan: planName,
+        subscriptionRenewalDate: newRenewalDate,
+        billingPeriod,
+        restaurantAccounts: newAccounts
+      };
+    }
+    case 'SUPER_ADMIN_UPDATE_SUBSCRIPTION': {
+      const { id, subscriptionPlan, ordersPlacedThisMonth, subscriptionRenewalDate, billingCountry, billingPeriod } = action.payload;
+      const newAccounts = state.restaurantAccounts.map(acc => {
+        if (acc.id === id) {
+          return {
+            ...acc,
+            subscriptionPlan,
+            ordersPlacedThisMonth,
+            subscriptionRenewalDate,
+            billingCountry,
+            billingPeriod
+          };
+        }
+        return acc;
+      });
+      const isCurrent = state.admin && state.admin.id === id;
+      return {
+        ...state,
+        restaurantAccounts: newAccounts,
+        ...(isCurrent ? {
+          subscriptionPlan,
+          ordersPlacedThisMonth,
+          subscriptionRenewalDate,
+          billingCountry,
+          billingPeriod
+        } : {})
       };
     }
     case 'ADD_GEMINI_KEY':
@@ -1578,6 +1711,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           type: 'SYNC_RESTAURANT_ACCOUNTS',
           payload: accounts
         });
+
+        // Write detected country back to Firebase if it doesn't have it set yet
+        const curAdmin = stateRef.current.admin;
+        if (curAdmin && !curAdmin.isSuperAdmin && db) {
+          const dbAcc = accounts.find(a => a.id === curAdmin.id);
+          if (dbAcc && !dbAcc.billingCountry) {
+            const detected = detectBillingCountry();
+            update(ref(db, `restaurantAccounts/${curAdmin.id}`), {
+              billingCountry: detected
+            }).catch(e => console.error("Failed to sync billingCountry back to DB:", e));
+          }
+        }
       }
     });
 
@@ -1787,6 +1932,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               })),
               'Failed to place order in database'
             );
+            
+            // Increment ordersPlacedThisMonth on restaurantAccounts
+            const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === orderRestId);
+            const currentOrders = matchedAcc?.ordersPlacedThisMonth || 0;
+            update(ref(db, `restaurantAccounts/${orderRestId}`), {
+              ordersPlacedThisMonth: currentOrders + 1
+            }).catch(e => console.error('Failed to increment order count:', e));
+            
             break;
           }
           case 'UPDATE_ORDER_STATUS': {
@@ -1909,22 +2062,78 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             break;
           case 'LOGIN_ADMIN': {
             if (!action.payload.isSuperAdmin) {
+              const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === action.payload.id);
+              
+              // Geolocation detection fallback
+              const detectedCountry = detectBillingCountry();
+              
               const accountData = {
                 id: action.payload.id,
                 ownerName: action.payload.name,
                 ownerEmail: action.payload.email,
                 ownerPhone: currentState.restaurant.phone || '+91 99999 88888',
                 restaurantName: currentState.restaurant.name,
-                walletBalance: 300,
-                status: 'active',
-                createdAt: Date.now(),
-                ...(action.payload.password ? { password: action.payload.password } : {})
+                walletBalance: matchedAcc ? (matchedAcc.walletBalance ?? 300) : 300,
+                status: matchedAcc ? (matchedAcc.status ?? 'active') : 'active',
+                createdAt: matchedAcc ? (matchedAcc.createdAt ?? Date.now()) : Date.now(),
+                ...(action.payload.password ? { password: action.payload.password } : {}),
+                subscriptionPlan: matchedAcc ? (matchedAcc.subscriptionPlan ?? 'free') : 'free',
+                ordersPlacedThisMonth: matchedAcc ? (matchedAcc.ordersPlacedThisMonth ?? 0) : 0,
+                subscriptionRenewalDate: matchedAcc ? (matchedAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
+                billingCountry: matchedAcc ? (matchedAcc.billingCountry ?? detectedCountry) : detectedCountry,
+                billingPeriod: matchedAcc ? (matchedAcc.billingPeriod ?? 'monthly') : 'monthly'
               };
+              
               handleDbPromise(
                 update(ref(db, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData)),
                 'Failed to update restaurant account'
               );
+              
+              // Re-evaluate geolocation dynamically on every login/signin
+              fetch('https://ipapi.co/json/')
+                .then(res => res.json())
+                .then(data => {
+                  if (data && data.country_code) {
+                    const finalCountry = data.country_code === 'IN' ? 'IN' : 'global';
+                    // Update in database if it differs or wasn't set yet
+                    if (!matchedAcc || matchedAcc.billingCountry !== finalCountry) {
+                      update(ref(db!, `restaurantAccounts/${action.payload.id}`), {
+                        billingCountry: finalCountry
+                      });
+                    }
+                  }
+                })
+                .catch(() => {});
             }
+            break;
+          }
+          case 'UPDATE_SUBSCRIPTION_PLAN': {
+            const targetId = currentState.admin?.id || 'admin-1';
+            const { planName, billingPeriod } = action.payload;
+            const days = billingPeriod === 'yearly' ? 365 : 30;
+            const renewal = Date.now() + days * 24 * 60 * 60 * 1000;
+            handleDbPromise(
+              update(ref(db, `restaurantAccounts/${targetId}`), {
+                subscriptionPlan: planName,
+                subscriptionRenewalDate: renewal,
+                billingPeriod
+              }),
+              'Failed to update subscription plan in database'
+            );
+            break;
+          }
+          case 'SUPER_ADMIN_UPDATE_SUBSCRIPTION': {
+            const { id, subscriptionPlan, ordersPlacedThisMonth, subscriptionRenewalDate, billingCountry, billingPeriod } = action.payload;
+            handleDbPromise(
+              update(ref(db, `restaurantAccounts/${id}`), {
+                subscriptionPlan,
+                ordersPlacedThisMonth,
+                subscriptionRenewalDate,
+                billingCountry,
+                billingPeriod
+              }),
+              'Failed to update subscription in database (Super Admin)'
+            );
             break;
           }
           case 'SUPER_ADMIN_TOP_UP':

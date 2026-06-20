@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
-  Coins, LogOut, Mail, Phone, Store, Calendar,
-  Check, ShieldAlert, Plus, Minus, Trash2, Send, Key
+  LogOut, Mail, Phone, Store, Calendar,
+  Check, ShieldAlert, Plus, Trash2, Send, Key
 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
   const { state, dispatch, addToast } = useStore();
   const [selectedAccountEmail, setSelectedAccountEmail] = useState<string | null>(null);
-  const [adjustAmount, setAdjustAmount] = useState('100');
-  const [adjustType, setAdjustType] = useState<'topup' | 'deduct'>('topup');
-  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [managePlan, setManagePlan] = useState<'free' | 'base' | 'standard' | 'advance'>('free');
+  const [manageOrdersPlaced, setManageOrdersPlaced] = useState(0);
+  const [manageRenewalDate, setManageRenewalDate] = useState('');
+  const [manageCountry, setManageCountry] = useState<'IN' | 'global'>('global');
+  const [manageBillingPeriod, setManageBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
+  const [showManageModal, setShowManageModal] = useState(false);
 
   // Tabs and replies
   const [activeTab, setActiveTab] = useState<'accounts' | 'api_keys' | 'support' | 'feedback'>('accounts');
@@ -23,42 +27,45 @@ export default function SuperAdminDashboard() {
     addToast('info', 'Super Admin logged out.');
   };
 
-  const handleOpenAdjustModal = (email: string, type: 'topup' | 'deduct') => {
-    setSelectedAccountEmail(email);
-    setAdjustType(type);
-    setAdjustAmount(type === 'topup' ? '500' : '100');
-    setShowAdjustModal(true);
+  const handleOpenManageModal = (acc: any) => {
+    setSelectedAccountId(acc.id);
+    setSelectedAccountEmail(acc.ownerEmail);
+    setManagePlan(acc.subscriptionPlan || 'free');
+    setManageOrdersPlaced(acc.ordersPlacedThisMonth || 0);
+    setManageCountry(acc.billingCountry || 'global');
+    setManageBillingPeriod(acc.billingPeriod || 'monthly');
+    
+    // Format renewal date for input type="date"
+    const renewalMs = acc.subscriptionRenewalDate || (acc.createdAt + 30 * 24 * 60 * 60 * 1000);
+    const dateStr = new Date(renewalMs).toISOString().split('T')[0];
+    setManageRenewalDate(dateStr);
+    
+    setShowManageModal(true);
   };
 
-  const handleApplyAdjustment = () => {
-    const amt = parseFloat(adjustAmount);
-    if (isNaN(amt) || amt <= 0) {
-      addToast('error', 'Please enter a valid amount.');
+  const handleApplySubscriptionUpdate = () => {
+    if (!selectedAccountId) return;
+    
+    const renewalMs = new Date(manageRenewalDate).getTime();
+    if (isNaN(renewalMs)) {
+      addToast('error', 'Please enter a valid renewal date.');
       return;
     }
-
-    if (adjustType === 'topup') {
-      dispatch({
-        type: 'SUPER_ADMIN_TOP_UP',
-        payload: { email: selectedAccountEmail!, amount: amt }
-      });
-      addToast('success', `Added ₹${amt} to ${selectedAccountEmail}'s wallet!`);
-    } else {
-      dispatch({
-        type: 'SUPER_ADMIN_DEDUCT',
-        payload: { email: selectedAccountEmail!, amount: amt }
-      });
-      addToast('success', `Deducted ₹${amt} from ${selectedAccountEmail}'s wallet!`);
-    }
-    setShowAdjustModal(false);
-  };
-
-  const handleQuickTopUp = (email: string, amt: number) => {
+    
     dispatch({
-      type: 'SUPER_ADMIN_TOP_UP',
-      payload: { email, amount: amt }
+      type: 'SUPER_ADMIN_UPDATE_SUBSCRIPTION',
+      payload: {
+        id: selectedAccountId,
+        subscriptionPlan: managePlan,
+        ordersPlacedThisMonth: Number(manageOrdersPlaced),
+        subscriptionRenewalDate: renewalMs,
+        billingCountry: manageCountry,
+        billingPeriod: manageBillingPeriod
+      }
     });
-    addToast('success', `Quick Top Up of ₹${amt} applied to ${email}!`);
+    
+    addToast('success', `Updated subscription details for ${selectedAccountEmail}!`);
+    setShowManageModal(false);
   };
 
   const handleToggleBlock = (email: string) => {
@@ -136,11 +143,9 @@ export default function SuperAdminDashboard() {
 
   // Stats calculations
   const accounts = state.restaurantAccounts || [];
-  const totalLiability = accounts.reduce((sum, a) => sum + a.walletBalance, 0);
+  const totalOrders = accounts.reduce((sum, a) => sum + (a.ordersPlacedThisMonth || 0), 0);
   const activeCount = accounts.filter(a => a.status === 'active').length;
   const blockedCount = accounts.filter(a => a.status === 'blocked').length;
-
-  const targetAccount = accounts.find(a => a.ownerEmail === selectedAccountEmail);
 
   return (
     <div style={{
@@ -229,12 +234,12 @@ export default function SuperAdminDashboard() {
             width: 42, height: 42, borderRadius: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)'
           }}>
-            <Coins size={20} />
+            <Check size={20} />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total System Liability</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total System Orders</div>
             <div style={{ fontSize: 24, fontWeight: 800, fontFamily: 'var(--font-display)', marginTop: 2, color: 'var(--success)' }}>
-              ₹{totalLiability.toLocaleString('en-IN')}
+              {totalOrders.toLocaleString()}
             </div>
           </div>
         </div>
@@ -341,7 +346,7 @@ export default function SuperAdminDashboard() {
                     <th style={{ padding: '12px 16px', fontWeight: 600 }}>Restaurant &amp; Owner</th>
                     <th style={{ padding: '12px 16px', fontWeight: 600 }}>Contact Details</th>
                     <th style={{ padding: '12px 16px', fontWeight: 600 }}>Registered On</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Wallet Balance</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Subscription Plan</th>
                     <th style={{ padding: '12px 16px', fontWeight: 600 }}>Status</th>
                     <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
                   </tr>
@@ -376,19 +381,15 @@ export default function SuperAdminDashboard() {
                       </td>
 
                       <td style={{ padding: '16px 16px' }}>
-                        <span style={{
-                          fontWeight: 800,
-                          fontSize: 16,
-                          fontFamily: 'var(--font-display)',
-                          color: acc.walletBalance <= 30 ? 'var(--error)' : 'var(--success)'
-                        }}>
-                          ₹{acc.walletBalance}
-                        </span>
-                        {acc.walletBalance <= 30 && (
-                          <span style={{
-                            display: 'block', fontSize: 10, color: 'var(--error)', fontWeight: 600, marginTop: 2
-                          }}>Low balance</span>
-                        )}
+                        <div style={{ fontWeight: 800, fontSize: 14, textTransform: 'capitalize', color: 'var(--text-primary)' }}>
+                          {acc.subscriptionPlan || 'free'}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                          Usage: {acc.ordersPlacedThisMonth || 0} / {acc.subscriptionPlan === 'free' ? 100 : acc.subscriptionPlan === 'base' ? 1000 : acc.subscriptionPlan === 'standard' ? 2000 : 'Unlimited'}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                          Region: {acc.billingCountry === 'IN' ? 'India' : 'Global'} ({acc.billingPeriod === 'yearly' ? 'Yearly' : 'Monthly'})
+                        </div>
                       </td>
 
                       <td style={{ padding: '16px 16px' }}>
@@ -414,45 +415,13 @@ export default function SuperAdminDashboard() {
                       <td style={{ padding: '16px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                           <button
-                            onClick={() => handleQuickTopUp(acc.ownerEmail, 300)}
+                            onClick={() => handleOpenManageModal(acc)}
                             className="btn btn-secondary btn-sm"
                             style={{
-                              fontSize: 11, fontWeight: 700, borderColor: 'var(--border)', color: 'var(--success)', padding: '4px 8px'
-                            }}
-                            title="Quick add ₹300 allowance"
-                          >
-                            +₹300
-                          </button>
-
-                          <button
-                            onClick={() => handleQuickTopUp(acc.ownerEmail, 1000)}
-                            className="btn btn-secondary btn-sm"
-                            style={{
-                              fontSize: 11, fontWeight: 700, borderColor: 'var(--border)', color: 'var(--success)', padding: '4px 8px'
-                            }}
-                            title="Quick add ₹1000"
-                          >
-                            +₹1000
-                          </button>
-
-                          <button
-                            onClick={() => handleOpenAdjustModal(acc.ownerEmail, 'topup')}
-                            className="btn btn-sm"
-                            style={{
-                              background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', fontSize: 11, border: 'none', padding: '4px 8px', fontWeight: 600
+                              fontSize: 11, fontWeight: 700, borderColor: 'var(--border)', color: 'var(--brand)', padding: '4px 10px'
                             }}
                           >
-                            <Plus size={12} style={{ marginRight: 2 }} /> Topup
-                          </button>
-
-                          <button
-                            onClick={() => handleOpenAdjustModal(acc.ownerEmail, 'deduct')}
-                            className="btn btn-sm"
-                            style={{
-                              background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', fontSize: 11, border: 'none', padding: '4px 8px', fontWeight: 600
-                            }}
-                          >
-                            <Minus size={12} style={{ marginRight: 2 }} /> Deduct
+                            Manage Plan
                           </button>
 
                           <button
@@ -759,16 +728,16 @@ export default function SuperAdminDashboard() {
 
       </div>
 
-      {/* Adjust Wallet Balance Modal */}
-      {showAdjustModal && targetAccount && (
-        <div className="modal-backdrop" onClick={() => setShowAdjustModal(false)} style={{ zIndex: 1100 }}>
-          <div className="modal-content" style={{ maxWidth: 400, padding: 20 }} onClick={(e) => e.stopPropagation()}>
+      {/* Manage Subscription Plan Modal */}
+      {showManageModal && selectedAccountId && (
+        <div className="modal-backdrop" onClick={() => setShowManageModal(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: 420, padding: 20 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 16 }}>
               <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, margin: 0 }}>
-                {adjustType === 'topup' ? 'Add Funds to Wallet' : 'Deduct Funds from Wallet'}
+                Manage Subscription Plan
               </h3>
               <button
-                onClick={() => setShowAdjustModal(false)}
+                onClick={() => setShowManageModal(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 16 }}
               >
                 ✕
@@ -776,49 +745,105 @@ export default function SuperAdminDashboard() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Target Restaurant</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
-                {targetAccount.restaurantName}
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Target Restaurant</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
+                {accounts.find(a => a.id === selectedAccountId)?.restaurantName}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                {targetAccount.ownerEmail} · Current: <strong>₹{targetAccount.walletBalance}</strong>
+                {selectedAccountEmail}
               </div>
             </div>
 
-            <div className="input-group" style={{ marginBottom: 20 }}>
-              <label className="input-label">Adjustment Amount (₹)</label>
+            {/* Plan selection */}
+            <div className="input-group" style={{ marginBottom: 14 }}>
+              <label className="input-label">Subscription Plan</label>
+              <select
+                className="input"
+                value={managePlan}
+                onChange={e => setManagePlan(e.target.value as any)}
+                style={{ fontSize: 13, fontWeight: 600, height: 36, padding: '4px 8px' }}
+              >
+                <option value="free">Free Trial (100 orders/mo)</option>
+                <option value="base">Base Plan (1000 orders/mo)</option>
+                <option value="standard">Standard Plan (2000 orders/mo)</option>
+                <option value="advance">Advance Plan (Unlimited)</option>
+              </select>
+            </div>
+
+            {/* Orders Placed */}
+            <div className="input-group" style={{ marginBottom: 14 }}>
+              <label className="input-label">Orders Placed This Month</label>
               <input
                 className="input"
                 type="number"
-                min="1"
-                placeholder="Enter amount in ₹"
-                value={adjustAmount}
-                onChange={e => setAdjustAmount(e.target.value)}
-                style={{ fontSize: 16, fontWeight: 600 }}
+                min="0"
+                value={manageOrdersPlaced}
+                onChange={e => setManageOrdersPlaced(Number(e.target.value))}
+                style={{ fontSize: 13, fontWeight: 600, height: 36 }}
+              />
+            </div>
+
+            {/* Billing Country */}
+            <div className="input-group" style={{ marginBottom: 14 }}>
+              <label className="input-label">Billing Region</label>
+              <select
+                className="input"
+                value={manageCountry}
+                onChange={e => setManageCountry(e.target.value as any)}
+                style={{ fontSize: 13, fontWeight: 600, height: 36, padding: '4px 8px' }}
+              >
+                <option value="IN">India (INR plans)</option>
+                <option value="global">Global (USD plans)</option>
+              </select>
+            </div>
+
+            {/* Billing Cycle */}
+            <div className="input-group" style={{ marginBottom: 14 }}>
+              <label className="input-label">Billing Cycle</label>
+              <select
+                className="input"
+                value={manageBillingPeriod}
+                onChange={e => setManageBillingPeriod(e.target.value as any)}
+                style={{ fontSize: 13, fontWeight: 600, height: 36, padding: '4px 8px' }}
+              >
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+
+            {/* Renewal Date */}
+            <div className="input-group" style={{ marginBottom: 20 }}>
+              <label className="input-label">Renewal Date</label>
+              <input
+                className="input"
+                type="date"
+                value={manageRenewalDate}
+                onChange={e => setManageRenewalDate(e.target.value)}
+                style={{ fontSize: 13, fontWeight: 600, height: 36 }}
               />
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={() => setShowAdjustModal(false)}
+                onClick={() => setShowManageModal(false)}
                 className="btn btn-secondary"
                 style={{ flex: 1, height: 38 }}
               >
                 Cancel
               </button>
               <button
-                onClick={handleApplyAdjustment}
+                onClick={handleApplySubscriptionUpdate}
                 className="btn btn-primary"
                 style={{
                   flex: 1,
                   height: 38,
-                  background: adjustType === 'topup' ? '#22c55e' : 'var(--error)',
+                  background: 'var(--brand)',
                   color: '#fff',
                   border: 'none',
                   boxShadow: 'none'
                 }}
               >
-                {adjustType === 'topup' ? 'Add Funds' : 'Deduct Funds'}
+                Save Changes
               </button>
             </div>
           </div>

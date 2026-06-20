@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
   TrendingUp, ShoppingBag, Users, DollarSign, HelpCircle,
-  Award, Activity, BarChart3, UtensilsCrossed, Coins
+  Award, Activity, BarChart3, UtensilsCrossed, CreditCard
 } from 'lucide-react';
 
 function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
@@ -307,27 +307,20 @@ export default function AdminAnalysis() {
     avgTime: stats.countTime > 0 ? Math.round(stats.sumTime / (stats.countTime * 1000 * 60)) : 18
   }));
 
-  // Wallet spending calculations
-  const deductions = state.walletTransactions.filter(tx => tx.type === 'deduction');
+  // Subscription order usage calculations
   const nowMs = Date.now();
   
-  const walletSpentToday = deductions
-    .filter(tx => {
-      const d = new Date(tx.createdAt);
+  const ordersToday = state.orders
+    .filter(o => {
+      const d = new Date(o.createdAt);
       return d.toDateString() === today.toDateString();
-    })
-    .reduce((sum, tx) => sum + tx.amount, 0);
+    }).length;
 
-  const walletSpentThisWeek = deductions
-    .filter(tx => (nowMs - tx.createdAt) <= 7 * 24 * 60 * 60 * 1000)
-    .reduce((sum, tx) => sum + tx.amount, 0);
+  const ordersThisWeek = state.orders
+    .filter(o => (nowMs - o.createdAt) <= 7 * 24 * 60 * 60 * 1000).length;
 
-  const walletSpentThisMonth = deductions
-    .filter(tx => (nowMs - tx.createdAt) <= 30 * 24 * 60 * 60 * 1000)
-    .reduce((sum, tx) => sum + tx.amount, 0);
-
-  const walletSpentLifetime = deductions
-    .reduce((sum, tx) => sum + tx.amount, 0);
+  const ordersThisMonth = state.ordersPlacedThisMonth || 0;
+  const planLimit = state.subscriptionPlan === 'free' ? 100 : state.subscriptionPlan === 'base' ? 1000 : state.subscriptionPlan === 'standard' ? 2000 : Infinity;
 
   // Chart Data Calculations (Dynamic Grouping based on Timeframe)
   const salesGrouped: Record<string, number> = {};
@@ -575,9 +568,9 @@ export default function AdminAnalysis() {
       {/* Subscription Wallet Spending */}
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <Coins size={18} color="var(--brand)" />
+          <CreditCard size={18} color="var(--brand)" />
           <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0, fontFamily: 'var(--font-display)' }}>
-            Subscription Wallet Spending
+            Subscription Order Usage
           </h3>
         </div>
         
@@ -587,32 +580,34 @@ export default function AdminAnalysis() {
           gap: 12
         }}>
           <div style={{ background: 'var(--bg-elevated)', padding: '12px', borderRadius: 10, border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Spent Today</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Orders Today</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>
-              ₹{walletSpentToday}
+              {ordersToday}
             </div>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{walletSpentToday} orders served</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Placed today</div>
           </div>
           <div style={{ background: 'var(--bg-elevated)', padding: '12px', borderRadius: 10, border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Spent This Week</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Orders This Week</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>
-              ₹{walletSpentThisWeek}
+              {ordersThisWeek}
             </div>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Last 7 days</div>
           </div>
           <div style={{ background: 'var(--bg-elevated)', padding: '12px', borderRadius: 10, border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Spent This Month</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Orders This Month</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>
-              ₹{walletSpentThisMonth}
+              {ordersThisMonth}
             </div>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Last 30 days</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>In current cycle</div>
           </div>
           <div style={{ background: 'var(--bg-elevated)', padding: '12px', borderRadius: 10, border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Spent Lifetime</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Plan Limit</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--brand)', marginTop: 4 }}>
-              ₹{walletSpentLifetime}
+              {planLimit === Infinity ? 'Unlimited' : planLimit}
             </div>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Total order fees</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
+              Plan: <span style={{ textTransform: 'capitalize' }}>{state.subscriptionPlan}</span>
+            </div>
           </div>
         </div>
       </div>

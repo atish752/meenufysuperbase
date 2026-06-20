@@ -55,6 +55,11 @@ export default function CustomerMenu() {
   };
 
   const restaurantId = getActiveRestaurantId(state);
+  const activeAccount = state.restaurantAccounts?.find(acc => acc.id === restaurantId);
+  const plan = activeAccount?.subscriptionPlan || 'free';
+  const usage = activeAccount?.ordersPlacedThisMonth || 0;
+  const limit = plan === 'free' ? 100 : plan === 'base' ? 1000 : plan === 'standard' ? 2000 : Infinity;
+  const isLimitExceeded = usage >= limit;
 
   const restaurantCategories = state.categories.filter(c => c.restaurantId === restaurantId);
   const allCategoriesList = [{ id: 'all', name: 'All', icon: '🍽️' }, ...restaurantCategories];
@@ -111,6 +116,10 @@ export default function CustomerMenu() {
   });
 
   const handleAddToCart = (item: MenuItem) => {
+    if (isLimitExceeded) {
+      addToast('error', 'Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.');
+      return;
+    }
     if (item.variants && item.variants.length > 0) {
       handleOpenVariantModal(item);
       return;
@@ -124,6 +133,10 @@ export default function CustomerMenu() {
   };
 
   const handleIncrement = (itemId: string, name: string, price: number) => {
+    if (isLimitExceeded) {
+      addToast('error', 'Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.');
+      return;
+    }
     const item = state.menuItems.find(i => i.id === itemId);
     if (item && item.variants && item.variants.length > 0) {
       handleOpenVariantModal(item);
@@ -152,6 +165,25 @@ export default function CustomerMenu() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease', paddingBottom: 80 }}>
+      {isLimitExceeded && (
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          color: 'var(--error)',
+          padding: '12px 16px',
+          fontSize: '13px',
+          fontWeight: 600,
+          borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          justifyContent: 'center',
+          textAlign: 'center',
+          animation: 'fadeIn 0.3s ease',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+        }}>
+          ⚠️ Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.
+        </div>
+      )}
       {/* Header and filters section */}
       <div style={{
         padding: '16px 16px 10px',
