@@ -603,6 +603,10 @@ input, textarea, select {
 }
 
 /* Customer container overrides to keep floating elements centered inside 480px width */
+.customer-layout-container {
+  height: 100vh;
+  height: 100dvh;
+}
 .customer-layout-container .bottom-nav {
   position: absolute;
   left: 50%;
@@ -806,17 +810,17 @@ input, textarea, select {
 }
 
 .item-price-tag {
-  background: var(--customer-add-to-cart-bg, #ffffff);
-  color: var(--customer-add-to-cart-text, #000000);
+  background: transparent;
+  color: var(--text-primary);
   border: none;
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 0;
+  border-radius: 0;
   font-weight: 800;
-  font-size: 12.5px;
+  font-size: 14.5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   letter-spacing: -0.02em;
   white-space: nowrap;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }

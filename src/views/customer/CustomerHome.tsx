@@ -655,16 +655,15 @@ function FeaturedCard({
         {/* Bottom Row: Price, Rating, Cart controls */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 'auto' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span className="item-price-tag">
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+              <span className="item-price-tag" style={{ lineHeight: 1.1 }}>
                 {item.variants && item.variants.length > 0 ? `From ₹${item.price}` : `₹${item.price}`}
               </span>
               
               {/* Star Rating */}
-              <span style={{ fontSize: 9.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span style={{ fontSize: 9.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 1, lineHeight: 1 }}>
                 <span style={{ color: '#f59e0b' }}>★</span>
-                <span>{getRatingDetails(item.id).rating}</span>
-                <span>({getRatingDetails(item.id).reviews})</span>
+                <span>{getRatingDetails(item.id).rating} ({getRatingDetails(item.id).reviews})</span>
               </span>
             </div>
             
