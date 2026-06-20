@@ -604,8 +604,8 @@ input, textarea, select {
 
 /* Customer container overrides to keep floating elements centered inside 480px width */
 .customer-layout-container {
-  height: 100vh;
-  height: 100dvh;
+  height: 100dvh; /* dvh fallback if JS hasn't run yet */
+  height: var(--app-height, 100dvh); /* JS-measured actual window.innerHeight - fixes Android Chrome dvh bug */
 }
 
 /* On desktop, center the bottom nav and modal inside the 480px container */

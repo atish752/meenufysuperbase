@@ -55,6 +55,17 @@ export default function CustomerLayout({ tableId }: Props) {
     localStorage.setItem('meenufy_active_restaurant_id', rId);
   }, [tableId]);
 
+  // Track the REAL viewport height via window.innerHeight (100dvh is unreliable on Android Chrome)
+  // and expose it as --app-height CSS variable for the container to use.
+  useEffect(() => {
+    const setAppHeight = () => {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+    setAppHeight(); // Set immediately on mount
+    window.addEventListener('resize', setAppHeight);
+    return () => window.removeEventListener('resize', setAppHeight);
+  }, []);
+
   const table = state.tables.find(t => t.id === tableId);
 
   // Retrieve current user's phone identifier or guest fallback ID from localStorage
@@ -247,7 +258,8 @@ export default function CustomerLayout({ tableId }: Props) {
   return (
     <div className="customer-layout-container" style={{
       display: 'flex', flexDirection: 'column',
-      height: '100dvh', maxHeight: '100dvh', background: 'var(--customer-bg-override, var(--bg-primary))',
+      height: 'var(--app-height, 100dvh)',
+      background: 'var(--customer-bg-override, var(--bg-primary))',
       maxWidth: 480, margin: '0 auto', position: 'relative',
       overflow: 'hidden',
     }}>
