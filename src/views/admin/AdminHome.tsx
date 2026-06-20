@@ -36,6 +36,18 @@ if (typeof document !== 'undefined' && !document.getElementById(BLINK_STYLE_ID))
 export default function AdminHome() {
   const { state, dispatch, addToast } = useStore();
 
+  const [isTabularView, setIsTabularView] = useState(() => {
+    return typeof window !== 'undefined' && localStorage.getItem('meenufy_admin_orders_tabular_view') === 'true';
+  });
+
+  const toggleTabularView = () => {
+    setIsTabularView(prev => {
+      const next = !prev;
+      localStorage.setItem('meenufy_admin_orders_tabular_view', String(next));
+      return next;
+    });
+  };
+
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'denied'
   );
@@ -282,16 +294,65 @@ export default function AdminHome() {
       )}
 
       {/* Page Header */}
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 800 }}>
+          <h1 style={{ fontSize: 24, fontFamily: 'var(--font-display)', fontWeight: 900, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '-0.02em' }}>
             Orders Board
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             Manage your daily restaurant flow
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          {/* Tabular View Switcher Button */}
+          <button
+            onClick={toggleTabularView}
+            className="btn btn-secondary"
+            style={{
+              height: 38,
+              borderRadius: 12,
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: isTabularView ? 'var(--brand-dim)' : 'var(--bg-elevated)',
+              border: isTabularView ? '2px solid var(--brand)' : '1px solid var(--border)',
+              color: isTabularView ? 'var(--brand)' : 'var(--text-primary)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              padding: '0 14px'
+            }}
+          >
+            📋 {isTabularView ? 'Kanban View' : 'Tabular View'}
+          </button>
+
+          {/* Must login before Toggle */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: '6px 12px',
+            fontSize: 12,
+            height: 38,
+            boxShadow: 'var(--shadow-sm)',
+          }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Customer must login</span>
+            <div 
+              className={`toggle ${state.restaurant.mustLoginBeforeOrder ? 'on' : ''}`} 
+              onClick={() => dispatch({
+                type: 'UPDATE_RESTAURANT',
+                payload: { mustLoginBeforeOrder: !state.restaurant.mustLoginBeforeOrder }
+              })}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="toggle-thumb" />
+            </div>
+          </div>
+
           {/* Subscription Plan Display - Clickable */}
           <button
             onClick={() => {
@@ -302,13 +363,14 @@ export default function AdminHome() {
               background: 'var(--brand)',
               border: 'none',
               borderRadius: 12,
-              padding: '8px 14px',
-              fontSize: 13,
+              padding: '0 14px',
+              fontSize: 12,
               fontWeight: 800,
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
+              height: 38,
               boxShadow: 'var(--shadow-sm)',
               cursor: 'pointer',
               transition: 'var(--transition)',
@@ -319,6 +381,7 @@ export default function AdminHome() {
             <span style={{ textTransform: 'capitalize', color: '#ffffff' }}>{state.subscriptionPlan} Plan</span>
           </button>
 
+          {/* Theme switcher */}
           <button
             onClick={() => {
               dispatch({ type: 'TOGGLE_ADMIN_THEME' });
@@ -345,89 +408,121 @@ export default function AdminHome() {
         </div>
       </div>
 
-      {/* Kanban Board of Active Orders */}
+      {/* Active Orders Section */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{
-          display: 'flex',
-          gap: 16,
-          overflowX: 'auto',
-          paddingBottom: 12,
-          minHeight: 520,
-          alignItems: 'flex-start',
-        }}>
-          {[
-            { status: 'pending', label: 'New Order', color: '#f59e0b', list: activeOrders.filter(o => o.status === 'pending') },
-            { status: 'preparing', label: 'Preparing', color: '#a855f7', list: activeOrders.filter(o => o.status === 'preparing') },
-            { status: 'ready', label: 'Ready', color: '#22c55e', list: activeOrders.filter(o => o.status === 'ready') },
-            { status: 'bill_pay', label: 'Bill & Pay', color: '#3b82f6', list: activeOrders.filter(o => o.status === 'bill_pay') },
-          ].map(col => (
-            <div
-              key={col.status}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                const orderId = e.dataTransfer.getData('text/plain');
-                if (orderId) {
-                  handleUpdateStatus(orderId, col.status as OrderStatus);
-                }
-              }}
-              style={{
-                flex: 1,
-                minWidth: 280,
+        {isTabularView ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, animation: 'fadeIn 0.3s ease' }}>
+            {activeOrders.length === 0 ? (
+              <div style={{
+                padding: 40,
+                textAlign: 'center',
                 background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
+                border: '1px dashed var(--border)',
                 borderRadius: 12,
-                padding: 14,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
-                alignSelf: 'stretch',
-              }}
-            >
-              {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
-                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>{col.label}</span>
-                </div>
-                <span style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>
-                  {col.list.length}
-                </span>
+                color: 'var(--text-muted)'
+              }}>
+                No active orders at the moment.
               </div>
-
-              {/* Card List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, overflowY: 'auto', maxHeight: '650px', minHeight: 420 }}>
-                {col.list.length === 0 ? (
-                  <div style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '2px dashed var(--border)',
-                    borderRadius: 8,
-                    color: 'var(--text-muted)',
-                    fontSize: 11,
-                    padding: 24,
-                    textAlign: 'center',
-                  }}>
-                    Drag orders here
+            ) : (
+              [...activeOrders]
+                .sort((a, b) => a.createdAt - b.createdAt)
+                .map(order => (
+                  <TabularOrderRow
+                    key={order.id}
+                    order={order}
+                    onStatusChange={handleUpdateStatus}
+                    onConfirmUpi={handleConfirmUpiPayment}
+                    onConfirmCash={handleConfirmCashPayment}
+                    onConfirmCard={handleConfirmCardPayment}
+                    currency={state.restaurant.currency}
+                  />
+                ))
+            )}
+          </div>
+        ) : (
+          /* Kanban Board of Active Orders */
+          <div style={{
+            display: 'flex',
+            gap: 16,
+            overflowX: 'auto',
+            paddingBottom: 12,
+            minHeight: 520,
+            alignItems: 'flex-start',
+          }}>
+            {[
+              { status: 'pending', label: 'New Order', color: '#f59e0b', list: activeOrders.filter(o => o.status === 'pending') },
+              { status: 'preparing', label: 'Preparing', color: '#a855f7', list: activeOrders.filter(o => o.status === 'preparing') },
+              { status: 'ready', label: 'Ready', color: '#22c55e', list: activeOrders.filter(o => o.status === 'ready') },
+              { status: 'bill_pay', label: 'Bill & Pay', color: '#3b82f6', list: activeOrders.filter(o => o.status === 'bill_pay') },
+            ].map(col => (
+              <div
+                key={col.status}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  const orderId = e.dataTransfer.getData('text/plain');
+                  if (orderId) {
+                    handleUpdateStatus(orderId, col.status as OrderStatus);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 280,
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: 14,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                  alignSelf: 'stretch',
+                }}
+              >
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
+                    <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>{col.label}</span>
                   </div>
-                ) : (
-                  col.list.map(order => (
-                    <OrderCard
-                      key={order.id}
-                      order={order}
-                      onStatusChange={handleUpdateStatus}
-                      onConfirmUpi={handleConfirmUpiPayment}
-                      onConfirmCash={handleConfirmCashPayment}
-                      onConfirmCard={handleConfirmCardPayment}
-                      currency={state.restaurant.currency}
-                    />
-                  ))
-                )}
+                  <span style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>
+                    {col.list.length}
+                  </span>
+                </div>
+
+                {/* Card List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, overflowY: 'auto', maxHeight: '650px', minHeight: 420 }}>
+                  {col.list.length === 0 ? (
+                    <div style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px dashed var(--border)',
+                      borderRadius: 8,
+                      color: 'var(--text-muted)',
+                      fontSize: 11,
+                      padding: 24,
+                      textAlign: 'center',
+                    }}>
+                      Drag orders here
+                    </div>
+                  ) : (
+                    col.list.map(order => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        onStatusChange={handleUpdateStatus}
+                        onConfirmUpi={handleConfirmUpiPayment}
+                        onConfirmCash={handleConfirmCashPayment}
+                        onConfirmCard={handleConfirmCardPayment}
+                        currency={state.restaurant.currency}
+                      />
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Live Table Map */}
@@ -814,6 +909,265 @@ function OrderCard({
               className="btn btn-danger btn-sm"
               onClick={() => onStatusChange(order.id, 'cancelled')}
               style={{ fontSize: 10, padding: '4px 8px', background: 'transparent', border: '1px solid var(--error)', color: 'var(--error)' }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TabularOrderRow({
+  order,
+  onStatusChange,
+  onConfirmUpi,
+  onConfirmCash,
+  onConfirmCard,
+  currency
+}: {
+  order: Order;
+  onStatusChange: (id: string, s: OrderStatus) => void;
+  onConfirmUpi: (id: string) => void;
+  onConfirmCash: (id: string) => void;
+  onConfirmCard: (id: string) => void;
+  currency: string;
+}) {
+  const { state } = useStore();
+  const customer = state.customers.find(c => c.phone === order.customerPhone);
+  const isVip = customer ? !!customer.isVip : false;
+
+  const cfg = STATUS_CONFIG[order.status];
+  const currentIdx = STATUS_ORDER.indexOf(order.status);
+  const nextStatus = currentIdx < STATUS_ORDER.length - 1 ? STATUS_ORDER[currentIdx + 1] : null;
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const elapsedMs = now - order.createdAt;
+  const elapsedMins = elapsedMs / (1000 * 60);
+
+  let timeBg = '#22c55e'; // green
+  let timeColor = '#ffffff';
+  if (elapsedMins > 30) {
+    timeBg = '#ef4444'; // red
+    timeColor = '#ffffff';
+  } else if (elapsedMins > 15) {
+    timeBg = '#eab308'; // yellow
+    timeColor = '#000000';
+  }
+
+  const minVal = Math.floor(elapsedMins);
+  const timeTextStr = `${minVal}m`;
+
+  let timeBlink: string | undefined;
+  if (elapsedMins > 30) {
+    timeBlink = 'blink-red 1s step-end infinite';
+  } else if (elapsedMins > 15) {
+    timeBlink = 'blink-yellow 3s ease-in-out infinite';
+  }
+
+  return (
+    <div style={{
+      background: 'var(--bg-primary)',
+      border: `1px solid var(--border)`,
+      borderLeft: `4px solid ${cfg.color}`,
+      borderRadius: 10,
+      padding: '10px 12px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      fontSize: 12,
+      animation: 'fadeIn 0.25s ease'
+    }}>
+      {/* Top row: Table, Timing, Status Badge */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            fontSize: 12,
+            fontWeight: 800,
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            padding: '2px 8px',
+            borderRadius: 6,
+            color: 'var(--text-primary)'
+          }}>
+            T{order.tableNumber}
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+            #{order.id.slice(-4).toUpperCase()}
+          </span>
+          <span style={{
+            fontSize: 9.5,
+            fontWeight: 800,
+            background: timeBg,
+            color: timeColor,
+            padding: '2px 6px',
+            borderRadius: 4,
+            animation: timeBlink
+          }}>
+            ⏱️ {timeTextStr}
+          </span>
+        </div>
+        
+        {/* Status Badge */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '2px 8px',
+          borderRadius: 99,
+          background: cfg.bgColor,
+          color: cfg.color,
+          fontSize: 9.5,
+          fontWeight: 700
+        }}>
+          <cfg.icon size={9} />
+          {cfg.label}
+        </div>
+      </div>
+
+      {/* Middle row: Customer Info & Meals */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+            {order.customerName || 'Guest'}
+          </span>
+          {isVip && (
+            <span style={{ color: '#ffd700', fontWeight: 800, fontSize: 10, background: 'rgba(255,215,0,0.1)', padding: '1px 4px', borderRadius: 3 }}>
+              👑 VIP
+            </span>
+          )}
+          {order.numberOfGuests && (
+            <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+              ({order.numberOfGuests} guests)
+            </span>
+          )}
+        </div>
+        
+        {/* Items Summary */}
+        <div style={{ color: 'var(--text-secondary)', fontSize: 11.5, lineHeight: 1.4 }}>
+          {order.items.map(item => `${item.qty}x ${item.name}${item.variant ? ` (${item.variant.name})` : ''}`).join(', ')}
+        </div>
+
+        {order.specialNote && (
+          <div style={{ color: 'var(--error)', fontSize: 10.5, fontStyle: 'italic', marginTop: 2 }}>
+            💬 Note: "{order.specialNote}"
+          </div>
+        )}
+      </div>
+
+      {/* Bottom row: Total Amount & Actions */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderTop: '1px dashed var(--border)',
+        paddingTop: 8,
+        marginTop: 2,
+        gap: 12
+      }}>
+        {/* Total Price */}
+        <div>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Total:</span>{' '}
+          <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--brand)' }}>
+            {currency}{order.totalAmount}
+          </span>
+        </div>
+
+        {/* Actions Section */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {order.status === 'bill_pay' ? (
+            order.paymentStatus === 'waiting_confirmation' ? (
+              <div style={{ display: 'flex', gap: 6 }}>
+                {order.paymentMethod === 'upi' && (
+                  <button
+                    onClick={() => onConfirmUpi(order.id)}
+                    className="btn btn-sm"
+                    style={{ background: 'var(--success)', color: '#fff', fontSize: 11, padding: '4px 10px', height: 28, borderRadius: 6 }}
+                  >
+                    Confirm UPI
+                  </button>
+                )}
+                {order.paymentMethod === 'cash' && (
+                  <button
+                    onClick={() => onConfirmCash(order.id)}
+                    className="btn btn-sm"
+                    style={{ background: 'var(--success)', color: '#fff', fontSize: 11, padding: '4px 10px', height: 28, borderRadius: 6 }}
+                  >
+                    Confirm Cash
+                  </button>
+                )}
+                {order.paymentMethod === 'card' && (
+                  <button
+                    onClick={() => onConfirmCard(order.id)}
+                    className="btn btn-sm"
+                    style={{ background: 'var(--success)', color: '#fff', fontSize: 11, padding: '4px 10px', height: 28, borderRadius: 6 }}
+                  >
+                    Confirm Card
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => onConfirmCash(order.id)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: 10, padding: '2px 8px', height: 26, borderRadius: 6 }}
+                >
+                  💵 Cash Paid
+                </button>
+                <button
+                  onClick={() => onConfirmCard(order.id)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: 10, padding: '2px 8px', height: 26, borderRadius: 6 }}
+                >
+                  💳 Card Paid
+                </button>
+              </div>
+            )
+          ) : (
+            nextStatus && (
+              <button
+                onClick={() => onStatusChange(order.id, nextStatus)}
+                className="btn btn-primary btn-sm"
+                style={{
+                  fontSize: 11,
+                  padding: '4px 12px',
+                  height: 28,
+                  borderRadius: 6,
+                  color: '#000',
+                  fontWeight: 700
+                }}
+              >
+                {order.status === 'pending' ? '🍳 Accept Order' : order.status === 'preparing' ? '🛵 Mark Ready' : 'Served'}
+              </button>
+            )
+          )}
+          
+          {/* Cancel Button */}
+          {order.status !== 'served' && (
+            <button
+              onClick={() => {
+                if (confirm('Are you sure you want to cancel this order?')) {
+                  onStatusChange(order.id, 'cancelled');
+                }
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{
+                fontSize: 11,
+                padding: '4px 8px',
+                height: 28,
+                borderRadius: 6,
+                color: 'var(--error)',
+                borderColor: 'rgba(239, 68, 68, 0.2)'
+              }}
             >
               Cancel
             </button>

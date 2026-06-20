@@ -25,6 +25,64 @@ function parseCoordsFromGmaps(url: string): { lat: number; lng: number } | null 
   return null;
 }
 
+function cropImageSource(base64Src: string, ratio: '1:1' | '3:4' | '9:16', maxDim = 800, targetKb = 150): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = base64Src;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      
+      let targetRatio = 1.0;
+      if (ratio === '3:4') targetRatio = 3 / 4;
+      if (ratio === '9:16') targetRatio = 9 / 16;
+
+      // Calculate cropping bounds to match target aspect ratio
+      let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+      const currentRatio = img.width / img.height;
+
+      if (currentRatio > targetRatio) {
+        sWidth = img.height * targetRatio;
+        sx = (img.width - sWidth) / 2;
+      } else if (currentRatio < targetRatio) {
+        sHeight = img.width / targetRatio;
+        sy = (img.height - sHeight) / 2;
+      }
+
+      let targetWidth, targetHeight;
+      if (targetRatio >= 1.0) {
+        targetWidth = Math.min(sWidth, maxDim);
+        targetHeight = targetWidth / targetRatio;
+      } else {
+        targetHeight = Math.min(sHeight, maxDim);
+        targetWidth = targetHeight * targetRatio;
+      }
+
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(base64Src);
+        return;
+      }
+
+      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+
+      let quality = 0.85;
+      let dataUrl = canvas.toDataURL('image/jpeg', quality);
+      const maxBase64Length = Math.round(targetKb * 1024 * 1.34);
+
+      while (dataUrl.length > maxBase64Length && quality > 0.3) {
+        quality -= 0.08;
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
+
+      resolve(dataUrl);
+    };
+    img.onerror = (err) => reject(err);
+  });
+}
+
 export default function AdminMore() {
   const { state, dispatch, addToast } = useStore();
   const [restaurantForm, setRestaurantForm] = useState({ ...state.restaurant });
@@ -44,6 +102,53 @@ export default function AdminMore() {
   const [billingPeriodToggle, setBillingPeriodToggle] = useState<'monthly' | 'yearly'>('monthly');
   const [upgradePrice, setUpgradePrice] = useState(0);
   const [upgradeCurrency, setUpgradeCurrency] = useState('₹');
+
+  const [originalPosterSource, setOriginalPosterSource] = useState<string | null>(null);
+  const [uploadingPoster, setUploadingPoster] = useState(false);
+
+  const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+      addToast('error', 'Please upload an image file.');
+      return;
+    }
+
+    setUploadingPoster(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async (event) => {
+        const base64Src = event.target?.result as string;
+        setOriginalPosterSource(base64Src);
+        
+        // Crop it to current ratio
+        const ratio = restaurantForm.posterRatio || '1:1';
+        const cropped = await cropImageSource(base64Src, ratio);
+        setRestaurantForm(prev => ({ ...prev, posterImage: cropped }));
+        addToast('success', `Poster uploaded & cropped to ${ratio} successfully! 📸`);
+      };
+    } catch (err: any) {
+      console.error(err);
+      addToast('error', `❌ Poster upload failed: ${err.message || err}`);
+    } finally {
+      setUploadingPoster(false);
+    }
+  };
+
+  const handleRatioChange = async (newRatio: '1:1' | '3:4' | '9:16') => {
+    setRestaurantForm(prev => ({ ...prev, posterRatio: newRatio }));
+    if (originalPosterSource) {
+      try {
+        const cropped = await cropImageSource(originalPosterSource, newRatio);
+        setRestaurantForm(prev => ({ ...prev, posterImage: cropped }));
+        addToast('success', `Poster auto-recropped to ${newRatio}! ✂️`);
+      } catch (e) {
+        console.error('Failed to auto-recrop poster:', e);
+      }
+    }
+  };
 
   // Secure payment gateway checkout state
   const [showCheckout, setShowCheckout] = useState(false);
@@ -357,15 +462,73 @@ export default function AdminMore() {
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
               <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Poster Display Settings</h4>
               <div className="input-group" style={{ marginBottom: 12 }}>
-                <label className="input-label">Poster Image URL</label>
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="Paste image URL (e.g. from Unsplash)"
-                  value={restaurantForm.posterImage || ''}
-                  onChange={e => setRestaurantForm({ ...restaurantForm, posterImage: e.target.value })}
-                />
+                <label className="input-label">Poster Image URL / Upload</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Paste image URL or upload photo below"
+                    value={restaurantForm.posterImage || ''}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, posterImage: e.target.value })}
+                    style={{ flex: 1 }}
+                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="file"
+                      id="poster-upload-input"
+                      accept="image/*"
+                      onChange={handlePosterUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <label
+                      htmlFor="poster-upload-input"
+                      className="btn btn-secondary"
+                      style={{
+                        height: 38,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        borderRadius: 10,
+                        fontSize: 12,
+                        padding: '0 12px'
+                      }}
+                    >
+                      {uploadingPoster ? 'Uploading...' : '📁 Upload Photo'}
+                    </label>
+                  </div>
+                </div>
               </div>
+              
+              {restaurantForm.posterImage && (
+                <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
+                  <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Poster Preview</label>
+                  <div style={{
+                    margin: '0 auto',
+                    maxWidth: 160,
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    border: '1px solid var(--border)',
+                    aspectRatio: restaurantForm.posterRatio === '9:16' ? '9 / 16' : (restaurantForm.posterRatio === '3:4' ? '3 / 4' : '1 / 1'),
+                    background: 'var(--bg-elevated)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <img
+                      src={restaurantForm.posterImage}
+                      alt="Poster Preview"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="input-group">
                 <label className="input-label">Poster Aspect Ratio</label>
                 <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
@@ -379,7 +542,7 @@ export default function AdminMore() {
                       <button
                         key={opt.ratio}
                         type="button"
-                        onClick={() => setRestaurantForm({ ...restaurantForm, posterRatio: opt.ratio as any })}
+                        onClick={() => handleRatioChange(opt.ratio as any)}
                         style={{
                           flex: 1,
                           padding: '10px 8px',
