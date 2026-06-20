@@ -53,14 +53,6 @@ export default function CustomerLayout({ tableId }: Props) {
       addToast('info', 'Switched restaurant. Cart has been reset.');
     }
     localStorage.setItem('meenufy_active_restaurant_id', rId);
-
-    // Lock body and html scrolling to prevent mobile viewport dynamic height / stretch issues
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    };
   }, [tableId]);
 
   const table = state.tables.find(t => t.id === tableId);
@@ -255,7 +247,7 @@ export default function CustomerLayout({ tableId }: Props) {
   return (
     <div className="customer-layout-container" style={{
       display: 'flex', flexDirection: 'column',
-      height: '100%', maxHeight: '100%', background: 'var(--customer-bg-override, var(--bg-primary))',
+      height: '100dvh', maxHeight: '100dvh', background: 'var(--customer-bg-override, var(--bg-primary))',
       maxWidth: 480, margin: '0 auto', position: 'relative',
       overflow: 'hidden',
     }}>
