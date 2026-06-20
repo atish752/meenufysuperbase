@@ -161,6 +161,7 @@ export default function CustomerOrders({ tableId }: Props) {
                   border: isSelected ? 'none' : '1px solid var(--border)',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
+                  flexShrink: 0,
                   transition: 'all 0.2s',
                 }}
               >
