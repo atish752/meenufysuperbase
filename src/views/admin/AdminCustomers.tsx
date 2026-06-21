@@ -121,6 +121,33 @@ export default function AdminCustomers() {
             <Gift size={16} />
             Loyalty Settings
           </button>
+
+          {/* Clear All Customers Button */}
+          <button
+            onClick={() => {
+              if (window.confirm(
+                `⚠️ Are you sure you want to clear ALL ${state.customers.length} customer records?\n\nThis will permanently delete all customer data from the database and cannot be undone.`
+              )) {
+                dispatch({ type: 'CLEAR_ALL_CUSTOMERS' });
+                addToast('success', '🗑️ All customer records cleared successfully.');
+              }
+            }}
+            className="btn btn-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 14px',
+              fontSize: 13,
+              color: 'var(--error)',
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+            }}
+            title="Clear all customer records from database"
+          >
+            <X size={16} />
+            Clear All
+          </button>
+
           <button
             onClick={() => {
               dispatch({ type: 'TOGGLE_ADMIN_THEME' });

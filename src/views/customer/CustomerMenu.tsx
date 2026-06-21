@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, useTranslation, getActiveRestaurantId } from '../../context/RealtimeStore';
+import { useStore, useTranslation, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import type { MenuItem } from '../../context/RealtimeStore';
 import { Search, X } from 'lucide-react';
 
@@ -55,11 +55,14 @@ export default function CustomerMenu() {
   };
 
   const restaurantId = getActiveRestaurantId(state);
-  const activeAccount = state.restaurantAccounts?.find(acc => acc.id === restaurantId);
-  const plan = activeAccount?.subscriptionPlan || 'free';
-  const usage = activeAccount?.ordersPlacedThisMonth || 0;
+  const restaurant = getActiveRestaurantInfo(state, restaurantId);
+  const plan = restaurant.subscriptionPlan || 'free';
+  const usage = restaurant.ordersPlacedThisMonth || 0;
   const limit = plan === 'free' ? 100 : plan === 'base' ? 1000 : plan === 'standard' ? 2000 : Infinity;
-  const isLimitExceeded = usage >= limit;
+  const allowNegative = restaurant.allowNegativeOrders || false;
+
+  const isLimitExceeded = usage >= limit + 100 || (usage >= limit && !allowNegative);
+  const isHardLimitReached = usage >= limit + 100;
 
   const restaurantCategories = state.categories.filter(c => c.restaurantId === restaurantId);
   const allCategoriesList = [{ id: 'all', name: 'All', icon: '🍽️' }, ...restaurantCategories];
@@ -117,7 +120,10 @@ export default function CustomerMenu() {
 
   const handleAddToCart = (item: MenuItem) => {
     if (isLimitExceeded) {
-      addToast('error', 'Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.');
+      addToast('error', isHardLimitReached
+        ? 'Ordering is temporarily unavailable: waiting for the restaurant owner to recharge us...'
+        : 'Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.'
+      );
       return;
     }
     if (item.variants && item.variants.length > 0) {
@@ -134,7 +140,10 @@ export default function CustomerMenu() {
 
   const handleIncrement = (itemId: string, name: string, price: number) => {
     if (isLimitExceeded) {
-      addToast('error', 'Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.');
+      addToast('error', isHardLimitReached
+        ? 'Ordering is temporarily unavailable: waiting for the restaurant owner to recharge us...'
+        : 'Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.'
+      );
       return;
     }
     const item = state.menuItems.find(i => i.id === itemId);
@@ -187,7 +196,10 @@ export default function CustomerMenu() {
           animation: 'fadeIn 0.3s ease',
           boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
         }}>
-          ⚠️ Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.
+          {isHardLimitReached
+            ? '⚠️ Ordering is temporarily unavailable: waiting for the restaurant owner to recharge us...'
+            : '⚠️ Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.'
+          }
         </div>
       )}
       {/* Header and filters section */}

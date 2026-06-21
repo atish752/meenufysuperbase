@@ -1,0 +1,81 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "restaurants": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "menuItems": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "categories": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "orders": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "tables": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "customers": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "coupons": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "waiterRequests": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "schedules": {
+      "$restaurantId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "meenufy_config": {
+      ".read": true,
+      ".write": true
+    },
+    "restaurantAccounts": {
+      ".read": true,
+      ".write": true
+    },
+    "geminiApiKeys": {
+      ".read": true,
+      ".write": true
+    },
+    "supportRequests": {
+      ".read": true,
+      ".write": true
+    },
+    "ownerFeedbacks": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

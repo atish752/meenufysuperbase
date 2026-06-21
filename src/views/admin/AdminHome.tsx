@@ -1,8 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import type { Order, OrderStatus } from '../../context/RealtimeStore';
-import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench } from 'lucide-react';
+import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search } from 'lucide-react';
 import { triggerNotification } from '../../utils/notifications';
+import { printThermalReceipt } from '../../utils/printReceipt';
+
+
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor: string; icon: any }> = {
   pending: { label: 'New Order', color: '#f59e0b', bgColor: 'rgba(245,158,11,0.15)', icon: Clock },
@@ -46,6 +49,114 @@ export default function AdminHome() {
       localStorage.setItem('meenufy_admin_orders_tabular_view', String(next));
       return next;
     });
+  };
+
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyTimeFilter, setHistoryTimeFilter] = useState<'today' | 'week' | 'month' | 'choose' | 'lifetime'>('today');
+  const [historySelectedMonth, setHistorySelectedMonth] = useState('');
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [historyStartDate, setHistoryStartDate] = useState('');
+  const [historyEndDate, setHistoryEndDate] = useState('');
+
+  // Coupon & Offer Management States
+  const [showCouponsModal, setShowCouponsModal] = useState(false);
+  const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
+  const [couponForm, setCouponForm] = useState({
+    code: '',
+    type: 'flat' as 'flat' | 'percentage',
+    value: '',
+    minOrderAmount: '',
+    isOneTime: false,
+    isActive: true
+  });
+
+  const handleSaveCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponForm.code.trim()) {
+      addToast('error', 'Coupon code is required.');
+      return;
+    }
+    const val = parseFloat(couponForm.value);
+    if (isNaN(val) || val <= 0) {
+      addToast('error', 'Please enter a valid coupon discount value.');
+      return;
+    }
+    const minOrder = parseFloat(couponForm.minOrderAmount);
+
+    const targetRestaurantId = state.admin?.restaurantId || 'admin-1';
+
+    const couponData = {
+      id: editingCouponId || `coup-${Date.now()}`,
+      code: couponForm.code.trim().toUpperCase(),
+      type: couponForm.type,
+      value: val,
+      minOrderAmount: isNaN(minOrder) ? undefined : minOrder,
+      isOneTime: couponForm.isOneTime,
+      isActive: couponForm.isActive,
+      createdAt: Date.now(),
+      restaurantId: targetRestaurantId
+    };
+
+    if (editingCouponId) {
+      dispatch({ type: 'UPDATE_COUPON', payload: couponData });
+      addToast('success', `Coupon ${couponData.code} updated successfully! 🏷️`);
+    } else {
+      // Check if code already exists
+      const exists = state.coupons?.some(c => c.code.toUpperCase() === couponData.code && c.restaurantId === targetRestaurantId);
+      if (exists) {
+        addToast('error', `A coupon with code ${couponData.code} already exists.`);
+        return;
+      }
+      dispatch({ type: 'ADD_COUPON', payload: couponData });
+      addToast('success', `Coupon ${couponData.code} created successfully! 🏷️`);
+    }
+
+    // Reset Form
+    setCouponForm({
+      code: '',
+      type: 'flat',
+      value: '',
+      minOrderAmount: '',
+      isOneTime: false,
+      isActive: true
+    });
+    setEditingCouponId(null);
+  };
+
+  const handleEditCoupon = (coupon: any) => {
+    setEditingCouponId(coupon.id);
+    setCouponForm({
+      code: coupon.code,
+      type: coupon.type,
+      value: String(coupon.value),
+      minOrderAmount: coupon.minOrderAmount ? String(coupon.minOrderAmount) : '',
+      isOneTime: !!coupon.isOneTime,
+      isActive: !!coupon.isActive
+    });
+  };
+
+  const handleDeleteCoupon = (couponId: string) => {
+    if (window.confirm('Are you sure you want to delete this coupon?')) {
+      dispatch({ type: 'DELETE_COUPON', payload: couponId });
+      addToast('success', 'Coupon deleted.');
+      if (editingCouponId === couponId) {
+        setEditingCouponId(null);
+        setCouponForm({
+          code: '',
+          type: 'flat',
+          value: '',
+          minOrderAmount: '',
+          isOneTime: false,
+          isActive: true
+        });
+      }
+    }
+  };
+
+  const handleToggleCouponActive = (coupon: any) => {
+    const updated = { ...coupon, isActive: !coupon.isActive };
+    dispatch({ type: 'UPDATE_COUPON', payload: updated });
+    addToast('success', `Coupon ${coupon.code} is now ${updated.isActive ? 'Active' : 'Inactive'}.`);
   };
 
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
@@ -102,6 +213,10 @@ export default function AdminHome() {
             `🛒 New Order Placed! (Table ${order.tableNumber})`,
             `${order.customerName || 'Guest'} ordered ${order.items.length} items (Total: ${state.restaurant.currency}${order.totalAmount})`
           );
+          // Auto print KOT if enabled
+          if (state.restaurant.autoprintKotEnabled) {
+            printThermalReceipt(order, 'kot', state.restaurant);
+          }
         }
       } else {
         const justRequestedPayment = 
@@ -117,11 +232,17 @@ export default function AdminHome() {
             `${order.customerName || 'Guest'} is waiting for payment confirmation of ${state.restaurant.currency}${order.totalAmount}`
           );
         }
+
+        // Auto print Bill if payment status transitions to 'paid'
+        const justPaid = currentPayStatus === 'paid' && prev.paymentStatus !== 'paid';
+        if (justPaid && state.restaurant.autoprintBillEnabled) {
+          printThermalReceipt(order, 'bill', state.restaurant);
+        }
       }
     });
 
     prevOrdersRef.current = currentOrders;
-  }, [state.orders, state.restaurant.currency]);
+  }, [state.orders, state.restaurant.currency, state.restaurant.autoprintKotEnabled, state.restaurant.autoprintBillEnabled]);
 
   // Watch waiter requests for notifications
   useEffect(() => {
@@ -162,6 +283,75 @@ export default function AdminHome() {
   const adminId = state.admin?.id || 'admin-1';
   const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && (r.restaurantId || 'admin-1') === adminId);
   const activeOrders = state.orders.filter(o => ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status) && (o.restaurantId || 'admin-1') === adminId);
+
+  // Unique months in orders for filter dropdown
+  const uniqueMonths: string[] = []; // format "YYYY-MM"
+  state.orders
+    .filter(o => (o.restaurantId || 'admin-1') === adminId)
+    .forEach(o => {
+      const d = new Date(o.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!uniqueMonths.includes(key)) {
+        uniqueMonths.push(key);
+      }
+    });
+  uniqueMonths.sort((a, b) => b.localeCompare(a));
+
+  // Filter history orders
+  const filteredHistoryOrders = [...state.orders]
+    .filter(order => {
+      // 1. Restaurant ownership match
+      if ((order.restaurantId || 'admin-1') !== adminId) return false;
+
+      // 2. Time Filter Match
+      const orderDate = new Date(order.createdAt);
+      const today = new Date();
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+      if (historyTimeFilter === 'today') {
+        if (orderDate < startOfToday) return false;
+      } else if (historyTimeFilter === 'week') {
+        const startOfWeek = new Date(startOfToday);
+        startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+        if (orderDate < startOfWeek) return false;
+      } else if (historyTimeFilter === 'month') {
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        if (orderDate < startOfMonth) return false;
+      } else if (historyTimeFilter === 'choose') {
+        if (!historySelectedMonth) return true; // Show all if no month selected yet
+        const [year, month] = historySelectedMonth.split('-').map(Number);
+        if (orderDate.getFullYear() !== year || (orderDate.getMonth() + 1) !== month) return false;
+      }
+
+      // 3. Custom Date Range Match
+      if (historyStartDate) {
+        const start = new Date(historyStartDate);
+        if (orderDate < start) return false;
+      }
+      if (historyEndDate) {
+        const end = new Date(historyEndDate + 'T23:59:59');
+        if (orderDate > end) return false;
+      }
+
+      // 4. Search Query Match
+      if (historySearchQuery.trim()) {
+        const query = historySearchQuery.toLowerCase().trim();
+        const matchesId = order.id.toLowerCase().includes(query);
+        const matchesName = (order.customerName || '').toLowerCase().includes(query);
+        const matchesPhone = (order.customerPhone || '').toLowerCase().includes(query);
+        const matchesTable = `table ${order.tableNumber}`.toLowerCase().includes(query) || String(order.tableNumber) === query;
+        const matchesStatus = order.status.toLowerCase().includes(query) || (order.paymentStatus || '').toLowerCase().includes(query);
+        const matchesItems = order.items.some(item => item.name.toLowerCase().includes(query));
+
+        if (!matchesId && !matchesName && !matchesPhone && !matchesTable && !matchesStatus && !matchesItems) {
+          return false;
+        }
+      }
+
+      return true;
+    })
+    .sort((a, b) => b.createdAt - a.createdAt); // Newest first
+
 
   const handleUpdateStatus = (orderId: string, status: OrderStatus) => {
     dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status } });
@@ -304,6 +494,29 @@ export default function AdminHome() {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          {/* History Toggle Button */}
+          <button
+            onClick={() => setShowHistory(prev => !prev)}
+            className="btn btn-secondary"
+            style={{
+              height: 38,
+              borderRadius: 12,
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: showHistory ? 'var(--brand-dim)' : 'var(--bg-elevated)',
+              border: showHistory ? '2px solid var(--brand)' : '1px solid var(--border)',
+              color: showHistory ? 'var(--brand)' : 'var(--text-primary)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              padding: '0 14px'
+            }}
+          >
+            📜 {showHistory ? 'Active Board' : 'Order History'}
+          </button>
+
           {/* Tabular View Switcher Button */}
           <button
             onClick={toggleTabularView}
@@ -405,12 +618,232 @@ export default function AdminHome() {
           >
             {state.adminTheme === 'light' ? '🌙' : '☀️'}
           </button>
+
+          {/* Coupons & Offers Button */}
+          <button
+            onClick={() => setShowCouponsModal(true)}
+            className="btn btn-secondary"
+            style={{
+              height: 38,
+              borderRadius: 12,
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              padding: '0 14px'
+            }}
+          >
+            🏷️ Coupons & Offers
+          </button>
         </div>
       </div>
 
       {/* Active Orders Section */}
       <div style={{ marginBottom: 24 }}>
-        {isTabularView ? (
+        {showHistory ? (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            {/* Filters card */}
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Search size={18} color="var(--brand)" />
+                <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 700, margin: 0 }}>Filter Order History</h3>
+              </div>
+              
+              {/* Search input */}
+              <div className="input-group" style={{ marginBottom: 12 }}>
+                <label className="input-label">Search Orders</label>
+                <div className="input-icon-wrap">
+                  <Search size={15} className="input-icon" />
+                  <input 
+                    type="text" 
+                    className="input" 
+                    placeholder="Search by ID, customer name, phone, table number, item name..." 
+                    value={historySearchQuery}
+                    onChange={e => setHistorySearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Time filters buttons */}
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }} className="hide-scrollbar">
+                {[
+                  { key: 'today', label: "Today's Orders" },
+                  { key: 'week', label: 'This Week' },
+                  { key: 'month', label: 'This Month' },
+                  { key: 'choose', label: 'Choose Month' },
+                  { key: 'lifetime', label: 'Lifetime' }
+                ].map(f => {
+                  const isSelected = historyTimeFilter === f.key;
+                  return (
+                    <button
+                      key={f.key}
+                      onClick={() => {
+                        setHistoryTimeFilter(f.key as any);
+                        if (f.key !== 'choose') setHistorySelectedMonth('');
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        borderRadius: 99,
+                        background: isSelected ? 'var(--brand)' : 'var(--bg-elevated)',
+                        color: isSelected ? '#000' : 'var(--text-primary)',
+                        border: isSelected ? 'none' : '1px solid var(--border)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Dropdowns / Date picker inputs */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {historyTimeFilter === 'choose' && uniqueMonths.length > 0 && (
+                  <div className="input-group" style={{ flex: 1, minWidth: 140 }}>
+                    <label className="input-label">Select Month</label>
+                    <select
+                      className="input"
+                      value={historySelectedMonth}
+                      onChange={e => setHistorySelectedMonth(e.target.value)}
+                    >
+                      <option value="">Choose Month...</option>
+                      {uniqueMonths.map(m => {
+                        const [year, month] = m.split('-');
+                        const date = new Date(Number(year), Number(month) - 1, 1);
+                        const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                        return <option key={m} value={m}>{label}</option>;
+                      })}
+                    </select>
+                  </div>
+                )}
+
+                <div className="input-group" style={{ flex: 1, minWidth: 120 }}>
+                  <label className="input-label">From Date</label>
+                  <div className="input-icon-wrap">
+                    <Calendar size={15} className="input-icon" />
+                    <input 
+                      type="date" 
+                      className="input" 
+                      value={historyStartDate}
+                      onChange={e => setHistoryStartDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="input-group" style={{ flex: 1, minWidth: 120 }}>
+                  <label className="input-label">To Date</label>
+                  <div className="input-icon-wrap">
+                    <Calendar size={15} className="input-icon" />
+                    <input 
+                      type="date" 
+                      className="input" 
+                      value={historyEndDate}
+                      onChange={e => setHistoryEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Orders list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {filteredHistoryOrders.length === 0 ? (
+                <div style={{
+                  padding: 40,
+                  textAlign: 'center',
+                  background: 'var(--bg-elevated)',
+                  border: '1px dashed var(--border)',
+                  borderRadius: 12,
+                  color: 'var(--text-muted)'
+                }}>
+                  No historical orders found matching filters.
+                </div>
+              ) : (
+                filteredHistoryOrders.map(order => (
+                  <div 
+                    key={order.id} 
+                    className="card" 
+                    style={{ 
+                      padding: 14, 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: 10,
+                      borderColor: order.status === 'cancelled' ? 'rgba(239, 68, 68, 0.2)' : undefined 
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 800 }}>#{order.id.slice(-4).toUpperCase()}</span>
+                          <span style={{ 
+                            fontSize: 10, 
+                            fontWeight: 700, 
+                            padding: '1px 6px', 
+                            borderRadius: 99,
+                            background: order.status === 'served' ? 'rgba(34,197,94,0.15)' : order.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                            color: order.status === 'served' ? '#22c55e' : order.status === 'cancelled' ? '#ef4444' : '#f59e0b'
+                          }}>
+                            {order.status.toUpperCase()}
+                          </span>
+                          <span style={{ 
+                            fontSize: 10, 
+                            fontWeight: 700, 
+                            padding: '1px 6px', 
+                            borderRadius: 99,
+                            background: order.paymentStatus === 'paid' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                            color: order.paymentStatus === 'paid' ? '#22c55e' : '#ef4444'
+                          }}>
+                            {order.paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                          {new Date(order.createdAt).toLocaleString()} | Table {order.tableNumber} | Cust: {order.customerName || 'Guest'} ({order.customerPhone || 'N/A'})
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--brand)' }}>
+                          {state.restaurant.currency}{order.totalAmount}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Items summary */}
+                    <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                      {order.items.map(item => `${item.qty}x ${item.name}${item.variant ? ` (${item.variant.name})` : ''}`).join(', ')}
+                    </div>
+
+                    {/* Buttons */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }}>
+                      <button 
+                        onClick={() => printThermalReceipt(order, 'kot', state.restaurant)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 10, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <Printer size={12} /> Print KOT
+                      </button>
+                      <button 
+                        onClick={() => printThermalReceipt(order, 'bill', state.restaurant)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 10, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <Printer size={12} /> Print Bill
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : isTabularView ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, animation: 'fadeIn 0.3s ease' }}>
             {activeOrders.length === 0 ? (
               <div style={{
@@ -525,8 +958,261 @@ export default function AdminHome() {
         )}
       </div>
 
-      {/* Live Table Map */}
+       {/* Live Table Map */}
       <TableMap />
+
+      {/* Coupons & Offers Manager Modal */}
+      {showCouponsModal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowCouponsModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 500, padding: 24, position: 'relative' }}>
+            <button
+              onClick={() => setShowCouponsModal(false)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border)',
+                borderRadius: '50%',
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                zIndex: 10,
+                transition: 'all 0.2s'
+              }}
+            >
+              <X size={16} />
+            </button>
+
+            <h3 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800, color: 'var(--brand)', marginBottom: 16 }}>
+              🏷️ Coupon & Offers Manager
+            </h3>
+
+            {/* Live Scrolling Offer Marquee Toggle */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(255, 125, 0, 0.08) 0%, rgba(255, 125, 0, 0.02) 100%)',
+              border: '1px solid rgba(255, 125, 0, 0.2)',
+              borderRadius: 12,
+              padding: '12px 16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 20
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', marginRight: 16 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)' }}>✨ Scrolling Offer Marquee Banner</span>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Show a live scrolling banner of active offers on customer home page</span>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer', flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={!!state.restaurant.offersMarqueeEnabled}
+                  onChange={e => dispatch({
+                    type: 'UPDATE_RESTAURANT',
+                    payload: { offersMarqueeEnabled: e.target.checked }
+                  })}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span style={{
+                  position: 'absolute', inset: 0, borderRadius: 24,
+                  background: state.restaurant.offersMarqueeEnabled ? 'var(--brand)' : 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  transition: '0.2s',
+                }}>
+                  <span style={{
+                    position: 'absolute', left: 2, bottom: 1, width: 20, height: 20, borderRadius: '50%',
+                    background: state.restaurant.offersMarqueeEnabled ? '#000' : '#fff',
+                    transform: state.restaurant.offersMarqueeEnabled ? 'translateX(20px)' : 'translateX(0)',
+                    transition: '0.2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                  }} />
+                </span>
+              </label>
+            </div>
+
+            {/* Create/Edit Coupon Form */}
+            <form onSubmit={handleSaveCoupon} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)', textTransform: 'uppercase', marginBottom: 4 }}>
+                {editingCouponId ? '✏️ Edit Promo Coupon' : '➕ Create Promo Coupon'}
+              </h4>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="input-group" style={{ flex: 1, minWidth: 120 }}>
+                  <label className="input-label" style={{ fontSize: 10 }}>Promo Code (alphanumeric)</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. FLAT100"
+                    value={couponForm.code}
+                    onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
+                    style={{ textTransform: 'uppercase', height: 34, fontSize: 12 }}
+                  />
+                </div>
+                
+                <div className="input-group" style={{ width: 120 }}>
+                  <label className="input-label" style={{ fontSize: 10 }}>Discount Type</label>
+                  <select
+                    className="input"
+                    value={couponForm.type}
+                    onChange={e => setCouponForm({ ...couponForm, type: e.target.value as 'flat' | 'percentage' })}
+                    style={{ height: 34, fontSize: 12, padding: '0 8px' }}
+                  >
+                    <option value="flat">Flat (₹)</option>
+                    <option value="percentage">Percentage (%)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="input-group" style={{ flex: 1, minWidth: 100 }}>
+                  <label className="input-label" style={{ fontSize: 10 }}>
+                    Discount Value {couponForm.type === 'percentage' ? '(%)' : '(₹)'}
+                  </label>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder={couponForm.type === 'percentage' ? 'e.g. 10' : 'e.g. 100'}
+                    value={couponForm.value}
+                    onChange={e => setCouponForm({ ...couponForm, value: e.target.value })}
+                    style={{ height: 34, fontSize: 12 }}
+                  />
+                </div>
+
+                <div className="input-group" style={{ flex: 1, minWidth: 100 }}>
+                  <label className="input-label" style={{ fontSize: 10 }}>Min. Order Amount (₹, optional)</label>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="e.g. 300"
+                    value={couponForm.minOrderAmount}
+                    onChange={e => setCouponForm({ ...couponForm, minOrderAmount: e.target.value })}
+                    style={{ height: 34, fontSize: 12 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={couponForm.isOneTime}
+                    onChange={e => setCouponForm({ ...couponForm, isOneTime: e.target.checked })}
+                  />
+                  <span>One-time use per customer</span>
+                </label>
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={couponForm.isActive}
+                    onChange={e => setCouponForm({ ...couponForm, isActive: e.target.checked })}
+                  />
+                  <span>Active (Instantly available)</span>
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 1, height: 34, fontSize: 12, color: '#000', fontWeight: 700 }}
+                >
+                  {editingCouponId ? 'Update Coupon' : 'Create Coupon'}
+                </button>
+                {editingCouponId && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setEditingCouponId(null);
+                      setCouponForm({
+                        code: '',
+                        type: 'flat',
+                        value: '',
+                        minOrderAmount: '',
+                        isOneTime: false,
+                        isActive: true
+                      });
+                    }}
+                    style={{ height: 34, fontSize: 12 }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+
+            {/* Current Coupons List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', marginBottom: 4 }}>
+                📋 Current Coupons
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto', paddingRight: 4 }}>
+                {(state.coupons || []).filter(c => (c.restaurantId || 'admin-1') === (state.admin?.restaurantId || 'admin-1')).map(coupon => (
+                  <div
+                    key={coupon.id}
+                    style={{
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)' }}>{coupon.code}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: coupon.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: coupon.isActive ? 'var(--success)' : 'var(--error)' }}>
+                          {coupon.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                        {coupon.type === 'percentage' ? `${coupon.value}% Off` : `₹${coupon.value} Off`}
+                        {coupon.minOrderAmount ? ` • Min. order ₹${coupon.minOrderAmount}` : ''}
+                        {coupon.isOneTime ? ` • One-time` : ''}
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={() => handleToggleCouponActive(coupon)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 10, padding: '2px 8px', height: 26 }}
+                      >
+                        {coupon.isActive ? 'Pause' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => handleEditCoupon(coupon)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 10, padding: '2px 8px', height: 26 }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCoupon(coupon.id)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 10, padding: '2px 8px', height: 26, color: 'var(--error)' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {(!state.coupons || state.coupons.filter(c => (c.restaurantId || 'admin-1') === (state.admin?.restaurantId || 'admin-1')).length === 0) && (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0', fontSize: 12 }}>
+                    No coupons created yet. Use form above to add one.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -915,6 +1601,24 @@ function OrderCard({
           )}
         </div>
       </div>
+
+      {/* Manual print buttons */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); printThermalReceipt(order, 'kot', state.restaurant); }}
+          className="btn btn-secondary btn-sm"
+          style={{ flex: 1, fontSize: 9.5, padding: '4px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, height: 26 }}
+        >
+          <Printer size={11} /> Print KOT
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); printThermalReceipt(order, 'bill', state.restaurant); }}
+          className="btn btn-secondary btn-sm"
+          style={{ flex: 1, fontSize: 9.5, padding: '4px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, height: 26 }}
+        >
+          <Printer size={11} /> Print Bill
+        </button>
+      </div>
     </div>
   );
 }
@@ -1172,6 +1876,22 @@ function TabularOrderRow({
               Cancel
             </button>
           )}
+
+          {/* Print Buttons */}
+          <button
+            onClick={() => printThermalReceipt(order, 'kot', state.restaurant)}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 11, padding: '4px 8px', height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            <Printer size={12} /> KOT
+          </button>
+          <button
+            onClick={() => printThermalReceipt(order, 'bill', state.restaurant)}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 11, padding: '4px 8px', height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            <Printer size={12} /> Bill
+          </button>
         </div>
       </div>
     </div>

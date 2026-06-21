@@ -1,5 +1,32 @@
 import { useEffect, useState, useRef } from 'react';
-import { useStore, getActiveRestaurantId } from '../../context/RealtimeStore';
+import { useStore, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
+
+function isRestaurantClosed(openTimeStr?: string, closeTimeStr?: string): boolean {
+  if (!openTimeStr || !closeTimeStr) return false;
+  try {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const [openH, openM] = openTimeStr.split(':').map(Number);
+    const [closeH, closeM] = closeTimeStr.split(':').map(Number);
+
+    const openMinutes = openH * 60 + openM;
+    const closeMinutes = closeH * 60 + closeM;
+
+    if (openMinutes === closeMinutes) {
+      return false;
+    }
+    if (closeMinutes > openMinutes) {
+      return currentMinutes < openMinutes || currentMinutes > closeMinutes;
+    } else {
+      const isOpen = currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+      return !isOpen;
+    }
+  } catch (e) {
+    console.error('Error parsing business hours:', e);
+    return false;
+  }
+}
 import { hasFirebaseConfig } from '../../utils/firebase';
 import CustomerHome from './CustomerHome';
 import CustomerMenu from './CustomerMenu';
@@ -22,6 +49,14 @@ export default function CustomerLayout({ tableId }: Props) {
   const [paymentOption, setPaymentOption] = useState<'none' | 'upi' | 'cash' | 'card'>('none');
   const [mealRatings, setMealRatings] = useState<Record<string, number>>({});
   const [ratingPopupStep, setRatingPopupStep] = useState<'success' | 'rate'>('success');
+  const [dismissedFeedbacks, setDismissedFeedbacks] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('meenufy_dismissed_feedbacks');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Consent state for native Web Notifications
   const [notificationPermission, setNotificationPermission] = useState(() => 
@@ -78,6 +113,206 @@ export default function CustomerLayout({ tableId }: Props) {
 
   const activeOrder = activeOrders[selectedActiveOrderIndex] || activeOrders[0];
 
+  const rId = new URLSearchParams(window.location.search).get('restaurant') || getActiveRestaurantId(state);
+  const restaurant = getActiveRestaurantInfo(state, rId);
+  const isClosed = isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime) && activeOrders.length === 0;
+
+  if (isClosed) {
+    return (
+      <div className="customer-layout-container" style={{
+        display: 'flex', flexDirection: 'column',
+        height: 'var(--app-height, 100dvh)',
+        width: '100%',
+        background: '#0a0a0a',
+        color: '#fff',
+        maxWidth: 480, margin: '0 auto', position: 'relative',
+        overflowY: 'auto',
+        boxSizing: 'border-box',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '32px 24px',
+        fontFamily: 'var(--font-body, "Inter", sans-serif)'
+      }}>
+        <style>{`
+          @keyframes neonFlicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+              text-shadow: 0 0 4px #fff, 0 0 10px #ff7d00, 0 0 20px #ff7d00, 0 0 30px #ff7d00;
+              color: #fff;
+            }
+            20%, 22%, 24%, 55% {
+              text-shadow: 0 0 2px rgba(255,125,0,0.2);
+              color: #4a1d00;
+            }
+          }
+          @keyframes bounceClock {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.05); }
+          }
+          @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(255,125,0,0.15); }
+            50% { box-shadow: 0 0 30px rgba(255,125,0,0.35); }
+          }
+        `}</style>
+
+        {/* Pulsating Clock and Glowing Sign Container */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16,
+          marginBottom: 36
+        }}>
+          {/* Pulsating Clock */}
+          <div style={{
+            fontSize: 72,
+            animation: 'bounceClock 3s ease-in-out infinite',
+            lineHeight: 1,
+            userSelect: 'none'
+          }}>
+            ⏰
+          </div>
+
+          {/* Neon CLOSED Sign */}
+          <div style={{
+            fontFamily: 'var(--font-display), "Outfit", sans-serif',
+            fontSize: 48,
+            fontWeight: 900,
+            letterSpacing: 4,
+            textTransform: 'uppercase',
+            animation: 'neonFlicker 3s infinite alternate',
+            border: '3px solid #ff7d00',
+            padding: '8px 24px',
+            borderRadius: 8,
+            boxShadow: '0 0 15px rgba(255,125,0,0.3), inset 0 0 10px rgba(255,125,0,0.2)',
+            background: 'rgba(255, 125, 0, 0.05)',
+            userSelect: 'none'
+          }}>
+            CLOSED
+          </div>
+        </div>
+
+        {/* Message */}
+        <h2 style={{
+          fontFamily: 'var(--font-display), "Outfit", sans-serif',
+          fontSize: 22,
+          fontWeight: 800,
+          textAlign: 'center',
+          marginBottom: 8,
+          color: '#ffffff'
+        }}>
+          {restaurant?.name || 'Restaurant'}
+        </h2>
+        <p style={{
+          fontSize: 14,
+          color: 'var(--text-muted, #a3a3a3)',
+          textAlign: 'center',
+          lineHeight: 1.6,
+          maxWidth: 320,
+          marginBottom: 32
+        }}>
+          We are currently closed. Please check our opening hours or get in touch with us directly below.
+        </p>
+
+        {/* Business Hours Card */}
+        <div style={{
+          width: '100%',
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 16,
+          padding: 20,
+          marginBottom: 24,
+          boxSizing: 'border-box'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 12, marginBottom: 12 }}>
+            <span style={{ fontSize: 13, color: '#a3a3a3', fontWeight: 500 }}>Opening Time</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--brand)' }}>{restaurant?.openTime || 'N/A'}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13, color: '#a3a3a3', fontWeight: 500 }}>Closing Time</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--brand)' }}>{restaurant?.closeTime || 'N/A'}</span>
+          </div>
+        </div>
+
+        {/* Floating Contact Card */}
+        <div style={{
+          width: '100%',
+          background: 'linear-gradient(135deg, rgba(255, 125, 0, 0.08) 0%, rgba(0, 0, 0, 0) 100%)',
+          border: '1px solid rgba(255, 125, 0, 0.2)',
+          borderRadius: 20,
+          padding: 24,
+          boxSizing: 'border-box',
+          animation: 'glowPulse 4s infinite ease-in-out'
+        }}>
+          <h4 style={{
+            fontFamily: 'var(--font-display), "Outfit", sans-serif',
+            fontSize: 14,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            color: 'var(--brand)',
+            letterSpacing: 1,
+            marginBottom: 16
+          }}>
+            Contact Details
+          </h4>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {restaurant?.phone && (
+              <a href={`tel:${restaurant.phone}`} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: '#fff',
+                textDecoration: 'none',
+                fontSize: 13,
+                transition: 'color 0.2s'
+              }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--brand)'} onMouseLeave={(e) => e.currentTarget.style.color = '#fff'}>
+                <span style={{ fontSize: 16 }}>📞</span>
+                <div>
+                  <div style={{ fontSize: 10, color: '#a3a3a3' }}>Call Us</div>
+                  <div style={{ fontWeight: 600 }}>{restaurant.phone}</div>
+                </div>
+              </a>
+            )}
+
+            {restaurant?.email && (
+              <a href={`mailto:${restaurant.email}`} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: '#fff',
+                textDecoration: 'none',
+                fontSize: 13,
+                transition: 'color 0.2s'
+              }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--brand)'} onMouseLeave={(e) => e.currentTarget.style.color = '#fff'}>
+                <span style={{ fontSize: 16 }}>✉️</span>
+                <div>
+                  <div style={{ fontSize: 10, color: '#a3a3a3' }}>Email Us</div>
+                  <div style={{ fontWeight: 600, wordBreak: 'break-all' }}>{restaurant.email}</div>
+                </div>
+              </a>
+            )}
+
+            {restaurant?.address && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'start',
+                gap: 12,
+                fontSize: 13,
+                color: '#fff'
+              }}>
+                <span style={{ fontSize: 16, marginTop: 2 }}>📍</span>
+                <div>
+                  <div style={{ fontSize: 10, color: '#a3a3a3' }}>Location</div>
+                  <div style={{ fontWeight: 500, lineHeight: 1.4 }}>{restaurant.address}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const cartCount = state.cart.reduce((s, i) => s + i.qty, 0);
 
   // Auto-open status modal when a new order is added
@@ -106,7 +341,8 @@ export default function CustomerLayout({ tableId }: Props) {
     o.status === 'served' && 
     !o.ratings && 
     o.customerPhone === myPhoneIdentifier &&
-    Date.now() - o.updatedAt < 600000 // 10 minutes
+    Date.now() - o.updatedAt < 600000 && // 10 minutes
+    !dismissedFeedbacks.includes(o.id)
   );
 
   // Auto open/reset rating modal to success screen when payment is confirmed
@@ -239,6 +475,16 @@ export default function CustomerLayout({ tableId }: Props) {
       });
     });
     addToast('success', method === 'upi' ? 'Payment submitted! Waiting for staff confirmation.' : 'Request sent! Waiter is bringing the bill.');
+  };
+
+  const handleCloseStatusModal = () => {
+    if (unratedServedOrders.length > 0) {
+      const idsToDismiss = unratedServedOrders.map(o => o.id);
+      const updatedDismissed = [...dismissedFeedbacks, ...idsToDismiss];
+      setDismissedFeedbacks(updatedDismissed);
+      localStorage.setItem('meenufy_dismissed_feedbacks', JSON.stringify(updatedDismissed));
+    }
+    setShowStatusModal(false);
   };
 
   const handleRateMeals = () => {
@@ -402,7 +648,7 @@ export default function CustomerLayout({ tableId }: Props) {
 
       {/* Live Order Status & Payment Modal */}
       {showStatusModal && (activeOrder || unratedServedOrders.length > 0) && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowStatusModal(false)}>
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && handleCloseStatusModal()}>
           <div className="modal-content" style={{ maxWidth: '440px', padding: 24 }}>
             
             {/* Modal Header */}
@@ -419,7 +665,7 @@ export default function CustomerLayout({ tableId }: Props) {
                     : (allActiveOrdersDelivered ? 'Bill & Review' : 'Live Order Status')}
                 </h2>
               </div>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowStatusModal(false)} style={{ padding: 4 }}>
+              <button className="btn btn-ghost btn-icon" onClick={handleCloseStatusModal} style={{ padding: 4 }}>
                 <X size={18} />
               </button>
             </div>

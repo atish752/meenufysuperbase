@@ -147,6 +147,29 @@ export default function SuperAdminDashboard() {
   const activeCount = accounts.filter(a => a.status === 'active').length;
   const blockedCount = accounts.filter(a => a.status === 'blocked').length;
 
+  // Plans pricing (INR & USD)
+  const PLAN_PRICES: Record<string, { inr: { monthly: number; yearly: number }; usd: { monthly: number; yearly: number } }> = {
+    base:     { inr: { monthly: 1499, yearly: 14990 }, usd: { monthly: 20,  yearly: 200 } },
+    standard: { inr: { monthly: 2499, yearly: 24990 }, usd: { monthly: 35,  yearly: 350 } },
+    advance:  { inr: { monthly: 3999, yearly: 39990 }, usd: { monthly: 50,  yearly: 500 } },
+  };
+
+  // Calculate monthly recurring revenue (normalize annual plans by /12)
+  let mrrINR = 0;
+  let mrrUSD = 0;
+  accounts.forEach(acc => {
+    if (!acc.subscriptionPlan || acc.subscriptionPlan === 'free') return;
+    const prices = PLAN_PRICES[acc.subscriptionPlan];
+    if (!prices) return;
+    const billingPeriod = acc.billingPeriod || 'monthly';
+    const country = acc.billingCountry || 'global';
+    if (country === 'IN') {
+      mrrINR += billingPeriod === 'yearly' ? Math.round(prices.inr.yearly / 12) : prices.inr.monthly;
+    } else {
+      mrrUSD += billingPeriod === 'yearly' ? Math.round(prices.usd.yearly / 12) : prices.usd.monthly;
+    }
+  });
+
   return (
     <div style={{
       padding: '24px 20px',
@@ -271,6 +294,27 @@ export default function SuperAdminDashboard() {
             <div style={{ fontSize: 24, fontWeight: 800, fontFamily: 'var(--font-display)', marginTop: 2, color: 'var(--error)' }}>
               {blockedCount}
             </div>
+          </div>
+        </div>
+
+        {/* Monthly Revenue Card */}
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 18 }}>
+          <div style={{
+            background: 'rgba(99, 102, 241, 0.15)',
+            width: 42, height: 42, borderRadius: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1', fontSize: 20
+          }}>
+            💰
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Est. Monthly Revenue</div>
+            <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-display)', marginTop: 2, color: '#6366f1' }}>
+              {mrrINR > 0 ? `₹${mrrINR.toLocaleString('en-IN')}` : ''}
+              {mrrINR > 0 && mrrUSD > 0 ? ' + ' : ''}
+              {mrrUSD > 0 ? `$${mrrUSD}` : ''}
+              {mrrINR === 0 && mrrUSD === 0 ? '—' : ''}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Normalized (monthly)</div>
           </div>
         </div>
       </div>

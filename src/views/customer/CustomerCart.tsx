@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore, getActiveRestaurantInfo, getActiveRestaurantId } from '../../context/RealtimeStore';
-import type { Order } from '../../context/RealtimeStore';
+import type { Order, Coupon } from '../../context/RealtimeStore';
 import { ShoppingBag, Trash2, ArrowRight, ChevronUp, MapPin, Check, X, Loader2 } from 'lucide-react';
 import { hasFirebaseConfig, auth, googleProvider } from '../../utils/firebase';
 import { signInWithPopup } from 'firebase/auth';
@@ -40,40 +40,106 @@ export default function CustomerCart() {
   const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
 
-  const activeAccount = state.restaurantAccounts?.find(acc => acc.id === restaurantId);
-  const plan = activeAccount?.subscriptionPlan || 'free';
-  const usage = activeAccount?.ordersPlacedThisMonth || 0;
+  const plan = restaurant.subscriptionPlan || 'free';
+  const usage = restaurant.ordersPlacedThisMonth || 0;
   const limit = plan === 'free' ? 100 : plan === 'base' ? 1000 : plan === 'standard' ? 2000 : Infinity;
-  const isLimitExceeded = usage >= limit;
+  const allowNegative = restaurant.allowNegativeOrders || false;
+
+  const isLimitExceeded = usage >= limit + 100 || (usage >= limit && !allowNegative);
+  const isHardLimitReached = usage >= limit + 100;
 
   const [open, setOpen] = useState(false);
   const [googleUser, setGoogleUser] = useState<{ name: string; email: string; phone: string } | null>(() => {
-    const raw = localStorage.getItem('meenufy_customer_google_user');
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const rawGoogle = localStorage.getItem('meenufy_customer_google_user');
+      if (rawGoogle) return JSON.parse(rawGoogle);
+      const rawCustom = localStorage.getItem('meenufy_customer_logged_in_user');
+      if (rawCustom) return JSON.parse(rawCustom);
+      return null;
+    } catch {
+      return null;
+    }
   });
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleForm, setGoogleForm] = useState({ name: '', email: '', phone: '' });
   const [signingIn, setSigningIn] = useState(false);
 
   const [customerName, setCustomerName] = useState(() => {
-    const raw = localStorage.getItem('meenufy_customer_google_user');
-    if (raw) return JSON.parse(raw).name;
+    const rawGoogle = localStorage.getItem('meenufy_customer_google_user');
+    if (rawGoogle) return JSON.parse(rawGoogle).name;
+    const rawCustom = localStorage.getItem('meenufy_customer_logged_in_user');
+    if (rawCustom) return JSON.parse(rawCustom).name;
     return localStorage.getItem('meenufy_customer_name') || '';
   });
   const [customerPhone, setCustomerPhone] = useState(() => {
-    const raw = localStorage.getItem('meenufy_customer_google_user');
-    if (raw) return JSON.parse(raw).phone;
+    const rawGoogle = localStorage.getItem('meenufy_customer_google_user');
+    if (rawGoogle) return JSON.parse(rawGoogle).phone;
+    const rawCustom = localStorage.getItem('meenufy_customer_logged_in_user');
+    if (rawCustom) return JSON.parse(rawCustom).phone;
     return localStorage.getItem('meenufy_customer_phone') || '';
   });
   const [customerEmail, setCustomerEmail] = useState(() => {
-    const raw = localStorage.getItem('meenufy_customer_google_user');
-    if (raw) return JSON.parse(raw).email;
+    const rawGoogle = localStorage.getItem('meenufy_customer_google_user');
+    if (rawGoogle) return JSON.parse(rawGoogle).email || '';
+    const rawCustom = localStorage.getItem('meenufy_customer_logged_in_user');
+    if (rawCustom) return JSON.parse(rawCustom).email || '';
     return localStorage.getItem('meenufy_customer_email') || '';
   });
+
+  useEffect(() => {
+    if (open) {
+      try {
+        const rawGoogle = localStorage.getItem('meenufy_customer_google_user');
+        const rawCustom = localStorage.getItem('meenufy_customer_logged_in_user');
+        const user = rawGoogle ? JSON.parse(rawGoogle) : (rawCustom ? JSON.parse(rawCustom) : null);
+        if (user) {
+          setCustomerName(user.name);
+          setCustomerPhone(user.phone);
+          setCustomerEmail(user.email || '');
+          setGoogleUser(user);
+        } else {
+          setGoogleUser(null);
+          setCustomerName(localStorage.getItem('meenufy_customer_name') || '');
+          setCustomerPhone(localStorage.getItem('meenufy_customer_phone') || '');
+          setCustomerEmail(localStorage.getItem('meenufy_customer_email') || '');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [open]);
   const [redeemPointsChecked, setRedeemPointsChecked] = useState(false);
   const [specialNote, setSpecialNote] = useState('');
   const [numberOfGuests, setNumberOfGuests] = useState<string>('');
   const [placing, setPlacing] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState('');
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setCustomerPhone(val);
+    
+    // Auto lookup name if phone number matches any previous order / customer
+    const trimmedVal = val.trim();
+    if (trimmedVal.length >= 10) {
+      // Search in state.customers
+      const match = state.customers.find(c => c.phone === trimmedVal);
+      if (match && match.name) {
+        setCustomerName(match.name);
+        if (match.email) setCustomerEmail(match.email);
+        addToast('success', `Welcome back, ${match.name}! Auto-filled details.`);
+      } else {
+        // Look up in synced orders just in case
+        const orderMatch = state.orders.find(o => o.customerPhone === trimmedVal);
+        if (orderMatch && orderMatch.customerName) {
+          setCustomerName(orderMatch.customerName);
+          if (orderMatch.customerEmail) setCustomerEmail(orderMatch.customerEmail);
+          addToast('success', `Welcome back, ${orderMatch.customerName}! Auto-filled details.`);
+        }
+      }
+    }
+  };
 
   // Geofence verification states
   const [locationStatus, setLocationStatus] = useState<'idle' | 'verifying' | 'success' | 'failed' | 'denied'>('idle');
@@ -82,12 +148,35 @@ export default function CustomerCart() {
   const cartCount = state.cart.reduce((s, i) => s + i.qty, 0);
   const cartTotal = state.cart.reduce((s, i) => s + i.price * i.qty, 0);
 
+  // Monitor cartTotal to invalidate applied coupon if minOrderAmount requirement is no longer met
+  useEffect(() => {
+    if (appliedCoupon) {
+      if (cartTotal < (appliedCoupon.minOrderAmount || 0)) {
+        setAppliedCoupon(null);
+        setCouponError(`Promo code ${appliedCoupon.code} removed (minimum order ₹${appliedCoupon.minOrderAmount} required).`);
+        addToast('error', 'Coupon removed: minimum order amount not met.');
+      }
+    }
+  }, [cartTotal, appliedCoupon, addToast]);
+
+  // Coupon calculations
+  let couponDiscount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.type === 'percentage') {
+      couponDiscount = Math.round((cartTotal * appliedCoupon.value) / 100);
+    } else {
+      couponDiscount = appliedCoupon.value;
+    }
+    couponDiscount = Math.min(cartTotal, couponDiscount);
+  }
+  const amountAfterCoupon = Math.max(0, cartTotal - couponDiscount);
+
   // Loyalty calculations
   const custRec = state.customers.find(c => c.phone === customerPhone.trim());
   const pointsAvailable = custRec ? (custRec.points || 0) : 0;
   const pointsVal = pointsAvailable * (restaurant.pointValueInRupees || 1);
-  const discountApplied = redeemPointsChecked ? Math.min(cartTotal, pointsVal) : 0;
-  const finalAmount = Math.max(0, cartTotal - discountApplied);
+  const discountApplied = redeemPointsChecked ? Math.min(amountAfterCoupon, pointsVal) : 0;
+  const finalAmount = Math.max(0, amountAfterCoupon - discountApplied);
   const pointsEarned = restaurant.loyaltyEnabled ? Math.floor(finalAmount / 100) * (restaurant.pointsPer100Spent || 1) : 0;
 
   // Sum up nutrition info for all items in the cart
@@ -266,17 +355,30 @@ export default function CustomerCart() {
       pointsEarned,
       pointsRedeemed: redeemPointsChecked ? pointsAvailable : 0,
       pointsDiscountApplied: discountApplied,
+      couponCodeApplied: appliedCoupon ? appliedCoupon.code : undefined,
+      couponDiscountApplied: couponDiscount > 0 ? couponDiscount : undefined,
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: order });
     dispatch({ type: 'CLEAR_CART' });
     dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'orders' });
 
+    // Increment coupon usageCount so one-time and limited coupons track properly
+    if (appliedCoupon) {
+      dispatch({ type: 'UPDATE_COUPON', payload: {
+        ...appliedCoupon,
+        usageCount: (appliedCoupon.usageCount || 0) + 1
+      }});
+    }
+
     addToast('success', '🎉 Order placed! Track it in My Orders.');
     setOpen(false);
     setSpecialNote('');
     setNumberOfGuests('');
     setRedeemPointsChecked(false);
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
     setPlacing(false);
   };
 
@@ -468,98 +570,95 @@ export default function CustomerCart() {
               )}
 
               {/* Customer details / Sign-In Status */}
-              {restaurant.mustLoginBeforeOrder ? (
-                googleUser ? (
-                  <div style={{
-                    background: 'rgba(34, 197, 94, 0.08)',
-                    border: '1px solid rgba(34, 197, 94, 0.2)',
-                    borderRadius: 12,
-                    padding: '10px 14px',
-                    marginBottom: 16,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    animation: 'fadeIn 0.2s ease',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: 'var(--brand)', color: '#000',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: 14
-                      }}>
-                        {googleUser.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Signed in via Google</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{googleUser.name} ({googleUser.email})</div>
-                      </div>
+              {googleUser ? (
+                <div style={{
+                  background: 'rgba(34, 197, 94, 0.08)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  borderRadius: 12,
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  animation: 'fadeIn 0.2s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: '50%',
+                      background: 'var(--brand)', color: '#000',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 800, fontSize: 14
+                    }}>
+                      {googleUser.name.charAt(0).toUpperCase()}
                     </div>
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem('meenufy_customer_google_user');
-                        setGoogleUser(null);
-                        setCustomerName('');
-                        setCustomerPhone('');
-                        setCustomerEmail('');
-                        addToast('info', 'Signed out from Google');
-                      }}
-                      style={{
-                        background: 'none', border: 'none', color: 'var(--error)',
-                        fontSize: 12, fontWeight: 700, cursor: 'pointer'
-                      }}
-                    >
-                      Sign Out
-                    </button>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Signed In</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{googleUser.name} ({googleUser.phone})</div>
+                    </div>
                   </div>
-                ) : (
-                  <div style={{
-                    background: 'var(--bg-elevated)',
-                    border: '1px dashed var(--border-brand)',
-                    borderRadius: 16,
-                    padding: '20px 16px',
-                    textAlign: 'center',
-                    marginBottom: 16
-                  }}>
-                    <div style={{ fontSize: 24, marginBottom: 8 }}>🔒</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>Sign in Required</div>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 14 }}>
-                      This restaurant requires Google Sign-In before placing orders.
-                    </p>
-                    <button
-                      onClick={handleGoogleSignIn}
-                      className="btn"
-                      type="button"
-                      style={{
-                        background: 'var(--customer-add-to-cart-bg, #FFFFFF)',
-                        color: 'var(--customer-add-to-cart-text, #000000)',
-                        border: '1px solid var(--border)',
-                        display: 'inline-flex', alignItems: 'center', gap: 8,
-                        fontSize: 12, fontWeight: 700, padding: '8px 16px', borderRadius: 99,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-                      </svg>
-                      Sign in with Google
-                    </button>
-                  </div>
-                )
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('meenufy_customer_google_user');
+                      localStorage.removeItem('meenufy_customer_logged_in_user');
+                      localStorage.removeItem('meenufy_customer_user_logged_in');
+                      setGoogleUser(null);
+                      setCustomerName('');
+                      setCustomerPhone('');
+                      setCustomerEmail('');
+                      addToast('info', 'Signed out successfully');
+                    }}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--error)',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer'
+                    }}
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : restaurant.mustLoginBeforeOrder ? (
+                <div style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px dashed var(--border-brand)',
+                  borderRadius: 16,
+                  padding: '20px 16px',
+                  textAlign: 'center',
+                  marginBottom: 16
+                }}>
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>🔒</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>Sign in Required</div>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 14 }}>
+                    This restaurant requires you to sign in before placing orders.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'more' });
+                      addToast('info', 'Please sign in or sign up here! 🔑');
+                    }}
+                    className="btn"
+                    type="button"
+                    style={{
+                      background: 'var(--brand)',
+                      color: '#000000',
+                      border: 'none',
+                      fontSize: 12, fontWeight: 800, padding: '8px 16px', borderRadius: 99,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Sign In / Sign Up
+                  </button>
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                  <div className="input-group">
+                    <label className="input-label">Phone Number (required)</label>
+                    <input className="input" type="tel" placeholder="+91 98765 43210"
+                      value={customerPhone} onChange={handlePhoneChange} />
+                  </div>
                   <div className="input-group">
                     <label className="input-label">Your Name (required)</label>
                     <input className="input" type="text" placeholder="e.g. Ananya"
                       value={customerName} onChange={e => setCustomerName(e.target.value)} />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Phone (required)</label>
-                    <input className="input" type="tel" placeholder="+91 98765 43210"
-                      value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
                   </div>
                   <div className="input-group">
                     <label className="input-label">Email (optional)</label>
@@ -601,8 +700,147 @@ export default function CustomerCart() {
                 </div>
               )}
 
+              {/* Promo Code System */}
+              {(!restaurant.mustLoginBeforeOrder || googleUser) && (
+                <div style={{
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  marginBottom: 16,
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🏷️</span> Apply Promo Code
+                  </div>
+                  
+                  {appliedCoupon ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'var(--brand-dim)',
+                      border: '1px solid var(--border-brand)',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)' }}>
+                          Code: {appliedCoupon.code} Applied!
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                          Saving ₹{couponDiscount} on this order
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedCoupon(null);
+                          setCouponCode('');
+                          setCouponError('');
+                          addToast('info', 'Promo code removed.');
+                        }}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          color: 'var(--error)',
+                          border: 'none',
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Enter code (e.g. FLAT100)"
+                        value={couponCode}
+                        onChange={e => {
+                          setCouponCode(e.target.value.toUpperCase());
+                          setCouponError('');
+                        }}
+                        style={{
+                          flex: 1,
+                          textTransform: 'uppercase',
+                          height: 36,
+                          padding: '0 12px',
+                          fontSize: 13,
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const codeToApply = couponCode.trim().toUpperCase();
+                          if (!codeToApply) {
+                            setCouponError('Please enter a code.');
+                            return;
+                          }
+                          const found = state.coupons?.find(
+                            c => c.code.toUpperCase() === codeToApply && c.isActive
+                          );
+                          if (!found) {
+                            setCouponError('Invalid or expired coupon code.');
+                            return;
+                          }
+                          if (found.minOrderAmount && cartTotal < found.minOrderAmount) {
+                            setCouponError(`Minimum order of ₹${found.minOrderAmount} required.`);
+                            return;
+                          }
+                          // Enforce one-time coupon: check if this phone already used it
+                          if (found.isOneTime && customerPhone.trim()) {
+                            const alreadyUsed = state.orders.some(
+                              o => o.couponCodeApplied === found.code &&
+                                   o.customerPhone === customerPhone.trim() &&
+                                   o.restaurantId === restaurantId
+                            );
+                            if (alreadyUsed) {
+                              setCouponError('This coupon has already been used by your account.');
+                              return;
+                            }
+                          }
+                          // Check global usage limit
+                          if (found.usageLimit && (found.usageCount || 0) >= found.usageLimit) {
+                            setCouponError('This coupon has reached its usage limit.');
+                            return;
+                          }
+                          setAppliedCoupon(found);
+                          setCouponError('');
+                          addToast('success', `🎉 Coupon ${found.code} applied successfully!`);
+                        }}
+                        style={{
+                          background: 'var(--brand)',
+                          color: '#000',
+                          border: 'none',
+                          padding: '0 16px',
+                          borderRadius: 8,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          height: 36,
+                        }}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
+                  {couponError && (
+                    <div style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600 }}>
+                      ⚠️ {couponError}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Loyalty Program Points Redemption */}
-              {restaurant.loyaltyEnabled && pointsAvailable > 0 && (
+              {restaurant.loyaltyEnabled && (
                 <div style={{
                   background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.03) 100%)',
                   borderRadius: 12,
@@ -613,38 +851,61 @@ export default function CustomerCart() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   animation: 'fadeIn 0.2s ease',
+                  opacity: googleUser ? 1 : 0.6,
+                  filter: googleUser ? 'none' : 'blur(0.5px)',
+                  position: 'relative'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 18 }}>🎁</span>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Redeem Loyalty Points</div>
                       <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                        Use {pointsAvailable} points to get ₹{pointsVal} off!
+                        {googleUser 
+                          ? (pointsAvailable > 0 ? `Use ${pointsAvailable} points to get ₹${pointsVal} off!` : 'No points available to redeem.')
+                          : 'Sign in to view and redeem your points.'
+                        }
                       </div>
                     </div>
                   </div>
-                  <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={redeemPointsChecked}
-                      onChange={e => setRedeemPointsChecked(e.target.checked)}
-                      style={{ opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span style={{
-                      position: 'absolute', inset: 0, borderRadius: 24,
-                      background: redeemPointsChecked ? 'var(--success)' : 'var(--bg-elevated)',
-                      border: '1px solid var(--border)',
-                      transition: '0.2s',
-                    }}>
-                      <span style={{
-                        position: 'absolute', left: 2, bottom: 1, width: 20, height: 20, borderRadius: '50%',
-                        background: '#fff',
-                        transform: redeemPointsChecked ? 'translateX(20px)' : 'translateX(0)',
-                        transition: '0.2s',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                      }} />
-                    </span>
-                  </label>
+                  {googleUser ? (
+                    pointsAvailable > 0 && (
+                      <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={redeemPointsChecked}
+                          onChange={e => setRedeemPointsChecked(e.target.checked)}
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span style={{
+                          position: 'absolute', inset: 0, borderRadius: 24,
+                          background: redeemPointsChecked ? 'var(--success)' : 'var(--bg-elevated)',
+                          border: '1px solid var(--border)',
+                          transition: '0.2s',
+                        }}>
+                          <span style={{
+                            position: 'absolute', left: 2, bottom: 1, width: 20, height: 20, borderRadius: '50%',
+                            background: '#fff',
+                            transform: redeemPointsChecked ? 'translateX(20px)' : 'translateX(0)',
+                            transition: '0.2s',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                          }} />
+                        </span>
+                      </label>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'more' });
+                        addToast('info', 'Please sign in or sign up first! 🔑');
+                      }}
+                      className="btn btn-primary btn-sm"
+                      style={{ fontSize: 10, padding: '4px 8px', background: 'var(--brand)', color: '#000', border: 'none', fontWeight: 700 }}
+                    >
+                      Sign In
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -658,6 +919,12 @@ export default function CustomerCart() {
                   <span>Subtotal ({cartCount} items)</span>
                   <span>₹{cartTotal}</span>
                 </div>
+                {appliedCoupon && couponDiscount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--brand)', marginBottom: 6 }}>
+                    <span>Promo Discount ({appliedCoupon.code})</span>
+                    <span>-₹{couponDiscount}</span>
+                  </div>
+                )}
                 {redeemPointsChecked && discountApplied > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--success)', marginBottom: 6 }}>
                     <span>Loyalty Discount</span>
@@ -689,7 +956,10 @@ export default function CustomerCart() {
                     border: '1px solid rgba(239, 68, 68, 0.25)',
                     textAlign: 'center'
                   }}>
-                    ⚠️ Checkout is temporarily unavailable as this restaurant has reached its monthly order capacity limit. Please contact the administrator.
+                    {isHardLimitReached 
+                      ? '⚠️ Checkout is temporarily unavailable: waiting for the restaurant owner to recharge us...'
+                      : '⚠️ Checkout is temporarily unavailable as this restaurant has reached its monthly order capacity limit. Please contact the administrator.'
+                    }
                   </div>
                   <button
                     className="btn btn-secondary btn-full btn-lg"

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, useTranslation, getActiveRestaurantInfo, getActiveRestaurantId } from '../../context/RealtimeStore';
 import type { TableInfo, MenuItem } from '../../context/RealtimeStore';
-import { MapPin, Phone, Clock, ChevronRight, Star, Utensils, X } from 'lucide-react';
+import { MapPin, Phone, Clock, ChevronRight, Star, Utensils, X, Mail } from 'lucide-react';
 
 const VegNonVegIndicator = ({ isVeg, size = 14 }: { isVeg: boolean; size?: number }) => (
   <div style={{
@@ -47,6 +47,9 @@ export default function CustomerHome({ table }: Props) {
   const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
   const [variantQty, setVariantQty] = useState(1);
+  const [showLangDropdown, setShowLangDropdown] = useState(false);
+  const [showCouponsModal, setShowCouponsModal] = useState(false);
+  const [copiedCouponId, setCopiedCouponId] = useState<string | null>(null);
 
   const handleOpenVariantModal = (item: MenuItem) => {
     setVariantModalItem(item);
@@ -164,29 +167,101 @@ export default function CustomerHome({ table }: Props) {
           zIndex: 10
         }}>
           {/* Language Switcher */}
-          <button
-            onClick={() => {
-              const nextLang = state.language === 'hi' ? 'en' : 'hi';
-              dispatch({ type: 'SET_STATE', payload: { language: nextLang } });
-              addToast('info', nextLang === 'hi' ? 'भाषा बदलकर हिंदी कर दी गई है' : 'Language switched to English');
-            }}
-            style={{
-              background: 'rgba(0, 0, 0, 0.6)',
-              color: '#fff',
-              fontSize: 11,
-              fontWeight: 700,
-              padding: '4px 10px',
-              borderRadius: 99,
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              transition: 'all 0.2s'
-            }}
-          >
-            🌐 {state.language === 'hi' ? 'EN' : 'हिन्दी'}
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowLangDropdown(prev => !prev)}
+              style={{
+                background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)',
+                color: '#000000',
+                fontSize: 11,
+                fontWeight: 800,
+                padding: '6px 12px',
+                borderRadius: 99,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                boxShadow: '0 4px 12px rgba(255, 125, 0, 0.35)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+              }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              🌐 {
+                state.language === 'en' ? 'EN' :
+                state.language === 'hi' ? 'हिन्दी' :
+                state.language === 'bn' ? 'বাংলা' :
+                state.language === 'te' ? 'తెలుగు' :
+                state.language === 'mr' ? 'मराठी' :
+                state.language === 'ta' ? 'தமிழ்' : '🌐'
+              }
+            </button>
+
+            {showLangDropdown && (
+              <>
+                <div 
+                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                  onClick={() => setShowLangDropdown(false)}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '120%',
+                  right: 0,
+                  background: 'rgba(26, 26, 26, 0.95)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 125, 0, 0.25)',
+                  borderRadius: 12,
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+                  padding: '6px 0',
+                  minWidth: 160,
+                  zIndex: 1000,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  animation: 'fadeIn 0.2s ease',
+                }}>
+                  {[
+                    { code: 'en', label: '🇺🇸 English' },
+                    { code: 'hi', label: '🇮🇳 हिन्दी (Hindi)' },
+                    { code: 'bn', label: '🇮🇳 বাংলা (Bengali)' },
+                    { code: 'te', label: '🇮🇳 తెలుగు (Telugu)' },
+                    { code: 'mr', label: '🇮🇳 मराठी (Marathi)' },
+                    { code: 'ta', label: '🇮🇳 தமிழ் (Tamil)' }
+                  ].map((lang) => {
+                    const isSelected = state.language === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        onClick={() => {
+                          dispatch({ type: 'SET_STATE', payload: { language: lang.code } });
+                          addToast('success', `Language switched to ${lang.label.split(' ')[1]}`);
+                          setShowLangDropdown(false);
+                        }}
+                        style={{
+                          background: isSelected ? 'var(--brand-dim)' : 'transparent',
+                          color: isSelected ? 'var(--brand)' : '#ffffff',
+                          padding: '10px 16px',
+                          fontSize: 12,
+                          fontWeight: isSelected ? 700 : 500,
+                          textAlign: 'left',
+                          border: 'none',
+                          width: '100%',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          transition: 'background 0.2s',
+                        }}
+                      >
+                        {lang.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Theme Switcher */}
           <button
@@ -292,6 +367,56 @@ export default function CustomerHome({ table }: Props) {
           )}
         </div>
 
+        {/* Marquee Banner */}
+        {restaurant.offersMarqueeEnabled && (state.coupons?.filter(c => c.isActive).length || 0) > 0 && (
+          (() => {
+            const activeCoupons = state.coupons.filter(c => c.isActive);
+            const marqueeText = activeCoupons.map(c => 
+              `✨ Use code ${c.code} to get ${c.type === 'percentage' ? `${c.value}%` : `₹${c.value}`} OFF${c.minOrderAmount ? ` on orders above ₹${c.minOrderAmount}` : ''}! `
+            ).join('  |  ');
+            return (
+              <div 
+                onClick={() => setShowCouponsModal(true)}
+                style={{
+                  width: '100%',
+                  background: 'linear-gradient(90deg, rgba(255,125,0,0.15) 0%, rgba(255,125,0,0.05) 50%, rgba(255,125,0,0.15) 100%)',
+                  border: '1px solid rgba(255, 125, 0, 0.25)',
+                  borderRadius: 8,
+                  padding: '8px 0',
+                  marginTop: 16,
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(255,125,0,0.1)',
+                  position: 'relative'
+                }}
+              >
+                <style>{`
+                  @keyframes marqueeAnimation {
+                    0% { transform: translate3d(100%, 0, 0); }
+                    100% { transform: translate3d(-100%, 0, 0); }
+                  }
+                  .marquee-content {
+                    display: inline-block;
+                    padding-left: 100%;
+                    animation: marqueeAnimation 15s linear infinite;
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: var(--brand);
+                    letter-spacing: 0.5px;
+                  }
+                  .marquee-content:hover {
+                    animation-play-state: paused;
+                  }
+                `}</style>
+                <div className="marquee-content">
+                  {marqueeText} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {marqueeText}
+                </div>
+              </div>
+            );
+          })()
+        )}
+
         {/* CTA */}
         <button
           className="btn btn-primary btn-lg"
@@ -360,17 +485,40 @@ export default function CustomerHome({ table }: Props) {
 
       {/* Contact section */}
       <div style={{ padding: '20px' }}>
-        <div className="card" style={{ padding: '16px' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>📞 {t('contact')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="card" style={{ padding: '16px', background: 'var(--bg-glass)', border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--brand)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            📍 {t('contact_and_location') || 'Contact & Location'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {restaurant.phone && (
-              <a href={`tel:${restaurant.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-                <Phone size={13} color="var(--brand)" /> {restaurant.phone}
+              <a href={`tel:${restaurant.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="contact-link">
+                <Phone size={14} color="var(--brand)" /> {restaurant.phone}
+              </a>
+            )}
+            {restaurant.email && (
+              <a href={`mailto:${restaurant.email}`} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="contact-link">
+                <Mail size={14} color="var(--brand)" /> {restaurant.email}
               </a>
             )}
             {restaurant.address && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-                <MapPin size={13} color="var(--brand)" style={{ flexShrink: 0, marginTop: 2 }} /> {restaurant.address}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: 'var(--text-secondary)' }}>
+                <MapPin size={14} color="var(--brand)" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span>{restaurant.address}</span>
+                  {restaurant.googleMapsUrl && (
+                    <a href={restaurant.googleMapsUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
+                      View on Google Maps →
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+            {(restaurant.openTime || restaurant.closeTime) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+                <Clock size={14} color="var(--brand)" />
+                <span>
+                  {t('business_hours') || 'Business Hours'}: {restaurant.openTime || '00:00'} – {restaurant.closeTime || '23:59'}
+                </span>
               </div>
             )}
           </div>
@@ -555,6 +703,121 @@ export default function CustomerHome({ table }: Props) {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Active Coupons Modal */}
+      {showCouponsModal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowCouponsModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 420, padding: 24, position: 'relative' }}>
+            <button
+              onClick={() => setShowCouponsModal(false)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border)',
+                borderRadius: '50%',
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                zIndex: 10,
+                transition: 'all 0.2s'
+              }}
+            >
+              <X size={16} />
+            </button>
+            
+            <h3 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 600, color: 'var(--brand)', marginBottom: 6 }}>
+              🏷️ {t('active_offers') || 'Active Offers'}
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20 }}>
+              Use these promo codes on checkout to grab extra savings!
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '350px', overflowY: 'auto', paddingRight: 4 }}>
+              {state.coupons?.filter(c => c.isActive).map(coupon => {
+                const isCopied = copiedCouponId === coupon.id;
+                return (
+                  <div
+                    key={coupon.id}
+                    style={{
+                      background: 'var(--bg-elevated)',
+                      border: '1px dashed var(--border-brand)',
+                      borderRadius: 12,
+                      padding: 16,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <span style={{
+                          background: 'var(--brand-dim)',
+                          color: 'var(--brand)',
+                          padding: '4px 8px',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 800,
+                          letterSpacing: '0.5px'
+                        }}>
+                          {coupon.code}
+                        </span>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginTop: 8 }}>
+                          {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `₹${coupon.value} OFF`}
+                        </div>
+                      </div>
+                      
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(coupon.code);
+                          setCopiedCouponId(coupon.id);
+                          setTimeout(() => setCopiedCouponId(null), 2000);
+                        }}
+                        style={{
+                          background: isCopied ? 'var(--status-success-dim)' : 'var(--brand)',
+                          color: isCopied ? 'var(--status-success)' : '#000',
+                          border: 'none',
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                      >
+                        {isCopied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 2, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, marginTop: 4 }}>
+                      {coupon.minOrderAmount && (
+                        <span>• Valid on orders above ₹{coupon.minOrderAmount}</span>
+                      )}
+                      {coupon.isOneTime && (
+                        <span>• Single use per customer</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {(!state.coupons || state.coupons.filter(c => c.isActive).length === 0) && (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+                  No active offers available right now.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

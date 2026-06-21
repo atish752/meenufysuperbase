@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useStore } from '../../context/RealtimeStore';
+import { useStore, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import type { Order, OrderStatus } from '../../context/RealtimeStore';
-import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, Bell, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, Bell, ChevronDown, ChevronUp, Calendar, Printer } from 'lucide-react';
+import { printThermalReceipt } from '../../utils/printReceipt';
+
 import { playChime } from '../../utils/notifications';
 
 type Props = { tableId: string };
@@ -21,6 +23,64 @@ export default function CustomerOrders({ tableId }: Props) {
   const { state, dispatch, addToast } = useStore();
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all' | string>('all');
   const [customDate, setCustomDate] = useState('');
+
+  const savedGoogle = localStorage.getItem('meenufy_customer_google_user');
+  const savedCustom = localStorage.getItem('meenufy_customer_logged_in_user');
+  const isLoggedIn = !!(savedGoogle || savedCustom);
+
+  if (!isLoggedIn) {
+    return (
+      <div style={{
+        padding: '40px 20px',
+        textAlign: 'center',
+        paddingTop: 100,
+        width: '100%',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animation: 'fadeIn 0.3s ease'
+      }}>
+        <div style={{ 
+          width: 80, 
+          height: 80, 
+          borderRadius: '50%', 
+          background: 'var(--brand-dim)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          marginBottom: 24,
+          border: '1px solid var(--brand)',
+          boxShadow: '0 8px 24px rgba(255, 125, 0, 0.15)'
+        }}>
+          <span style={{ fontSize: 36 }}>🔐</span>
+        </div>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, marginBottom: 12, color: 'var(--text-primary)' }}>
+          Authentication Required
+        </h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 32, lineHeight: 1.6, maxWidth: 300 }}>
+          To view your order history and track live order status, please sign in or sign up from the 'More' tab.
+        </p>
+        <button
+          className="btn btn-primary"
+          style={{ 
+            background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)', 
+            color: '#000', 
+            fontWeight: 700, 
+            padding: '12px 32px', 
+            borderRadius: 99,
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(255, 125, 0, 0.3)'
+          }}
+          onClick={() => dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'more' })}
+        >
+          Go to Sign In
+        </button>
+      </div>
+    );
+  }
 
   const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
   const myOrders = state.orders
@@ -260,6 +320,7 @@ export default function CustomerOrders({ tableId }: Props) {
 }
 
 function OrderStatusCard({ order }: { order: Order }) {
+  const { state } = useStore();
   const info = STATUS_INFO[order.status];
   const Icon = info.icon;
   const currentStepIdx = STATUS_STEPS.indexOf(order.status);
@@ -390,6 +451,34 @@ function OrderStatusCard({ order }: { order: Order }) {
               )}
             </div>
           </div>
+
+          {/* View/Download Bill Button */}
+          {['served', 'bill_pay'].includes(order.status) && (
+            <div style={{ padding: '0 14px 12px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  borderRadius: 8,
+                  padding: '6px 12px',
+                  background: 'var(--brand-dim)',
+                  border: '1px solid var(--brand)',
+                  color: 'var(--brand)'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const restaurant = getActiveRestaurantInfo(state, order.restaurantId || 'admin-1');
+                  printThermalReceipt(order, 'bill', restaurant);
+                }}
+              >
+                <Printer size={12} /> View/Download Bill
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

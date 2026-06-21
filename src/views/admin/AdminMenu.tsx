@@ -817,30 +817,6 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           gap: 10,
           alignItems: 'center',
         }}>
-          {/* Subscription Plan Display - Clickable */}
-          <button
-            onClick={() => {
-              localStorage.setItem('meenufy_admin_more_section', 'subscription');
-              dispatch({ type: 'SET_ADMIN_TAB', payload: 'more' });
-            }}
-            style={{
-              background: 'var(--brand)',
-              border: 'none',
-              borderRadius: 12,
-              padding: '6px 12px',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              height: 38,
-              color: '#ffffff',
-              boxShadow: 'var(--shadow-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <span style={{ color: '#ffffff' }}>⭐️ Plan: {state.subscriptionPlan.charAt(0).toUpperCase() + state.subscriptionPlan.slice(1)}</span>
-          </button>
 
           {/* Menu Theme Color Button */}
           <button

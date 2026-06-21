@@ -117,6 +117,8 @@ export type Order = {
   pointsEarned?: number;
   pointsRedeemed?: number;
   pointsDiscountApplied?: number;
+  couponDiscountApplied?: number;
+  couponCodeApplied?: string;
 };
 
 export type TableInfo = {
@@ -153,7 +155,36 @@ export type RestaurantInfo = {
   pointsPer100Spent?: number;
   pointValueInRupees?: number;
   mustLoginBeforeOrder?: boolean;
+  autoprintKotEnabled?: boolean;
+  autoprintBillEnabled?: boolean;
+  taxPercentage?: number;
+  printWidth?: '58mm' | '80mm';
+  printHeaderMessage?: string;
+  printFooterMessage?: string;
+  printShowDateTime?: boolean;
+  printShowOrderNumber?: boolean;
+  subscriptionPlan?: 'free' | 'base' | 'standard' | 'advance';
+  ordersPlacedThisMonth?: number;
+  subscriptionRenewalDate?: number;
+  billingPeriod?: 'monthly' | 'yearly';
+  allowNegativeOrders?: boolean;
+  offersMarqueeEnabled?: boolean;
 };
+
+export type Coupon = {
+  id: string;
+  code: string;
+  type: 'flat' | 'percentage';
+  value: number;
+  minOrderAmount?: number;
+  isOneTime?: boolean;
+  isActive: boolean;
+  createdAt: number;
+  usageCount?: number;
+  usageLimit?: number;
+  restaurantId?: string;
+};
+
 
 export type CustomerRecord = {
   id: string;
@@ -166,6 +197,8 @@ export type CustomerRecord = {
   firstVisit: number;
   isVip?: boolean;
   points?: number;
+  uniqueId?: string;
+  password?: string;
 };
 
 export type WalletTransaction = {
@@ -264,6 +297,8 @@ export type AppState = {
   tables: TableInfo[];
   // Customers
   customers: CustomerRecord[];
+  // Coupons
+  coupons: Coupon[];
   // Schedules
   schedules: MealSchedule[];
   // Waiter requests
@@ -287,10 +322,11 @@ export type AppState = {
   toasts: Toast[];
   isLoading: boolean;
   newOrderAlert: Order | null;
-  language: 'en' | 'hi';
+  language: 'en' | 'hi' | 'bn' | 'te' | 'mr' | 'ta' | string;
   adminTheme: 'dark' | 'light';
   customerTheme: 'dark' | 'light';
   customerMenuTheme: CustomerMenuTheme;
+  deferredPrompt?: any;
 };
 
 export type CustomerMenuTheme = {
@@ -329,6 +365,19 @@ const DEFAULT_RESTAURANT: RestaurantInfo = {
   pointsPer100Spent: 1,
   pointValueInRupees: 1,
   mustLoginBeforeOrder: false,
+  autoprintKotEnabled: false,
+  autoprintBillEnabled: false,
+  taxPercentage: 5,
+  printWidth: '80mm',
+  printHeaderMessage: 'Welcome to our restaurant!',
+  printFooterMessage: 'Thank you for dining with us! Visit again.',
+  printShowDateTime: true,
+  printShowOrderNumber: true,
+  subscriptionPlan: 'free',
+  ordersPlacedThisMonth: 0,
+  subscriptionRenewalDate: 0,
+  billingPeriod: 'monthly',
+  allowNegativeOrders: false,
 };
 
 export const MOCK_RESTAURANT_INFOS: Record<string, RestaurantInfo> = {
@@ -642,6 +691,7 @@ const DEFAULT_STATE: AppState = {
   cart: [],
   tables: generateTables(8),
   customers: MOCK_CUSTOMERS,
+  coupons: [],
   schedules: [],
   waiterRequests: [],
   walletBalance: 300,
@@ -762,6 +812,7 @@ const DEFAULT_STATE: AppState = {
     bestsellerBg: '',
     bestsellerText: '',
   },
+  deferredPrompt: null,
 };
 
 // ─── Actions ─────────────────────────────────────────────────
@@ -825,7 +876,13 @@ type Action =
   | { type: 'SYNC_CATEGORIES'; payload: { restaurantId: string; categories: MenuCategory[] } }
   | { type: 'SYNC_ORDERS'; payload: { restaurantId: string; orders: Order[] } }
   | { type: 'SYNC_WAITER_REQUESTS'; payload: { restaurantId: string; requests: WaiterRequest[] } }
-  | { type: 'SYNC_RESTAURANT_ACCOUNTS'; payload: RestaurantAccount[] };
+  | { type: 'SYNC_RESTAURANT_ACCOUNTS'; payload: RestaurantAccount[] }
+  | { type: 'SYNC_CUSTOMERS'; payload: { restaurantId: string; customers: CustomerRecord[] } }
+  | { type: 'SYNC_COUPONS'; payload: Coupon[] }
+  | { type: 'ADD_COUPON'; payload: Coupon }
+  | { type: 'DELETE_COUPON'; payload: string }
+  | { type: 'UPDATE_COUPON'; payload: Coupon }
+  | { type: 'CLEAR_ALL_CUSTOMERS' };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -858,6 +915,43 @@ function reducer(state: AppState, action: Action): AppState {
           ...state.orders.filter(o => o.restaurantId !== restaurantId),
           ...orders
         ]
+      };
+    }
+    case 'SYNC_CUSTOMERS': {
+      const { customers } = action.payload;
+      return {
+        ...state,
+        customers
+      };
+    }
+    case 'SYNC_COUPONS': {
+      return {
+        ...state,
+        coupons: action.payload
+      };
+    }
+    case 'ADD_COUPON': {
+      return {
+        ...state,
+        coupons: [...state.coupons.filter(c => c.id !== action.payload.id), action.payload]
+      };
+    }
+    case 'DELETE_COUPON': {
+      return {
+        ...state,
+        coupons: state.coupons.filter(c => c.id !== action.payload)
+      };
+    }
+    case 'UPDATE_COUPON': {
+      return {
+        ...state,
+        coupons: state.coupons.map(c => c.id === action.payload.id ? action.payload : c)
+      };
+    }
+    case 'CLEAR_ALL_CUSTOMERS': {
+      return {
+        ...state,
+        customers: []
       };
     }
     case 'SYNC_WAITER_REQUESTS': {
@@ -1674,6 +1768,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Listen to PWA install prompt event
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      dispatch({ type: 'SET_STATE', payload: { deferredPrompt: e } });
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -1702,29 +1808,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // 2. Sync restaurant accounts
-    const unsubscribeAccounts = onValue(ref(db, 'restaurantAccounts'), (snapshot) => {
-      const data = snapshot.val();
-      const accounts: RestaurantAccount[] = data ? Object.values(data) as RestaurantAccount[] : [];
-      if (accounts.length > 0) {
-        dispatch({
-          type: 'SYNC_RESTAURANT_ACCOUNTS',
-          payload: accounts
-        });
+    // 2. Sync restaurant accounts (Only for admin views or super-admin connection)
+    let unsubscribeAccounts = () => {};
+    const isAdminMode = targetRestaurantId === 'super-admin' || 
+                        window.location.search.includes('view=admin') || 
+                        // Check if admin is logged in via saved state
+                        (() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return !!s.isAdminLoggedIn; } catch { return false; } })();
+                        
+    if (isAdminMode) {
+      unsubscribeAccounts = onValue(ref(db, 'restaurantAccounts'), (snapshot) => {
+        const data = snapshot.val();
+        const accounts: RestaurantAccount[] = data ? Object.values(data) as RestaurantAccount[] : [];
+        if (accounts.length > 0) {
+          dispatch({
+            type: 'SYNC_RESTAURANT_ACCOUNTS',
+            payload: accounts
+          });
 
-        // Write detected country back to Firebase if it doesn't have it set yet
-        const curAdmin = stateRef.current.admin;
-        if (curAdmin && !curAdmin.isSuperAdmin && db) {
-          const dbAcc = accounts.find(a => a.id === curAdmin.id);
-          if (dbAcc && !dbAcc.billingCountry) {
-            const detected = detectBillingCountry();
-            update(ref(db, `restaurantAccounts/${curAdmin.id}`), {
-              billingCountry: detected
-            }).catch(e => console.error("Failed to sync billingCountry back to DB:", e));
+          // Write detected country back to Firebase if it doesn't have it set yet
+          const curAdmin = stateRef.current.admin;
+          if (curAdmin && !curAdmin.isSuperAdmin && db) {
+            const dbAcc = accounts.find(a => a.id === curAdmin.id);
+            if (dbAcc && !dbAcc.billingCountry) {
+              const detected = detectBillingCountry();
+              update(ref(db, `restaurantAccounts/${curAdmin.id}`), {
+                billingCountry: detected
+              }).catch(e => console.error("Failed to sync billingCountry back to DB:", e));
+            }
           }
         }
-      }
-    });
+      });
+    }
 
     // 3. Listen to menuItems
     const unsubscribeMenu = onValue(ref(db, `menuItems/${targetRestaurantId}`), (snapshot) => {
@@ -1834,6 +1948,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // 10. Listen to customers
+    const unsubscribeCustomers = onValue(ref(db, `customers/${targetRestaurantId}`), (snapshot) => {
+      const data = snapshot.val();
+      const custs: CustomerRecord[] = data ? Object.values(data) as CustomerRecord[] : [];
+      dispatch({
+        type: 'SYNC_CUSTOMERS',
+        payload: { restaurantId: targetRestaurantId, customers: custs }
+      });
+    });
+
+    // 11. Listen to coupons
+    const unsubscribeCoupons = onValue(ref(db, `coupons/${targetRestaurantId}`), (snapshot) => {
+      const data = snapshot.val();
+      const items: Coupon[] = data ? Object.values(data) as Coupon[] : [];
+      dispatch({ type: 'SYNC_COUPONS', payload: items });
+    });
+
     return () => {
       unsubscribeConnected();
       unsubscribeRestaurant();
@@ -1845,6 +1976,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeTables();
       unsubscribeSchedules();
       unsubscribeGeminiKeys();
+      unsubscribeCustomers();
+      unsubscribeCoupons();
     };
   }, [state.admin?.restaurantId, state.currentView]);
 
@@ -1865,6 +1998,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           });
         };
 
+        // Keys that must never be written to Firebase for security reasons
+        const SENSITIVE_KEYS = new Set(['password']);
+
         const sanitizeDbData = (obj: any): any => {
           if (obj === null || obj === undefined) return null;
           if (Array.isArray(obj)) {
@@ -1873,7 +2009,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (typeof obj === 'object') {
             const cleaned: any = {};
             for (const key of Object.keys(obj)) {
-              if (obj[key] !== undefined) {
+              // Strip sensitive fields and undefined values
+              if (obj[key] !== undefined && !SENSITIVE_KEYS.has(key)) {
                 cleaned[key] = sanitizeDbData(obj[key]);
               }
             }
@@ -1933,12 +2070,56 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               'Failed to place order in database'
             );
             
-            // Increment ordersPlacedThisMonth on restaurantAccounts
-            const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === orderRestId);
-            const currentOrders = matchedAcc?.ordersPlacedThisMonth || 0;
-            update(ref(db, `restaurantAccounts/${orderRestId}`), {
-              ordersPlacedThisMonth: currentOrders + 1
-            }).catch(e => console.error('Failed to increment order count:', e));
+            // Sync customer details
+            const phone = action.payload.customerPhone;
+            if (phone) {
+              const cleanPhone = phone.replace(/[^a-zA-Z0-9]/g, '');
+              const matchedCust = currentState.customers.find(c => c.phone === phone);
+              const pointsEarned = action.payload.pointsEarned || 0;
+              const pointsRedeemed = action.payload.pointsRedeemed || 0;
+              
+              const updatedCust = matchedCust ? {
+                ...matchedCust,
+                name: action.payload.customerName || matchedCust.name,
+                email: action.payload.customerEmail || matchedCust.email,
+                orderCount: (matchedCust.orderCount || 0) + 1,
+                totalSpent: (matchedCust.totalSpent || 0) + action.payload.totalAmount,
+                lastVisit: Date.now(),
+                points: (matchedCust.points || 0) + pointsEarned - pointsRedeemed,
+              } : {
+                id: `cust-${Date.now()}`,
+                name: action.payload.customerName || 'Guest',
+                phone: phone,
+                email: action.payload.customerEmail || '',
+                orderCount: 1,
+                totalSpent: action.payload.totalAmount,
+                lastVisit: Date.now(),
+                firstVisit: Date.now(),
+                points: pointsEarned - pointsRedeemed,
+                isVip: false,
+              };
+
+              set(ref(db, `customers/${orderRestId}/${cleanPhone}`), sanitizeDbData(updatedCust))
+                .catch(e => console.error('Failed to sync customer profile:', e));
+            }
+
+            // Increment ordersPlacedThisMonth atomically using Firebase increment()
+            // This prevents race conditions when multiple orders arrive simultaneously
+            import('firebase/database').then(({ increment }) => {
+              update(ref(db!, `restaurantAccounts/${orderRestId}`), {
+                ordersPlacedThisMonth: increment(1)
+              }).catch(e => console.error('Failed to increment order count:', e));
+              
+              update(ref(db!, `restaurants/${orderRestId}`), {
+                ordersPlacedThisMonth: increment(1)
+              }).catch(e => console.error('Failed to increment order count on restaurant:', e));
+            }).catch(() => {
+              // Fallback to stale-read increment if dynamic import fails
+              const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === orderRestId);
+              const currentOrders = matchedAcc?.ordersPlacedThisMonth || 0;
+              update(ref(db!, `restaurantAccounts/${orderRestId}`), { ordersPlacedThisMonth: currentOrders + 1 }).catch(() => {});
+              update(ref(db!, `restaurants/${orderRestId}`), { ordersPlacedThisMonth: currentOrders + 1 }).catch(() => {});
+            });
             
             break;
           }
@@ -2037,6 +2218,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             );
             break;
           }
+          case 'TOGGLE_CUSTOMER_VIP': {
+            const cust = currentState.customers.find(c => c.id === action.payload);
+            if (cust && cust.phone) {
+              const cleanPhone = cust.phone.replace(/[^a-zA-Z0-9]/g, '');
+              update(ref(db, `customers/${restId}/${cleanPhone}`), {
+                isVip: !cust.isVip
+              }).catch(e => console.error('Failed to update VIP status:', e));
+            }
+            break;
+          }
+          case 'ADJUST_CUSTOMER_POINTS': {
+            const { id, points } = action.payload;
+            const cust = currentState.customers.find(c => c.id === id);
+            if (cust && cust.phone) {
+              const cleanPhone = cust.phone.replace(/[^a-zA-Z0-9]/g, '');
+              update(ref(db, `customers/${restId}/${cleanPhone}`), {
+                points: points
+              }).catch(e => console.error('Failed to adjust customer points:', e));
+            }
+            break;
+          }
           case 'UNFEATURED_ALL_ITEMS': {
             const targetItems = currentState.menuItems.filter(item => item.restaurantId === restId);
             targetItems.forEach(item => {
@@ -2051,6 +2253,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             handleDbPromise(
               remove(ref(db, `menuItems/${restId}`)),
               'Failed to delete all menu items'
+            );
+            break;
+          }
+          case 'ADD_COUPON': {
+            handleDbPromise(
+              set(ref(db, `coupons/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              'Failed to add coupon'
+            );
+            break;
+          }
+          case 'UPDATE_COUPON': {
+            handleDbPromise(
+              update(ref(db, `coupons/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              'Failed to update coupon'
+            );
+            break;
+          }
+          case 'DELETE_COUPON': {
+            handleDbPromise(
+              remove(ref(db, `coupons/${restId}/${action.payload}`)),
+              'Failed to delete coupon'
+            );
+            break;
+          }
+          case 'CLEAR_ALL_CUSTOMERS': {
+            handleDbPromise(
+              remove(ref(db, `customers/${restId}`)),
+              'Failed to clear all customers'
             );
             break;
           }
@@ -2076,7 +2306,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 walletBalance: matchedAcc ? (matchedAcc.walletBalance ?? 300) : 300,
                 status: matchedAcc ? (matchedAcc.status ?? 'active') : 'active',
                 createdAt: matchedAcc ? (matchedAcc.createdAt ?? Date.now()) : Date.now(),
-                ...(action.payload.password ? { password: action.payload.password } : {}),
+                // NOTE: password is intentionally NOT written to Firebase for security
                 subscriptionPlan: matchedAcc ? (matchedAcc.subscriptionPlan ?? 'free') : 'free',
                 ordersPlacedThisMonth: matchedAcc ? (matchedAcc.ordersPlacedThisMonth ?? 0) : 0,
                 subscriptionRenewalDate: matchedAcc ? (matchedAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -2120,6 +2350,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               }),
               'Failed to update subscription plan in database'
             );
+            handleDbPromise(
+              update(ref(db, `restaurants/${targetId}`), {
+                subscriptionPlan: planName,
+                subscriptionRenewalDate: renewal,
+                billingPeriod
+              }),
+              'Failed to update subscription plan in restaurant'
+            );
             break;
           }
           case 'SUPER_ADMIN_UPDATE_SUBSCRIPTION': {
@@ -2133,6 +2371,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 billingPeriod
               }),
               'Failed to update subscription in database (Super Admin)'
+            );
+            handleDbPromise(
+              update(ref(db, `restaurants/${id}`), {
+                subscriptionPlan,
+                ordersPlacedThisMonth,
+                subscriptionRenewalDate,
+                billingCountry,
+                billingPeriod
+              }),
+              'Failed to update subscription in restaurant (Super Admin)'
             );
             break;
           }
@@ -2249,7 +2497,10 @@ export const TRANSLATIONS = {
     live_tracking: 'Live Tracking',
     more: 'More',
     settings: 'Settings, preferences & more',
-    language: 'Language / भाषा'
+    language: 'Language / भाषा',
+    contact_and_location: 'Contact & Location',
+    business_hours: 'Business Hours',
+    active_offers: 'Active Offers & Coupons'
   },
   hi: {
     view_full_menu: 'पूरा मेनू देखें',
@@ -2306,6 +2557,230 @@ export const TRANSLATIONS = {
     more: 'अधिक',
     settings: 'सेटिंग्स और अन्य विकल्प',
     language: 'भाषा / Language'
+  },
+  bn: {
+    view_full_menu: 'সম্পূর্ণ মেনু দেখুন',
+    featured: 'বিশেষ খাবার',
+    see_all: 'সব দেখুন',
+    contact: 'যোগাযোগ',
+    search_placeholder: 'অনুসন্ধান...',
+    all: 'সব',
+    veg: 'নিরামিষ',
+    non_veg: 'আমিষ',
+    popular: 'জনপ্রিয়',
+    low_high: '₹ কম-বেশি',
+    high_low: '₹ বেশি-কম',
+    add: 'যোগ করুন',
+    add_on: 'এড-অন',
+    view_cart: 'কার্ট দেখুন',
+    your_cart: 'আপনার কার্ট',
+    total: 'মোট',
+    place_order: 'অর্ডার করুন',
+    special_instructions: 'বিশেষ নির্দেশাবলী',
+    your_name: 'আপনার নাম',
+    phone: 'ফোন নম্বর',
+    my_orders: 'আমার অর্ডার',
+    call_waiter: 'ওয়েটার ডাকুন',
+    no_orders_yet: 'কোন অর্ডার নেই',
+    browse_menu: 'মেনু দেখুন',
+    order_placed: 'অর্ডার করা হয়েছে!',
+    order_preparing: 'রান্না হচ্ছে!',
+    order_ready: 'টেবিলে পরিবেশন করা হয়েছে!',
+    order_bill_pay: 'পেমেন্টের অপেক্ষা...',
+    live_order_status: 'অর্ডারের বর্তমান অবস্থা',
+    bill_review: 'বিল ও মতামত',
+    pay_with_upi: 'UPI দিয়ে পেমেন্ট',
+    cash_pay: 'ক্যাশ পেমেন্ট',
+    card_pay: 'কার্ড পেমেন্ট',
+    feedback: 'মতামত দিন',
+    submit_feedback: 'মতামত পাঠান',
+    waiting_confirmation: 'নিশ্চিতকরণের অপেক্ষা',
+    bestseller: 'বেস্টসেলার',
+    select_option: 'বিকল্প বাছুন',
+    review_meals: 'খাবারের মতামত',
+    back: 'পেছনে যান',
+    scan_to_pay: 'GPay, PhonePe, Paytm দিয়ে স্ক্যান করুন',
+    paid_done: 'আমি পেমেন্ট করেছি',
+    google_review: 'Google Maps এ মতামত দিন',
+    success_done: 'সফলভাবে সম্পন্ন!',
+    payment_confirmed: 'পেমেন্ট নিশ্চিত হয়েছে। ধন্যবাদ!',
+    feedback_intro: 'আজকের খাবারের রেটিং দিন।',
+    google_review_prompt: 'খাবার ভালো লেগে থাকলে আমাদের Google Maps এ রিভিউ দিতে পারেন।',
+    active_request_details: 'সক্রিয় অনুরোধ',
+    amount_due: 'বাকি টাকা',
+    method: 'পদ্ধতি',
+    live_tracking: 'লাইভ ট্র্যাকিং',
+    more: 'আরো',
+    settings: 'সেটিংস ও অন্যান্য',
+    language: 'ভাষা / Language'
+  },
+  te: {
+    view_full_menu: 'పూర్తి మెనూ చూడండి',
+    featured: 'ప్రత్యేక వంటకాలు',
+    see_all: 'అన్నీ చూడండి',
+    contact: 'సంప్రదించండి',
+    search_placeholder: 'వెతకండి...',
+    all: 'అన్నీ',
+    veg: 'శాకాహారం',
+    non_veg: 'మాంసాహారం',
+    popular: 'ప్రసిద్ధ',
+    low_high: '₹ తక్కువ-ఎక్కువ',
+    high_low: '₹ ఎక్కువ-తక్కువ',
+    add: 'జతచేయి',
+    add_on: 'యాడ్-ఆన్',
+    view_cart: 'కార్ట్ చూడండి',
+    your_cart: 'మీ కార్ట్',
+    total: 'మొత్తం',
+    place_order: 'ఆర్డర్ చేయండి',
+    special_instructions: 'ప్రత్యేక సూచనలు',
+    your_name: 'మీ పేరు',
+    phone: 'ఫోన్ నంబర్',
+    my_orders: 'నా ఆర్డర్లు',
+    call_waiter: 'వేటర్‌ని పిలవండి',
+    no_orders_yet: 'ఇంకా ఆర్డర్లు లేవు',
+    browse_menu: 'మెనూ చూడండి',
+    order_placed: 'ఆర్డర్ చేయబడింది!',
+    order_preparing: 'వంటశాలలో తయారవుతోంది!',
+    order_ready: 'టేబుల్ వద్దకు చేరింది!',
+    order_bill_pay: 'చెల్లింపు కొరకు వేచి ఉంది...',
+    live_order_status: 'లైవ్ ఆర్డర్ స్థితి',
+    bill_review: 'బిల్లు & సమీక్ష',
+    pay_with_upi: 'UPI ద్వారా చెల్లించండి',
+    cash_pay: 'నగదు చెల్లింపు',
+    card_pay: 'కార్డు చెల్లింపు',
+    feedback: 'సమీక్ష & అభిప్రాయం',
+    submit_feedback: 'అభిప్రాయాన్ని పంపండి',
+    waiting_confirmation: 'ధృవీకరణ కొరకు నిరీక్షణ',
+    bestseller: 'బెస్ట్ సెల్లర్',
+    select_option: 'ఎంపికను ఎంచుకోండి',
+    review_meals: 'వంటకాల సమీక్ష',
+    back: 'వెనక్కి వెళ్ళండి',
+    scan_to_pay: 'GPay, PhonePe, Paytm తో స్కాన్ చేయండి',
+    paid_done: 'నేను చెల్లించాను',
+    google_review: 'మమ్మల్ని Google Maps లో రివ్యూ చేయండి',
+    success_done: 'విజయవంతంగా పూర్తయింది!',
+    payment_confirmed: 'చెల్లింపు పూర్తయింది. ధన్యవాదాలు!',
+    feedback_intro: 'ఈరోజు వడ్డించిన వంటకాలకు రేటింగ్ ఇవ్వండి.',
+    google_review_prompt: 'మీకు ఆహారం నచ్చినందుకు సంతోషం! Google Maps లో రివ్యూ ఇవ్వగలరు.',
+    active_request_details: 'యాక్టివ్ ఆర్డర్ వివరాలు',
+    amount_due: 'చెల్లించాల్సిన మొత్తం',
+    method: 'పద్ధతి',
+    live_tracking: 'లైవ్ ట్రాకింగ్',
+    more: 'మరింత',
+    settings: 'సెట్టింగులు & మరికొన్ని',
+    language: 'భాష / Language'
+  },
+  mr: {
+    view_full_menu: 'पूर्ण मेनू पहा',
+    featured: 'विशेष पदार्थ',
+    see_all: 'सर्व पहा',
+    contact: 'संपर्क',
+    search_placeholder: 'शोधा...',
+    all: 'सर्व',
+    veg: 'शाकाहारी',
+    non_veg: 'मांसाहारी',
+    popular: 'लोकप्रिय',
+    low_high: '₹ कमी ते जास्त',
+    high_low: '₹ जास्त ते कमी',
+    add: 'डिश जोडा',
+    add_on: 'अॅड-ऑन',
+    view_cart: 'कार्ट पहा',
+    your_cart: 'तुमचे कार्ट',
+    total: 'एकूण',
+    place_order: 'ऑर्डर द्या',
+    special_instructions: 'विशेष सूचना',
+    your_name: 'तुमचे नाव',
+    phone: 'फोन नंबर',
+    my_orders: 'माझ्या ऑर्डर्स',
+    call_waiter: 'वेटरला बोलवा',
+    no_orders_yet: 'अजून एकही ऑर्डर नाही',
+    browse_menu: 'मेनू पहा',
+    order_placed: 'ऑर्डर दिली आहे!',
+    order_preparing: 'स्वयंपाकघरात तयार होत आहे!',
+    order_ready: 'टेबलवर पोहचली आहे!',
+    order_bill_pay: 'पेमेंटची प्रतीक्षा...',
+    live_order_status: 'लाइव्ह ऑर्डर स्टेटस',
+    bill_review: 'बिल आणि अभिप्राय',
+    pay_with_upi: 'UPI द्वारे पेमेंट',
+    cash_pay: 'रोख पेमेंट',
+    card_pay: 'कार्ड पेमेंट',
+    feedback: 'अभिप्राय आणि पुनरावलोकन',
+    submit_feedback: 'अभिप्राय पाठवा',
+    waiting_confirmation: 'खात्रीची प्रतीक्षा आहे',
+    bestseller: 'बेस्टसेलर',
+    select_option: 'पर्याय निवडा',
+    review_meals: 'पदार्थांचे पुनरावलोकन',
+    back: 'मागे जा',
+    scan_to_pay: 'GPay, PhonePe, Paytm ने स्कॅन करा',
+    paid_done: 'मी पेमेंट केले आहे',
+    google_review: 'Google Maps वर आम्हाला रेटिंग द्या',
+    success_done: 'यशस्वीरित्या पूर्ण झाले!',
+    payment_confirmed: 'पेमेंट यशस्वी! आमच्यासोबत जोडल्याबद्दल धन्यवाद!',
+    feedback_intro: 'कृपया आज टेबलवर आणलेल्या पदार्थांना रेटिंग द्या.',
+    google_review_prompt: 'तुम्हाला जेवण आवडले याबद्दल आनंद आहे! आम्हाला Google Maps वर पाठिंबा देऊ शकता का?',
+    active_request_details: 'सक्रिय विनंती',
+    amount_due: 'देय रक्कम',
+    method: 'पद्धत',
+    live_tracking: 'लाइव्ह ट्रॅकिंग',
+    more: 'अधिक',
+    settings: 'सेटिंग्ज आणि इतर',
+    language: 'भाषा / Language'
+  },
+  ta: {
+    view_full_menu: 'முழு மெனுவை பார்க்க',
+    featured: 'சிறப்பு உணவுகள்',
+    see_all: 'அனைத்தும் பார்க்க',
+    contact: 'தொடர்பு கொள்ள',
+    search_placeholder: 'தேடுக...',
+    all: 'அனைத்தும்',
+    veg: 'சைவம்',
+    non_veg: 'அசைவம்',
+    popular: 'பிரபலமான',
+    low_high: '₹ குறைந்தது முதல் கூடுதல்',
+    high_low: '₹ கூடுதல் முதல் குறைந்தது',
+    add: 'சேர்',
+    add_on: 'கூடுதல் உணவு',
+    view_cart: 'வண்டியைப் பார்',
+    your_cart: 'உங்கள் கூடை',
+    total: 'மொத்தம்',
+    place_order: 'ஆர்டர் செய்',
+    special_instructions: 'சிறப்பு அறிவுறுத்தல்கள்',
+    your_name: 'உங்கள் பெயர்',
+    phone: 'தொலைபேசி எண்',
+    my_orders: 'எனது ஆர்டர்கள்',
+    call_waiter: 'வழங்குநரை அழைக்க',
+    no_orders_yet: 'இன்னும் ஆர்டர்கள் இல்லை',
+    browse_menu: 'மெனுவை பார்க்க',
+    order_placed: 'ஆர்டர் செய்யப்பட்டுள்ளது!',
+    order_preparing: 'தயாராகி கொண்டு இருக்கிறது!',
+    order_ready: 'உணவு மேஜைக்கு வந்துவிட்டது!',
+    order_bill_pay: 'பணம் செலுத்த காத்திருக்கிறது...',
+    live_order_status: 'லைவ் ஆர்டர் நிலை',
+    bill_review: 'பில் & கருத்து',
+    pay_with_upi: 'UPI மூலம் பணம் செலுத்துக',
+    cash_pay: 'ரொக்கப் பணம் செலுத்துதல்',
+    card_pay: 'அட்டை மூலம் செலுத்துதல்',
+    feedback: 'மதிப்புரை & கருத்து',
+    submit_feedback: 'கருத்து சமர்ப்பிக்க',
+    waiting_confirmation: 'உறுதிப்படுத்த காத்திருக்கிறது',
+    bestseller: 'பிரபலமானது',
+    select_option: 'விருப்பத்தை தேர்வு செய்க',
+    review_meals: 'உணவுகளை மதிப்பிடுக',
+    back: 'பின்னால் செல்க',
+    scan_to_pay: 'GPay, PhonePe, Paytm மூலம் ஸ்கேன் செய்க',
+    paid_done: 'நான் செலுத்திவிட்டேன்',
+    google_review: 'கூகுள் மேப்பில் மதிப்பிடுக',
+    success_done: 'வெற்றிகரமாக முடிந்தது!',
+    payment_confirmed: 'கட்டணம் பெறப்பட்டது. நன்றி!',
+    feedback_intro: 'இன்று பரிமாறப்பட்ட உணவுகளை மதிப்பிடுங்கள்.',
+    google_review_prompt: 'உணவு உங்களுக்கு பிடித்ததில் மகிழ்ச்சி! எங்களை கூகுள் மேப்பில் ஆதரிக்கிறீர்களா?',
+    active_request_details: 'செயலில் உள்ள வேண்டுகோள்',
+    amount_due: 'செலுத்த வேண்டிய தொகை',
+    method: 'முறை',
+    live_tracking: 'நேரடி கண்காணிப்பு',
+    more: 'மேலும்',
+    settings: 'அமைப்புகள் & பிற',
+    language: 'மொழி / Language'
   }
 };
 
@@ -2313,6 +2788,6 @@ export function useTranslation() {
   const { state } = useStore();
   const lang = state.language || 'en';
   return (key: keyof typeof TRANSLATIONS['en']) => {
-    return TRANSLATIONS[lang]?.[key] || TRANSLATIONS['en'][key] || key;
+    return (TRANSLATIONS as any)[lang]?.[key] || TRANSLATIONS['en'][key] || key;
   };
 }

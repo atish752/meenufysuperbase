@@ -3,8 +3,9 @@ import { useStore } from '../../context/RealtimeStore';
 import {
   Store, Phone, Mail, Clock, MapPin, Save, LogOut,
   MessageSquare, Smartphone, Send, Download, QrCode, ExternalLink,
-  CreditCard,
+  CreditCard, Printer,
 } from 'lucide-react';
+
 
 function getQRUrl(tableId: string, restaurantId: string): string {
   const baseUrl = window.location.origin;
@@ -87,17 +88,23 @@ export default function AdminMore() {
   const { state, dispatch, addToast } = useStore();
   const [restaurantForm, setRestaurantForm] = useState({ ...state.restaurant });
   const [feedbackText, setFeedbackText] = useState('');
-  const [activeSection, setActiveSection] = useState<string | null>(() => {
-    const targetSection = localStorage.getItem('meenufy_admin_more_section');
-    if (targetSection) {
-      localStorage.removeItem('meenufy_admin_more_section');
-      return targetSection;
-    }
-    return 'outlet';
-  });
+  const [activeSection, setActiveSection] = useState<string | null>('outlet');
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
+
+  // Deep-link redirect: when navigating from another tab with a target section stored in localStorage
+  // This fires on mount (when adminTab first becomes 'more') AND on any subsequent adminTab changes
+  useEffect(() => {
+    const targetSection = localStorage.getItem('meenufy_admin_more_section');
+    if (targetSection) {
+      localStorage.removeItem('meenufy_admin_more_section');
+      setActiveSection(targetSection);
+    }
+  }, []); // Run on mount – AdminMore is unmounted/remounted each time tab switches to 'more'
+
+  const [selectedInstructionDevice, setSelectedInstructionDevice] = useState<'android' | 'ios' | 'windows' | 'mac' | 'pos'>('android');
+  const [showInstructions, setShowInstructions] = useState(false);
   const [selectedBillingPeriod, setSelectedBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [billingPeriodToggle, setBillingPeriodToggle] = useState<'monthly' | 'yearly'>('monthly');
   const [upgradePrice, setUpgradePrice] = useState(0);
@@ -263,12 +270,17 @@ export default function AdminMore() {
   };
 
   const handleInstallPWA = async () => {
-    if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      if (outcome === 'accepted') addToast('success', 'Meenufy installed successfully!');
+    const promptObj = deferredInstallPrompt || state.deferredPrompt;
+    if (promptObj) {
+      promptObj.prompt();
+      const { outcome } = await promptObj.userChoice;
+      if (outcome === 'accepted') {
+        addToast('success', 'Meenufy installed successfully! 🎉');
+        dispatch({ type: 'SET_STATE', payload: { deferredPrompt: null } });
+        setDeferredInstallPrompt(null);
+      }
     } else {
-      addToast('info', 'To install: In Chrome, tap the 3-dot menu → "Add to Home screen".');
+      addToast('info', 'To install: In Chrome, tap the 3-dot menu → "Add to Home screen" or "Install App".');
     }
   };
 
@@ -285,6 +297,58 @@ export default function AdminMore() {
     addToast('success', `${tableCount} QR codes generated!`);
   };
 
+  const downloadQR = async (tableId: string, tableLabel: string) => {
+    const QRCode = await import('qrcode');
+    const url = getQRUrl(tableId, state.admin?.restaurantId || 'admin-1');
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 1000;
+    canvas.height = 1120;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const tempCanvas = document.createElement('canvas');
+    await QRCode.toCanvas(tempCanvas, url, {
+      width: 800,
+      margin: 2,
+      color: { dark: '#0D0D0D', light: '#FFFFFF' }
+    });
+
+    ctx.drawImage(tempCanvas, 100, 160);
+
+    ctx.fillStyle = '#0D0D0D';
+    ctx.font = 'bold 44px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.restaurant.name.toUpperCase(), 500, 80);
+
+    ctx.font = '500 24px sans-serif';
+    ctx.fillStyle = '#666666';
+    ctx.fillText('Scan to View Menu & Order', 500, 130);
+
+    ctx.fillStyle = '#e06000';
+    ctx.font = 'bold 58px sans-serif';
+    ctx.fillText(tableLabel.toUpperCase(), 500, 1040);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `${state.restaurant.name.replace(/\s+/g, '_')}_${tableLabel.replace(/\s+/g, '_')}_QR.png`;
+    a.click();
+  };
+
+  const downloadAllQRs = async () => {
+    addToast('info', 'Preparing high-quality QR codes for download...');
+    for (let i = 0; i < state.tables.length; i++) {
+      const table = state.tables[i];
+      await new Promise(r => setTimeout(r, 250));
+      downloadQR(table.id, table.label);
+    }
+    addToast('success', 'All QR codes downloaded! 📥');
+  };
+
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT_ADMIN' });
     addToast('info', 'Logged out successfully.');
@@ -293,6 +357,7 @@ export default function AdminMore() {
   const sections = [
     { id: 'outlet', label: 'Outlet Settings', icon: Store },
     { id: 'qr', label: 'Manage QR & Tables', icon: QrCode },
+    { id: 'autoprint', label: 'Autoprint KOT/Bill', icon: Printer },
     { id: 'subscription', label: 'Pricing & Subscription', icon: CreditCard },
     { id: 'pwa', label: 'Install App', icon: Smartphone },
     { id: 'feedback', label: 'Send Feedback', icon: MessageSquare },
@@ -691,6 +756,260 @@ export default function AdminMore() {
         </div>
       )}
 
+      {/* Autoprint KOT/Bill Settings */}
+      {activeSection === 'autoprint' && (
+        <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <Printer size={18} color="var(--brand)" />
+            <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 700, margin: 0 }}>Autoprint KOT & Bill Settings</h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Toggles */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Autoprint Kitchen Order Ticket (KOT)</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Automatically print KOT when customer places a new order</div>
+              </div>
+              <div 
+                className={`toggle ${restaurantForm.autoprintKotEnabled ? 'on' : ''}`}
+                onClick={() => setRestaurantForm(prev => ({ ...prev, autoprintKotEnabled: !prev.autoprintKotEnabled }))}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="toggle-thumb" />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Autoprint Bill / Receipt</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Automatically print bill when admin confirms payment</div>
+              </div>
+              <div 
+                className={`toggle ${restaurantForm.autoprintBillEnabled ? 'on' : ''}`}
+                onClick={() => setRestaurantForm(prev => ({ ...prev, autoprintBillEnabled: !prev.autoprintBillEnabled }))}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="toggle-thumb" />
+              </div>
+            </div>
+
+            {/* Collapsible Connection Instructions */}
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)', padding: 12 }}>
+              <button 
+                type="button"
+                onClick={() => setShowInstructions(!showInstructions)}
+                style={{ 
+                  width: '100%', background: 'none', border: 'none', display: 'flex', 
+                  justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
+                  fontWeight: 700, fontSize: 13, color: 'var(--brand)', padding: 0
+                }}
+              >
+                <span>📋 Instructions to Connect Printer</span>
+                <span style={{ fontSize: 10 }}>{showInstructions ? '▲' : '▼'}</span>
+              </button>
+
+              {showInstructions && (
+                <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, animation: 'fadeIn 0.2s ease' }}>
+                  <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }} className="hide-scrollbar">
+                    {[
+                      { id: 'android', label: 'Android' },
+                      { id: 'ios', label: 'iPhone/iPad' },
+                      { id: 'windows', label: 'Windows PC' },
+                      { id: 'mac', label: 'MacBook' },
+                      { id: 'pos', label: 'POS Terminal' }
+                    ].map(dev => (
+                      <button
+                        key={dev.id}
+                        type="button"
+                        onClick={() => setSelectedInstructionDevice(dev.id as any)}
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          borderRadius: 8,
+                          background: selectedInstructionDevice === dev.id ? 'var(--brand)' : 'var(--bg-primary)',
+                          color: selectedInstructionDevice === dev.id ? '#000' : 'var(--text-primary)',
+                          border: selectedInstructionDevice === dev.id ? 'none' : '1px solid var(--border)',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {dev.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+                    {selectedInstructionDevice === 'android' && (
+                      <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li>Turn on <strong>Bluetooth</strong> and <strong>GPS Location</strong> on your Android phone or tablet.</li>
+                        <li>Go to Bluetooth Settings → <strong>Pair New Device</strong>.</li>
+                        <li>Select your thermal printer (e.g., <em>MTP-II</em> or <em>PT-210</em>) and enter PIN <code>0000</code> or <code>1234</code>.</li>
+                        <li>Ensure <strong>Autoprint KOT/Bill</strong> toggles are enabled above.</li>
+                        <li>When a print window appears, select your paired Bluetooth printer, set paper width, and click print.</li>
+                      </ol>
+                    )}
+                    {selectedInstructionDevice === 'ios' && (
+                      <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li>For Bluetooth printers, install a print routing helper app like <em>Print Hammermill</em> or <em>TSPL printer tools</em> from the App Store.</li>
+                        <li>For Wi-Fi thermal printers, connect your iOS device to the same Wi-Fi and ensure Apple <strong>AirPrint</strong> is supported.</li>
+                        <li>Enable KOT and Bill autoprint toggles in this panel.</li>
+                        <li>The system print dialogue will open automatically in Safari/Chrome when printing.</li>
+                      </ol>
+                    )}
+                    {selectedInstructionDevice === 'windows' && (
+                      <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li>Connect printer to your PC/Laptop via USB. Install the manufacturer's receipt printer driver.</li>
+                        <li>Go to Control Panel → Devices &amp; Printers. Right-click the printer → Printer Properties → Preferences. Set default size to <strong>58mm x Receipt</strong> or <strong>80mm x Receipt</strong>.</li>
+                        <li><strong>Enable Silent Autoprint (Recommended):</strong> Close Chrome. Right-click Chrome shortcut → Properties. Add <code>--kiosk-printing</code> at the very end of the <strong>Target</strong> field (after quotes). Open Chrome. It will now print receipts silently instantly!</li>
+                      </ol>
+                    )}
+                    {selectedInstructionDevice === 'mac' && (
+                      <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li>Connect USB thermal printer. Go to System Settings → Printers &amp; Scanners → Add Printer. Choose driver <strong>Generic PostScript</strong> or install CUPS driver.</li>
+                        <li>Enable macOS printer web admin: Open Terminal and run <code>cupsctl WebInterface=yes</code>. Open browser to <code>http://localhost:631</code>, select printer, and set default paper width.</li>
+                        <li>Safari/Chrome will invoke the print dialog automatically on order updates.</li>
+                      </ol>
+                    )}
+                    {selectedInstructionDevice === 'pos' && (
+                      <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li>For Android POS machines (e.g. Sunmi, Epson, etc.), the printer is connected internally.</li>
+                        <li>Go to Settings → Printing → select <strong>InnerPrinter</strong> (or local POS print service) as default.</li>
+                        <li>Ensure KOT and Bill autoprint toggles are active above. The browser print command will auto-route to the inner receipt slot.</li>
+                      </ol>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Customization Details */}
+            <div className="input-group">
+              <label className="input-label">Tax Percentage (%)</label>
+              <input className="input" type="number" step="0.01" min={0} max={100} value={restaurantForm.taxPercentage ?? 5}
+                onChange={e => setRestaurantForm({ ...restaurantForm, taxPercentage: parseFloat(e.target.value) || 0 })} />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Printer Paper Width</label>
+              <select className="input" value={restaurantForm.printWidth || '80mm'}
+                onChange={e => setRestaurantForm({ ...restaurantForm, printWidth: e.target.value as '58mm' | '80mm' })}>
+                <option value="58mm">58mm (Standard Small Thermal)</option>
+                <option value="80mm">80mm (Standard Large Thermal)</option>
+              </select>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Receipt Header Message</label>
+              <input className="input" type="text" value={restaurantForm.printHeaderMessage || ''}
+                placeholder="e.g. Welcome to our restaurant!"
+                onChange={e => setRestaurantForm({ ...restaurantForm, printHeaderMessage: e.target.value })} />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Receipt Footer Message</label>
+              <input className="input" type="text" value={restaurantForm.printFooterMessage || ''}
+                placeholder="e.g. Thank you for dining with us! Visit again."
+                onChange={e => setRestaurantForm({ ...restaurantForm, printFooterMessage: e.target.value })} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 16, background: 'var(--bg-elevated)', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => setRestaurantForm(prev => ({ ...prev, printShowDateTime: prev.printShowDateTime !== false ? false : true }))}>
+                <input 
+                  type="checkbox" 
+                  checked={restaurantForm.printShowDateTime !== false}
+                  readOnly
+                  style={{ cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Show Date &amp; Time</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => setRestaurantForm(prev => ({ ...prev, printShowOrderNumber: prev.printShowOrderNumber !== false ? false : true }))}>
+                <input 
+                  type="checkbox" 
+                  checked={restaurantForm.printShowOrderNumber !== false}
+                  readOnly
+                  style={{ cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Show Order Number</span>
+              </div>
+            </div>
+
+            {/* Test Print Actions */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ flex: 1, fontSize: 12, height: 38, fontWeight: 700 }}
+                onClick={() => {
+                  const mockOrder = {
+                    id: 'mock-order-1234',
+                    tableNumber: 3,
+                    tableId: 'table-3',
+                    customerName: 'Test Customer',
+                    customerPhone: '9876543210',
+                    items: [
+                      { id: 'item-1', menuItemId: 'item-1', name: 'Mock Paneer Tikka', price: 250, qty: 2, variant: { name: 'Full', price: 250 } },
+                      { id: 'item-2', menuItemId: 'item-2', name: 'Mock Butter Naan', price: 40, qty: 3 }
+                    ],
+                    totalAmount: 620,
+                    status: 'pending' as const,
+                    paymentStatus: 'pending' as const,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    specialNote: 'Make it spicy'
+                  };
+                  import('../../utils/printReceipt').then(({ printThermalReceipt }) => {
+                    printThermalReceipt(mockOrder, 'kot', restaurantForm);
+                  });
+                }}
+              >
+                🖨️ Test Print KOT
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ flex: 1, fontSize: 12, height: 38, fontWeight: 700 }}
+                onClick={() => {
+                  const mockOrder = {
+                    id: 'mock-order-1234',
+                    tableNumber: 3,
+                    tableId: 'table-3',
+                    customerName: 'Test Customer',
+                    customerPhone: '9876543210',
+                    items: [
+                      { id: 'item-1', menuItemId: 'item-1', name: 'Mock Paneer Tikka', price: 250, qty: 2, variant: { name: 'Full', price: 250 } },
+                      { id: 'item-2', menuItemId: 'item-2', name: 'Mock Butter Naan', price: 40, qty: 3 }
+                    ],
+                    totalAmount: 620,
+                    status: 'served' as const,
+                    paymentStatus: 'paid' as const,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    specialNote: 'Make it spicy'
+                  };
+                  import('../../utils/printReceipt').then(({ printThermalReceipt }) => {
+                    printThermalReceipt(mockOrder, 'bill', restaurantForm);
+                  });
+                }}
+              >
+                🖨️ Test Print Bill
+              </button>
+            </div>
+
+            {/* Save Button */}
+            <button 
+              type="button" 
+              className="btn btn-primary" 
+              onClick={handleSaveRestaurant}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 6, height: 40, fontWeight: 700 }}
+            >
+              <Save size={16} /> Save Printer Preferences
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* QR Code Manager */}
       {activeSection === 'qr' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
@@ -701,8 +1020,8 @@ export default function AdminMore() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 16 }}>
-            <div className="input-group" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ flex: 1, minWidth: 100 }}>
               <label className="input-label">Number of Tables</label>
               <input
                 className="input"
@@ -712,9 +1031,14 @@ export default function AdminMore() {
                 onChange={e => setTableCount(parseInt(e.target.value) || 1)}
               />
             </div>
-            <button className="btn btn-primary" onClick={handleGenerateTables} style={{ flexShrink: 0 }}>
-              <QrCode size={15} /> Generate
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button className="btn btn-primary" onClick={handleGenerateTables}>
+                <QrCode size={15} /> Generate
+              </button>
+              <button className="btn btn-secondary" onClick={downloadAllQRs} style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+                📥 Download All
+              </button>
+            </div>
           </div>
 
           <div>
@@ -768,6 +1092,13 @@ export default function AdminMore() {
                   >
                     <ExternalLink size={11} /> Preview
                   </a>
+                  <button
+                    onClick={() => downloadQR(table.id, table.label)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 11, padding: '5px 10px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 4, fontWeight: 700 }}
+                  >
+                    📥 Download QR
+                  </button>
                 </div>
               ))}
             </div>
@@ -794,7 +1125,8 @@ export default function AdminMore() {
             });
 
             return (
-              <div style={{
+              <>
+                <div style={{
                 background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)',
                 borderRadius: 12,
                 padding: '20px',
@@ -820,8 +1152,8 @@ export default function AdminMore() {
                 {/* Usage statistics */}
                 <div style={{ marginTop: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6, fontWeight: 700, color: '#ffffff' }}>
-                    <span>Monthly Order Usage</span>
-                    <span>{usage} / {isUnlimited ? 'Unlimited' : `${planLimit} orders`}</span>
+                    <span style={{ color: '#ffffff' }}>Monthly Order Usage</span>
+                    <span style={{ color: '#ffffff' }}>{usage} / {isUnlimited ? 'Unlimited' : `${planLimit} orders`}</span>
                   </div>
                   <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.3)', borderRadius: 4, overflow: 'hidden' }}>
                      <div style={{ width: `${progress}%`, height: '100%', background: '#ffffff', borderRadius: 4, transition: 'width 0.3s ease' }} />
@@ -840,12 +1172,77 @@ export default function AdminMore() {
                   </span>
                 </div>
               </div>
+              
+              {/* Order Limit Exceeded Alert Box */}
+              {usage >= planLimit && !isUnlimited && (
+                <div className="card" style={{
+                  background: 'rgba(245,158,11,0.1)',
+                  borderColor: 'var(--brand)',
+                  borderWidth: '1.5px',
+                  borderStyle: 'solid',
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 20,
+                  animation: 'fadeIn 0.2s ease'
+                }}>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--brand)', marginBottom: 6 }}>
+                    ⚠️ Monthly Order Limit Exceeded
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.4 }}>
+                    Your restaurant has reached its monthly order limit of <strong>{planLimit}</strong> orders. 
+                    To continue receiving customer orders, you can either recharge/upgrade your subscription or opt to continue using in negative (up to -100 orders maximum).
+                  </p>
+                  
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        const pricingTitle = document.getElementById('upgrade-plan-section-title');
+                        pricingTitle?.scrollIntoView({ behavior: 'smooth' });
+                        addToast('info', 'Choose an upgrade plan below.');
+                      }}
+                      style={{ flex: 1, fontSize: 11, height: 32, fontWeight: 700 }}
+                    >
+                      💳 Recharge / Upgrade
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const nextAllowNegative = !restaurantForm.allowNegativeOrders;
+                        setRestaurantForm(prev => ({ ...prev, allowNegativeOrders: nextAllowNegative }));
+                        dispatch({
+                          type: 'UPDATE_RESTAURANT',
+                          payload: { allowNegativeOrders: nextAllowNegative }
+                        });
+                        addToast('success', nextAllowNegative 
+                          ? 'Grace period negative capacity activated! (-100 orders max)' 
+                          : 'Grace period negative capacity deactivated.'
+                        );
+                      }}
+                      style={{ 
+                        flex: 1, 
+                        fontSize: 11, 
+                        height: 32,
+                        fontWeight: 700,
+                        background: restaurantForm.allowNegativeOrders ? 'rgba(34,197,94,0.15)' : undefined,
+                        borderColor: restaurantForm.allowNegativeOrders ? '#22c55e' : undefined,
+                        color: restaurantForm.allowNegativeOrders ? '#22c55e' : undefined
+                      }}
+                    >
+                      {restaurantForm.allowNegativeOrders ? '🟢 Grace Mode Enabled' : '🔴 Continue in -ve'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
             );
           })()}
 
           {/* Upgrade Plan Section */}
           <div style={{ marginTop: 20 }}>
-            <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
+            <h4 id="upgrade-plan-section-title" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
               Upgrade or Change Subscription
             </h4>
 
@@ -912,15 +1309,15 @@ export default function AdminMore() {
                 const isYearly = billingPeriodToggle === 'yearly';
                 
                 const plans = state.billingCountry === 'IN' ? [
-                  { name: 'free', label: 'Free Trial', price: 0, currency: '₹', limit: 100, desc: 'For small cafes and testing' },
-                  { name: 'base', label: 'Base Plan', price: isYearly ? 15290 : 1499, currency: '₹', limit: 1000, desc: 'For growing eateries' },
-                  { name: 'standard', label: 'Standard Plan', price: isYearly ? 25490 : 2499, currency: '₹', limit: 2000, desc: 'For busy outlets' },
-                  { name: 'advance', label: 'Advance Plan', price: isYearly ? 40790 : 3999, currency: '₹', limit: Infinity, desc: 'Unlimited scale & priority support' },
+                  { name: 'free', label: 'Free Trial', price: 0, currency: '₹', limit: 100, desc: 'For small cafes and testing', saving: 0 },
+                  { name: 'base', label: 'Base Plan', price: isYearly ? 15290 : 1499, currency: '₹', limit: 1000, desc: 'For growing eateries', saving: 2698 },
+                  { name: 'standard', label: 'Standard Plan', price: isYearly ? 25490 : 2499, currency: '₹', limit: 2000, desc: 'For busy outlets', saving: 4498 },
+                  { name: 'advance', label: 'Advance Plan', price: isYearly ? 40790 : 3999, currency: '₹', limit: Infinity, desc: 'Unlimited scale & priority support', saving: 7198 },
                 ] : [
-                  { name: 'free', label: 'Free Trial', price: 0, currency: '$', limit: 100, desc: 'For small cafes and testing' },
-                  { name: 'base', label: 'Base Plan', price: isYearly ? 204 : 20, currency: '$', limit: 1000, desc: 'For growing eateries' },
-                  { name: 'standard', label: 'Standard Plan', price: isYearly ? 357 : 35, currency: '$', limit: 2000, desc: 'For busy outlets' },
-                  { name: 'advance', label: 'Advance Plan', price: isYearly ? 510 : 50, currency: '$', limit: Infinity, desc: 'Unlimited scale & priority support' },
+                  { name: 'free', label: 'Free Trial', price: 0, currency: '$', limit: 100, desc: 'For small cafes and testing', saving: 0 },
+                  { name: 'base', label: 'Base Plan', price: isYearly ? 204 : 20, currency: '$', limit: 1000, desc: 'For growing eateries', saving: 36 },
+                  { name: 'standard', label: 'Standard Plan', price: isYearly ? 357 : 35, currency: '$', limit: 2000, desc: 'For busy outlets', saving: 63 },
+                  { name: 'advance', label: 'Advance Plan', price: isYearly ? 510 : 50, currency: '$', limit: Infinity, desc: 'Unlimited scale & priority support', saving: 90 },
                 ];
 
                 return plans.map(p => {
@@ -952,7 +1349,7 @@ export default function AdminMore() {
                         <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                           {p.label}
                         </div>
-                        <div style={{ fontSize: 11, color: '#ffffff', marginTop: 4 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                           {p.desc}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600, marginTop: 6 }}>
@@ -968,7 +1365,7 @@ export default function AdminMore() {
                         
                         {isYearly && p.price > 0 && (
                           <div style={{ fontSize: 10, color: 'var(--success)', fontWeight: 600 }}>
-                            Billed annually
+                            Save {p.currency}{p.saving} on this plan!
                           </div>
                         )}
                         
