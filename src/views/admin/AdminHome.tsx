@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import type { Order, OrderStatus } from '../../context/RealtimeStore';
-import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search } from 'lucide-react';
+import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, HelpCircle } from 'lucide-react';
 import { triggerNotification } from '../../utils/notifications';
 import { printThermalReceipt } from '../../utils/printReceipt';
 
@@ -57,6 +57,8 @@ export default function AdminHome() {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [historyStartDate, setHistoryStartDate] = useState('');
   const [historyEndDate, setHistoryEndDate] = useState('');
+
+  const [showLoginTooltip, setShowLoginTooltip] = useState(false);
 
   // Coupon & Offer Management States
   const [showCouponsModal, setShowCouponsModal] = useState(false);
@@ -553,7 +555,40 @@ export default function AdminHome() {
             height: 38,
             boxShadow: 'var(--shadow-sm)',
           }}>
-            <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Customer must login</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              Customer must login
+              <div 
+                style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'help' }}
+                onMouseEnter={() => setShowLoginTooltip(true)}
+                onMouseLeave={() => setShowLoginTooltip(false)}
+              >
+                <HelpCircle size={14} style={{ color: 'var(--text-muted)' }} />
+                {showLoginTooltip && (
+                  <div style={{
+                    width: 200,
+                    backgroundColor: 'var(--bg-elevated)',
+                    color: 'var(--text-primary)',
+                    textAlign: 'left',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    position: 'absolute',
+                    zIndex: 100,
+                    bottom: '125%',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    boxShadow: 'var(--shadow-lg)',
+                    border: '1px solid var(--border)',
+                    fontSize: 11,
+                    lineHeight: '1.4',
+                    fontWeight: 'normal',
+                    whiteSpace: 'normal',
+                    pointerEvents: 'none'
+                  }}>
+                    When enabled, customers must sign in before placing an order.
+                  </div>
+                )}
+              </div>
+            </span>
             <div 
               className={`toggle ${state.restaurant.mustLoginBeforeOrder ? 'on' : ''}`} 
               onClick={() => dispatch({

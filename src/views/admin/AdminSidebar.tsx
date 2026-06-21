@@ -27,8 +27,9 @@ export default function AdminSidebar() {
             overflow: 'hidden',
             border: '1px solid var(--border-brand)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: '#ffffff',
           }}>
-            <img src="/meenufy_logo.jpg" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/meenufy_icon.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--brand)' }}>

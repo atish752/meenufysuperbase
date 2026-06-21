@@ -245,6 +245,8 @@ export type OwnerFeedback = {
   restaurantName: string;
   ownerName: string;
   ownerEmail: string;
+  ownerPhone?: string;
+  ticketType?: 'feedback' | 'bug' | 'feature' | 'other';
   message: string;
   createdAt: number;
   replyText?: string;
@@ -864,9 +866,10 @@ type Action =
   | { type: 'REMOVE_GEMINI_KEY'; payload: string }
   | { type: 'SUBMIT_SUPPORT_REQUEST'; payload: { message: string; attemptsCount: number } }
   | { type: 'REPLY_SUPPORT_REQUEST'; payload: { id: string; replyText: string } }
-  | { type: 'SUBMIT_FEEDBACK'; payload: string }
+  | { type: 'SUBMIT_FEEDBACK'; payload: { message: string; ticketType?: 'feedback' | 'bug' | 'feature' | 'other' } }
   | { type: 'DELETE_FEEDBACK'; payload: string }
   | { type: 'REPLY_FEEDBACK'; payload: { id: string; replyText: string } }
+  | { type: 'SYNC_OWNER_FEEDBACKS'; payload: OwnerFeedback[] }
   | { type: 'UPDATE_CUSTOMER_THEME_COLORS'; payload: Partial<CustomerMenuTheme> }
   | { type: 'REMAP_ORPHAN_DATA'; payload: { fromId: string; toId: string } }
   | { type: 'UNFEATURED_ALL_ITEMS' }
@@ -1491,7 +1494,9 @@ function reducer(state: AppState, action: Action): AppState {
         restaurantName: state.restaurant.name || 'My Restaurant',
         ownerName: state.admin?.name || 'Owner',
         ownerEmail: state.admin?.email || 'owner@restaurant.com',
-        message: action.payload,
+        ownerPhone: state.restaurant.phone || '',
+        ticketType: action.payload.ticketType || 'feedback',
+        message: action.payload.message,
         createdAt: Date.now()
       };
       return {
@@ -1513,6 +1518,11 @@ function reducer(state: AppState, action: Action): AppState {
         )
       };
     }
+    case 'SYNC_OWNER_FEEDBACKS':
+      return {
+        ...state,
+        ownerFeedbacks: action.payload
+      };
     case 'UPDATE_CUSTOMER_THEME_COLORS':
       return {
         ...state,
@@ -1965,6 +1975,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SYNC_COUPONS', payload: items });
     });
 
+    // 12. Listen to ownerFeedbacks (global — for super admin to receive all feedback)
+    let unsubscribeFeedbacks = () => {};
+    if (targetRestaurantId === 'super-admin' || isAdminMode) {
+      unsubscribeFeedbacks = onValue(ref(db, 'ownerFeedbacks'), (snapshot) => {
+        const data = snapshot.val();
+        const feedbacks: OwnerFeedback[] = data ? Object.values(data) as OwnerFeedback[] : [];
+        // Sort newest first
+        feedbacks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        dispatch({ type: 'SYNC_OWNER_FEEDBACKS', payload: feedbacks });
+      });
+    }
+
     return () => {
       unsubscribeConnected();
       unsubscribeRestaurant();
@@ -1978,6 +2000,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeGeminiKeys();
       unsubscribeCustomers();
       unsubscribeCoupons();
+      unsubscribeFeedbacks();
     };
   }, [state.admin?.restaurantId, state.currentView]);
 
@@ -2281,6 +2304,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             handleDbPromise(
               remove(ref(db, `customers/${restId}`)),
               'Failed to clear all customers'
+            );
+            break;
+          }
+          case 'SUBMIT_FEEDBACK': {
+            // Compute newFeedback same as reducer (we need the id to write to Firebase)
+            const fbId = `fb-${Date.now()}`;
+            const fbData = {
+              id: fbId,
+              restaurantId: currentState.admin?.restaurantId || 'unknown',
+              restaurantName: currentState.restaurant.name || 'My Restaurant',
+              ownerName: currentState.admin?.name || 'Owner',
+              ownerEmail: currentState.admin?.email || 'owner@restaurant.com',
+              ownerPhone: currentState.restaurant.phone || '',
+              ticketType: action.payload.ticketType || 'feedback',
+              message: action.payload.message,
+              createdAt: Date.now()
+            };
+            handleDbPromise(
+              set(ref(db, `ownerFeedbacks/${fbId}`), sanitizeDbData(fbData)),
+              'Failed to submit feedback'
+            );
+            break;
+          }
+          case 'REPLY_FEEDBACK': {
+            const { id: fbReplyId, replyText: fbReplyText } = action.payload;
+            handleDbPromise(
+              update(ref(db, `ownerFeedbacks/${fbReplyId}`), { replyText: fbReplyText }),
+              'Failed to update feedback reply'
+            );
+            break;
+          }
+          case 'DELETE_FEEDBACK': {
+            handleDbPromise(
+              remove(ref(db, `ownerFeedbacks/${action.payload}`)),
+              'Failed to delete feedback'
             );
             break;
           }

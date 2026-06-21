@@ -198,9 +198,10 @@ export default function SuperAdminDashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: 'var(--shadow-brand)'
+            boxShadow: 'var(--shadow-brand)',
+            background: '#ffffff'
           }}>
-            <img src="/meenufy_logo.jpg" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/meenufy_icon.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div>
             <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 900, margin: 0 }}>
@@ -332,7 +333,7 @@ export default function SuperAdminDashboard() {
           { id: 'accounts', label: 'Accounts Manager', count: accounts.length },
           { id: 'api_keys', label: 'Gemini API Keys', count: state.geminiApiKeys?.length || 0 },
           { id: 'support', label: 'Support Tickets', count: state.supportRequests?.filter(r => r.status === 'pending').length || 0, badgeColor: 'var(--error)' },
-          { id: 'feedback', label: 'Owner Feedbacks', count: state.ownerFeedbacks?.length || 0 }
+          { id: 'feedback', label: 'Feedback & Tickets', count: state.ownerFeedbacks?.length || 0 }
         ].map(tab => {
           const isActive = activeTab === tab.id;
           return (
@@ -682,10 +683,10 @@ export default function SuperAdminDashboard() {
           <div>
             <div style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, margin: 0 }}>
-                Owner Feedbacks
+                Feedback & Tickets
               </h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>
-                General reviews and feedback submitted by restaurant owner admins.
+                General feedback and support tickets submitted by restaurant owner admins.
               </p>
             </div>
 
@@ -710,11 +711,40 @@ export default function SuperAdminDashboard() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-primary)' }}>
-                          {fb.restaurantName}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>
+                            {fb.restaurantName}
+                          </span>
+                          {fb.ticketType && (
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: 20,
+                              textTransform: 'uppercase',
+                              background: fb.ticketType === 'bug' ? 'rgba(239, 68, 68, 0.1)' :
+                                          fb.ticketType === 'feature' ? 'rgba(59, 130, 246, 0.1)' :
+                                          fb.ticketType === 'feedback' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-primary)',
+                              color: fb.ticketType === 'bug' ? 'var(--error)' :
+                                     fb.ticketType === 'feature' ? 'var(--brand)' :
+                                     fb.ticketType === 'feedback' ? 'var(--success)' : 'var(--text-secondary)',
+                              border: '1px solid currentColor'
+                            }}>
+                              {fb.ticketType === 'bug' ? '🐛 Bug' :
+                               fb.ticketType === 'feature' ? '✨ Feature' :
+                               fb.ticketType === 'feedback' ? '💡 Feedback' : '❓ Ticket'}
+                            </span>
+                          )}
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                          Owner: {fb.ownerName} ({fb.ownerEmail}) · Received: {new Date(fb.createdAt).toLocaleString()}
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div>👤 <strong>Owner:</strong> {fb.ownerName}</div>
+                          <div>✉️ <strong>Email:</strong> <a href={`mailto:${fb.ownerEmail}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{fb.ownerEmail}</a></div>
+                          {fb.ownerPhone && (
+                            <div>
+                              📞 <strong>Phone:</strong> <a href={`tel:${fb.ownerPhone}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{fb.ownerPhone}</a> · <a href={`https://wa.me/91${fb.ownerPhone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 600 }}>WhatsApp 💬</a>
+                            </div>
+                          )}
+                          <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>🕒 Submitted: {new Date(fb.createdAt).toLocaleString()}</div>
                         </div>
                       </div>
 

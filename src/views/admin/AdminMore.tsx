@@ -88,6 +88,7 @@ export default function AdminMore() {
   const { state, dispatch, addToast } = useStore();
   const [restaurantForm, setRestaurantForm] = useState({ ...state.restaurant });
   const [feedbackText, setFeedbackText] = useState('');
+  const [ticketType, setTicketType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
   const [activeSection, setActiveSection] = useState<string | null>('outlet');
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
@@ -263,9 +264,15 @@ export default function AdminMore() {
   };
 
   const handleSendFeedback = () => {
-    if (!feedbackText.trim()) { addToast('error', 'Please write your feedback first.'); return; }
-    dispatch({ type: 'SUBMIT_FEEDBACK', payload: feedbackText.trim() });
-    addToast('success', 'Feedback sent to developer! Thank you 🙏');
+    if (!feedbackText.trim()) { addToast('error', 'Please write your message or ticket description first.'); return; }
+    dispatch({
+      type: 'SUBMIT_FEEDBACK',
+      payload: {
+        message: feedbackText.trim(),
+        ticketType
+      }
+    });
+    addToast('success', 'Ticket/Feedback submitted successfully! We will get back to you shortly. 🙏');
     setFeedbackText('');
   };
 
@@ -360,7 +367,7 @@ export default function AdminMore() {
     { id: 'autoprint', label: 'Autoprint KOT/Bill', icon: Printer },
     { id: 'subscription', label: 'Pricing & Subscription', icon: CreditCard },
     { id: 'pwa', label: 'Install App', icon: Smartphone },
-    { id: 'feedback', label: 'Send Feedback', icon: MessageSquare },
+    { id: 'feedback', label: 'Feedback & Tickets', icon: MessageSquare },
   ];
 
   return (
@@ -1415,22 +1422,104 @@ export default function AdminMore() {
         </div>
       )}
 
-      {/* Feedback */}
+      {/* Feedback & Tickets */}
       {activeSection === 'feedback' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
-          <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 4 }}>Send Feedback</h3>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Help us improve Meenufy. Your feedback is invaluable!</p>
-          <textarea
-            className="input"
-            rows={4}
-            placeholder="Share your experience, suggestions, or report a bug..."
-            value={feedbackText}
-            onChange={e => setFeedbackText(e.target.value)}
-            style={{ resize: 'vertical', marginBottom: 12 }}
-          />
-          <button className="btn btn-primary btn-full" onClick={handleSendFeedback}>
-            <Send size={15} /> Send Feedback
+          <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, marginBottom: 4 }}>
+            Feedback & Tickets
+          </h3>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Submit a ticket for bugs or request features. You can also contact support directly.
+          </p>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6, color: 'var(--text-muted)' }}>
+              Ticket Type
+            </label>
+            <select
+              className="input"
+              value={ticketType}
+              onChange={e => setTicketType(e.target.value as any)}
+              style={{ width: '100%', height: 42, padding: '0 12px' }}
+            >
+              <option value="feedback">💡 Feedback & Suggestion</option>
+              <option value="bug">🐛 Bug Report</option>
+              <option value="feature">✨ Feature Request</option>
+              <option value="other">❓ General Issue / Other</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6, color: 'var(--text-muted)' }}>
+              Description / Message
+            </label>
+            <textarea
+              className="input"
+              rows={4}
+              placeholder="Provide a detailed description of the issue or your suggestion..."
+              value={feedbackText}
+              onChange={e => setFeedbackText(e.target.value)}
+              style={{ resize: 'vertical', width: '100%', padding: '10px 12px' }}
+            />
+          </div>
+
+          <button className="btn btn-primary btn-full" onClick={handleSendFeedback} style={{ marginBottom: 20 }}>
+            <Send size={15} /> Submit Feedback / Ticket
           </button>
+
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0', opacity: 0.6 }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }}></div>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Or Contact Directly</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }}></div>
+          </div>
+
+          {/* Contact Details Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: 10,
+            marginTop: 10
+          }}>
+            <a href="tel:9798482404" style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+              borderRadius: 10, border: '1px solid var(--border)', fontSize: 12,
+              color: 'var(--text)', textDecoration: 'none', background: 'var(--bg-elevated)',
+              transition: 'var(--transition)'
+            }}>
+              <span>📞</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 10, color: 'var(--text-muted)' }}>Call Us</div>
+                <div>9798482404</div>
+              </div>
+            </a>
+
+            <a href="mailto:atish2k26@gmail.com" style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+              borderRadius: 10, border: '1px solid var(--border)', fontSize: 12,
+              color: 'var(--text)', textDecoration: 'none', background: 'var(--bg-elevated)',
+              transition: 'var(--transition)'
+            }}>
+              <span>✉️</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 10, color: 'var(--text-muted)' }}>Email</div>
+                <div style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 100 }}>atish2k26@gmail.com</div>
+              </div>
+            </a>
+
+            <a href="https://wa.me/919798482404" target="_blank" rel="noopener noreferrer" style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+              borderRadius: 10, border: '1px solid var(--border)', fontSize: 12,
+              color: '#25D366', textDecoration: 'none', background: 'var(--bg-elevated)',
+              transition: 'var(--transition)', fontWeight: 600
+            }}>
+              <span>💬</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 10, color: 'var(--text-muted)' }}>WhatsApp</div>
+                <div>WhatsApp Chat</div>
+              </div>
+            </a>
+          </div>
         </div>
       )}
 

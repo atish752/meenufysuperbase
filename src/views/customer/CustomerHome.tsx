@@ -140,9 +140,9 @@ export default function CustomerHome({ table }: Props) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#0D0D0D'
+            background: '#ffffff'
           }}>
-            <img src="/meenufy_logo.jpg" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/meenufy_icon.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <span style={{
             fontFamily: 'var(--font-display)',
@@ -371,11 +371,11 @@ export default function CustomerHome({ table }: Props) {
         {restaurant.offersMarqueeEnabled && (state.coupons?.filter(c => c.isActive).length || 0) > 0 && (
           (() => {
             const activeCoupons = state.coupons.filter(c => c.isActive);
-            const marqueeText = activeCoupons.map(c => 
-              `✨ Use code ${c.code} to get ${c.type === 'percentage' ? `${c.value}%` : `₹${c.value}`} OFF${c.minOrderAmount ? ` on orders above ₹${c.minOrderAmount}` : ''}! `
-            ).join('  |  ');
+            const marqueeText = activeCoupons.map(c =>
+              `✨ Use code ${c.code} to get ${c.type === 'percentage' ? `${c.value}%` : `₹${c.value}`} OFF${c.minOrderAmount ? ` on orders above ₹${c.minOrderAmount}` : ''}!`
+            ).join('   |   ');
             return (
-              <div 
+              <div
                 onClick={() => setShowCouponsModal(true)}
                 style={{
                   width: '100%',
@@ -392,25 +392,33 @@ export default function CustomerHome({ table }: Props) {
                 }}
               >
                 <style>{`
-                  @keyframes marqueeAnimation {
-                    0% { transform: translate3d(100%, 0, 0); }
-                    100% { transform: translate3d(-100%, 0, 0); }
+                  @keyframes marqueeScroll {
+                    0%   { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
                   }
-                  .marquee-content {
+                  .marquee-track {
+                    display: inline-flex;
+                    white-space: nowrap;
+                    animation: marqueeScroll 22s linear infinite;
+                    will-change: transform;
+                  }
+                  .marquee-track:hover {
+                    animation-play-state: paused;
+                  }
+                  .marquee-segment {
                     display: inline-block;
-                    padding-left: 100%;
-                    animation: marqueeAnimation 15s linear infinite;
+                    padding-right: 80px;
                     font-size: 12px;
                     font-weight: 700;
                     color: var(--brand);
-                    letter-spacing: 0.5px;
-                  }
-                  .marquee-content:hover {
-                    animation-play-state: paused;
+                    letter-spacing: 0.4px;
                   }
                 `}</style>
-                <div className="marquee-content">
-                  {marqueeText} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {marqueeText}
+                <div className="marquee-track">
+                  <span className="marquee-segment">{marqueeText}</span>
+                  <span className="marquee-segment">{marqueeText}</span>
+                  <span className="marquee-segment">{marqueeText}</span>
+                  <span className="marquee-segment">{marqueeText}</span>
                 </div>
               </div>
             );

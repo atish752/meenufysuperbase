@@ -263,21 +263,13 @@ export default function AdminAuth() {
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{
-            width: 72, height: 72, borderRadius: '50%',
+            width: 220, height: 80,
             overflow: 'hidden',
-            border: '1px solid var(--border-brand)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 20px',
-            boxShadow: 'var(--shadow-brand)',
           }}>
-            <img src="/meenufy_logo.jpg" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/meenufy_logo_full.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <h1 style={{
-            fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 900,
-            color: 'var(--brand)', letterSpacing: '-0.02em',
-            filter: 'drop-shadow(0 0 16px rgba(255,125,0,0.3))',
-            marginBottom: 4,
-          }}>Meenufy</h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
             Your restro's digital staff
           </p>
