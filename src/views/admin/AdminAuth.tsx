@@ -11,7 +11,7 @@ import {
 
 export default function AdminAuth() {
   const { state, dispatch, addToast } = useStore();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup' | 'staff_login'>('login');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -33,12 +33,37 @@ export default function AdminAuth() {
     setLoading(true);
     const emailLower = form.email.trim().toLowerCase();
 
-    // 0. Staff Member Interception Check
-    if (mode === 'login') {
-      const matchedStaff = state.staffMembers?.find(
-        s => s.username.trim().toLowerCase() === emailLower
-      );
-      if (matchedStaff) {
+    // 0. Staff Member Login Portal Check
+    if (mode === 'staff_login') {
+      try {
+        let matchedStaff: any = null;
+        
+        if (hasFirebaseConfig && auth) {
+          // Import firebase database dynamically to query for username
+          const { getDatabase, ref, query, orderByChild, equalTo, get } = await import('firebase/database');
+          const db = getDatabase();
+          const staffRef = ref(db, 'staffMembers');
+          const staffQuery = query(staffRef, orderByChild('username'), equalTo(emailLower));
+          const snapshot = await get(staffQuery);
+          
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            // Since username is unique, grab the first record
+            matchedStaff = Object.values(data)[0];
+          }
+        } else {
+          // Offline/local fallback
+          matchedStaff = state.staffMembers?.find(
+            s => s.username.trim().toLowerCase() === emailLower
+          );
+        }
+
+        if (!matchedStaff) {
+          addToast('error', '❌ No staff member found with this username.');
+          setLoading(false);
+          return;
+        }
+
         if (matchedStaff.password !== form.password) {
           addToast('error', '❌ Incorrect staff password.');
           setLoading(false);
@@ -64,6 +89,11 @@ export default function AdminAuth() {
 
         dispatch({ type: 'LOGIN_ADMIN', payload: staffUser });
         addToast('success', `Welcome back, Staff ${staffUser.name}! 🎉`);
+        setLoading(false);
+        return;
+      } catch (err: any) {
+        console.error('Staff Login Error:', err);
+        addToast('error', `❌ Staff login failed: ${err.message || err}`);
         setLoading(false);
         return;
       }
@@ -321,32 +351,56 @@ export default function AdminAuth() {
 
         {/* Card */}
         <div className="card-glass" style={{ borderRadius: 20, padding: '32px 28px' }}>
-          {/* Tab Toggle */}
-          <div style={{
-            display: 'flex', gap: 4,
-            background: 'var(--bg-elevated)', borderRadius: 12, padding: 4,
-            marginBottom: 28,
-          }}>
-            {(['login', 'signup'] as const).map(m => (
+          {/* Tab Toggle / Back Button */}
+          {mode === 'staff_login' ? (
+            <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
-                key={m}
-                onClick={() => setMode(m)}
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setForm({ name: '', email: '', password: '', restaurantName: '' });
+                }}
                 style={{
-                  flex: 1, padding: '9px 0',
-                  borderRadius: 9,
-                  fontWeight: 600, fontSize: 14,
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '8px 16px',
+                  fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: 6,
                   transition: 'var(--transition)',
-                  background: mode === m ? 'var(--brand)' : 'transparent',
-                  color: mode === m ? '#000' : 'var(--text-secondary)',
-                  border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >
-                {m === 'login' ? <LogIn size={14} /> : <UserPlus size={14} />}
-                {m === 'login' ? 'Sign In' : 'Sign Up'}
+                ← Back to Owner Login
               </button>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div style={{
+              display: 'flex', gap: 4,
+              background: 'var(--bg-elevated)', borderRadius: 12, padding: 4,
+              marginBottom: 28,
+            }}>
+              {(['login', 'signup'] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setMode(m);
+                    setForm({ name: '', email: '', password: '', restaurantName: '' });
+                  }}
+                  style={{
+                    flex: 1, padding: '9px 0',
+                    borderRadius: 9,
+                    fontWeight: 600, fontSize: 14,
+                    transition: 'var(--transition)',
+                    background: mode === m ? 'var(--brand)' : 'transparent',
+                    color: mode === m ? '#000' : 'var(--text-secondary)',
+                    border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  {m === 'login' ? <LogIn size={14} /> : <UserPlus size={14} />}
+                  {m === 'login' ? 'Sign In' : 'Sign Up'}
+                </button>
+              ))}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {mode === 'signup' && (
@@ -375,13 +429,13 @@ export default function AdminAuth() {
             )}
 
             <div className="input-group">
-              <label className="input-label">Email / Username</label>
+              <label className="input-label">{mode === 'staff_login' ? 'Staff Username' : 'Email / Username'}</label>
               <div className="input-icon-wrap">
                 <Mail size={16} className="input-icon" />
                 <input
                   className="input"
                   type="text"
-                  placeholder="owner@restaurant.com or username"
+                  placeholder={mode === 'staff_login' ? 'e.g. staff_john' : 'owner@restaurant.com or username'}
                   value={form.email}
                   onChange={e => setForm({ ...form, email: e.target.value })}
                 />
@@ -414,8 +468,6 @@ export default function AdminAuth() {
               </div>
             </div>
 
-
-
             <button
               type="submit"
               className="btn btn-primary btn-full btn-lg"
@@ -426,13 +478,13 @@ export default function AdminAuth() {
                 <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.3)', borderTopColor: '#000', animation: 'spin 0.7s linear infinite' }} />
               ) : (
                 <>
-                  {mode === 'login' ? 'Sign In to Dashboard' : 'Create Account'}
+                  {mode === 'staff_login' ? 'Sign In as Staff' : mode === 'login' ? 'Sign In to Dashboard' : 'Create Account'}
                   <ArrowRight size={16} />
                 </>
               )}
             </button>
 
-            {hasFirebaseConfig && (
+            {hasFirebaseConfig && mode !== 'staff_login' && (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0' }}>
                   <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -455,6 +507,25 @@ export default function AdminAuth() {
                   <span>Google Sign-In</span>
                 </button>
               </>
+            )}
+
+            {mode !== 'staff_login' && (
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('staff_login');
+                    setForm({ name: '', email: '', password: '', restaurantName: '' });
+                  }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--text-secondary)', fontSize: 13, textDecoration: 'underline',
+                    fontWeight: 600, transition: 'var(--transition)'
+                  }}
+                >
+                  🔑 Are you a staff member? Staff Sign In
+                </button>
+              </div>
             )}
           </form>
         </div>
