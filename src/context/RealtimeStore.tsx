@@ -2195,17 +2195,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // Keys that must never be written to Firebase for security reasons
         const SENSITIVE_KEYS = new Set(['password']);
 
-        const sanitizeDbData = (obj: any): any => {
+        const sanitizeDbData = (obj: any, keysToStrip: Set<string> = SENSITIVE_KEYS): any => {
           if (obj === null || obj === undefined) return null;
           if (Array.isArray(obj)) {
-            return obj.map(sanitizeDbData);
+            return obj.map(item => sanitizeDbData(item, keysToStrip));
           }
           if (typeof obj === 'object') {
             const cleaned: any = {};
             for (const key of Object.keys(obj)) {
               // Strip sensitive fields and undefined values
-              if (obj[key] !== undefined && !SENSITIVE_KEYS.has(key)) {
-                cleaned[key] = sanitizeDbData(obj[key]);
+              if (obj[key] !== undefined && !keysToStrip.has(key)) {
+                cleaned[key] = sanitizeDbData(obj[key], keysToStrip);
               }
             }
             return cleaned;
@@ -2531,14 +2531,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'ADD_STAFF_MEMBER': {
             handleDbPromise(
-              set(ref(db, `staffMembers/${action.payload.id}`), sanitizeDbData(action.payload)),
+              set(ref(db, `staffMembers/${action.payload.id}`), sanitizeDbData(action.payload, new Set())),
               'Failed to add staff member'
             );
             break;
           }
           case 'UPDATE_STAFF_MEMBER': {
             handleDbPromise(
-              update(ref(db, `staffMembers/${action.payload.id}`), sanitizeDbData(action.payload)),
+              update(ref(db, `staffMembers/${action.payload.id}`), sanitizeDbData(action.payload, new Set())),
               'Failed to update staff member'
             );
             break;
