@@ -509,7 +509,7 @@ export default function AdminMore() {
     setEditingStaffId(staff.id);
     setStaffName(staff.name);
     setStaffUsername(staff.username);
-    setStaffPassword('');
+    setStaffPassword(staff.password || '');
     setStaffPermissions(staff.permissions);
   };
 
@@ -1824,10 +1824,10 @@ export default function AdminMore() {
               <input
                 className="input"
                 type="password"
-                placeholder={editingStaffId ? "Leave blank to keep current password" : "Minimum 4 characters"}
+                placeholder="Minimum 4 characters"
                 value={staffPassword}
                 onChange={e => setStaffPassword(e.target.value)}
-                required={!editingStaffId}
+                required
               />
             </div>
 

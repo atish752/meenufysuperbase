@@ -39,17 +39,17 @@ export default function AdminAuth() {
         let matchedStaff: any = null;
         
         if (hasFirebaseConfig && auth) {
-          // Import firebase database dynamically to query for username
-          const { getDatabase, ref, query, orderByChild, equalTo, get } = await import('firebase/database');
+          // Fetch the entire flat staffMembers node and find by username on client side (safe, simple, doesn't require indexOn)
+          const { getDatabase, ref, get } = await import('firebase/database');
           const db = getDatabase();
-          const staffRef = ref(db, 'staffMembers');
-          const staffQuery = query(staffRef, orderByChild('username'), equalTo(emailLower));
-          const snapshot = await get(staffQuery);
+          const snapshot = await get(ref(db, 'staffMembers'));
           
           if (snapshot.exists()) {
             const data = snapshot.val();
-            // Since username is unique, grab the first record
-            matchedStaff = Object.values(data)[0];
+            const staffList = Object.values(data) as any[];
+            matchedStaff = staffList.find(
+              s => s.username && s.username.trim().toLowerCase() === emailLower
+            );
           }
         } else {
           // Offline/local fallback
