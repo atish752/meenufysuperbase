@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, UserPlus, LogIn } from 'lucide-react';
-import { hasFirebaseConfig, auth, googleProvider } from '../../utils/firebase';
+import { hasFirebaseConfig, auth, googleProvider, db } from '../../utils/firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -38,10 +38,9 @@ export default function AdminAuth() {
       try {
         let matchedStaff: any = null;
         
-        if (hasFirebaseConfig && auth) {
+        if (hasFirebaseConfig && auth && db) {
           // Fetch the entire flat staffMembers node and find by username on client side (safe, simple, doesn't require indexOn)
-          const { getDatabase, ref, get } = await import('firebase/database');
-          const db = getDatabase();
+          const { ref, get } = await import('firebase/database');
           const snapshot = await get(ref(db, 'staffMembers'));
           
           if (snapshot.exists()) {
