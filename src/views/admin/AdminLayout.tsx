@@ -56,13 +56,27 @@ export default function AdminLayout() {
   }
 
   const renderTab = () => {
+    const isStaff = !!state.admin?.isStaff;
+    const perms = state.admin?.permissions || [];
+
+    const isHomeAllowed = !isStaff || perms.includes('orders') || perms.includes('qr_tables');
+    const isMenuAllowed = !isStaff || perms.includes('menu');
+    const isCustomersAllowed = !isStaff || perms.includes('customers');
+    const isAnalysisAllowed = !isStaff || perms.includes('analysis');
+
     switch (state.adminTab) {
-      case 'home': return <AdminHome />;
-      case 'menu': return <AdminMenu />;
-      case 'customers': return <AdminCustomers />;
-      case 'analysis': return <AdminAnalysis />;
-      case 'more': return <AdminMore />;
-      default: return <AdminHome />;
+      case 'home': 
+        return isHomeAllowed ? <AdminHome /> : <LockedScreen tabName="Orders Board & Table Map" />;
+      case 'menu': 
+        return isMenuAllowed ? <AdminMenu /> : <LockedScreen tabName="Menu Management" />;
+      case 'customers': 
+        return isCustomersAllowed ? <AdminCustomers /> : <LockedScreen tabName="Customer Database" />;
+      case 'analysis': 
+        return isAnalysisAllowed ? <AdminAnalysis /> : <LockedScreen tabName="Sales Analysis" />;
+      case 'more': 
+        return <AdminMore />;
+      default: 
+        return <AdminHome />;
     }
   };
 
@@ -108,6 +122,69 @@ export default function AdminLayout() {
 
         {/* New Order Alert overlay */}
         {state.newOrderAlert && <NewOrderAlert order={state.newOrderAlert} />}
+      </div>
+    </div>
+  );
+}
+
+function LockedScreen({ tabName }: { tabName: string }) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '60dvh',
+      textAlign: 'center',
+      padding: '24px',
+      color: 'var(--text-primary)'
+    }}>
+      <div style={{
+        width: 80, height: 80,
+        borderRadius: '50%',
+        background: 'rgba(59, 130, 246, 0.1)',
+        border: '2px solid #3b82f6',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 36,
+        marginBottom: 20,
+        boxShadow: '0 0 20px rgba(59, 130, 246, 0.25)',
+      }}>
+        🔒
+      </div>
+      <h2 style={{
+        fontFamily: 'var(--font-display)',
+        fontSize: 22,
+        fontWeight: 900,
+        color: '#60a5fa',
+        marginBottom: 8,
+        letterSpacing: '-0.02em',
+        textTransform: 'uppercase'
+      }}>
+        Access Restricted
+      </h2>
+      <p style={{
+        fontSize: 14,
+        color: 'var(--text-muted)',
+        maxWidth: 360,
+        lineHeight: 1.6,
+        margin: '0 0 24px 0'
+      }}>
+        You do not have permission to access the <strong>{tabName}</strong> tab. Please contact your restaurant owner or manager to request access.
+      </p>
+      <div style={{
+        fontSize: 11,
+        color: '#3b82f6',
+        background: 'rgba(59, 130, 246, 0.06)',
+        border: '1px dashed #3b82f6',
+        padding: '8px 16px',
+        borderRadius: 8,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em'
+      }}>
+        🛡️ Meenufy Security Guard
       </div>
     </div>
   );

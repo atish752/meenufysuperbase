@@ -15,42 +15,59 @@ export default function AdminBottomNav() {
 
   return (
     <div className="bottom-nav">
-      {NAV.filter(item => {
-        if (!state.admin?.isStaff) return true;
-        const perms = state.admin.permissions || [];
-        if (item.key === 'home') return perms.includes('orders') || perms.includes('qr_tables');
-        if (item.key === 'menu') return perms.includes('menu');
-        if (item.key === 'customers') return perms.includes('customers');
-        if (item.key === 'analysis') return perms.includes('analysis');
-        if (item.key === 'more') return true;
-        return false;
-      }).map(item => {
-        const Icon = item.icon;
-        const isActive = state.adminTab === item.key;
-        return (
-          <button
-            key={item.key}
-            className={`bottom-nav-item ${isActive ? 'active' : ''}`}
-            onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key })}
-          >
-            <div style={{ position: 'relative' }}>
-              <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-              {item.key === 'home' && activeOrders.length > 0 && (
-                <span style={{
-                  position: 'absolute', top: -5, right: -6,
-                  background: 'var(--brand)', color: '#000',
-                  borderRadius: 99, fontSize: 9, fontWeight: 700,
-                  padding: '1px 5px', minWidth: 16,
-                  lineHeight: '14px', textAlign: 'center',
-                }}>
-                  {activeOrders.length}
-                </span>
-              )}
-            </div>
-            <span>{item.label}</span>
-          </button>
-        );
-      })}
+      {(() => {
+        const isPermitted = (itemKey: string) => {
+          if (!state.admin?.isStaff) return true;
+          const perms = state.admin.permissions || [];
+          if (itemKey === 'home') return perms.includes('orders') || perms.includes('qr_tables');
+          if (itemKey === 'menu') return perms.includes('menu');
+          if (itemKey === 'customers') return perms.includes('customers');
+          if (itemKey === 'analysis') return perms.includes('analysis');
+          if (itemKey === 'more') return true;
+          return false;
+        };
+
+        return NAV.map(item => {
+          const allowed = isPermitted(item.key);
+          const Icon = item.icon;
+          const isActive = state.adminTab === item.key;
+          return (
+            <button
+              key={item.key}
+              className={`bottom-nav-item ${isActive ? 'active' : ''}`}
+              onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key })}
+              style={!allowed ? {
+                color: isActive ? '#60a5fa' : 'var(--text-muted)',
+                opacity: 0.8
+              } : {}}
+            >
+              <div style={{ position: 'relative' }}>
+                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} style={!allowed ? { color: '#60a5fa' } : {}} />
+                {!allowed && (
+                  <span style={{
+                    position: 'absolute', top: -4, right: -8,
+                    fontSize: 10
+                  }}>
+                    🔒
+                  </span>
+                )}
+                {allowed && item.key === 'home' && activeOrders.length > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -5, right: -6,
+                    background: 'var(--brand)', color: '#000',
+                    borderRadius: 99, fontSize: 9, fontWeight: 700,
+                    padding: '1px 5px', minWidth: 16,
+                    lineHeight: '14px', textAlign: 'center',
+                  }}>
+                    {activeOrders.length}
+                  </span>
+                )}
+              </div>
+              <span>{item.label}</span>
+            </button>
+          );
+        });
+      })()}
     </div>
   );
 }

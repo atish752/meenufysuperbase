@@ -58,39 +58,54 @@ export default function AdminSidebar() {
         <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '4px 4px 8px' }}>
           Navigation
         </div>
-        {NAV_ITEMS.filter(item => {
-          if (!state.admin?.isStaff) return true;
-          const perms = state.admin.permissions || [];
-          if (item.key === 'home') return perms.includes('orders') || perms.includes('qr_tables');
-          if (item.key === 'menu') return perms.includes('menu');
-          if (item.key === 'customers') return perms.includes('customers');
-          if (item.key === 'analysis') return perms.includes('analysis');
-          if (item.key === 'more') return true;
-          return false;
-        }).map(item => {
-          const Icon = item.icon;
-          const isActive = state.adminTab === item.key;
-          return (
-            <button
-              key={item.key}
-              className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key })}
-            >
-              <Icon size={18} />
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.key === 'home' && activeOrders.length > 0 && (
-                <span style={{
-                  background: 'var(--brand)', color: '#000',
-                  borderRadius: 99, fontSize: 10, fontWeight: 700,
-                  padding: '1px 7px', minWidth: 20, textAlign: 'center',
-                }}>
-                  {activeOrders.length}
+        {(() => {
+          const isPermitted = (itemKey: string) => {
+            if (!state.admin?.isStaff) return true;
+            const perms = state.admin.permissions || [];
+            if (itemKey === 'home') return perms.includes('orders') || perms.includes('qr_tables');
+            if (itemKey === 'menu') return perms.includes('menu');
+            if (itemKey === 'customers') return perms.includes('customers');
+            if (itemKey === 'analysis') return perms.includes('analysis');
+            if (itemKey === 'more') return true;
+            return false;
+          };
+
+          return NAV_ITEMS.map(item => {
+            const allowed = isPermitted(item.key);
+            const Icon = item.icon;
+            const isActive = state.adminTab === item.key;
+            return (
+              <button
+                key={item.key}
+                className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key })}
+                style={{
+                  ...(!allowed ? {
+                    opacity: 0.75,
+                    background: isActive ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                    borderLeft: isActive ? '3px solid #3b82f6' : 'none',
+                    color: isActive ? '#60a5fa' : 'var(--text-muted)',
+                  } : {})
+                }}
+              >
+                <Icon size={18} style={!allowed ? { color: '#60a5fa' } : {}} />
+                <span style={{ flex: 1, color: !allowed && isActive ? '#60a5fa' : 'inherit' }}>
+                  {item.label} {!allowed && '🔒'}
                 </span>
-              )}
-              {isActive && <ChevronRight size={14} />}
-            </button>
-          );
-        })}
+                {allowed && item.key === 'home' && activeOrders.length > 0 && (
+                  <span style={{
+                    background: 'var(--brand)', color: '#000',
+                    borderRadius: 99, fontSize: 10, fontWeight: 700,
+                    padding: '1px 7px', minWidth: 20, textAlign: 'center',
+                  }}>
+                    {activeOrders.length}
+                  </span>
+                )}
+                {isActive && allowed && <ChevronRight size={14} />}
+              </button>
+            );
+          });
+        })()}
       </nav>
 
       {/* Live order badge */}
