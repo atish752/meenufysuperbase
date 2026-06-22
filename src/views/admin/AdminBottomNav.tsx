@@ -31,41 +31,41 @@ export default function AdminBottomNav() {
           const allowed = isPermitted(item.key);
           const Icon = item.icon;
           const isActive = state.adminTab === item.key;
-          return (
-            <button
-              key={item.key}
-              className={`bottom-nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key })}
-              style={!allowed ? {
-                color: isActive ? '#60a5fa' : 'var(--text-muted)',
-                opacity: 0.8
-              } : {}}
-            >
-              <div style={{ position: 'relative' }}>
-                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} style={!allowed ? { color: '#60a5fa' } : {}} />
-                {!allowed && (
-                  <span style={{
-                    position: 'absolute', top: -4, right: -8,
-                    fontSize: 10
-                  }}>
-                    🔒
-                  </span>
-                )}
-                {allowed && item.key === 'home' && activeOrders.length > 0 && (
-                  <span style={{
-                    position: 'absolute', top: -5, right: -6,
-                    background: 'var(--brand)', color: '#000',
-                    borderRadius: 99, fontSize: 9, fontWeight: 700,
-                    padding: '1px 5px', minWidth: 16,
-                    lineHeight: '14px', textAlign: 'center',
-                  }}>
-                    {activeOrders.length}
-                  </span>
-                )}
-              </div>
-              <span>{item.label}</span>
-            </button>
-          );
+            return (
+              <button
+                key={item.key}
+                className={`bottom-nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key })}
+                style={!allowed ? {
+                  color: '#60a5fa',
+                  opacity: 0.85
+                } : {}}
+              >
+                <div style={{ position: 'relative' }}>
+                  <Icon size={22} strokeWidth={isActive ? 2.5 : 2} style={!allowed ? { color: '#60a5fa' } : {}} />
+                  {!allowed && (
+                    <span style={{
+                      position: 'absolute', top: -4, right: -8,
+                      fontSize: 10
+                    }}>
+                      🔒
+                    </span>
+                  )}
+                  {allowed && item.key === 'home' && activeOrders.length > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -5, right: -6,
+                      background: 'var(--brand)', color: '#000',
+                      borderRadius: 99, fontSize: 9, fontWeight: 700,
+                      padding: '1px 5px', minWidth: 16,
+                      lineHeight: '14px', textAlign: 'center',
+                    }}>
+                      {activeOrders.length}
+                    </span>
+                  )}
+                </div>
+                <span style={!allowed ? { color: '#60a5fa', fontWeight: 600 } : {}}>{item.label}</span>
+              </button>
+            );
         });
       })()}
     </div>

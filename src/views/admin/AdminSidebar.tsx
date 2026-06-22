@@ -81,15 +81,15 @@ export default function AdminSidebar() {
                 onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key })}
                 style={{
                   ...(!allowed ? {
-                    opacity: 0.75,
                     background: isActive ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
                     borderLeft: isActive ? '3px solid #3b82f6' : 'none',
-                    color: isActive ? '#60a5fa' : 'var(--text-muted)',
+                    color: '#60a5fa',
+                    opacity: 0.85,
                   } : {})
                 }}
               >
                 <Icon size={18} style={!allowed ? { color: '#60a5fa' } : {}} />
-                <span style={{ flex: 1, color: !allowed && isActive ? '#60a5fa' : 'inherit' }}>
+                <span style={{ flex: 1, color: !allowed ? '#60a5fa' : 'inherit', fontWeight: !allowed ? 600 : 'inherit' }}>
                   {item.label} {!allowed && '🔒'}
                 </span>
                 {allowed && item.key === 'home' && activeOrders.length > 0 && (

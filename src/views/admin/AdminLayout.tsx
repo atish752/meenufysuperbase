@@ -121,7 +121,7 @@ export default function AdminLayout() {
         </div>
 
         {/* New Order Alert overlay */}
-        {state.newOrderAlert && <NewOrderAlert order={state.newOrderAlert} />}
+        {state.newOrderAlert && (!state.admin?.isStaff || state.admin.permissions?.includes('orders')) && <NewOrderAlert order={state.newOrderAlert} />}
       </div>
     </div>
   );

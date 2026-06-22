@@ -40,6 +40,7 @@ export default function AdminHome() {
   const { state, dispatch, addToast } = useStore();
   const hasOrdersPermission = !state.admin?.isStaff || state.admin.permissions?.includes('orders');
   const hasQrTablesPermission = !state.admin?.isStaff || state.admin.permissions?.includes('qr_tables');
+  const hasOutletSettingPermission = !state.admin?.isStaff || state.admin.permissions?.includes('outlet_setting');
 
   const [isTabularView, setIsTabularView] = useState(() => {
     return typeof window !== 'undefined' && localStorage.getItem('meenufy_admin_orders_tabular_view') === 'true';
@@ -201,6 +202,9 @@ export default function AdminHome() {
 
   // Watch orders for notifications
   useEffect(() => {
+    if (state.admin?.isStaff && !state.admin.permissions?.includes('orders')) {
+      return;
+    }
     const adminId = state.admin?.id || 'admin-1';
     const myOrders = state.orders.filter(o => (o.restaurantId || 'admin-1') === adminId);
 
@@ -260,10 +264,13 @@ export default function AdminHome() {
     });
 
     prevOrdersRef.current = currentOrders;
-  }, [state.orders, state.restaurant.currency, state.restaurant.autoprintKotEnabled, state.restaurant.autoprintBillEnabled]);
+  }, [state.orders, state.restaurant.currency, state.restaurant.autoprintKotEnabled, state.restaurant.autoprintBillEnabled, state.admin]);
 
   // Watch waiter requests for notifications
   useEffect(() => {
+    if (state.admin?.isStaff && !state.admin.permissions?.includes('qr_tables')) {
+      return;
+    }
     const adminId = state.admin?.id || 'admin-1';
     const myRequests = state.waiterRequests.filter(r => (r.restaurantId || 'admin-1') === adminId);
 
@@ -296,7 +303,7 @@ export default function AdminHome() {
     });
 
     prevWaiterRequestsRef.current = currentRequests;
-  }, [state.waiterRequests]);
+  }, [state.waiterRequests, state.admin]);
 
   const adminId = state.admin?.id || 'admin-1';
   const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && (r.restaurantId || 'admin-1') === adminId);
@@ -515,6 +522,10 @@ export default function AdminHome() {
           {/* Open / Close Restaurant Toggle */}
           <button
             onClick={() => {
+              if (!hasOutletSettingPermission) {
+                addToast('error', '🔒 Access Restricted: Only the restaurant owner or staff with Outlet Settings permission can open/close the restaurant.');
+                return;
+              }
               const newClosed = !state.restaurant.isManualClosed;
               dispatch({ type: 'SET_MANUAL_CLOSED', payload: newClosed });
               addToast(newClosed ? 'warning' : 'success', newClosed ? '🔴 Restaurant marked CLOSED — customers can no longer place orders.' : '🟢 Restaurant is now OPEN — customers can place orders!');
@@ -636,10 +647,16 @@ export default function AdminHome() {
             </span>
             <div 
               className={`toggle ${state.restaurant.mustLoginBeforeOrder ? 'on' : ''}`} 
-              onClick={() => dispatch({
-                type: 'UPDATE_RESTAURANT',
-                payload: { mustLoginBeforeOrder: !state.restaurant.mustLoginBeforeOrder }
-              })}
+              onClick={() => {
+                if (!hasOutletSettingPermission) {
+                  addToast('error', '🔒 Access Restricted: Only the restaurant owner or staff with Outlet Settings permission can modify customer login requirements.');
+                  return;
+                }
+                dispatch({
+                  type: 'UPDATE_RESTAURANT',
+                  payload: { mustLoginBeforeOrder: !state.restaurant.mustLoginBeforeOrder }
+                });
+              }}
               style={{ cursor: 'pointer' }}
             >
               <div className="toggle-thumb" />
@@ -647,32 +664,34 @@ export default function AdminHome() {
           </div>
 
           {/* Subscription Plan Display - Clickable */}
-          <button
-            onClick={() => {
-              localStorage.setItem('meenufy_admin_more_section', 'subscription');
-              dispatch({ type: 'SET_ADMIN_TAB', payload: 'more' });
-            }}
-            style={{
-              background: 'var(--brand)',
-              border: 'none',
-              borderRadius: 12,
-              padding: '0 14px',
-              fontSize: 12,
-              fontWeight: 800,
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              height: 38,
-              boxShadow: 'var(--shadow-sm)',
-              cursor: 'pointer',
-              transition: 'var(--transition)',
-            }}
-            title="Go to Subscription & Pricing settings"
-          >
-            <span>⭐️</span>
-            <span style={{ textTransform: 'capitalize', color: '#ffffff' }}>{state.subscriptionPlan} Plan</span>
-          </button>
+          {!state.admin?.isStaff && (
+            <button
+              onClick={() => {
+                localStorage.setItem('meenufy_admin_more_section', 'subscription');
+                dispatch({ type: 'SET_ADMIN_TAB', payload: 'more' });
+              }}
+              style={{
+                background: 'var(--brand)',
+                border: 'none',
+                borderRadius: 12,
+                padding: '0 14px',
+                fontSize: 12,
+                fontWeight: 800,
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                height: 38,
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'var(--transition)',
+              }}
+              title="Go to Subscription & Pricing settings"
+            >
+              <span>⭐️</span>
+              <span style={{ textTransform: 'capitalize', color: '#ffffff' }}>{state.subscriptionPlan} Plan</span>
+            </button>
+          )}
 
           {/* Theme switcher */}
           <button
@@ -701,7 +720,13 @@ export default function AdminHome() {
 
           {/* Coupons & Offers Button */}
           <button
-            onClick={() => setShowCouponsModal(true)}
+            onClick={() => {
+              if (!hasOutletSettingPermission) {
+                addToast('error', '🔒 Access Restricted: Only the restaurant owner or staff with Outlet Settings permission can manage coupons.');
+                return;
+              }
+              setShowCouponsModal(true);
+            }}
             className="btn btn-secondary"
             style={{
               height: 38,

@@ -1135,9 +1135,27 @@ function reducer(state: AppState, action: Action): AppState {
       return state;
     }
     case 'SYNC_STAFF_MEMBERS': {
+      let updatedAdmin = state.admin;
+      let shouldLogout = false;
+      if (state.admin && state.admin.isStaff) {
+        const currentStaff = action.payload.find(s => s.id === state.admin?.id);
+        if (!currentStaff) {
+          updatedAdmin = null;
+          shouldLogout = true;
+        } else {
+          updatedAdmin = {
+            ...state.admin,
+            name: currentStaff.name,
+            email: currentStaff.username,
+            permissions: currentStaff.permissions || []
+          };
+        }
+      }
       return {
         ...state,
-        staffMembers: action.payload
+        staffMembers: action.payload,
+        admin: updatedAdmin,
+        isAdminLoggedIn: shouldLogout ? false : state.isAdminLoggedIn
       };
     }
     case 'ADD_STAFF_MEMBER': {
