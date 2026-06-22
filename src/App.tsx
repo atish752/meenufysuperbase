@@ -20,11 +20,22 @@ function AppInner() {
 
   if (state.isLoading) return <SplashScreen />;
 
-  // Onboarding routing check: path is /onboarding, viewParam is onboarding, or admin logged in but onboarding not done
+  // Onboarding routing check:
+  // - Show onboarding ONLY when admin is logged in for the FIRST TIME (new signup)
+  // - If DB says completed -> skip (returning admin, any device)
+  // - If DB record exists but hasCompletedOnboarding is false -> show (new account, not finished)
+  // - If no DB record at all (null) -> skip (pre-existing account or login user, don't force onboarding)
+  // - Never show onboarding for staff or superadmin
+  const currentAccount = state.restaurantAccounts?.find(acc => acc.id === state.admin?.id);
+  const dbHasCompleted = currentAccount ? currentAccount.hasCompletedOnboarding === true : null;
+
   const isOnboarding = 
     window.location.pathname === '/onboarding' || 
     viewParam === 'onboarding' || 
-    (state.isAdminLoggedIn && !state.admin?.isSuperAdmin && localStorage.getItem('meenufy_has_completed_onboarding') !== 'true');
+    (state.isAdminLoggedIn && 
+     !state.admin?.isSuperAdmin && 
+     !state.admin?.isStaff && 
+     dbHasCompleted === false);  // only explicitly false = new signup that hasn't finished onboarding
 
   if (isOnboarding) {
     return <OnboardingFlow />;

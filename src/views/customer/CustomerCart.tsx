@@ -115,6 +115,7 @@ export default function CustomerCart() {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState('');
+  const [orderType, setOrderType] = useState<'in-dining' | 'take-away'>('in-dining');
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -148,24 +149,50 @@ export default function CustomerCart() {
   const cartCount = state.cart.reduce((s, i) => s + i.qty, 0);
   const cartTotal = state.cart.reduce((s, i) => s + i.price * i.qty, 0);
 
-  // Monitor cartTotal to invalidate applied coupon if minOrderAmount requirement is no longer met
+  // Monitor cartTotal to invalidate applied coupon if minOrderAmount requirement or category scope is no longer met
   useEffect(() => {
     if (appliedCoupon) {
       if (cartTotal < (appliedCoupon.minOrderAmount || 0)) {
         setAppliedCoupon(null);
         setCouponError(`Promo code ${appliedCoupon.code} removed (minimum order ₹${appliedCoupon.minOrderAmount} required).`);
         addToast('error', 'Coupon removed: minimum order amount not met.');
+        return;
+      }
+      if (Array.isArray(appliedCoupon.appliesTo)) {
+        const allowedCatIds = appliedCoupon.appliesTo;
+        const hasApplicableItem = state.cart.some(cartItem => {
+          const menuItem = state.menuItems.find(item => item.id === cartItem.menuItemId);
+          const itemCatId = menuItem ? menuItem.category : '';
+          return allowedCatIds.includes(itemCatId);
+        });
+        if (!hasApplicableItem) {
+          setAppliedCoupon(null);
+          setCouponError(`Promo code ${appliedCoupon.code} removed (no applicable items in cart).`);
+          addToast('error', 'Coupon removed: no applicable items in cart.');
+        }
       }
     }
-  }, [cartTotal, appliedCoupon, addToast]);
+  }, [cartTotal, state.cart, state.menuItems, appliedCoupon, addToast]);
 
   // Coupon calculations
   let couponDiscount = 0;
   if (appliedCoupon) {
+    let applicableTotal = cartTotal;
+    if (Array.isArray(appliedCoupon.appliesTo)) {
+      const allowedCatIds = appliedCoupon.appliesTo;
+      applicableTotal = state.cart.reduce((sum, cartItem) => {
+        const menuItem = state.menuItems.find(item => item.id === cartItem.menuItemId);
+        const itemCatId = menuItem ? menuItem.category : '';
+        if (allowedCatIds.includes(itemCatId)) {
+          return sum + cartItem.price * cartItem.qty;
+        }
+        return sum;
+      }, 0);
+    }
     if (appliedCoupon.type === 'percentage') {
-      couponDiscount = Math.round((cartTotal * appliedCoupon.value) / 100);
+      couponDiscount = Math.round((applicableTotal * appliedCoupon.value) / 100);
     } else {
-      couponDiscount = appliedCoupon.value;
+      couponDiscount = applicableTotal > 0 ? Math.min(applicableTotal, appliedCoupon.value) : 0;
     }
     couponDiscount = Math.min(cartTotal, couponDiscount);
   }
@@ -301,6 +328,58 @@ export default function CustomerCart() {
     }, 400);
   };
 
+  const handleApplyCouponCode = () => {
+    const codeToApply = couponCode.trim().toUpperCase();
+    if (!codeToApply) {
+      setCouponError('Please enter a code.');
+      return;
+    }
+    const found = state.coupons?.find(
+      c => c.code.toUpperCase() === codeToApply && c.isActive
+    );
+    if (!found) {
+      setCouponError('Invalid or expired coupon code.');
+      return;
+    }
+    if (found.minOrderAmount && cartTotal < found.minOrderAmount) {
+      setCouponError(`Minimum order of ₹${found.minOrderAmount} required.`);
+      return;
+    }
+    // Enforce one-time coupon: check if this phone already used it
+    if (found.isOneTime && customerPhone.trim()) {
+      const alreadyUsed = state.orders.some(
+        o => o.couponCodeApplied === found.code &&
+             o.customerPhone === customerPhone.trim() &&
+             o.restaurantId === restaurantId
+      );
+      if (alreadyUsed) {
+        setCouponError('This coupon has already been used by your account.');
+        return;
+      }
+    }
+    // Check global usage limit
+    if (found.usageLimit && (found.usageCount || 0) >= found.usageLimit) {
+      setCouponError('This coupon has reached its usage limit.');
+      return;
+    }
+    // Check category scope
+    if (Array.isArray(found.appliesTo)) {
+      const allowedCatIds = found.appliesTo;
+      const hasApplicableItem = state.cart.some(cartItem => {
+        const menuItem = state.menuItems.find(item => item.id === cartItem.menuItemId);
+        const itemCatId = menuItem ? menuItem.category : '';
+        return allowedCatIds.includes(itemCatId);
+      });
+      if (!hasApplicableItem) {
+        setCouponError('This coupon is not applicable to any items in your cart.');
+        return;
+      }
+    }
+    setAppliedCoupon(found);
+    setCouponError('');
+    addToast('success', `🎉 Coupon ${found.code} applied successfully!`);
+  };
+
   const handlePlaceOrder = async () => {
     if (!state.customerTableId) { addToast('error', 'No table selected.'); return; }
     if (state.cart.length === 0) { addToast('error', 'Cart is empty.'); return; }
@@ -357,6 +436,7 @@ export default function CustomerCart() {
       pointsDiscountApplied: discountApplied,
       couponCodeApplied: appliedCoupon ? appliedCoupon.code : undefined,
       couponDiscountApplied: couponDiscount > 0 ? couponDiscount : undefined,
+      orderType: orderType,
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: order });
@@ -650,192 +730,202 @@ export default function CustomerCart() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                  <div className="input-group">
-                    <label className="input-label">Phone Number (required)</label>
-                    <input className="input" type="tel" placeholder="+91 98765 43210"
-                      value={customerPhone} onChange={handlePhoneChange} />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Your Name (required)</label>
-                    <input className="input" type="text" placeholder="e.g. Ananya"
-                      value={customerName} onChange={e => setCustomerName(e.target.value)} />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Email (optional)</label>
-                    <input className="input" type="email" placeholder="e.g. ananya@gmail.com"
-                      value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
-                  </div>
-                </div>
-              )}
-
-              {/* Extra Details (only show when logged in or login not required) */}
-              {(!restaurant.mustLoginBeforeOrder || googleUser) && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                  <div className="input-group">
-                    <label className="input-label">No. of People at Table (optional)</label>
-                    <input
-                      className="input"
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      max="99"
-                      placeholder="e.g. 2"
-                      value={numberOfGuests}
-                      onChange={e => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setNumberOfGuests(val);
-                      }}
-                      onKeyDown={e => {
-                        if (['.', '-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
-                      }}
-                      style={{ appearance: 'textfield' }}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Special Instructions (optional)</label>
-                    <textarea className="input" rows={2} placeholder="e.g. Less spicy, no onions..."
-                      value={specialNote} onChange={e => setSpecialNote(e.target.value)}
-                      style={{ resize: 'none' }} />
-                  </div>
-                </div>
-              )}
-
-              {/* Promo Code System */}
-              {(!restaurant.mustLoginBeforeOrder || googleUser) && (
-                <div style={{
-                  background: 'var(--bg-elevated)',
-                  borderRadius: 12,
-                  padding: '12px 14px',
-                  marginBottom: 16,
-                  border: '1px solid var(--border)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>🏷️</span> Apply Promo Code
-                  </div>
-                  
-                  {appliedCoupon ? (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'var(--brand-dim)',
-                      border: '1px solid var(--border-brand)',
-                      borderRadius: 8,
-                      padding: '8px 12px',
-                    }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)' }}>
-                          Code: {appliedCoupon.code} Applied!
-                        </span>
-                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                          Saving ₹{couponDiscount} on this order
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAppliedCoupon(null);
-                          setCouponCode('');
-                          setCouponError('');
-                          addToast('info', 'Promo code removed.');
-                        }}
-                        style={{
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          color: 'var(--error)',
-                          border: 'none',
-                          padding: '4px 10px',
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Remove
-                      </button>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 12,
+                  }}>
+                    {/* Phone & Name */}
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label" style={{ fontSize: 11, fontWeight: 700 }}>Phone Number*</label>
+                      <input className="input" type="tel" placeholder="+91 98765 43210"
+                        value={customerPhone} onChange={handlePhoneChange} style={{ height: 38, fontSize: 12 }} />
                     </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label" style={{ fontSize: 11, fontWeight: 700 }}>Your Name*</label>
+                      <input className="input" type="text" placeholder="e.g. Ananya"
+                        value={customerName} onChange={e => setCustomerName(e.target.value)} style={{ height: 38, fontSize: 12 }} />
+                    </div>
+
+                    {/* Email & Guests */}
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label" style={{ fontSize: 11 }}>Email (optional)</label>
+                      <input className="input" type="email" placeholder="e.g. ananya@gmail.com"
+                        value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} style={{ height: 38, fontSize: 12 }} />
+                    </div>
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label" style={{ fontSize: 11 }}>No. of People (optional)</label>
                       <input
-                        type="text"
                         className="input"
-                        placeholder="Enter code (e.g. FLAT100)"
-                        value={couponCode}
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="99"
+                        placeholder="e.g. 2"
+                        value={numberOfGuests}
                         onChange={e => {
-                          setCouponCode(e.target.value.toUpperCase());
-                          setCouponError('');
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setNumberOfGuests(val);
                         }}
-                        style={{
-                          flex: 1,
-                          textTransform: 'uppercase',
-                          height: 36,
-                          padding: '0 12px',
-                          fontSize: 13,
+                        onKeyDown={e => {
+                          if (['.', '-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
                         }}
+                        style={{ appearance: 'textfield', height: 38, fontSize: 12 }}
                       />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const codeToApply = couponCode.trim().toUpperCase();
-                          if (!codeToApply) {
-                            setCouponError('Please enter a code.');
-                            return;
-                          }
-                          const found = state.coupons?.find(
-                            c => c.code.toUpperCase() === codeToApply && c.isActive
-                          );
-                          if (!found) {
-                            setCouponError('Invalid or expired coupon code.');
-                            return;
-                          }
-                          if (found.minOrderAmount && cartTotal < found.minOrderAmount) {
-                            setCouponError(`Minimum order of ₹${found.minOrderAmount} required.`);
-                            return;
-                          }
-                          // Enforce one-time coupon: check if this phone already used it
-                          if (found.isOneTime && customerPhone.trim()) {
-                            const alreadyUsed = state.orders.some(
-                              o => o.couponCodeApplied === found.code &&
-                                   o.customerPhone === customerPhone.trim() &&
-                                   o.restaurantId === restaurantId
-                            );
-                            if (alreadyUsed) {
-                              setCouponError('This coupon has already been used by your account.');
-                              return;
-                            }
-                          }
-                          // Check global usage limit
-                          if (found.usageLimit && (found.usageCount || 0) >= found.usageLimit) {
-                            setCouponError('This coupon has reached its usage limit.');
-                            return;
-                          }
-                          setAppliedCoupon(found);
-                          setCouponError('');
-                          addToast('success', `🎉 Coupon ${found.code} applied successfully!`);
-                        }}
-                        style={{
-                          background: 'var(--brand)',
-                          color: '#000',
-                          border: 'none',
-                          padding: '0 16px',
-                          borderRadius: 8,
-                          fontSize: 13,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          height: 36,
-                        }}
-                      >
-                        Apply
-                      </button>
                     </div>
-                  )}
+
+                    {/* Special Note & Promo Code */}
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label" style={{ fontSize: 11 }}>Special Notes (optional)</label>
+                      <textarea className="input" rows={1} placeholder="Less spicy, no onions..."
+                        value={specialNote} onChange={e => setSpecialNote(e.target.value)}
+                        style={{ resize: 'none', height: 38, fontSize: 12, padding: '8px 10px' }} />
+                    </div>
+                    
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label" style={{ fontSize: 11 }}>Promo Code</label>
+                      {appliedCoupon ? (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: 'var(--brand-dim)',
+                          border: '1px solid var(--border-brand)',
+                          borderRadius: 8,
+                          padding: '4px 8px',
+                          height: 38,
+                          boxSizing: 'border-box'
+                        }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--brand)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 85 }}>
+                            {appliedCoupon.code}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedCoupon(null);
+                              setCouponCode('');
+                              setCouponError('');
+                              addToast('info', 'Promo code removed.');
+                            }}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              color: 'var(--error)',
+                              border: 'none',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="Code"
+                            value={couponCode}
+                            onChange={e => {
+                              setCouponCode(e.target.value.toUpperCase());
+                              setCouponError('');
+                            }}
+                            style={{
+                              flex: 1,
+                              textTransform: 'uppercase',
+                              height: 38,
+                              padding: '0 8px',
+                              fontSize: 12,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleApplyCouponCode}
+                            className="btn btn-primary"
+                            style={{
+                              height: 38,
+                              padding: '0 8px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              borderRadius: 10,
+                              background: 'var(--brand)',
+                              color: '#000',
+                              border: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {couponError && (
-                    <div style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600 }}>
+                    <div style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600, marginTop: -4 }}>
                       ⚠️ {couponError}
                     </div>
                   )}
+
+                  {appliedCoupon && (
+                    <div style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600, marginTop: -4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span>🎉 Coupon {appliedCoupon.code} applied: {appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}% Off` : `₹${appliedCoupon.value} Off`}</span>
+                      {appliedCoupon.label && (
+                        <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontStyle: 'italic', fontWeight: 'normal' }}>ℹ️ {appliedCoupon.label}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Order Type Toggle */}
+              {(!restaurant.mustLoginBeforeOrder || googleUser) && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  marginBottom: 16,
+                  padding: '12px 14px',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 12,
+                  border: '1px solid var(--border)'
+                }}>
+                  <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>Order Type</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {[
+                      { value: 'in-dining', label: '🪑 In-Dining' },
+                      { value: 'take-away', label: '🛍️ Take-Away' }
+                    ].map(opt => {
+                      const isSel = orderType === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setOrderType(opt.value as any)}
+                          style={{
+                            flex: 1,
+                            padding: '10px 8px',
+                            borderRadius: 10,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            border: isSel ? '2px solid var(--border-brand)' : '1px solid var(--border)',
+                            background: isSel ? 'var(--brand-dim)' : 'var(--bg-primary)',
+                            color: isSel ? 'var(--brand)' : 'var(--text-primary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

@@ -166,6 +166,7 @@ export default function OnboardingFlow() {
       setTimeout(() => {
         // Complete onboarding session state updates
         localStorage.setItem('meenufy_has_completed_onboarding', 'true');
+        dispatch({ type: 'COMPLETE_ONBOARDING' });
         console.log('Onboarding data recorded:', onboardingData);
         
         // Save restaurant name to database state

@@ -115,7 +115,7 @@ export default function CustomerLayout({ tableId }: Props) {
 
   const rId = new URLSearchParams(window.location.search).get('restaurant') || getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, rId);
-  const isClosed = isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime) && activeOrders.length === 0;
+  const isClosed = (isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime) || restaurant?.isManualClosed === true) && activeOrders.length === 0;
 
   if (isClosed) {
     return (

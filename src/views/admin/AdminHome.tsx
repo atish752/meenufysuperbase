@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../../context/RealtimeStore';
-import type { Order, OrderStatus } from '../../context/RealtimeStore';
-import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, HelpCircle } from 'lucide-react';
+import type { Order, OrderStatus, Coupon } from '../../context/RealtimeStore';
+import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, HelpCircle, Edit2 } from 'lucide-react';
 import { triggerNotification } from '../../utils/notifications';
 import { printThermalReceipt } from '../../utils/printReceipt';
 
@@ -38,6 +38,8 @@ if (typeof document !== 'undefined' && !document.getElementById(BLINK_STYLE_ID))
 
 export default function AdminHome() {
   const { state, dispatch, addToast } = useStore();
+  const hasOrdersPermission = !state.admin?.isStaff || state.admin.permissions?.includes('orders');
+  const hasQrTablesPermission = !state.admin?.isStaff || state.admin.permissions?.includes('qr_tables');
 
   const [isTabularView, setIsTabularView] = useState(() => {
     return typeof window !== 'undefined' && localStorage.getItem('meenufy_admin_orders_tabular_view') === 'true';
@@ -69,7 +71,10 @@ export default function AdminHome() {
     value: '',
     minOrderAmount: '',
     isOneTime: false,
-    isActive: true
+    isActive: true,
+    appliesToType: 'all' as 'all' | 'categories',
+    selectedCategories: [] as string[],
+    label: ''
   });
 
   const handleSaveCoupon = (e: React.FormEvent) => {
@@ -87,7 +92,7 @@ export default function AdminHome() {
 
     const targetRestaurantId = state.admin?.restaurantId || 'admin-1';
 
-    const couponData = {
+    const couponData: Coupon = {
       id: editingCouponId || `coup-${Date.now()}`,
       code: couponForm.code.trim().toUpperCase(),
       type: couponForm.type,
@@ -96,7 +101,9 @@ export default function AdminHome() {
       isOneTime: couponForm.isOneTime,
       isActive: couponForm.isActive,
       createdAt: Date.now(),
-      restaurantId: targetRestaurantId
+      restaurantId: targetRestaurantId,
+      appliesTo: couponForm.appliesToType === 'all' ? 'all' : couponForm.selectedCategories,
+      label: couponForm.label.trim() || undefined
     };
 
     if (editingCouponId) {
@@ -120,12 +127,15 @@ export default function AdminHome() {
       value: '',
       minOrderAmount: '',
       isOneTime: false,
-      isActive: true
+      isActive: true,
+      appliesToType: 'all',
+      selectedCategories: [],
+      label: ''
     });
     setEditingCouponId(null);
   };
 
-  const handleEditCoupon = (coupon: any) => {
+  const handleEditCoupon = (coupon: Coupon) => {
     setEditingCouponId(coupon.id);
     setCouponForm({
       code: coupon.code,
@@ -133,7 +143,10 @@ export default function AdminHome() {
       value: String(coupon.value),
       minOrderAmount: coupon.minOrderAmount ? String(coupon.minOrderAmount) : '',
       isOneTime: !!coupon.isOneTime,
-      isActive: !!coupon.isActive
+      isActive: !!coupon.isActive,
+      appliesToType: Array.isArray(coupon.appliesTo) ? 'categories' : 'all',
+      selectedCategories: Array.isArray(coupon.appliesTo) ? coupon.appliesTo : [],
+      label: coupon.label || ''
     });
   };
 
@@ -149,7 +162,10 @@ export default function AdminHome() {
           value: '',
           minOrderAmount: '',
           isOneTime: false,
-          isActive: true
+          isActive: true,
+          appliesToType: 'all',
+          selectedCategories: [],
+          label: ''
         });
       }
     }
@@ -496,6 +512,35 @@ export default function AdminHome() {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          {/* Open / Close Restaurant Toggle */}
+          <button
+            onClick={() => {
+              const newClosed = !state.restaurant.isManualClosed;
+              dispatch({ type: 'SET_MANUAL_CLOSED', payload: newClosed });
+              addToast(newClosed ? 'warning' : 'success', newClosed ? '🔴 Restaurant marked CLOSED — customers can no longer place orders.' : '🟢 Restaurant is now OPEN — customers can place orders!');
+            }}
+            style={{
+              height: 38,
+              borderRadius: 12,
+              fontSize: 12,
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: state.restaurant.isManualClosed ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)',
+              border: state.restaurant.isManualClosed ? '2px solid #ef4444' : '2px solid #22c55e',
+              color: state.restaurant.isManualClosed ? '#ef4444' : '#22c55e',
+              cursor: 'pointer',
+              padding: '0 14px',
+              transition: 'all 0.2s ease',
+              boxShadow: state.restaurant.isManualClosed ? '0 0 12px rgba(239,68,68,0.25)' : '0 0 12px rgba(34,197,94,0.2)',
+            }}
+            title={state.restaurant.isManualClosed ? 'Click to Open Restaurant' : 'Click to Close Restaurant'}
+          >
+            <span style={{ fontSize: 10, width: 8, height: 8, borderRadius: '50%', background: state.restaurant.isManualClosed ? '#ef4444' : '#22c55e', display: 'inline-block', boxShadow: state.restaurant.isManualClosed ? '0 0 6px #ef4444' : '0 0 6px #22c55e', flexShrink: 0 }} />
+            {state.restaurant.isManualClosed ? '🔴 CLOSED' : '🟢 OPEN'}
+          </button>
+
           {/* History Toggle Button */}
           <button
             onClick={() => setShowHistory(prev => !prev)}
@@ -679,8 +724,9 @@ export default function AdminHome() {
       </div>
 
       {/* Active Orders Section */}
-      <div style={{ marginBottom: 24 }}>
-        {showHistory ? (
+      {hasOrdersPermission ? (
+        <div style={{ marginBottom: 24 }}>
+          {showHistory ? (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             {/* Filters card */}
             <div className="card" style={{ marginBottom: 16 }}>
@@ -992,9 +1038,38 @@ export default function AdminHome() {
           </div>
         )}
       </div>
+      ) : (
+        <div style={{
+          padding: '40px 24px',
+          background: 'var(--bg-elevated)',
+          borderRadius: 12,
+          border: '1px dashed var(--border)',
+          marginBottom: 24,
+          textAlign: 'center',
+          color: 'var(--text-muted)',
+          fontSize: 13
+        }}>
+          🍳 Orders Board access is restricted.
+        </div>
+      )}
 
-       {/* Live Table Map */}
-      <TableMap />
+      {/* Live Table Map */}
+      {hasQrTablesPermission ? (
+        <TableMap />
+      ) : (
+        <div style={{
+          padding: '40px 24px',
+          background: 'var(--bg-elevated)',
+          borderRadius: 12,
+          border: '1px dashed var(--border)',
+          marginBottom: 32,
+          textAlign: 'center',
+          color: 'var(--text-muted)',
+          fontSize: 13
+        }}>
+          🪑 Table Map access is restricted.
+        </div>
+      )}
 
       {/* Coupons & Offers Manager Modal */}
       {showCouponsModal && (
@@ -1129,6 +1204,82 @@ export default function AdminHome() {
                 </div>
               </div>
 
+              <div className="input-group" style={{ width: '100%' }}>
+                <label className="input-label" style={{ fontSize: 10 }}>Coupon Label / Description (optional)</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Valid on Drinks & Desserts"
+                  value={couponForm.label}
+                  onChange={e => setCouponForm({ ...couponForm, label: e.target.value })}
+                  style={{ height: 34, fontSize: 12 }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                <label className="input-label" style={{ fontSize: 10 }}>Applies To</label>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+                    <input
+                      type="radio"
+                      name="appliesToType"
+                      checked={couponForm.appliesToType === 'all'}
+                      onChange={() => setCouponForm({ ...couponForm, appliesToType: 'all' })}
+                    />
+                    <span>All Items</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+                    <input
+                      type="radio"
+                      name="appliesToType"
+                      checked={couponForm.appliesToType === 'categories'}
+                      onChange={() => setCouponForm({ ...couponForm, appliesToType: 'categories' })}
+                    />
+                    <span>Specific Categories</span>
+                  </label>
+                </div>
+              </div>
+
+              {couponForm.appliesToType === 'categories' && (
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: 10,
+                  marginTop: 4,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  maxHeight: 120,
+                  overflowY: 'auto'
+                }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>Select Categories:</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {state.categories.map(cat => {
+                      const isChecked = couponForm.selectedCategories.includes(cat.id);
+                      return (
+                        <label key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11 }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={e => {
+                              const updated = e.target.checked
+                                ? [...couponForm.selectedCategories, cat.id]
+                                : couponForm.selectedCategories.filter(id => id !== cat.id);
+                              setCouponForm({ ...couponForm, selectedCategories: updated });
+                            }}
+                          />
+                          <span>{cat.icon} {cat.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {state.categories.length === 0 && (
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No categories found</span>
+                  )}
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
                   <input
@@ -1169,7 +1320,10 @@ export default function AdminHome() {
                         value: '',
                         minOrderAmount: '',
                         isOneTime: false,
-                        isActive: true
+                        isActive: true,
+                        appliesToType: 'all',
+                        selectedCategories: [],
+                        label: ''
                       });
                     }}
                     style={{ height: 34, fontSize: 12 }}
@@ -1211,6 +1365,24 @@ export default function AdminHome() {
                         {coupon.minOrderAmount ? ` • Min. order ₹${coupon.minOrderAmount}` : ''}
                         {coupon.isOneTime ? ` • One-time` : ''}
                       </div>
+                      {coupon.label && (
+                        <div style={{ fontSize: 10, color: 'var(--brand)', marginTop: 2, fontStyle: 'italic' }}>
+                          ℹ️ {coupon.label}
+                        </div>
+                      )}
+                      {Array.isArray(coupon.appliesTo) && coupon.appliesTo.length > 0 && (
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                          <span>Applies to:</span>
+                          {coupon.appliesTo.map(catId => {
+                            const cat = state.categories.find(c => c.id === catId);
+                            return (
+                              <span key={catId} style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 4px', borderRadius: 4, fontSize: 9 }}>
+                                {cat ? `${cat.icon} ${cat.name}` : catId}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     
                     <div style={{ display: 'flex', gap: 4 }}>
@@ -1253,8 +1425,81 @@ export default function AdminHome() {
 }
 
 function TableMap() {
-  const { state } = useStore();
+  const { state, dispatch, addToast } = useStore();
   const { tables, orders } = state;
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+
+  // Reservation form state
+  const [showReserveForm, setShowReserveForm] = useState(false);
+  const [resDate, setResDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
+  const [resStartTime, setResStartTime] = useState(() => {
+    const d = new Date();
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  });
+  const [resEndTime, setResEndTime] = useState(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 2);
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  });
+  const [resGuestName, setResGuestName] = useState('');
+  const [resGuestPhone, setResGuestPhone] = useState('');
+  const [resGuestCount, setResGuestCount] = useState<number>(2);
+
+  // Reset form when selected table changes
+  useEffect(() => {
+    if (selectedTable) {
+      const tbl = tables.find(t => t.id === selectedTable);
+      if (tbl && tbl.status === 'reserved') {
+        setShowReserveForm(false);
+      } else {
+        setShowReserveForm(false);
+      }
+      
+      const d = new Date();
+      setResDate(d.toISOString().split('T')[0]);
+      
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      setResStartTime(`${h}:${m}`);
+      
+      const dEnd = new Date();
+      dEnd.setHours(dEnd.getHours() + 2);
+      const hEnd = String(dEnd.getHours()).padStart(2, '0');
+      const mEnd = String(dEnd.getMinutes()).padStart(2, '0');
+      setResEndTime(`${hEnd}:${mEnd}`);
+      
+      setResGuestName('');
+      setResGuestPhone('');
+      setResGuestCount(tbl?.capacity || 2);
+    }
+  }, [selectedTable, tables]);
+
+  const handleEditExistingReservation = (tbl: any) => {
+    if (tbl.reservationFrom) {
+      const fromDate = new Date(tbl.reservationFrom);
+      setResDate(fromDate.toISOString().split('T')[0]);
+      const h = String(fromDate.getHours()).padStart(2, '0');
+      const m = String(fromDate.getMinutes()).padStart(2, '0');
+      setResStartTime(`${h}:${m}`);
+    }
+    if (tbl.reservationTo) {
+      const toDate = new Date(tbl.reservationTo);
+      const h = String(toDate.getHours()).padStart(2, '0');
+      const m = String(toDate.getMinutes()).padStart(2, '0');
+      setResEndTime(`${h}:${m}`);
+    }
+    setResGuestName(tbl.reservationGuestName || '');
+    setResGuestPhone(tbl.reservationGuestPhone || '');
+    setResGuestCount(tbl.reservationGuestCount || tbl.capacity || 2);
+    setShowReserveForm(true);
+  };
 
   const occupiedMap: Record<string, { customerName: string; orderCount: number }> = {};
   orders.forEach(o => {
@@ -1266,6 +1511,8 @@ function TableMap() {
       }
     }
   });
+
+  const selectedTableData = tables.find(t => t.id === selectedTable);
 
   if (tables.length === 0) {
     return (
@@ -1290,8 +1537,8 @@ function TableMap() {
     <div style={{ marginBottom: 32 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <h2 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800 }}>🪑 Table Map</h2>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Live floor status</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center', fontSize: 10, color: 'var(--text-muted)' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Tap a table to change its status</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center', fontSize: 10, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 10, height: 10, borderRadius: 3, background: '#22c55e', display: 'inline-block' }} /> Free
           </span>
@@ -1300,6 +1547,9 @@ function TableMap() {
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 10, height: 10, borderRadius: 3, background: '#eab308', display: 'inline-block' }} /> Maintenance
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: '#8b5cf6', display: 'inline-block' }} /> Reserved
           </span>
         </div>
       </div>
@@ -1311,8 +1561,9 @@ function TableMap() {
       }}>
         {tables.map(table => {
           const isMaintenance = table.status === 'maintenance';
+          const isReserved = table.status === 'reserved';
           const occupied = occupiedMap[table.id];
-          const isOccupied = !!occupied && !isMaintenance;
+          const isOccupied = !!occupied && !isMaintenance && !isReserved;
 
           let bg = '#22c55e';
           let textColor = '#fff';
@@ -1321,26 +1572,38 @@ function TableMap() {
 
           if (isMaintenance) {
             bg = '#eab308'; textColor = '#000'; borderColor = '#ca8a04'; statusLabel = 'Maintenance';
+          } else if (isReserved) {
+            bg = '#8b5cf6'; textColor = '#fff'; borderColor = '#7c3aed';
+            statusLabel = table.reservationGuestName ? `Res: ${table.reservationGuestName}` : 'Reserved';
           } else if (isOccupied) {
             bg = '#ef4444'; textColor = '#fff'; borderColor = '#dc2626'; statusLabel = occupied.customerName;
           }
 
           return (
-            <div key={table.id} style={{
-              background: bg,
-              border: `2px solid ${borderColor}`,
-              borderRadius: 12,
-              padding: '12px 8px',
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 4,
-              minHeight: 100,
-              justifyContent: 'center',
-              boxShadow: isOccupied ? '0 4px 16px rgba(239,68,68,0.35)' : isMaintenance ? '0 4px 16px rgba(234,179,8,0.3)' : '0 4px 16px rgba(34,197,94,0.2)',
-              transition: 'all 0.3s ease',
-            }}>
+            <div
+              key={table.id}
+              onClick={() => setSelectedTable(table.id)}
+              style={{
+                background: bg,
+                border: `2px solid ${borderColor}`,
+                borderRadius: 12,
+                padding: '12px 8px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                minHeight: 100,
+                justifyContent: 'center',
+                boxShadow: isOccupied ? '0 4px 16px rgba(239,68,68,0.35)' : isMaintenance ? '0 4px 16px rgba(234,179,8,0.3)' : isReserved ? '0 4px 16px rgba(139,92,246,0.3)' : '0 4px 16px rgba(34,197,94,0.2)',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ position: 'absolute', top: 6, right: 6, opacity: 0.75 }}>
+                <Edit2 size={10} color={textColor} />
+              </div>
               <div style={{ fontSize: 30, fontWeight: 900, color: textColor, fontFamily: 'var(--font-display)', lineHeight: 1 }}>
                 {table.number}
               </div>
@@ -1353,10 +1616,367 @@ function TableMap() {
                 </div>
               )}
               {isMaintenance && <Wrench size={13} color={textColor} style={{ opacity: 0.8 }} />}
+              {isReserved && <Calendar size={13} color={textColor} style={{ opacity: 0.8 }} />}
             </div>
           );
         })}
       </div>
+
+      {/* Table Status Edit Modal */}
+      {selectedTable && selectedTableData && (
+        <div
+          className="modal-backdrop"
+          onClick={e => e.target === e.currentTarget && setSelectedTable(null)}
+          style={{ zIndex: 200 }}
+        >
+          <div
+            className="modal-content"
+            style={{ maxWidth: 340, padding: 24, position: 'relative' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedTable(null)}
+              style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 14 }}
+            >
+              ×
+            </button>
+
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, marginBottom: 4 }}>
+              Table {selectedTableData.number}
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
+              Current status: <strong style={{ textTransform: 'capitalize', color: 'var(--text-primary)' }}>{selectedTableData.status === 'maintenance' ? 'Maintenance' : selectedTableData.status === 'reserved' ? 'Reserved' : occupiedMap[selectedTable] ? 'Occupied' : 'Free'}</strong>
+            </p>
+
+            {/* Modal Body options */}
+            {selectedTableData.status === 'reserved' && !showReserveForm ? (
+              <div>
+                <div style={{
+                  background: 'rgba(139,92,246,0.1)',
+                  border: '1.5px solid #8b5cf6',
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                  color: 'var(--text-primary)'
+                }}>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: '#c084fc', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Calendar size={14} /> Reserved Details
+                  </div>
+                  
+                  <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Date: </span>
+                      <strong>{selectedTableData.reservationFrom ? new Date(selectedTableData.reservationFrom).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '-'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Time: </span>
+                      <strong>
+                        {selectedTableData.reservationFrom ? new Date(selectedTableData.reservationFrom).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        {' - '}
+                        {selectedTableData.reservationTo ? new Date(selectedTableData.reservationTo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Guest Name: </span>
+                      <strong>{selectedTableData.reservationGuestName || 'Guest'}</strong>
+                    </div>
+                    {selectedTableData.reservationGuestPhone && (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Phone: </span>
+                        <strong>{selectedTableData.reservationGuestPhone}</strong>
+                      </div>
+                    )}
+                    {selectedTableData.reservationGuestCount && (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Guests: </span>
+                        <strong>{selectedTableData.reservationGuestCount} people</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button
+                    onClick={() => handleEditExistingReservation(selectedTableData)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 10,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1.5px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    ✏️ Edit Reservation
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      dispatch({ type: 'UPDATE_TABLE_STATUS', payload: { id: selectedTable, status: 'active' } });
+                      addToast('success', `Reservation for Table ${selectedTableData.number} released!`);
+                      setSelectedTable(null);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 10,
+                      background: 'rgba(239,68,68,0.1)',
+                      border: '1.5px solid var(--error)',
+                      color: 'var(--error)',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    🗑️ Release / Cancel Reservation
+                  </button>
+                </div>
+              </div>
+            ) : showReserveForm ? (
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                let fromDate = new Date(`${resDate}T${resStartTime}`);
+                let toDate = new Date(`${resDate}T${resEndTime}`);
+                if (toDate.getTime() < fromDate.getTime()) {
+                  toDate.setDate(toDate.getDate() + 1);
+                }
+                
+                dispatch({
+                  type: 'SET_TABLE_RESERVATION',
+                  payload: {
+                    id: selectedTable,
+                    reservationFrom: fromDate.getTime(),
+                    reservationTo: toDate.getTime(),
+                    reservationGuestName: resGuestName.trim() || 'Guest',
+                    reservationGuestPhone: resGuestPhone.trim() || undefined,
+                    reservationGuestCount: Number(resGuestCount) || 2
+                  }
+                });
+                
+                addToast('success', `Table ${selectedTableData.number} successfully reserved!`);
+                setSelectedTable(null);
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+              >
+                <h4 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#c084fc' }}>Enter Reservation details:</h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700 }}>Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={resDate}
+                    onChange={(e) => setResDate(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700 }}>From Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={resStartTime}
+                      onChange={(e) => setResStartTime(e.target.value)}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: 6,
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        fontSize: 12
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700 }}>To Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={resEndTime}
+                      onChange={(e) => setResEndTime(e.target.value)}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: 6,
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        fontSize: 12
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700 }}>Guest Name (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="E.g. John Doe"
+                    value={resGuestName}
+                    onChange={(e) => setResGuestName(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700 }}>Contact Phone (Optional)</label>
+                  <input
+                    type="tel"
+                    placeholder="E.g. 9876543210"
+                    value={resGuestPhone}
+                    onChange={(e) => setResGuestPhone(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700 }}>Number of People</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={resGuestCount}
+                    onChange={(e) => setResGuestCount(Number(e.target.value))}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedTableData.status === 'reserved') {
+                        setShowReserveForm(false);
+                      } else {
+                        setSelectedTable(null);
+                      }
+                    }}
+                    style={{
+                      padding: '10px',
+                      borderRadius: 6,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '10px',
+                      borderRadius: 6,
+                      background: '#8b5cf6',
+                      border: 'none',
+                      color: '#fff',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { key: 'active', label: '🟢 Mark as Free', desc: 'Table is available for new guests', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+                  { key: 'maintenance', label: '🔧 Mark as Maintenance', desc: 'Table is under maintenance / unavailable', color: '#eab308', bg: 'rgba(234,179,8,0.1)' },
+                ].map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => {
+                      dispatch({ type: 'UPDATE_TABLE_STATUS', payload: { id: selectedTable, status: opt.key as 'active' | 'maintenance' } });
+                      addToast('success', `Table ${selectedTableData.number} marked as ${opt.key === 'active' ? 'Free' : 'Maintenance'}!`);
+                      setSelectedTable(null);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 10,
+                      background: opt.bg,
+                      border: `1.5px solid ${opt.color}`,
+                      color: opt.color,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                    <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-secondary)' }}>{opt.desc}</span>
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => setShowReserveForm(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    background: 'rgba(139,92,246,0.1)',
+                    border: '1.5px solid #8b5cf6',
+                    color: '#c084fc',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span>📅 Reserve Table</span>
+                  <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-secondary)' }}>Reserve table for a customer time slot</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1465,6 +2085,18 @@ function OrderCard({
                 display: 'inline-flex', alignItems: 'center', gap: 3,
               }}>
                 👥 {order.numberOfGuests}
+              </span>
+            )}
+            {order.orderType && (
+              <span style={{
+                fontSize: 9.5, fontWeight: 700,
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                padding: '2px 6px', borderRadius: 4,
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+              }}>
+                {order.orderType === 'in-dining' ? '🪑 In-Dining' : '🛍️ Take-Away'}
               </span>
             )}
             <span style={{ 

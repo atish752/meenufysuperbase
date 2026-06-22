@@ -15,7 +15,16 @@ export default function AdminBottomNav() {
 
   return (
     <div className="bottom-nav">
-      {NAV.map(item => {
+      {NAV.filter(item => {
+        if (!state.admin?.isStaff) return true;
+        const perms = state.admin.permissions || [];
+        if (item.key === 'home') return perms.includes('orders') || perms.includes('qr_tables');
+        if (item.key === 'menu') return perms.includes('menu');
+        if (item.key === 'customers') return perms.includes('customers');
+        if (item.key === 'analysis') return perms.includes('analysis');
+        if (item.key === 'more') return true;
+        return false;
+      }).map(item => {
         const Icon = item.icon;
         const isActive = state.adminTab === item.key;
         return (

@@ -33,6 +33,42 @@ export default function AdminAuth() {
     setLoading(true);
     const emailLower = form.email.trim().toLowerCase();
 
+    // 0. Staff Member Interception Check
+    if (mode === 'login') {
+      const matchedStaff = state.staffMembers?.find(
+        s => s.username.trim().toLowerCase() === emailLower
+      );
+      if (matchedStaff) {
+        if (matchedStaff.password !== form.password) {
+          addToast('error', '❌ Incorrect staff password.');
+          setLoading(false);
+          return;
+        }
+        
+        const ownerAcc = state.restaurantAccounts?.find(acc => acc.id === matchedStaff.restaurantId);
+        if (ownerAcc && ownerAcc.status === 'blocked') {
+          addToast('error', '❌ Your restaurant outlet account has been blocked. Please contact support@meenufy.com');
+          setLoading(false);
+          return;
+        }
+
+        const staffUser = {
+          id: matchedStaff.id,
+          name: matchedStaff.name,
+          email: matchedStaff.username,
+          restaurantId: matchedStaff.restaurantId,
+          isLoggedIn: true,
+          isStaff: true,
+          permissions: matchedStaff.permissions || []
+        };
+
+        dispatch({ type: 'LOGIN_ADMIN', payload: staffUser });
+        addToast('success', `Welcome back, Staff ${staffUser.name}! 🎉`);
+        setLoading(false);
+        return;
+      }
+    }
+
     // 1. Super Admin Check
     if (emailLower === 'atish752') {
       if (form.password === 'UHI(*Y90Jjk0JKop:ki-0PIkj9OP0') {
@@ -111,6 +147,10 @@ export default function AdminAuth() {
         }
 
         dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
+        // For new signups: mark onboarding as not yet completed so they see the onboarding flow
+        if (mode === 'signup') {
+          dispatch({ type: 'MARK_ONBOARDING_PENDING' });
+        }
         addToast('success', mode === 'signup' ? `Account created! Welcome, ${adminUser.name}! 🎉` : `Welcome back, ${adminUser.name}! 🎉`);
       } catch (err: any) {
         let errMsg = err.message || 'Authentication failed.';
@@ -176,6 +216,10 @@ export default function AdminAuth() {
     }
 
     dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
+    // For new signups: mark onboarding as not yet completed
+    if (mode === 'signup' && !existingAccount) {
+      dispatch({ type: 'MARK_ONBOARDING_PENDING' });
+    }
     addToast('success', existingAccount ? `Welcome back, ${adminUser.name}! 🎉` : `Account created! Welcome, ${adminUser.name}! 🎉`);
     setLoading(false);
   };

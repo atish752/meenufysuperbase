@@ -3,7 +3,7 @@ import { useStore } from '../../context/RealtimeStore';
 import {
   Store, Phone, Mail, Clock, MapPin, Save, LogOut,
   MessageSquare, Smartphone, Send, Download, QrCode, ExternalLink,
-  CreditCard, Printer,
+  CreditCard, Printer, Users,
 } from 'lucide-react';
 
 
@@ -86,23 +86,75 @@ function cropImageSource(base64Src: string, ratio: '1:1' | '3:4' | '9:16', maxDi
 
 export default function AdminMore() {
   const { state, dispatch, addToast } = useStore();
+
+  const isStaff = !!state.admin?.isStaff;
+  const permissions = state.admin?.permissions || [];
+  const currentRestaurantId = state.admin?.restaurantId || 'admin-1';
+  const myStaff = state.staffMembers ? state.staffMembers.filter(s => s.restaurantId === currentRestaurantId) : [];
+
+  const getStaffLimit = (plan: string) => {
+    switch (plan) {
+      case 'base': return 1;
+      case 'standard': return 3;
+      case 'advance': return 5;
+      case 'free':
+      default:
+        return 0;
+    }
+  };
+  const staffLimit = getStaffLimit(state.subscriptionPlan || 'free');
+
+  const rawSections = [
+    { id: 'outlet', label: 'Outlet Settings', icon: Store, permission: 'outlet_setting' },
+    { id: 'qr', label: 'Manage QR & Tables', icon: QrCode, permission: 'qr_tables' },
+    { id: 'autoprint', label: 'Autoprint KOT/Bill', icon: Printer, permission: 'outlet_setting' },
+    { id: 'staff', label: 'Manage Staff', icon: Users, permission: 'owner_only' },
+    { id: 'subscription', label: 'Pricing & Subscription', icon: CreditCard, permission: 'owner_only' },
+    { id: 'pwa', label: 'Install App', icon: Smartphone },
+    { id: 'feedback', label: 'Feedback & Tickets', icon: MessageSquare },
+  ];
+
+  const sections = rawSections.filter(sec => {
+    if (isStaff) {
+      if (sec.permission === 'owner_only') return false;
+      if (sec.permission && !permissions.includes(sec.permission as any)) return false;
+    }
+    return true;
+  });
+
   const [restaurantForm, setRestaurantForm] = useState({ ...state.restaurant });
   const [feedbackText, setFeedbackText] = useState('');
   const [ticketType, setTicketType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
-  const [activeSection, setActiveSection] = useState<string | null>('outlet');
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
 
-  // Deep-link redirect: when navigating from another tab with a target section stored in localStorage
-  // This fires on mount (when adminTab first becomes 'more') AND on any subsequent adminTab changes
+  // Staff state hooks
+  const [staffName, setStaffName] = useState('');
+  const [staffUsername, setStaffUsername] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffPermissions, setStaffPermissions] = useState<string[]>([]);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+
+  const resetStaffForm = () => {
+    setEditingStaffId(null);
+    setStaffName('');
+    setStaffUsername('');
+    setStaffPassword('');
+    setStaffPermissions([]);
+  };
+
+  // Deep-link redirect & fallback initialization
   useEffect(() => {
     const targetSection = localStorage.getItem('meenufy_admin_more_section');
-    if (targetSection) {
+    if (targetSection && sections.some(s => s.id === targetSection)) {
       localStorage.removeItem('meenufy_admin_more_section');
       setActiveSection(targetSection);
+    } else if (!activeSection && sections.length > 0) {
+      setActiveSection(sections[0].id);
     }
-  }, []); // Run on mount – AdminMore is unmounted/remounted each time tab switches to 'more'
+  }, [sections, activeSection]);
 
   const [selectedInstructionDevice, setSelectedInstructionDevice] = useState<'android' | 'ios' | 'windows' | 'mac' | 'pos'>('android');
   const [showInstructions, setShowInstructions] = useState(false);
@@ -113,6 +165,39 @@ export default function AdminMore() {
 
   const [originalPosterSource, setOriginalPosterSource] = useState<string | null>(null);
   const [uploadingPoster, setUploadingPoster] = useState(false);
+
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+      addToast('error', 'Please upload an image file.');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async (event) => {
+        const base64Src = event.target?.result as string;
+
+        
+        // Logo is always cropped to 1:1 ratio
+        const cropped = await cropImageSource(base64Src, '1:1');
+        setRestaurantForm(prev => ({ ...prev, logo: cropped }));
+        addToast('success', 'Logo uploaded & cropped to 1:1 successfully! 📸');
+      };
+    } catch (err: any) {
+      console.error(err);
+      addToast('error', `❌ Logo upload failed: ${err.message || err}`);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -361,14 +446,82 @@ export default function AdminMore() {
     addToast('info', 'Logged out successfully.');
   };
 
-  const sections = [
-    { id: 'outlet', label: 'Outlet Settings', icon: Store },
-    { id: 'qr', label: 'Manage QR & Tables', icon: QrCode },
-    { id: 'autoprint', label: 'Autoprint KOT/Bill', icon: Printer },
-    { id: 'subscription', label: 'Pricing & Subscription', icon: CreditCard },
-    { id: 'pwa', label: 'Install App', icon: Smartphone },
-    { id: 'feedback', label: 'Feedback & Tickets', icon: MessageSquare },
-  ];
+  const handleSaveStaff = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staffName.trim()) {
+      addToast('error', 'Name is required.');
+      return;
+    }
+    if (!staffUsername.trim()) {
+      addToast('error', 'Username is required.');
+      return;
+    }
+
+    const usernameConflict = state.staffMembers.some(
+      s => s.username === staffUsername.trim().toLowerCase() && s.id !== editingStaffId
+    );
+    if (usernameConflict) {
+      addToast('error', 'Username already taken by another staff member.');
+      return;
+    }
+
+    if (!editingStaffId) {
+      if (myStaff.length >= staffLimit) {
+        addToast('error', `Upgrade to add more than ${staffLimit} staff members.`);
+        return;
+      }
+      if (staffPassword.length < 4) {
+        addToast('error', 'Password must be at least 4 characters long.');
+        return;
+      }
+
+      const newStaff = {
+        id: `staff-${Date.now()}`,
+        name: staffName.trim(),
+        username: staffUsername.trim().toLowerCase(),
+        password: staffPassword,
+        permissions: staffPermissions as any,
+        restaurantId: currentRestaurantId,
+        createdAt: Date.now()
+      };
+
+      dispatch({ type: 'ADD_STAFF_MEMBER', payload: newStaff });
+      addToast('success', `Staff member ${newStaff.name} created successfully! 🎉`);
+    } else {
+      const existing = state.staffMembers.find(s => s.id === editingStaffId);
+      if (!existing) return;
+
+      const updatedStaff = {
+        ...existing,
+        name: staffName.trim(),
+        permissions: staffPermissions as any,
+        password: staffPassword.trim() ? staffPassword : existing.password
+      };
+
+      dispatch({ type: 'UPDATE_STAFF_MEMBER', payload: updatedStaff });
+      addToast('success', `Staff member ${updatedStaff.name} updated!`);
+    }
+
+    resetStaffForm();
+  };
+
+  const handleEditStaffClick = (staff: any) => {
+    setEditingStaffId(staff.id);
+    setStaffName(staff.name);
+    setStaffUsername(staff.username);
+    setStaffPassword('');
+    setStaffPermissions(staff.permissions);
+  };
+
+  const handleDeleteStaffClick = (id: string) => {
+    if (confirm('Are you sure you want to delete this staff member?')) {
+      dispatch({ type: 'DELETE_STAFF_MEMBER', payload: id });
+      addToast('success', 'Staff member deleted successfully.');
+      if (editingStaffId === id) {
+        resetStaffForm();
+      }
+    }
+  };
 
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
@@ -529,6 +682,77 @@ export default function AdminMore() {
                 <input className="input" type="text" value={restaurantForm.address}
                   onChange={e => setRestaurantForm({ ...restaurantForm, address: e.target.value })} />
               </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Restaurant Logo Settings</h4>
+              <div className="input-group" style={{ marginBottom: 12 }}>
+                <label className="input-label">Logo Image URL / Upload</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Paste image URL or upload photo below"
+                    value={restaurantForm.logo || ''}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, logo: e.target.value })}
+                    style={{ flex: 1 }}
+                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="file"
+                      id="logo-upload-input"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <label
+                      htmlFor="logo-upload-input"
+                      className="btn btn-secondary"
+                      style={{
+                        height: 38,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        borderRadius: 10,
+                        fontSize: 12,
+                        padding: '0 12px'
+                      }}
+                    >
+                      {uploadingLogo ? 'Uploading...' : '📁 Upload Photo'}
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              {restaurantForm.logo && (
+                <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
+                  <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Logo Preview</label>
+                  <div style={{
+                    margin: '0 auto',
+                    width: 80,
+                    height: 80,
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    border: '2px solid var(--brand)',
+                    background: 'var(--bg-elevated)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <img
+                      src={restaurantForm.logo}
+                      alt="Logo Preview"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
@@ -1519,6 +1743,252 @@ export default function AdminMore() {
                 <div>WhatsApp Chat</div>
               </div>
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Management Section */}
+      {activeSection === 'staff' && (
+        <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <Users size={18} color="var(--brand)" />
+            <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>Manage Staff Accounts</h3>
+          </div>
+          
+          {/* Subscription Limit Warning/Info */}
+          <div style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: 14,
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 10
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Subscription Plan: <strong style={{ color: 'var(--brand)', textTransform: 'uppercase' }}>{state.subscriptionPlan || 'free'} Plan</strong>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Staff Limit: {myStaff.length} / {staffLimit} active staff
+              </div>
+            </div>
+            {myStaff.length >= staffLimit && (
+              <button
+                onClick={() => setActiveSection('subscription')}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: 11, padding: '6px 12px', height: 'auto' }}
+              >
+                🚀 Upgrade Plan
+              </button>
+            )}
+          </div>
+
+          {/* Form to Add/Edit Staff */}
+          <form onSubmit={handleSaveStaff} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--border)' }}>
+            <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)' }}>
+              {editingStaffId ? '✏️ Edit Staff Member' : '➕ Create Staff Member'}
+            </h4>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="input-group">
+                <label className="input-label">Staff Name</label>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="e.g. John Doe"
+                  value={staffName}
+                  onChange={e => setStaffName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Login ID / Username</label>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="e.g. johndoe"
+                  value={staffUsername}
+                  onChange={e => setStaffUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  required
+                  disabled={!!editingStaffId}
+                />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Password</label>
+              <input
+                className="input"
+                type="password"
+                placeholder={editingStaffId ? "Leave blank to keep current password" : "Minimum 4 characters"}
+                value={staffPassword}
+                onChange={e => setStaffPassword(e.target.value)}
+                required={!editingStaffId}
+              />
+            </div>
+
+            <div>
+              <label className="input-label" style={{ marginBottom: 8, display: 'block' }}>Permissions</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+                {[
+                  { key: 'orders', label: '🍳 Orders Board' },
+                  { key: 'menu', label: '📖 Menu' },
+                  { key: 'customers', label: '👥 Customers' },
+                  { key: 'analysis', label: '📈 Sales Analysis' },
+                  { key: 'outlet_setting', label: '⚙️ Outlet Settings' },
+                  { key: 'qr_tables', label: '🪑 QR & Tables' },
+                ].map(p => {
+                  const isChecked = staffPermissions.includes(p.key);
+                  return (
+                    <label
+                      key={p.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        background: isChecked ? 'var(--brand-dim)' : 'var(--bg-elevated)',
+                        border: isChecked ? '1px solid var(--brand)' : '1px solid var(--border)',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        cursor: 'pointer',
+                        fontSize: 11.5,
+                        color: isChecked ? 'var(--brand)' : 'var(--text-secondary)',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={e => {
+                          const next = e.target.checked
+                            ? [...staffPermissions, p.key]
+                            : staffPermissions.filter(k => k !== p.key);
+                          setStaffPermissions(next);
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                      <span>{isChecked ? '✓' : '○'}</span>
+                      <span>{p.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ flex: 1, height: 38 }}
+                disabled={!editingStaffId && myStaff.length >= staffLimit}
+              >
+                {editingStaffId ? 'Save Changes' : 'Create Staff Member'}
+              </button>
+              {editingStaffId && (
+                <button
+                  type="button"
+                  onClick={resetStaffForm}
+                  className="btn btn-secondary"
+                  style={{ height: 38 }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* List of Active Staff */}
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+              Active Staff Members ({myStaff.length})
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {myStaff.map(staff => (
+                <div
+                  key={staff.id}
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {staff.name}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
+                        @{staff.username}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => handleEditStaffClick(staff)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px', fontSize: 10.5, height: 'auto' }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStaffClick(staff.id)}
+                        className="btn btn-danger btn-sm"
+                        style={{ padding: '4px 8px', fontSize: 10.5, height: 'auto', background: 'transparent', border: '1px solid var(--error)', color: 'var(--error)' }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Permissions Badges */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {staff.permissions.map(pKey => {
+                      const labels: Record<string, string> = {
+                        orders: '🍳 Orders Board',
+                        menu: '📖 Menu',
+                        customers: '👥 Customers',
+                        analysis: '📈 Sales Analysis',
+                        outlet_setting: '⚙️ Settings',
+                        qr_tables: '🪑 QR & Tables'
+                      };
+                      return (
+                        <span
+                          key={pKey}
+                          style={{
+                            background: 'rgba(255, 125, 0, 0.08)',
+                            color: 'var(--brand)',
+                            fontSize: 9.5,
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            border: '1px solid rgba(255, 125, 0, 0.15)'
+                          }}
+                        >
+                          {labels[pKey] || pKey}
+                        </span>
+                      );
+                    })}
+                    {staff.permissions.length === 0 && (
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        No permissions assigned
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {myStaff.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 12 }}>
+                  No staff members created yet.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

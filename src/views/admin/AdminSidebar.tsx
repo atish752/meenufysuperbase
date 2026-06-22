@@ -58,7 +58,16 @@ export default function AdminSidebar() {
         <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '4px 4px 8px' }}>
           Navigation
         </div>
-        {NAV_ITEMS.map(item => {
+        {NAV_ITEMS.filter(item => {
+          if (!state.admin?.isStaff) return true;
+          const perms = state.admin.permissions || [];
+          if (item.key === 'home') return perms.includes('orders') || perms.includes('qr_tables');
+          if (item.key === 'menu') return perms.includes('menu');
+          if (item.key === 'customers') return perms.includes('customers');
+          if (item.key === 'analysis') return perms.includes('analysis');
+          if (item.key === 'more') return true;
+          return false;
+        }).map(item => {
           const Icon = item.icon;
           const isActive = state.adminTab === item.key;
           return (

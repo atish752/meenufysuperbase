@@ -119,6 +119,7 @@ export type Order = {
   pointsDiscountApplied?: number;
   couponDiscountApplied?: number;
   couponCodeApplied?: string;
+  orderType?: 'in-dining' | 'take-away';
 };
 
 export type TableInfo = {
@@ -127,7 +128,12 @@ export type TableInfo = {
   label: string;
   capacity: number;
   isActive: boolean;
-  status?: 'active' | 'maintenance'; // 'active' is default
+  status?: 'active' | 'maintenance' | 'reserved';
+  reservationFrom?: number;        // Unix timestamp
+  reservationTo?: number;          // Unix timestamp
+  reservationGuestName?: string;
+  reservationGuestPhone?: string;
+  reservationGuestCount?: number;  // Number of people
 };
 
 export type RestaurantInfo = {
@@ -169,6 +175,7 @@ export type RestaurantInfo = {
   billingPeriod?: 'monthly' | 'yearly';
   allowNegativeOrders?: boolean;
   offersMarqueeEnabled?: boolean;
+  isManualClosed?: boolean;
 };
 
 export type Coupon = {
@@ -183,6 +190,8 @@ export type Coupon = {
   usageCount?: number;
   usageLimit?: number;
   restaurantId?: string;
+  appliesTo?: 'all' | string[];
+  label?: string;
 };
 
 
@@ -224,6 +233,17 @@ export type RestaurantAccount = {
   subscriptionRenewalDate?: number;
   billingCountry?: 'IN' | 'global';
   billingPeriod?: 'monthly' | 'yearly';
+  hasCompletedOnboarding?: boolean;
+};
+
+export type StaffMember = {
+  id: string;
+  username: string;
+  name: string;
+  password?: string;
+  permissions: ('orders' | 'menu' | 'customers' | 'analysis' | 'outlet_setting' | 'qr_tables')[];
+  restaurantId: string;
+  createdAt: number;
 };
 
 export type SupportRequest = {
@@ -269,6 +289,8 @@ export type AdminUser = {
   isLoggedIn: boolean;
   isSuperAdmin?: boolean;
   password?: string;
+  isStaff?: boolean;
+  permissions?: ('orders' | 'menu' | 'customers' | 'analysis' | 'outlet_setting' | 'qr_tables')[];
 };
 
 export type Toast = {
@@ -320,6 +342,7 @@ export type AppState = {
   geminiApiKeys: string[];
   supportRequests: SupportRequest[];
   ownerFeedbacks: OwnerFeedback[];
+  staffMembers: StaffMember[];
   // UI
   toasts: Toast[];
   isLoading: boolean;
@@ -799,6 +822,7 @@ const DEFAULT_STATE: AppState = {
       createdAt: Date.now() - 5 * 24 * 60 * 60 * 1000
     }
   ],
+  staffMembers: [],
   toasts: [],
   isLoading: false,
   newOrderAlert: null,
@@ -842,7 +866,8 @@ type Action =
   | { type: 'CLEAR_CART' }
   | { type: 'SET_CUSTOMER_TABLE'; payload: string }
   | { type: 'SET_TABLES'; payload: TableInfo[] }
-  | { type: 'UPDATE_TABLE_STATUS'; payload: { id: string; status: 'active' | 'maintenance' } }
+  | { type: 'UPDATE_TABLE_STATUS'; payload: { id: string; status: 'active' | 'maintenance' | 'reserved' } }
+  | { type: 'SET_TABLE_RESERVATION'; payload: { id: string; reservationFrom: number; reservationTo: number; reservationGuestName?: string; reservationGuestPhone?: string; reservationGuestCount?: number } }
   | { type: 'ADD_SCHEDULE'; payload: MealSchedule }
   | { type: 'UPDATE_SCHEDULE'; payload: MealSchedule }
   | { type: 'DELETE_SCHEDULE'; payload: string }
@@ -867,6 +892,7 @@ type Action =
   | { type: 'REMOVE_GEMINI_KEY'; payload: string }
   | { type: 'SUBMIT_SUPPORT_REQUEST'; payload: { message: string; attemptsCount: number } }
   | { type: 'REPLY_SUPPORT_REQUEST'; payload: { id: string; replyText: string } }
+  | { type: 'SYNC_SUPPORT_REQUESTS'; payload: SupportRequest[] }
   | { type: 'SUBMIT_FEEDBACK'; payload: { message: string; ticketType?: 'feedback' | 'bug' | 'feature' | 'other' } }
   | { type: 'DELETE_FEEDBACK'; payload: string }
   | { type: 'REPLY_FEEDBACK'; payload: { id: string; replyText: string } }
@@ -886,7 +912,15 @@ type Action =
   | { type: 'ADD_COUPON'; payload: Coupon }
   | { type: 'DELETE_COUPON'; payload: string }
   | { type: 'UPDATE_COUPON'; payload: Coupon }
-  | { type: 'CLEAR_ALL_CUSTOMERS' };
+  | { type: 'SET_MANUAL_CLOSED'; payload: boolean }
+  | { type: 'SET_TABLE_STATUS'; payload: Partial<TableInfo> & { id: string } }
+  | { type: 'CLEAR_ALL_CUSTOMERS' }
+  | { type: 'COMPLETE_ONBOARDING' }
+  | { type: 'MARK_ONBOARDING_PENDING' }
+  | { type: 'SYNC_STAFF_MEMBERS'; payload: StaffMember[] }
+  | { type: 'ADD_STAFF_MEMBER'; payload: StaffMember }
+  | { type: 'UPDATE_STAFF_MEMBER'; payload: StaffMember }
+  | { type: 'DELETE_STAFF_MEMBER'; payload: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -1051,6 +1085,16 @@ function reducer(state: AppState, action: Action): AppState {
       const billingCountry = existingAccount ? (existingAccount.billingCountry || detectedCountry) : state.billingCountry;
       const billingPeriod = existingAccount ? (existingAccount.billingPeriod || 'monthly') : state.billingPeriod;
       
+      let defaultTab: 'home' | 'menu' | 'customers' | 'analysis' | 'more' = 'home';
+      if (action.payload.isStaff && action.payload.permissions) {
+        const perms = action.payload.permissions;
+        if (perms.includes('orders') || perms.includes('qr_tables')) defaultTab = 'home';
+        else if (perms.includes('menu')) defaultTab = 'menu';
+        else if (perms.includes('customers')) defaultTab = 'customers';
+        else if (perms.includes('analysis')) defaultTab = 'analysis';
+        else defaultTab = 'more';
+      }
+      
       return { 
         ...state, 
         admin: action.payload, 
@@ -1061,11 +1105,62 @@ function reducer(state: AppState, action: Action): AppState {
         ordersPlacedThisMonth,
         subscriptionRenewalDate,
         billingCountry,
-        billingPeriod
+        billingPeriod,
+        adminTab: defaultTab
+      };
+    }
+    case 'COMPLETE_ONBOARDING': {
+      if (!state.admin) return state;
+      const newAccounts = state.restaurantAccounts.map(acc => {
+        if (acc.id === state.admin?.id) {
+          return { ...acc, hasCompletedOnboarding: true };
+        }
+        return acc;
+      });
+      return {
+        ...state,
+        restaurantAccounts: newAccounts
+      };
+    }
+    case 'MARK_ONBOARDING_PENDING': {
+      if (!state.admin) return state;
+      const existing = state.restaurantAccounts.find(acc => acc.id === state.admin?.id);
+      if (existing) {
+        // Already has an account, just mark as pending
+        const newAccounts = state.restaurantAccounts.map(acc =>
+          acc.id === state.admin?.id ? { ...acc, hasCompletedOnboarding: false } : acc
+        );
+        return { ...state, restaurantAccounts: newAccounts };
+      }
+      return state;
+    }
+    case 'SYNC_STAFF_MEMBERS': {
+      return {
+        ...state,
+        staffMembers: action.payload
+      };
+    }
+    case 'ADD_STAFF_MEMBER': {
+      return {
+        ...state,
+        staffMembers: [...state.staffMembers.filter(s => s.id !== action.payload.id), action.payload]
+      };
+    }
+    case 'UPDATE_STAFF_MEMBER': {
+      return {
+        ...state,
+        staffMembers: state.staffMembers.map(s => s.id === action.payload.id ? action.payload : s)
+      };
+    }
+    case 'DELETE_STAFF_MEMBER': {
+      return {
+        ...state,
+        staffMembers: state.staffMembers.filter(s => s.id !== action.payload)
       };
     }
     case 'LOGOUT_ADMIN': return { ...state, admin: null, isAdminLoggedIn: false };
     case 'UPDATE_RESTAURANT': return { ...state, restaurant: { ...state.restaurant, ...action.payload } };
+    case 'SET_MANUAL_CLOSED': return { ...state, restaurant: { ...state.restaurant, isManualClosed: action.payload } };
     case 'ADD_MENU_ITEM': {
       const restId = state.admin?.id || 'admin-1';
       const newItem = { ...action.payload, restaurantId: action.payload.restaurantId || restId };
@@ -1228,7 +1323,42 @@ function reducer(state: AppState, action: Action): AppState {
     case 'UPDATE_TABLE_STATUS': return {
       ...state,
       tables: state.tables.map(t =>
-        t.id === action.payload.id ? { ...t, status: action.payload.status } : t
+        t.id === action.payload.id
+          ? {
+              ...t,
+              status: action.payload.status,
+              // Clear reservation fields when setting to active/maintenance
+              ...(action.payload.status !== 'reserved' ? {
+                reservationFrom: undefined,
+                reservationTo: undefined,
+                reservationGuestName: undefined,
+                reservationGuestPhone: undefined,
+                reservationGuestCount: undefined,
+              } : {})
+            }
+          : t
+      ),
+    };
+    case 'SET_TABLE_STATUS': return {
+      ...state,
+      tables: state.tables.map(t =>
+        t.id === action.payload.id ? { ...t, ...action.payload } : t
+      )
+    };
+    case 'SET_TABLE_RESERVATION': return {
+      ...state,
+      tables: state.tables.map(t =>
+        t.id === action.payload.id
+          ? {
+              ...t,
+              status: 'reserved' as const,
+              reservationFrom: action.payload.reservationFrom,
+              reservationTo: action.payload.reservationTo,
+              reservationGuestName: action.payload.reservationGuestName,
+              reservationGuestPhone: action.payload.reservationGuestPhone,
+              reservationGuestCount: action.payload.reservationGuestCount,
+            }
+          : t
       ),
     };
     case 'ADD_SCHEDULE': return { ...state, schedules: [...state.schedules, action.payload] };
@@ -1493,6 +1623,11 @@ function reducer(state: AppState, action: Action): AppState {
         )
       };
     }
+    case 'SYNC_SUPPORT_REQUESTS':
+      return {
+        ...state,
+        supportRequests: action.payload
+      };
     case 'SUBMIT_FEEDBACK': {
       const newFeedback: OwnerFeedback = {
         id: `fb-${Date.now()}`,
@@ -1670,6 +1805,15 @@ function saveState(state: AppState) {
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const savedState = loadState();
+  let initialAdminTab: 'home' | 'menu' | 'customers' | 'analysis' | 'more' = 'home';
+  if (savedState && savedState.admin?.isStaff && savedState.admin.permissions) {
+    const perms = savedState.admin.permissions;
+    if (perms.includes('orders') || perms.includes('qr_tables')) initialAdminTab = 'home';
+    else if (perms.includes('menu')) initialAdminTab = 'menu';
+    else if (perms.includes('customers')) initialAdminTab = 'customers';
+    else if (perms.includes('analysis')) initialAdminTab = 'analysis';
+    else initialAdminTab = 'more';
+  }
   const [state, dispatch] = useReducer(reducer, {
     ...DEFAULT_STATE,
     ...savedState,
@@ -1679,7 +1823,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     newOrderAlert: null,
     cart: [],
     currentView: 'admin', // always start admin
-    adminTab: 'home',
+    adminTab: initialAdminTab,
   });
 
   const addToast = useCallback((type: Toast['type'], message: string) => {
@@ -1993,6 +2137,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
+    // 13. Listen to supportRequests (global — for super admin to receive all support tickets)
+    let unsubscribeSupport = () => {};
+    if (targetRestaurantId === 'super-admin' || isAdminMode) {
+      unsubscribeSupport = onValue(ref(db, 'supportRequests'), (snapshot) => {
+        const data = snapshot.val();
+        const requests: SupportRequest[] = data ? Object.values(data) as SupportRequest[] : [];
+        // Sort newest first
+        requests.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        dispatch({ type: 'SYNC_SUPPORT_REQUESTS', payload: requests });
+      });
+    }
+
+    // 14. Listen to staffMembers (for login authentication and permissions)
+    const unsubscribeStaff = onValue(ref(db, 'staffMembers'), (snapshot) => {
+      const data = snapshot.val();
+      const staff: StaffMember[] = data ? Object.values(data) as StaffMember[] : [];
+      dispatch({ type: 'SYNC_STAFF_MEMBERS', payload: staff });
+    });
+
     return () => {
       unsubscribeConnected();
       unsubscribeRestaurant();
@@ -2007,6 +2170,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeCustomers();
       unsubscribeCoupons();
       unsubscribeFeedbacks();
+      unsubscribeSupport();
+      unsubscribeStaff();
     };
   }, [state.admin?.restaurantId, state.currentView]);
 
@@ -2210,11 +2375,53 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'UPDATE_TABLE_STATUS': {
             const updatedTables = currentState.tables.map(t =>
-              t.id === action.payload.id ? { ...t, status: action.payload.status } : t
+              t.id === action.payload.id
+                ? {
+                    ...t,
+                    status: action.payload.status,
+                    ...(action.payload.status !== 'reserved' ? {
+                      reservationFrom: null,
+                      reservationTo: null,
+                      reservationGuestName: null,
+                      reservationGuestPhone: null,
+                      reservationGuestCount: null,
+                    } : {})
+                  }
+                : t
             );
             handleDbPromise(
               set(ref(db, `tables/${restId}`), sanitizeDbData(updatedTables)),
               'Failed to update table status'
+            );
+            break;
+          }
+          case 'SET_TABLE_STATUS': {
+            const updatedTables = currentState.tables.map(t =>
+              t.id === action.payload.id ? { ...t, ...action.payload } : t
+            );
+            handleDbPromise(
+              set(ref(db, `tables/${restId}`), sanitizeDbData(updatedTables)),
+              'Failed to update table status'
+            );
+            break;
+          }
+          case 'SET_TABLE_RESERVATION': {
+            const updatedTables = currentState.tables.map(t =>
+              t.id === action.payload.id
+                ? {
+                    ...t,
+                    status: 'reserved',
+                    reservationFrom: action.payload.reservationFrom,
+                    reservationTo: action.payload.reservationTo,
+                    reservationGuestName: action.payload.reservationGuestName || null,
+                    reservationGuestPhone: action.payload.reservationGuestPhone || null,
+                    reservationGuestCount: action.payload.reservationGuestCount || null,
+                  }
+                : t
+            );
+            handleDbPromise(
+              set(ref(db, `tables/${restId}`), sanitizeDbData(updatedTables)),
+              'Failed to save reservation'
             );
             break;
           }
@@ -2306,10 +2513,77 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             );
             break;
           }
+          case 'COMPLETE_ONBOARDING': {
+            if (currentState.admin) {
+              update(ref(db, `restaurantAccounts/${currentState.admin.id}`), {
+                hasCompletedOnboarding: true
+              }).catch(() => {});
+            }
+            break;
+          }
+          case 'MARK_ONBOARDING_PENDING': {
+            if (currentState.admin) {
+              update(ref(db, `restaurantAccounts/${currentState.admin.id}`), {
+                hasCompletedOnboarding: false
+              }).catch(() => {});
+            }
+            break;
+          }
+          case 'ADD_STAFF_MEMBER': {
+            handleDbPromise(
+              set(ref(db, `staffMembers/${action.payload.id}`), sanitizeDbData(action.payload)),
+              'Failed to add staff member'
+            );
+            break;
+          }
+          case 'UPDATE_STAFF_MEMBER': {
+            handleDbPromise(
+              update(ref(db, `staffMembers/${action.payload.id}`), sanitizeDbData(action.payload)),
+              'Failed to update staff member'
+            );
+            break;
+          }
+          case 'DELETE_STAFF_MEMBER': {
+            handleDbPromise(
+              remove(ref(db, `staffMembers/${action.payload}`)),
+              'Failed to delete staff member'
+            );
+            break;
+          }
           case 'CLEAR_ALL_CUSTOMERS': {
             handleDbPromise(
               remove(ref(db, `customers/${restId}`)),
               'Failed to clear all customers'
+            );
+            break;
+          }
+          case 'SUBMIT_SUPPORT_REQUEST': {
+            const reqId = `req-${Date.now()}`;
+            const reqData = {
+              id: reqId,
+              restaurantId: currentState.admin?.restaurantId || 'unknown',
+              restaurantName: currentState.restaurant.name || 'My Restaurant',
+              ownerName: currentState.admin?.name || 'Owner',
+              ownerEmail: currentState.admin?.email || 'owner@restaurant.com',
+              message: action.payload.message,
+              attemptsCount: action.payload.attemptsCount,
+              createdAt: Date.now(),
+              status: 'pending'
+            };
+            handleDbPromise(
+              set(ref(db, `supportRequests/${reqId}`), sanitizeDbData(reqData)),
+              'Failed to submit support request'
+            );
+            break;
+          }
+          case 'REPLY_SUPPORT_REQUEST': {
+            const { id: reqReplyId, replyText: reqReplyText } = action.payload;
+            handleDbPromise(
+              update(ref(db, `supportRequests/${reqReplyId}`), { 
+                replyText: reqReplyText, 
+                status: 'resolved' 
+              }),
+              'Failed to update support request reply'
             );
             break;
           }
@@ -2352,6 +2626,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             handleDbPromise(
               update(ref(db, `restaurants/${restId}`), sanitizeDbData(action.payload)),
               'Failed to update restaurant info'
+            );
+            break;
+          case 'SET_MANUAL_CLOSED':
+            handleDbPromise(
+              update(ref(db, `restaurants/${restId}`), { isManualClosed: action.payload }),
+              'Failed to update manual closed status'
             );
             break;
           case 'LOGIN_ADMIN': {
