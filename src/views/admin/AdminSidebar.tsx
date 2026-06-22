@@ -25,11 +25,10 @@ export default function AdminSidebar() {
           <div style={{
             width: 36, height: 36, borderRadius: 10,
             overflow: 'hidden',
-            border: '1px solid var(--border-brand)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: '#ffffff',
+            background: 'transparent',
           }}>
-            <img src="/meenufy_icon.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src={state.adminTheme === 'light' ? '/meenufy_logo_light.png' : '/meenufy_logo_dark.png'} alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--brand)' }}>

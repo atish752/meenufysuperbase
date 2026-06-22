@@ -82,6 +82,20 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const handleDeleteAccount = (accId: string, restaurantName: string) => {
+    const confirm1 = window.confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for "${restaurantName}"? \n\nThis action cannot be undone and will erase all their menus, tables, categories, orders, and customer records permanently.`);
+    if (!confirm1) return;
+    
+    const confirm2 = window.prompt(`To confirm deletion, please type the restaurant name: "${restaurantName}"`);
+    if (confirm2 !== restaurantName) {
+      addToast('error', '❌ Delete verification failed. Restaurant name did not match.');
+      return;
+    }
+    
+    dispatch({ type: 'SUPER_ADMIN_DELETE_ACCOUNT', payload: accId });
+    addToast('success', `Permanently deleted account for "${restaurantName}".`);
+  };
+
   // New API Key Actions
   const handleAddApiKey = () => {
     if (!newApiKey.trim()) {
@@ -199,9 +213,9 @@ export default function SuperAdminDashboard() {
             alignItems: 'center',
             justifyContent: 'center',
             boxShadow: 'var(--shadow-brand)',
-            background: '#ffffff'
+            background: 'transparent'
           }}>
-            <img src="/meenufy_icon.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src={state.adminTheme === 'light' ? '/meenufy_logo_light.png' : '/meenufy_logo_dark.png'} alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div>
             <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 900, margin: 0 }}>
@@ -480,6 +494,19 @@ export default function SuperAdminDashboard() {
                             }}
                           >
                             {acc.status === 'active' ? 'Block' : 'Unblock'}
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteAccount(acc.id, acc.restaurantName)}
+                            className="btn btn-secondary btn-sm"
+                            style={{
+                              fontSize: 11, fontWeight: 700,
+                              borderColor: 'var(--border)',
+                              color: 'var(--error)',
+                              padding: '4px 10px'
+                            }}
+                          >
+                            <Trash2 size={12} style={{ marginRight: 4 }} /> Delete
                           </button>
                         </div>
                       </td>

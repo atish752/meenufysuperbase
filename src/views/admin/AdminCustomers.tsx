@@ -19,7 +19,20 @@ export default function AdminCustomers() {
   // Manual points input state
   const [manualPoints, setManualPoints] = useState<string>('');
 
-  const filtered = state.customers
+  // Derive customers scoped to this admin's restaurant.
+  // state.customers is replaced wholesale by SYNC_CUSTOMERS on Firebase sync,
+  // but before Firebase responds, the initial mock data (restaurantId: admin-1) may show.
+  // We filter out mock-restaurant customers for non-admin-1 accounts.
+  const adminId = state.admin?.restaurantId || 'admin-1';
+  const adminOrders = state.orders.filter(o => (o.restaurantId || 'admin-1') === adminId);
+  const adminCustomerPhones = new Set(adminOrders.map(o => o.customerPhone).filter(Boolean));
+  // If the admin is admin-1 OR if Firebase hasn't synced yet (no orders from any restaurant),
+  // show state.customers as-is. Otherwise only show customers whose phone appears in our orders.
+  const adminCustomers = adminId === 'admin-1'
+    ? state.customers
+    : state.customers.filter(c => adminCustomerPhones.has(c.phone));
+
+  const filtered = adminCustomers
     .filter(c => {
       if (!search) return true;
       const term = search.toLowerCase();
@@ -31,11 +44,11 @@ export default function AdminCustomers() {
     })
     .sort((a, b) => b[sortBy] - a[sortBy]);
 
-  const totalRevenue = state.customers.reduce((s, c) => s + c.totalSpent, 0);
+  const totalRevenue = adminCustomers.reduce((s, c) => s + c.totalSpent, 0);
 
   // Get selected customer detail
   const currentCust = selectedCustomerId
-    ? state.customers.find(c => c.id === selectedCustomerId)
+    ? adminCustomers.find(c => c.id === selectedCustomerId)
     : null;
 
   // Calculate sentiment and details for current customer
@@ -101,7 +114,7 @@ export default function AdminCustomers() {
         <div>
           <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Customers CRM</h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            {state.customers.length} unique customers · {state.restaurant.currency}{totalRevenue.toLocaleString('en-IN')} LTV
+            {adminCustomers.length} unique customers · {state.restaurant.currency}{totalRevenue.toLocaleString('en-IN')} LTV
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -126,7 +139,7 @@ export default function AdminCustomers() {
           <button
             onClick={() => {
               if (window.confirm(
-                `⚠️ Are you sure you want to clear ALL ${state.customers.length} customer records?\n\nThis will permanently delete all customer data from the database and cannot be undone.`
+                `⚠️ Are you sure you want to clear ALL ${adminCustomers.length} customer records?\n\nThis will permanently delete all customer data from the database and cannot be undone.`
               )) {
                 dispatch({ type: 'CLEAR_ALL_CUSTOMERS' });
                 addToast('success', '🗑️ All customer records cleared successfully.');
@@ -178,18 +191,18 @@ export default function AdminCustomers() {
       <div className="stat-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card">
           <div className="stat-icon"><User size={18} /></div>
-          <div className="stat-value">{state.customers.length}</div>
+          <div className="stat-value">{adminCustomers.length}</div>
           <div className="stat-label">Total CRM Records</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon"><Crown size={18} color="#ffd700" /></div>
-          <div className="stat-value">{state.customers.filter(c => c.isVip).length}</div>
+          <div className="stat-value">{adminCustomers.filter(c => c.isVip).length}</div>
           <div className="stat-label">VIP Members</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon"><TrendingUp size={18} /></div>
           <div className="stat-value">
-            {state.restaurant.currency}{state.customers.length > 0 ? Math.round(totalRevenue / state.customers.length) : 0}
+            {state.restaurant.currency}{adminCustomers.length > 0 ? Math.round(totalRevenue / adminCustomers.length) : 0}
           </div>
           <div className="stat-label">Avg. Spend / LTV</div>
         </div>

@@ -860,6 +860,7 @@ type Action =
   | { type: 'SUPER_ADMIN_TOP_UP'; payload: { email: string; amount: number } }
   | { type: 'SUPER_ADMIN_DEDUCT'; payload: { email: string; amount: number } }
   | { type: 'SUPER_ADMIN_TOGGLE_BLOCK'; payload: { email: string } }
+  | { type: 'SUPER_ADMIN_DELETE_ACCOUNT'; payload: string }
   | { type: 'UPDATE_SUBSCRIPTION_PLAN'; payload: { planName: 'free' | 'base' | 'standard' | 'advance'; billingPeriod: 'monthly' | 'yearly' } }
   | { type: 'SUPER_ADMIN_UPDATE_SUBSCRIPTION'; payload: { id: string; subscriptionPlan: 'free' | 'base' | 'standard' | 'advance'; ordersPlacedThisMonth: number; subscriptionRenewalDate: number; billingCountry: 'IN' | 'global'; billingPeriod: 'monthly' | 'yearly' } }
   | { type: 'ADD_GEMINI_KEY'; payload: string }
@@ -1396,6 +1397,11 @@ function reducer(state: AppState, action: Action): AppState {
         ...(shouldLogout ? { admin: null, isAdminLoggedIn: false } : {})
       };
     }
+    case 'SUPER_ADMIN_DELETE_ACCOUNT':
+      return {
+        ...state,
+        restaurantAccounts: state.restaurantAccounts.filter(acc => acc.id !== action.payload)
+      };
     case 'UPDATE_SUBSCRIPTION_PLAN': {
       const { planName, billingPeriod } = action.payload;
       const targetId = state.admin?.id || 'admin-1';
@@ -2462,6 +2468,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 'Failed to update account (Super Admin action)'
               );
             }
+            break;
+          }
+          case 'SUPER_ADMIN_DELETE_ACCOUNT': {
+            const accountId = action.payload;
+            handleDbPromise(
+              remove(ref(db, `restaurantAccounts/${accountId}`)),
+              'Failed to delete restaurant account'
+            );
+            remove(ref(db, `restaurants/${accountId}`)).catch(() => {});
+            remove(ref(db, `menuItems/${accountId}`)).catch(() => {});
+            remove(ref(db, `categories/${accountId}`)).catch(() => {});
+            remove(ref(db, `orders/${accountId}`)).catch(() => {});
+            remove(ref(db, `customers/${accountId}`)).catch(() => {});
+            remove(ref(db, `coupons/${accountId}`)).catch(() => {});
+            remove(ref(db, `waiterRequests/${accountId}`)).catch(() => {});
+            remove(ref(db, `schedules/${accountId}`)).catch(() => {});
+            remove(ref(db, `tables/${accountId}`)).catch(() => {});
             break;
           }
           default:

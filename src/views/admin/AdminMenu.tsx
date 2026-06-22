@@ -524,7 +524,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     });
 
     extractedItems.forEach((item, index) => {
-      const catId = finalMapping[item.category] || createdCatIds[item.category] || state.categories[0]?.id || 'cat-1';
+      const catId = finalMapping[item.category] || createdCatIds[item.category] || adminCategories[0]?.id || 'cat-1';
       
       dispatch({
         type: 'ADD_MENU_ITEM',
@@ -1280,7 +1280,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                     onChange={e => setNewItem({ ...newItem, category: e.target.value })}
                     style={{ cursor: 'pointer' }}>
                     <option value="">Select...</option>
-                    {state.categories.map(c => (
+                    {adminCategories.map(c => (
                       <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
                     ))}
                   </select>
@@ -1689,7 +1689,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>Apply to Categories <span style={{ fontWeight: 400, fontSize: 10 }}>(items outside these times will be hidden)</span></div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {state.categories.map(cat => {
+                  {adminCategories.map(cat => {
                     const sel = scheduleForm.targets.some(t => t.type === 'category' && t.id === cat.id);
                     return (
                       <button key={cat.id} type="button"
@@ -1706,13 +1706,13 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>Apply to Specific Items <span style={{ fontWeight: 400, fontSize: 10 }}>(optional — overrides category rules)</span></div>
                 <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {state.menuItems.map(item => {
+                  {adminMenuItems.map(item => {
                     const sel = scheduleForm.targets.some(t => t.type === 'item' && t.id === item.id);
                     return (
                       <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '5px 8px', borderRadius: 6, background: sel ? 'rgba(255,125,0,0.08)' : 'transparent' }}>
                         <input type="checkbox" checked={sel} onChange={() => toggleScheduleTarget('item', item.id)} style={{ accentColor: 'var(--brand)' }} />
                         <span style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: sel ? 700 : 400 }}>{item.name}</span>
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{state.categories.find(c => c.id === item.category)?.name}</span>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{adminCategories.find(c => c.id === item.category)?.name}</span>
                       </label>
                     );
                   })}
@@ -1857,7 +1857,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                             onChange={e => setCategoryMapping({ ...categoryMapping, [extCat]: e.target.value })}
                           >
                             <option value="create">➕ Create "{extCat}"</option>
-                            {state.categories.map(c => (
+                            {adminCategories.map(c => (
                               <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
                             ))}
                           </select>

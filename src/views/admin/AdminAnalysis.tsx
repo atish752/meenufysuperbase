@@ -21,7 +21,9 @@ export default function AdminAnalysis() {
   const [viewBestItems, setViewBestItems] = useState(true);
   const [showDeepMealAnalysis, setShowDeepMealAnalysis] = useState(false);
 
-  const orders = state.orders;
+  const adminRestaurantId = state.admin?.restaurantId;
+  const orders = state.orders.filter(o => o.restaurantId === adminRestaurantId);
+
   const servedOrders = orders.filter(o => o.status === 'served');
   const today = new Date();
 
@@ -83,30 +85,38 @@ export default function AdminAnalysis() {
   // Health Score Calculations
   const avgRating = (() => {
     const ratedOrders = filteredServedOrders.filter(o => o.ratings && Object.keys(o.ratings).length > 0);
-    if (ratedOrders.length === 0) return 4.5;
+    if (ratedOrders.length === 0) return 0;
     let sum = 0, count = 0;
     ratedOrders.forEach(o => {
       Object.values(o.ratings!).forEach(r => { sum += r; count++; });
     });
-    return count > 0 ? sum / count : 4.5;
+    return count > 0 ? sum / count : 0;
   })();
   const satisfactionScore = (avgRating / 5) * 100;
 
-  const repeatCustCount = state.customers.filter(c => c.orderCount > 1).length;
-  const repeatRatePct = state.customers.length > 0 ? (repeatCustCount / state.customers.length) * 100 : 75;
+  // Use orders-derived customers only (avoids leaking mock default customers for new accounts)
+  const repeatCustCount = orders.length > 0
+    ? [...new Set(orders.map(o => o.customerPhone).filter(Boolean))].filter(phone => 
+        orders.filter(o => o.customerPhone === phone).length > 1
+      ).length
+    : 0;
+  const uniqueCustomerPhones = [...new Set(orders.map(o => o.customerPhone).filter(Boolean))];
+  const repeatRatePct = uniqueCustomerPhones.length > 0 ? (repeatCustCount / uniqueCustomerPhones.length) * 100 : 0;
 
-  const volumeScore = Math.min(100, (filteredServedOrders.length * 15) || 70);
+  const volumeScore = Math.min(100, (filteredServedOrders.length * 15) || 0);
 
   const servedWithTime = filteredServedOrders.filter(o => o.updatedAt > o.createdAt);
   const avgPrepTimeMs = servedWithTime.length > 0
     ? servedWithTime.reduce((s, o) => s + (o.updatedAt - o.createdAt), 0) / servedWithTime.length
-    : 18 * 60 * 1000;
+    : 0;
   const avgPrepMins = avgPrepTimeMs / (1000 * 60);
 
-  let speedScore = 100;
-  if (avgPrepMins > 45) speedScore = 20;
-  else if (avgPrepMins > 30) speedScore = 50;
-  else if (avgPrepMins > 15) speedScore = 80;
+  let speedScore = servedWithTime.length > 0 ? 100 : 0;
+  if (servedWithTime.length > 0) {
+    if (avgPrepMins > 45) speedScore = 20;
+    else if (avgPrepMins > 30) speedScore = 50;
+    else if (avgPrepMins > 15) speedScore = 80;
+  }
 
   const healthScore = Math.round(
     (satisfactionScore * 0.4) +
@@ -310,13 +320,13 @@ export default function AdminAnalysis() {
   // Subscription order usage calculations
   const nowMs = Date.now();
   
-  const ordersToday = state.orders
+  const ordersToday = orders
     .filter(o => {
       const d = new Date(o.createdAt);
       return d.toDateString() === today.toDateString();
     }).length;
 
-  const ordersThisWeek = state.orders
+  const ordersThisWeek = orders
     .filter(o => (nowMs - o.createdAt) <= 7 * 24 * 60 * 60 * 1000).length;
 
   const ordersThisMonth = state.ordersPlacedThisMonth || 0;
@@ -503,7 +513,7 @@ export default function AdminAnalysis() {
         </div>
         <div className="stat-card">
           <div className="stat-icon"><Users size={18} /></div>
-          <div className="stat-value">{state.customers.length}</div>
+          <div className="stat-value">{uniqueCustomerPhones.length}</div>
           <div className="stat-label">Total Customers</div>
         </div>
       </div>
@@ -707,11 +717,11 @@ export default function AdminAnalysis() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
             <div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Satisfaction</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{avgRating.toFixed(1)} / 5.0</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{avgRating > 0 ? `${avgRating.toFixed(1)} / 5.0` : '—'}</div>
             </div>
             <div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Avg Prep Time</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{Math.round(avgPrepMins)} mins</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{avgPrepMins > 0 ? `${Math.round(avgPrepMins)} mins` : '—'}</div>
             </div>
           </div>
         </div>
