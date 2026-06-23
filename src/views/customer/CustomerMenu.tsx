@@ -941,7 +941,7 @@ export default function CustomerMenu() {
                       <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? 'var(--brand)' : 'var(--text-primary)' }}>
                         {v.name}
                       </span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
                         ₹{v.price}
                       </span>
                     </div>
@@ -971,7 +971,7 @@ export default function CustomerMenu() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}
                 >−</button>
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', minWidth: 20, textAlign: 'center' }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', minWidth: 20, textAlign: 'center' }}>
                   {variantQty}
                 </span>
                 <button

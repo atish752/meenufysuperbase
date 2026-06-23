@@ -208,6 +208,7 @@ export type CustomerRecord = {
   points?: number;
   uniqueId?: string;
   password?: string;
+  googleId?: string;
 };
 
 export type WalletTransaction = {
@@ -1861,7 +1862,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Apply body theme class separately for customer and admin tabs
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const isCustomerTab = urlParams.get('view') === 'customer';
+    const isCustomerTab = urlParams.get('view') === 'customer' || state.currentView === 'customer';
     const activeTheme = isCustomerTab ? (state.customerTheme || 'dark') : (state.adminTheme || 'dark');
     
     if (activeTheme === 'light') {
@@ -1869,7 +1870,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } else {
       document.documentElement.classList.remove('light-mode');
     }
-  }, [state.adminTheme, state.customerTheme]);
+  }, [state.adminTheme, state.customerTheme, state.currentView]);
 
   // Apply custom website theme colors to CSS variables dynamically
   useEffect(() => {

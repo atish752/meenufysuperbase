@@ -3,7 +3,7 @@ import { useStore, getActiveRestaurantId, getActiveRestaurantInfo } from '../../
 import { Download, Wifi, Gift, Crown, LogIn, LogOut, User, Lock, Sparkles } from 'lucide-react';
 import { hasFirebaseConfig, auth, googleProvider } from '../../utils/firebase';
 import { signInWithPopup } from 'firebase/auth';
-import { ref, set, get } from 'firebase/database';
+import { ref, set, get, update } from 'firebase/database';
 import { db } from '../../utils/firebase';
 
 interface UserLoyaltyRecord {
@@ -235,8 +235,8 @@ export default function CustomerMore() {
 
     const cleanPhone = regPhone.replace(/[^a-zA-Z0-9]/g, '');
     const matchedPhone = state.customers.find(c => c.phone === regPhone.trim());
-    if (matchedPhone) {
-      addToast('error', 'A customer with this phone number already exists.');
+    if (matchedPhone && (matchedPhone.googleId || matchedPhone.password)) {
+      addToast('error', 'An account with this phone number already exists.');
       return;
     }
 
@@ -244,7 +244,7 @@ export default function CustomerMore() {
       name: googleUserTemp.name,
       email: googleUserTemp.email,
       phone: regPhone.trim(),
-      uniqueId: regUniqueId.trim() || `user_${cleanPhone}`,
+      uniqueId: regUniqueId.trim() || matchedPhone?.uniqueId || `user_${cleanPhone}`,
       googleId: googleUserTemp.googleId
     };
 
@@ -254,22 +254,35 @@ export default function CustomerMore() {
 
     // Save/Sync customer to Firebase database
     if (hasFirebaseConfig && db) {
-      const dbCust = {
-        id: `cust-${Date.now()}`,
-        name: newUser.name,
-        phone: newUser.phone,
-        email: newUser.email,
-        uniqueId: newUser.uniqueId,
-        googleId: newUser.googleId,
-        orderCount: 0,
-        totalSpent: 0,
-        lastVisit: Date.now(),
-        firstVisit: Date.now(),
-        points: 0,
-        isVip: false
-      };
-      set(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCust)
-        .catch(e => console.error("Failed to save Google customer:", e));
+      if (matchedPhone) {
+        // Link existing guest account
+        const dbCustUpdates = {
+          googleId: newUser.googleId,
+          name: newUser.name,
+          email: newUser.email,
+          uniqueId: newUser.uniqueId,
+          lastVisit: Date.now()
+        };
+        update(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCustUpdates)
+          .catch(e => console.error("Failed to update Google customer:", e));
+      } else {
+        const dbCust = {
+          id: `cust-${Date.now()}`,
+          name: newUser.name,
+          phone: newUser.phone,
+          email: newUser.email,
+          uniqueId: newUser.uniqueId,
+          googleId: newUser.googleId,
+          orderCount: 0,
+          totalSpent: 0,
+          lastVisit: Date.now(),
+          firstVisit: Date.now(),
+          points: 0,
+          isVip: false
+        };
+        set(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCust)
+          .catch(e => console.error("Failed to save Google customer:", e));
+      }
     }
 
     setShowAuthModal(false);
@@ -289,13 +302,13 @@ export default function CustomerMore() {
 
     const cleanPhone = regPhone.replace(/[^a-zA-Z0-9]/g, '');
     const matchedPhone = state.customers.find(c => c.phone === regPhone.trim());
-    if (matchedPhone) {
-      addToast('error', 'A account with this phone number already exists.');
+    if (matchedPhone && (matchedPhone.password || matchedPhone.googleId)) {
+      addToast('error', 'An account with this phone number already exists.');
       return;
     }
     if (regUniqueId.trim()) {
       const matchedId = state.customers.find(c => c.uniqueId === regUniqueId.trim());
-      if (matchedId) {
+      if (matchedId && matchedId.phone !== regPhone.trim()) {
         addToast('error', 'This Unique ID is already taken.');
         return;
       }
@@ -304,8 +317,8 @@ export default function CustomerMore() {
     const newUser = {
       name: fullName.trim(),
       phone: regPhone.trim(),
-      email: regEmail.trim(),
-      uniqueId: regUniqueId.trim() || `user_${cleanPhone}`
+      email: regEmail.trim() || matchedPhone?.email || '',
+      uniqueId: regUniqueId.trim() || matchedPhone?.uniqueId || `user_${cleanPhone}`
     };
 
     localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(newUser));
@@ -314,22 +327,35 @@ export default function CustomerMore() {
 
     // Save/Sync to Firebase
     if (hasFirebaseConfig && db) {
-      const dbCust = {
-        id: `cust-${Date.now()}`,
-        name: newUser.name,
-        phone: newUser.phone,
-        email: newUser.email,
-        uniqueId: newUser.uniqueId,
-        password: regPassword.trim(),
-        orderCount: 0,
-        totalSpent: 0,
-        lastVisit: Date.now(),
-        firstVisit: Date.now(),
-        points: 0,
-        isVip: false
-      };
-      set(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCust)
-        .catch(e => console.error("Failed to save custom customer:", e));
+      if (matchedPhone) {
+        // Register existing guest account
+        const dbCustUpdates = {
+          name: newUser.name,
+          email: newUser.email,
+          uniqueId: newUser.uniqueId,
+          password: regPassword.trim(),
+          lastVisit: Date.now()
+        };
+        update(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCustUpdates)
+          .catch(e => console.error("Failed to update custom customer:", e));
+      } else {
+        const dbCust = {
+          id: `cust-${Date.now()}`,
+          name: newUser.name,
+          phone: newUser.phone,
+          email: newUser.email,
+          uniqueId: newUser.uniqueId,
+          password: regPassword.trim(),
+          orderCount: 0,
+          totalSpent: 0,
+          lastVisit: Date.now(),
+          firstVisit: Date.now(),
+          points: 0,
+          isVip: false
+        };
+        set(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCust)
+          .catch(e => console.error("Failed to save custom customer:", e));
+      }
     }
 
     setShowAuthModal(false);
@@ -359,7 +385,12 @@ export default function CustomerMore() {
     );
 
     if (matched) {
-      if (matched.password && matched.password !== pass) {
+      if (!matched.password) {
+        addToast('error', 'This account has not set a password yet. Please use the "Sign Up" tab to register.');
+        return;
+      }
+
+      if (matched.password !== pass) {
         addToast('error', 'Incorrect password. Please try again.');
         return;
       }

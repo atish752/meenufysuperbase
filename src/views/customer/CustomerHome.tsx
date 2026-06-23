@@ -106,20 +106,13 @@ export default function CustomerHome({ table }: Props) {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       {/* Hero / Banner */}
       <div style={{
-        background: 'linear-gradient(160deg, #1a0a00 0%, #0D0D0D 50%, #0a0018 100%)',
+        background: 'var(--bg-primary)',
         padding: '36px 20px 28px',
         textAlign: 'center',
         position: 'relative',
         overflow: 'hidden',
         borderBottom: '1px solid var(--border)',
       }}>
-        {/* Background glow */}
-        <div style={{
-          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
-          width: '120%', height: '100%',
-          background: 'radial-gradient(ellipse at 50% 0%, rgba(255,125,0,0.18) 0%, transparent 60%)',
-          pointerEvents: 'none',
-        }} />
 
         {/* Top left brand name & logo */}
         <div style={{
@@ -208,11 +201,11 @@ export default function CustomerHome({ table }: Props) {
                   position: 'absolute',
                   top: '120%',
                   right: 0,
-                  background: 'rgba(26, 26, 26, 0.95)',
+                  background: 'var(--bg-elevated)',
                   backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255, 125, 0, 0.25)',
+                  border: '1px solid var(--border)',
                   borderRadius: 12,
-                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+                  boxShadow: 'var(--shadow-lg)',
                   padding: '6px 0',
                   minWidth: 160,
                   zIndex: 1000,
@@ -240,7 +233,7 @@ export default function CustomerHome({ table }: Props) {
                         }}
                         style={{
                           background: isSelected ? 'var(--brand-dim)' : 'transparent',
-                          color: isSelected ? 'var(--brand)' : '#ffffff',
+                          color: isSelected ? 'var(--brand)' : 'var(--text-primary)',
                           padding: '10px 16px',
                           fontSize: 12,
                           fontWeight: isSelected ? 700 : 500,
@@ -271,7 +264,7 @@ export default function CustomerHome({ table }: Props) {
             }}
             style={{
               background: 'linear-gradient(135deg, rgba(255,125,0,0.2) 0%, rgba(255,125,0,0.05) 100%)',
-              color: '#fff',
+              color: 'var(--text-primary)',
               fontSize: 14,
               padding: '6px',
               borderRadius: '50%',
@@ -350,8 +343,9 @@ export default function CustomerHome({ table }: Props) {
           {restaurant.openTime && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 5,
-              background: 'rgba(255,255,255,0.06)', borderRadius: 99,
+              background: 'var(--bg-elevated)', borderRadius: 99,
               padding: '5px 12px', fontSize: 12, color: 'var(--text-secondary)',
+              border: '1px solid var(--border)'
             }}>
               <Clock size={12} color="var(--brand)" /> {restaurant.openTime} – {restaurant.closeTime}
             </div>
@@ -359,8 +353,9 @@ export default function CustomerHome({ table }: Props) {
           {restaurant.address && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 5,
-              background: 'rgba(255,255,255,0.06)', borderRadius: 99,
+              background: 'var(--bg-elevated)', borderRadius: 99,
               padding: '5px 12px', fontSize: 12, color: 'var(--text-secondary)',
+              border: '1px solid var(--border)'
             }}>
               <MapPin size={12} color="var(--brand)" /> {restaurant.address.split(',')[0]}
             </div>
@@ -631,7 +626,7 @@ export default function CustomerHome({ table }: Props) {
                       <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? 'var(--brand)' : 'var(--text-primary)' }}>
                         {v.name}
                       </span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
                         ₹{v.price}
                       </span>
                     </div>
@@ -661,7 +656,7 @@ export default function CustomerHome({ table }: Props) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}
                 >−</button>
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', minWidth: 20, textAlign: 'center' }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', minWidth: 20, textAlign: 'center' }}>
                   {variantQty}
                 </span>
                 <button
@@ -701,8 +696,8 @@ export default function CustomerHome({ table }: Props) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 6,
-                  background: '#fff',
-                  color: '#000',
+                   background: 'var(--customer-add-to-cart-bg, #ffffff)',
+                  color: 'var(--customer-add-to-cart-text, #000000)',
                   border: 'none',
                   boxShadow: '0 4px 14px rgba(255,255,255,0.15)'
                 }}

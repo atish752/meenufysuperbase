@@ -320,7 +320,7 @@ export default function CustomerOrders({ tableId }: Props) {
 }
 
 function OrderStatusCard({ order }: { order: Order }) {
-  const { state } = useStore();
+  const { state, dispatch, addToast } = useStore();
   const info = STATUS_INFO[order.status];
   const Icon = info.icon;
   const currentStepIdx = STATUS_STEPS.indexOf(order.status);
@@ -476,6 +476,37 @@ function OrderStatusCard({ order }: { order: Order }) {
                 }}
               >
                 <Printer size={12} /> View/Download Bill
+              </button>
+            </div>
+          )}
+
+          {/* Cancel Order Button */}
+          {order.status === 'pending' && (
+            <div style={{ padding: '0 14px 12px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  borderRadius: 8,
+                  padding: '6px 12px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid var(--error)',
+                  color: 'var(--error)',
+                  cursor: 'pointer'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm('Are you sure you want to cancel this order?')) {
+                    dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: order.id, status: 'cancelled' } });
+                    addToast('success', 'Order cancelled successfully.');
+                  }
+                }}
+              >
+                <X size={12} /> Cancel Order
               </button>
             </div>
           )}
