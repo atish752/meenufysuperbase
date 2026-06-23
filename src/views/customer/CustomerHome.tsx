@@ -57,7 +57,10 @@ export default function CustomerHome({ table }: Props) {
     setVariantQty(1);
   };
 
-  const featuredItems = state.menuItems.filter(i => i.restaurantId === restaurantId && i.isFeatured && i.isAvailable).slice(0, 6);
+  const featuredItems = state.menuItems
+    .filter(i => i.restaurantId === restaurantId && i.isFeatured && i.isAvailable)
+    .sort((a, b) => (a.rank || 0) - (b.rank || 0))
+    .slice(0, 6);
 
   const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
   const hasActiveOrders = state.orders.some(o => !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier);
@@ -528,7 +531,7 @@ export default function CustomerHome({ table }: Props) {
         </div>
       </div>
 
-      {variantModalItem && selectedVariant && (
+      {variantModalItem && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setVariantModalItem(null)}>
           <div className="modal-content" style={{ maxWidth: 400, padding: 20, position: 'relative' }}>
             
@@ -599,41 +602,43 @@ export default function CustomerHome({ table }: Props) {
               )}
             </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                {t('select_option')}
+            {variantModalItem.variants && variantModalItem.variants.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  {t('select_option')}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {variantModalItem.variants?.map((v, idx) => {
+                    const isSelected = selectedVariant?.name === v.name;
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedVariant(v)}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          background: isSelected ? 'var(--brand-dim)' : 'var(--bg-elevated)',
+                          border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: isSelected ? '0 0 10px rgba(255,125,0,0.15)' : 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? 'var(--brand)' : 'var(--text-primary)' }}>
+                          {v.name}
+                        </span>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                          ₹{v.price}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {variantModalItem.variants?.map((v, idx) => {
-                  const isSelected = selectedVariant.name === v.name;
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => setSelectedVariant(v)}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        background: isSelected ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                        border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        boxShadow: isSelected ? '0 0 10px rgba(255,125,0,0.15)' : 'none'
-                      }}
-                    >
-                      <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? 'var(--brand)' : 'var(--text-primary)' }}>
-                        {v.name}
-                      </span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
-                        ₹{v.price}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
               <div style={{
@@ -678,12 +683,12 @@ export default function CustomerHome({ table }: Props) {
                     payload: {
                       menuItemId: variantModalItem.id,
                       name: variantModalItem.name,
-                      price: selectedVariant.price,
+                      price: selectedVariant ? selectedVariant.price : variantModalItem.price,
                       qty: variantQty,
-                      variant: selectedVariant
+                      variant: selectedVariant || undefined
                     }
                   });
-                  addToast('success', `${variantModalItem.name} (${selectedVariant.name}) added to cart!`);
+                  addToast('success', selectedVariant ? `${variantModalItem.name} (${selectedVariant.name}) added to cart!` : `${variantModalItem.name} added to cart!`);
                   setVariantModalItem(null);
                 }}
                 style={{
@@ -702,7 +707,7 @@ export default function CustomerHome({ table }: Props) {
                   boxShadow: '0 4px 14px rgba(255,255,255,0.15)'
                 }}
               >
-                {t('add')} — ₹{selectedVariant.price * variantQty} <FoodTrolley size={14} color="#000" />
+                {t('add')} — ₹{(selectedVariant ? selectedVariant.price : variantModalItem.price) * variantQty} <FoodTrolley size={14} color="#000" />
               </button>
             </div>
 
@@ -862,18 +867,22 @@ function FeaturedCard({
       alignItems: 'stretch'
     }}>
       {/* Left: Food Image */}
-      <div style={{
-        width: 100,
-        height: 100,
-        borderRadius: 'var(--radius-md)',
-        overflow: 'hidden',
-        position: 'relative',
-        background: 'var(--bg-elevated)',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
+      <div 
+        onClick={() => onOpenVariant(item)}
+        style={{
+          width: 100,
+          height: 100,
+          borderRadius: 'var(--radius-md)',
+          overflow: 'hidden',
+          position: 'relative',
+          background: 'var(--bg-elevated)',
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer'
+        }}
+      >
         {item.image ? (
           <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
@@ -883,40 +892,45 @@ function FeaturedCard({
 
       {/* Right: Content details */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
-        {/* Top Row: Name and Veg/Non-Veg indicator */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <h3 style={{
-            fontSize: 14,
-            fontFamily: 'var(--font-display)',
-            fontWeight: 500,
-            color: 'var(--customer-item-name-color, var(--brand))',
-            lineHeight: 1.2,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}>
-            {item.name}
-          </h3>
-          
-          <VegNonVegIndicator isVeg={item.isVeg} />
-        </div>
+        <div 
+          onClick={() => onOpenVariant(item)}
+          style={{ cursor: 'pointer' }}
+        >
+          {/* Top Row: Name and Veg/Non-Veg indicator */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+            <h3 style={{
+              fontSize: 14,
+              fontFamily: 'var(--font-display)',
+              fontWeight: 500,
+              color: 'var(--customer-item-name-color, var(--brand))',
+              lineHeight: 1.2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {item.name}
+            </h3>
+            
+            <VegNonVegIndicator isVeg={item.isVeg} />
+          </div>
 
-        {/* Middle description */}
-        {item.description && (
-          <p style={{
-            fontSize: 11,
-            color: 'var(--customer-item-desc-color, var(--text-secondary))',
-            lineHeight: 1.35,
-            marginTop: 3,
-            marginBottom: 4,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}>
-            {item.description}
-          </p>
-        )}
+          {/* Middle description */}
+          {item.description && (
+            <p style={{
+              fontSize: 11,
+              color: 'var(--customer-item-desc-color, var(--text-secondary))',
+              lineHeight: 1.35,
+              marginTop: 3,
+              marginBottom: 4,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {item.description}
+            </p>
+          )}
+        </div>
 
         {/* Bottom Row: Price, Rating, Cart controls */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 'auto' }}>

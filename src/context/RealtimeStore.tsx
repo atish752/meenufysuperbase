@@ -44,6 +44,7 @@ export type MenuCategory = {
   name: string;
   icon: string;
   restaurantId?: string;
+  rank?: number;
 };
 
 export type MenuItemVariant = {
@@ -76,6 +77,7 @@ export type MenuItem = {
   description: string;
   price: number;
   category: string;
+  categories?: string[];
   image: string;
   isVeg: boolean;
   isAvailable: boolean;
@@ -83,6 +85,7 @@ export type MenuItem = {
   tags: string[];
   variants?: MenuItemVariant[];
   nutrition?: NutritionInfo;
+  rank?: number;
 };
 
 export type OrderItem = {

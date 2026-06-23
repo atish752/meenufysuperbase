@@ -37,6 +37,13 @@ export default function CustomerMore() {
   // Google Temp form state
   const [googleUserTemp, setGoogleUserTemp] = useState<any>(null);
 
+  // Profile edit states
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editUniqueId, setEditUniqueId] = useState('');
+
   // Check if logged in
   const [loggedInUser, setLoggedInUser] = useState<any>(() => {
     try {
@@ -422,6 +429,159 @@ export default function CustomerMore() {
     addToast('success', 'Logged out successfully.');
   };
 
+  const handleOpenProfile = () => {
+    if (customer) {
+      setEditName(customer.name || '');
+      setEditPhone(customer.phone || '');
+      setEditEmail(customer.email || '');
+      setEditUniqueId(customer.uniqueId || '');
+      setShowProfileModal(true);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customer) return;
+
+    const oldPhone = customer.phone.trim();
+    const newPhone = editPhone.trim();
+    const oldClean = oldPhone.replace(/[^a-zA-Z0-9]/g, '');
+    const newClean = newPhone.replace(/[^a-zA-Z0-9]/g, '');
+
+    if (!editName.trim() || !newPhone) {
+      addToast('error', 'Name and Phone number are required.');
+      return;
+    }
+
+    if (editUniqueId.trim() && editUniqueId.trim() !== customer.uniqueId) {
+      const matchedId = state.customers.find(c => c.uniqueId === editUniqueId.trim());
+      if (matchedId) {
+        addToast('error', 'This Unique ID is already taken.');
+        return;
+      }
+    }
+
+    if (newPhone !== oldPhone) {
+      const matchedPhone = state.customers.find(c => c.phone === newPhone);
+      if (matchedPhone && (matchedPhone.password || matchedPhone.googleId)) {
+        addToast('error', 'An account with this phone number already exists.');
+        return;
+      }
+    }
+
+    const updatedUser = {
+      ...customer,
+      name: editName.trim(),
+      phone: newPhone,
+      email: editEmail.trim(),
+      uniqueId: editUniqueId.trim() || `user_${newClean}`
+    };
+
+    const savedGoogle = localStorage.getItem('meenufy_customer_google_user');
+    const savedCustom = localStorage.getItem('meenufy_customer_logged_in_user');
+    if (savedGoogle) {
+      localStorage.setItem('meenufy_customer_google_user', JSON.stringify({
+        ...JSON.parse(savedGoogle),
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        email: updatedUser.email,
+        uniqueId: updatedUser.uniqueId
+      }));
+    }
+    if (savedCustom) {
+      localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify({
+        ...JSON.parse(savedCustom),
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        email: updatedUser.email,
+        uniqueId: updatedUser.uniqueId
+      }));
+    }
+    setLoggedInUser(updatedUser);
+
+    if (hasFirebaseConfig && db) {
+      try {
+        if (newPhone !== oldPhone) {
+          const migratedCustomer = {
+            ...customer,
+            name: updatedUser.name,
+            phone: updatedUser.phone,
+            email: updatedUser.email,
+            uniqueId: updatedUser.uniqueId,
+            lastVisit: Date.now()
+          };
+          await set(ref(db, `customers/${restaurantId}/${newClean}`), migratedCustomer);
+          await set(ref(db, `customers/${restaurantId}/${oldClean}`), null);
+        } else {
+          const dbCustUpdates = {
+            name: updatedUser.name,
+            email: updatedUser.email,
+            uniqueId: updatedUser.uniqueId,
+            lastVisit: Date.now()
+          };
+          await update(ref(db, `customers/${restaurantId}/${oldClean}`), dbCustUpdates);
+        }
+        addToast('success', 'Profile updated successfully.');
+        setShowProfileModal(false);
+      } catch (err: any) {
+        console.error("Failed to update profile:", err);
+        addToast('error', `Failed to sync profile: ${err.message}`);
+      }
+    } else {
+      addToast('success', 'Profile updated locally (Demo mode).');
+      setShowProfileModal(false);
+    }
+  };
+
+  const handleLinkGoogle = async () => {
+    if (!customer) return;
+    if (hasFirebaseConfig && auth && db) {
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+
+        const matchedGoogle = state.customers.find(c => c.googleId === user.uid && c.phone !== customer.phone);
+        if (matchedGoogle) {
+          addToast('error', 'This Google account is already linked to another profile.');
+          return;
+        }
+
+        const cleanPhone = customer.phone.replace(/[^a-zA-Z0-9]/g, '');
+        
+        await update(ref(db, `customers/${restaurantId}/${cleanPhone}`), {
+          googleId: user.uid,
+          email: user.email || customer.email || ''
+        });
+
+        const savedCustom = localStorage.getItem('meenufy_customer_logged_in_user');
+        if (savedCustom) {
+          const parsed = JSON.parse(savedCustom);
+          localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify({
+            ...parsed,
+            googleId: user.uid,
+            email: user.email || parsed.email || ''
+          }));
+        }
+        setLoggedInUser({
+          ...loggedInUser,
+          googleId: user.uid,
+          email: user.email || loggedInUser.email || ''
+        });
+
+        addToast('success', 'Google account linked successfully!');
+      } catch (err: any) {
+        console.error("Google link failed:", err);
+        addToast('error', `Google linking failed: ${err.message}`);
+      }
+    } else {
+      addToast('success', 'Google account linked (Demo mode).');
+      setLoggedInUser({
+        ...loggedInUser,
+        googleId: 'mock-linked-google-id'
+      });
+    }
+  };
+
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
@@ -697,6 +857,57 @@ export default function CustomerMore() {
         )}
       </div>
 
+      {isLoggedIn && customer && (
+        <div className="card" style={{ marginBottom: 16, padding: '16px 20px' }}>
+          <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>
+            👤 Profile Settings
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Name</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{customer.name}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Phone</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{customer.phone}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Email</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{customer.email || 'Not provided'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Username / Unique ID</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{customer.uniqueId || 'Not set'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 4 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Google Link</span>
+              <span style={{ color: customer.googleId ? 'var(--brand)' : 'var(--text-muted)', fontWeight: 600 }}>
+                {customer.googleId ? '✅ Linked' : '❌ Not Linked'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button
+                onClick={handleOpenProfile}
+                className="btn btn-secondary btn-sm"
+                style={{ flex: 1, fontSize: 11, fontWeight: 700 }}
+              >
+                Edit Profile details
+              </button>
+              {!customer.googleId && (
+                <button
+                  onClick={handleLinkGoogle}
+                  className="btn btn-primary btn-sm"
+                  style={{ flex: 1, fontSize: 11, fontWeight: 800, background: 'var(--brand)', color: '#000' }}
+                >
+                  Link Google Account
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
 
       {/* Install PWA */}
@@ -865,6 +1076,42 @@ export default function CustomerMore() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+      {/* PROFILE EDIT MODAL */}
+      {showProfileModal && (
+        <div className="modal-backdrop" onClick={() => setShowProfileModal(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: 400, padding: 24 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Edit Profile details</h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowProfileModal(false)} style={{ padding: 4 }}>
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleUpdateProfile}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                <div className="input-group">
+                  <label className="input-label">Full Name *</label>
+                  <input className="input" type="text" required value={editName} onChange={e => setEditName(e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Phone Number *</label>
+                  <input className="input" type="tel" required value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Email</label>
+                  <input className="input" type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Unique ID / Username</label>
+                  <input className="input" type="text" value={editUniqueId} onChange={e => setEditUniqueId(e.target.value)} />
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary btn-full" style={{ background: 'var(--brand)', color: '#000000', fontWeight: 800, height: 38 }}>
+                Save Profile changes
+              </button>
+            </form>
           </div>
         </div>
       )}

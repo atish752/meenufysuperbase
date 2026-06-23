@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
-import type { MenuItem, MealSchedule, NutritionInfo } from '../../context/RealtimeStore';
+import type { MenuItem, MealSchedule, NutritionInfo, MenuCategory } from '../../context/RealtimeStore';
 import { Plus, Pencil, Trash2, Search, Tag, X, Sparkles, Camera, UploadCloud, Loader2, Check, CalendarClock, FlaskConical, Palette } from 'lucide-react';
+import { hasFirebaseConfig, db } from '../../utils/firebase';
+import { ref, update, set } from 'firebase/database';
 
 function CategoryRow({ cat, onUpdate, onDelete, isDeleting }: { 
   cat: any; 
@@ -165,8 +167,24 @@ const generateNutritionForMeal = (name: string): Omit<NutritionInfo, 'enabled'> 
   };
 };
 
+const autoDetermineVegNonVeg = (name: string): boolean => {
+  if (!name) return true;
+  const clean = name.toLowerCase();
+  const strongNonVeg = ['chicken', 'egg', 'fish', 'pork', 'beef', 'mutton', 'lamb', 'prawn', 'shrimp', 'crab', 'lobster', 'meat', 'bacon', 'pepperoni', 'ham', 'sausage', 'salami', 'turkey', 'duck', 'non-veg', 'nonveg', 'salmon', 'tuna', 'cod', 'squid', 'anchovy', 'steak', 'meatball', 'gelatin', 'lard'];
+  
+  for (const kw of strongNonVeg) {
+    if (clean.includes(kw)) {
+      if (kw === 'egg' && (clean.includes('eggless') || clean.includes('egg-less') || clean.includes('egg free') || clean.includes('egg-free') || clean.includes('egg substitute'))) {
+        continue;
+      }
+      return false; // non-veg
+    }
+  }
+  return true; // veg
+};
+
 const EMPTY_ITEM: Omit<MenuItem, 'id'> = {
-  name: '', description: '', price: 0, category: '',
+  name: '', description: '', price: 0, category: '', categories: [],
   image: '', isVeg: true, isAvailable: true, isFeatured: false, tags: [],
 };
 
@@ -184,6 +202,13 @@ export default function AdminMenu() {
   const [showCatModal, setShowCatModal] = useState(false);
   const [showOthersMenu, setShowOthersMenu] = useState(false);
   const [newCat, setNewCat] = useState({ name: '', icon: '🍽️' });
+
+  // Meals Rank States
+  const [showRankModal, setShowRankModal] = useState(false);
+  const [rankTab, setRankTab] = useState<'categories' | 'meals'>('categories');
+  const [rankCategoryId, setRankCategoryId] = useState<string>('');
+  const [orderedCategories, setOrderedCategories] = useState<MenuCategory[]>([]);
+  const [orderedMeals, setOrderedMeals] = useState<MenuItem[]>([]);
 
   // AI Meals Extractor States
   const [showExtractorModal, setShowExtractorModal] = useState(false);
@@ -218,6 +243,87 @@ export default function AdminMenu() {
 
   // Support request states
   const [showSupportModal, setShowSupportModal] = useState(false);
+
+  const handleOpenRankModal = () => {
+    const cats = [...adminCategories].sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    setOrderedCategories(cats);
+
+    const defaultCatId = cats[0]?.id || '';
+    setRankCategoryId(defaultCatId);
+
+    if (defaultCatId) {
+      const meals = [...adminMenuItems]
+        .filter(item => item.category === defaultCatId || (item.categories && item.categories.includes(defaultCatId)))
+        .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+      setOrderedMeals(meals);
+    } else {
+      setOrderedMeals([]);
+    }
+
+    setRankTab('categories');
+    setShowRankModal(true);
+  };
+
+  const handleRankCategoryChange = (catId: string) => {
+    setRankCategoryId(catId);
+    const meals = [...adminMenuItems]
+      .filter(item => item.category === catId || (item.categories && item.categories.includes(catId)))
+      .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    setOrderedMeals(meals);
+  };
+
+  const moveCategory = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= orderedCategories.length) return;
+
+    const list = [...orderedCategories];
+    const temp = list[index];
+    list[index] = list[newIndex];
+    list[newIndex] = temp;
+    setOrderedCategories(list);
+  };
+
+  const moveMeal = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= orderedMeals.length) return;
+
+    const list = [...orderedMeals];
+    const temp = list[index];
+    list[index] = list[newIndex];
+    list[newIndex] = temp;
+    setOrderedMeals(list);
+  };
+
+  const handleSaveRanks = () => {
+    if (hasFirebaseConfig && db) {
+      if (rankTab === 'categories') {
+        orderedCategories.forEach((cat, idx) => {
+          update(ref(db, `categories/${adminId}/${cat.id}`), { rank: idx })
+            .catch(e => console.error("Failed to update category rank:", e));
+        });
+        addToast('success', 'Category rankings saved successfully!');
+      } else {
+        orderedMeals.forEach((meal, idx) => {
+          update(ref(db, `menuItems/${adminId}/${meal.id}`), { rank: idx })
+            .catch(e => console.error("Failed to update meal rank:", e));
+        });
+        addToast('success', 'Meal rankings saved successfully!');
+      }
+    } else {
+      if (rankTab === 'categories') {
+        orderedCategories.forEach((cat, idx) => {
+          dispatch({ type: 'UPDATE_CATEGORY', payload: { ...cat, rank: idx } });
+        });
+        addToast('success', 'Category rankings saved (Demo mode)!');
+      } else {
+        orderedMeals.forEach((meal, idx) => {
+          dispatch({ type: 'UPDATE_MENU_ITEM', payload: { ...meal, rank: idx } });
+        });
+        addToast('success', 'Meal rankings saved (Demo mode)!');
+      }
+    }
+    setShowRankModal(false);
+  };
   const [supportMessage, setSupportMessage] = useState('');
   const [supportAttemptsCount, setSupportAttemptsCount] = useState(0);
 
@@ -567,7 +673,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
   };
 
   const filteredItems = adminMenuItems.filter(item => {
-    const matchCat = selectedCategory === 'all' || item.category === selectedCategory;
+    const matchCat = selectedCategory === 'all' || item.category === selectedCategory || (item.categories && item.categories.includes(selectedCategory));
     const matchSearch = !search || item.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
@@ -1015,7 +1121,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                     gap: 4
                   }}
                 >
-                  {cat.icon} {cat.name} ({adminMenuItems.filter(i => i.category === cat.id).length})
+                  {cat.icon} {cat.name} ({adminMenuItems.filter(i => i.category === cat.id || (i.categories && i.categories.includes(cat.id))).length})
                 </button>
                 <button
                   className={`btn btn-sm ${isDeleting ? 'btn-danger' : isSelected ? 'btn-primary' : 'btn-secondary'}`}
@@ -1069,6 +1175,13 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '0 16px' }}
         >
           <Plus size={16} /> Add Item
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={handleOpenRankModal}
+          style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '0 16px', color: 'var(--brand)', borderColor: 'var(--brand)' }}
+        >
+          ↕️ Meals Rank
         </button>
       </div>
 
@@ -1172,8 +1285,17 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="input-group">
                 <label className="input-label">Item Name *</label>
-                <input className="input" type="text" placeholder="e.g. Butter Chicken"
-                  value={newItem.name} onChange={e => setNewItem({ ...newItem, name: e.target.value })} />
+                <input 
+                  className="input" 
+                  type="text" 
+                  placeholder="e.g. Butter Chicken"
+                  value={newItem.name} 
+                  onChange={e => {
+                    const name = e.target.value;
+                    const isVeg = autoDetermineVegNonVeg(name);
+                    setNewItem({ ...newItem, name, isVeg });
+                  }} 
+                />
               </div>
 
               <div className="input-group">
@@ -1275,15 +1397,45 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                   {hasVariants && <span style={{ fontSize: 9, color: 'var(--brand)', marginTop: 2 }}>Computed from lowest variant</span>}
                 </div>
                 <div className="input-group" style={{ flex: 1 }}>
-                  <label className="input-label">Category</label>
-                  <select className="input" value={newItem.category}
-                    onChange={e => setNewItem({ ...newItem, category: e.target.value })}
-                    style={{ cursor: 'pointer' }}>
-                    <option value="">Select...</option>
-                    {adminCategories.map(c => (
-                      <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-                    ))}
-                  </select>
+                  <label className="input-label">Categories (Select one or more)</label>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    maxHeight: 120,
+                    overflowY: 'auto',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '8px 12px',
+                    background: 'var(--bg-elevated)'
+                  }}>
+                    {adminCategories.map(c => {
+                      const selectedList = newItem.categories || (newItem.category ? [newItem.category] : []);
+                      const isChecked = selectedList.includes(c.id);
+                      return (
+                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              let newList = [...selectedList];
+                              if (e.target.checked) {
+                                if (!newList.includes(c.id)) newList.push(c.id);
+                              } else {
+                                newList = newList.filter(id => id !== c.id);
+                              }
+                              setNewItem({
+                                ...newItem,
+                                category: newList[0] || '',
+                                categories: newList
+                              });
+                            }}
+                          />
+                          <span>{c.icon} {c.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -2038,6 +2190,103 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               <button className="btn btn-secondary btn-full" onClick={() => setShowSupportModal(false)}>Cancel</button>
               <button className="btn btn-primary btn-full" onClick={handleSubmitSupport}>Send Ticket</button>
             </div>
+          </div>
+        </div>
+      {/* MEALS RANK MODAL */}
+      {showRankModal && (
+        <div className="modal-backdrop" onClick={() => setShowRankModal(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: 450, padding: 24 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800 }}>↕️ Meals &amp; Categories Ranking</h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowRankModal(false)} style={{ padding: 4 }}>
+                &times;
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: 8, padding: 4, marginBottom: 16 }}>
+              <button
+                onClick={() => setRankTab('categories')}
+                style={{
+                  flex: 1, padding: '6px 0', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700,
+                  background: rankTab === 'categories' ? 'var(--brand)' : 'transparent',
+                  color: rankTab === 'categories' ? '#000000' : 'var(--text-secondary)',
+                  cursor: 'pointer'
+                }}
+              >Categories Rank</button>
+              <button
+                onClick={() => setRankTab('meals')}
+                style={{
+                  flex: 1, padding: '6px 0', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700,
+                  background: rankTab === 'meals' ? 'var(--brand)' : 'transparent',
+                  color: rankTab === 'meals' ? '#000000' : 'var(--text-secondary)',
+                  cursor: 'pointer'
+                }}
+              >Meals Rank</button>
+            </div>
+
+            {rankTab === 'meals' && (
+              <div className="input-group" style={{ marginBottom: 16 }}>
+                <label className="input-label">Select Category to Rank Meals</label>
+                <select 
+                  className="input" 
+                  value={rankCategoryId} 
+                  onChange={e => handleRankCategoryChange(e.target.value)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {orderedCategories.map(c => (
+                    <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* List */}
+            <div style={{
+              maxHeight: 250,
+              overflowY: 'auto',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: '6px 0',
+              background: 'var(--bg-elevated)',
+              marginBottom: 20
+            }}>
+              {rankTab === 'categories' ? (
+                orderedCategories.length === 0 ? (
+                  <div style={{ padding: 16, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>No categories found</div>
+                ) : (
+                  orderedCategories.map((cat, idx) => (
+                    <div key={cat.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderBottom: idx < orderedCategories.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{cat.icon} {cat.name}</span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button disabled={idx === 0} onClick={() => moveCategory(idx, 'up')} className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: 10 }}>▲</button>
+                        <button disabled={idx === orderedCategories.length - 1} onClick={() => moveCategory(idx, 'down')} className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: 10 }}>▼</button>
+                      </div>
+                    </div>
+                  ))
+                )
+              ) : (
+                orderedMeals.length === 0 ? (
+                  <div style={{ padding: 16, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>No meals in this category</div>
+                ) : (
+                  orderedMeals.map((meal, idx) => (
+                    <div key={meal.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderBottom: idx < orderedMeals.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, display: 'inline-block', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {meal.name}
+                      </span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button disabled={idx === 0} onClick={() => moveMeal(idx, 'up')} className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: 10 }}>▲</button>
+                        <button disabled={idx === orderedMeals.length - 1} onClick={() => moveMeal(idx, 'down')} className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: 10 }}>▼</button>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+            </div>
+
+            <button onClick={handleSaveRanks} className="btn btn-primary btn-full" style={{ background: 'var(--brand)', color: '#000', fontWeight: 800, height: 38 }}>
+              Save Sequence Rankings
+            </button>
           </div>
         </div>
       )}
