@@ -34,9 +34,17 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
   return R * c; // in meters
 }
 
-export default function CustomerCart() {
+export default function CustomerCart({ tableId }: { tableId?: string }) {
   const { state, dispatch, addToast } = useStore();
   
+  const activeTableId = tableId || new URLSearchParams(window.location.search).get('table') || state.customerTableId || 'table-1';
+
+  useEffect(() => {
+    if (activeTableId && state.customerTableId !== activeTableId) {
+      dispatch({ type: 'SET_CUSTOMER_TABLE', payload: activeTableId });
+    }
+  }, [activeTableId, state.customerTableId]);
+
   const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
 
@@ -381,7 +389,7 @@ export default function CustomerCart() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!state.customerTableId) { addToast('error', 'No table selected.'); return; }
+    if (!activeTableId) { addToast('error', 'No table selected.'); return; }
     if (state.cart.length === 0) { addToast('error', 'Cart is empty.'); return; }
 
     const isLoginRequired = restaurant.mustLoginBeforeOrder;
@@ -397,7 +405,7 @@ export default function CustomerCart() {
     setPlacing(true);
     await new Promise(r => setTimeout(r, 800));
 
-    const table = state.tables.find(t => t.id === state.customerTableId);
+    const table = state.tables.find(t => t.id === activeTableId);
 
     // Save inputs to localStorage
     if (customerName.trim()) {
@@ -418,7 +426,7 @@ export default function CustomerCart() {
     const order: Order = {
       id: `ord-${Date.now()}`,
       tableNumber: table?.number || 0,
-      tableId: state.customerTableId,
+      tableId: activeTableId,
       restaurantId: restaurantId,
       restaurantName: restaurant.name,
       customerName: customerName.trim(),

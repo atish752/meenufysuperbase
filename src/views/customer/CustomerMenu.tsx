@@ -442,7 +442,8 @@ export default function CustomerMenu() {
                           display: 'flex',
                           gap: 12,
                           alignItems: 'stretch'
-                                     {/* Left: Food Image */}
+                        }}>
+                          {/* Left: Food Image */}
                           <div 
                             onClick={() => handleOpenVariantModal(item)}
                             style={{
@@ -509,7 +510,7 @@ export default function CustomerMenu() {
                                   {item.description}
                                 </p>
                               )}
-                            </div>                     )}
+                            </div>
 
                             {/* Bottom Row: Price, Rating, Cart controls */}
                             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
@@ -703,7 +704,9 @@ export default function CustomerMenu() {
                           borderRadius: 'var(--radius-lg)',
                           display: 'flex',
                           gap: 12,
-                          alignItems:                           {/* Left: Food Image */}
+                          alignItems: 'stretch'
+                        }}>
+                          {/* Left: Food Image */}
                           <div 
                             onClick={() => handleOpenVariantModal(item)}
                             style={{
@@ -769,8 +772,7 @@ export default function CustomerMenu() {
                                   {item.description}
                                 </p>
                               )}
-                            </div>         </p>
-                            )}
+                            </div>
 
                             {/* Bottom Row: Price, Rating, Cart controls */}
                             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>

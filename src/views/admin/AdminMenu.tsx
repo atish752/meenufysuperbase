@@ -3,7 +3,7 @@ import { useStore } from '../../context/RealtimeStore';
 import type { MenuItem, MealSchedule, NutritionInfo, MenuCategory } from '../../context/RealtimeStore';
 import { Plus, Pencil, Trash2, Search, Tag, X, Sparkles, Camera, UploadCloud, Loader2, Check, CalendarClock, FlaskConical, Palette } from 'lucide-react';
 import { hasFirebaseConfig, db } from '../../utils/firebase';
-import { ref, update, set } from 'firebase/database';
+import { ref, update } from 'firebase/database';
 
 function CategoryRow({ cat, onUpdate, onDelete, isDeleting }: { 
   cat: any; 
@@ -298,13 +298,13 @@ export default function AdminMenu() {
     if (hasFirebaseConfig && db) {
       if (rankTab === 'categories') {
         orderedCategories.forEach((cat, idx) => {
-          update(ref(db, `categories/${adminId}/${cat.id}`), { rank: idx })
+          update(ref(db!, `categories/${adminId}/${cat.id}`), { rank: idx })
             .catch(e => console.error("Failed to update category rank:", e));
         });
         addToast('success', 'Category rankings saved successfully!');
       } else {
         orderedMeals.forEach((meal, idx) => {
-          update(ref(db, `menuItems/${adminId}/${meal.id}`), { rank: idx })
+          update(ref(db!, `menuItems/${adminId}/${meal.id}`), { rank: idx })
             .catch(e => console.error("Failed to update meal rank:", e));
         });
         addToast('success', 'Meal rankings saved successfully!');
@@ -2192,6 +2192,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             </div>
           </div>
         </div>
+      )}
       {/* MEALS RANK MODAL */}
       {showRankModal && (
         <div className="modal-backdrop" onClick={() => setShowRankModal(false)} style={{ zIndex: 1100 }}>

@@ -578,7 +578,7 @@ export default function CustomerLayout({ tableId }: Props) {
       </div>
 
       {/* Cart floating button */}
-      <CustomerCart />
+      <CustomerCart tableId={tableId} />
 
       {/* Floating Order Status Capsule */}
       {hasActiveOrUnrated && (
