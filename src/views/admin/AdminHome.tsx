@@ -1526,8 +1526,10 @@ function TableMap() {
     setShowReserveForm(true);
   };
 
+  const adminRestaurantId = state.admin?.restaurantId || 'admin-1';
+  const myOrders = orders.filter(o => (o.restaurantId || 'admin-1') === adminRestaurantId);
   const occupiedMap: Record<string, { customerName: string; orderCount: number }> = {};
-  orders.forEach(o => {
+  myOrders.forEach(o => {
     if (['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status)) {
       if (!occupiedMap[o.tableId]) {
         occupiedMap[o.tableId] = { customerName: o.customerName || 'Guest', orderCount: 1 };
