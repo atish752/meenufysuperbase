@@ -78,17 +78,28 @@ export default function OnboardingFlow() {
           const data = await res.json();
           if (data.country_code === 'IN' || data.country === 'India') {
             setCurrency('INR');
-            setDetectingLocation(false);
-            return;
+          } else {
+            setCurrency('USD');
           }
+          setDetectingLocation(false);
+          return;
         }
       } catch (err) {
         console.warn('Geolocation API offline, falling back to timezone check', err);
       }
 
-      // Timezone fallback
+      // Timezone fallback (only executed if fetch fails)
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (tz === 'Asia/Kolkata' || tz === 'Asia/Calcutta') {
+      if (
+        tz === 'Asia/Kolkata' || 
+        tz === 'Asia/Calcutta' ||
+        tz.toLowerCase().includes('kolkata') ||
+        tz.toLowerCase().includes('calcutta') ||
+        tz.toLowerCase().includes('india') ||
+        tz.toLowerCase().includes('delhi') ||
+        tz.toLowerCase().includes('mumbai') ||
+        tz.toLowerCase().includes('chennai')
+      ) {
         setCurrency('INR');
       } else {
         const isIndianLocale = navigator.language === 'en-IN' || navigator.language === 'hi-IN';

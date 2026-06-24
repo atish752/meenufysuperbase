@@ -1099,6 +1099,8 @@ function reducer(state: AppState, action: Action): AppState {
         else defaultTab = 'more';
       }
       
+      const isDemoAdmin = action.payload.id === 'admin-1' || email.trim().toLowerCase() === 'atish3477';
+      
       return { 
         ...state, 
         admin: action.payload, 
@@ -1110,7 +1112,29 @@ function reducer(state: AppState, action: Action): AppState {
         subscriptionRenewalDate,
         billingCountry,
         billingPeriod,
-        adminTab: defaultTab
+        adminTab: defaultTab,
+        // Reset dynamic state parameters to prevent session data leak
+        orders: isSuper ? state.orders : (isDemoAdmin ? MOCK_ORDERS : []),
+        categories: isSuper ? state.categories : (isDemoAdmin ? DEFAULT_CATEGORIES : []),
+        menuItems: isSuper ? state.menuItems : (isDemoAdmin ? DEFAULT_MENU_ITEMS : []),
+        customers: isSuper ? state.customers : (isDemoAdmin ? MOCK_CUSTOMERS : []),
+        tables: isSuper ? state.tables : generateTables(8),
+        waiterRequests: isSuper ? state.waiterRequests : [],
+        coupons: isSuper ? state.coupons : [],
+        schedules: isSuper ? state.schedules : [],
+        restaurant: isSuper ? state.restaurant : (isDemoAdmin ? DEFAULT_RESTAURANT : {
+          ...DEFAULT_RESTAURANT,
+          name: existingAccount ? existingAccount.restaurantName : 'New Restaurant',
+        }),
+        walletTransactions: isSuper ? state.walletTransactions : (isDemoAdmin ? state.walletTransactions : [
+          {
+            id: 'tx-initial',
+            amount: 300,
+            type: 'topup',
+            description: 'Monthly allowance top-up (June 2026)',
+            createdAt: Date.now()
+          }
+        ])
       };
     }
     case 'COMPLETE_ONBOARDING': {
@@ -1180,7 +1204,31 @@ function reducer(state: AppState, action: Action): AppState {
         staffMembers: state.staffMembers.filter(s => s.id !== action.payload)
       };
     }
-    case 'LOGOUT_ADMIN': return { ...state, admin: null, isAdminLoggedIn: false };
+    case 'LOGOUT_ADMIN': return { 
+      ...state, 
+      admin: null, 
+      isAdminLoggedIn: false,
+      orders: [],
+      tables: generateTables(8),
+      categories: [],
+      menuItems: [],
+      customers: [],
+      waiterRequests: [],
+      coupons: [],
+      schedules: [],
+      walletBalance: 300,
+      subscriptionPlan: 'free',
+      restaurant: DEFAULT_RESTAURANT,
+      walletTransactions: [
+        {
+          id: 'tx-initial',
+          amount: 300,
+          type: 'topup',
+          description: 'Monthly allowance top-up (June 2026)',
+          createdAt: Date.now()
+        }
+      ]
+    };
     case 'UPDATE_RESTAURANT': return { ...state, restaurant: { ...state.restaurant, ...action.payload } };
     case 'SET_MANUAL_CLOSED': return { ...state, restaurant: { ...state.restaurant, isManualClosed: action.payload } };
     case 'ADD_MENU_ITEM': {

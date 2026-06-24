@@ -11,7 +11,11 @@ const NAV = [
 
 export default function AdminBottomNav() {
   const { state, dispatch } = useStore();
-  const activeOrders = state.orders.filter(o => ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status));
+  const adminRestaurantId = state.admin?.restaurantId || 'admin-1';
+  const activeOrders = state.orders.filter(o => 
+    ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status) && 
+    (o.restaurantId === adminRestaurantId)
+  );
 
   return (
     <div className="bottom-nav">
