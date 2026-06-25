@@ -197,6 +197,17 @@ export type Coupon = {
   label?: string;
 };
 
+export type SubscriptionCoupon = {
+  id: string;
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  minPlan?: 'free' | 'base' | 'standard' | 'advance';
+  billingRegion?: 'all' | 'IN' | 'global';
+  createdAt: number;
+  isActive?: boolean;
+};
+
 
 export type CustomerRecord = {
   id: string;
@@ -342,6 +353,7 @@ export type AppState = {
   billingPeriod: 'monthly' | 'yearly';
   // Restaurant Accounts (Super Admin)
   restaurantAccounts: RestaurantAccount[];
+  subscriptionCoupons: SubscriptionCoupon[];
   // Gemini API Keys & Support / Feedback
   geminiApiKeys: string[];
   supportRequests: SupportRequest[];
@@ -721,6 +733,7 @@ const DEFAULT_STATE: AppState = {
   tables: generateTables(8),
   customers: MOCK_CUSTOMERS,
   coupons: [],
+  subscriptionCoupons: [],
   schedules: [],
   waiterRequests: [],
   walletBalance: 300,
@@ -890,6 +903,9 @@ type Action =
   | { type: 'SUPER_ADMIN_DEDUCT'; payload: { email: string; amount: number } }
   | { type: 'SUPER_ADMIN_TOGGLE_BLOCK'; payload: { email: string } }
   | { type: 'SUPER_ADMIN_DELETE_ACCOUNT'; payload: string }
+  | { type: 'SYNC_SUBSCRIPTION_COUPONS'; payload: SubscriptionCoupon[] }
+  | { type: 'ADD_SUBSCRIPTION_COUPON'; payload: SubscriptionCoupon }
+  | { type: 'DELETE_SUBSCRIPTION_COUPON'; payload: string }
   | { type: 'UPDATE_SUBSCRIPTION_PLAN'; payload: { planName: 'free' | 'base' | 'standard' | 'advance'; billingPeriod: 'monthly' | 'yearly' } }
   | { type: 'SUPER_ADMIN_UPDATE_SUBSCRIPTION'; payload: { id: string; subscriptionPlan: 'free' | 'base' | 'standard' | 'advance'; ordersPlacedThisMonth: number; subscriptionRenewalDate: number; billingCountry: 'IN' | 'global'; billingPeriod: 'monthly' | 'yearly' } }
   | { type: 'ADD_GEMINI_KEY'; payload: string }
@@ -982,6 +998,26 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         coupons: state.coupons.filter(c => c.id !== action.payload)
+      };
+    }
+    case 'SYNC_SUBSCRIPTION_COUPONS': {
+      return {
+        ...state,
+        subscriptionCoupons: action.payload
+      };
+    }
+    case 'ADD_SUBSCRIPTION_COUPON': {
+      const list = state.subscriptionCoupons || [];
+      return {
+        ...state,
+        subscriptionCoupons: [...list.filter(c => c.id !== action.payload.id), action.payload]
+      };
+    }
+    case 'DELETE_SUBSCRIPTION_COUPON': {
+      const list = state.subscriptionCoupons || [];
+      return {
+        ...state,
+        subscriptionCoupons: list.filter(c => c.id !== action.payload)
       };
     }
     case 'UPDATE_COUPON': {
@@ -2195,6 +2231,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SYNC_COUPONS', payload: items });
     });
 
+    // 11b. Listen to subscription coupons (global)
+    const unsubscribeSubscriptionCoupons = onValue(ref(db, 'subscriptionCoupons'), (snapshot) => {
+      const data = snapshot.val();
+      const items: SubscriptionCoupon[] = data ? Object.values(data) as SubscriptionCoupon[] : [];
+      dispatch({ type: 'SYNC_SUBSCRIPTION_COUPONS', payload: items });
+    });
+
     // 12. Listen to ownerFeedbacks (global — for super admin to receive all feedback)
     let unsubscribeFeedbacks = () => {};
     if (targetRestaurantId === 'super-admin' || isAdminMode) {
@@ -2239,6 +2282,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeGeminiKeys();
       unsubscribeCustomers();
       unsubscribeCoupons();
+      unsubscribeSubscriptionCoupons();
       unsubscribeFeedbacks();
       unsubscribeSupport();
       unsubscribeStaff();
@@ -2837,6 +2881,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             remove(ref(db, `tables/${accountId}`)).catch(() => {});
             break;
           }
+          case 'ADD_SUBSCRIPTION_COUPON': {
+            const coupon = action.payload;
+            handleDbPromise(
+              set(ref(db, `subscriptionCoupons/${coupon.id}`), sanitizeDbData(coupon)),
+              'Failed to create subscription coupon'
+            );
+            break;
+          }
+          case 'DELETE_SUBSCRIPTION_COUPON': {
+            const couponId = action.payload;
+            handleDbPromise(
+              remove(ref(db, `subscriptionCoupons/${couponId}`)),
+              'Failed to delete subscription coupon'
+            );
+            break;
+          }
           default:
             break;
         }
@@ -2850,7 +2910,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Skip broadcasting Firebase sync actions — both tabs have their own Firebase listeners
     const FIREBASE_SYNC_ACTIONS = new Set([
       'SYNC_MENU_ITEMS', 'SYNC_CATEGORIES', 'SYNC_ORDERS', 'SYNC_WAITER_REQUESTS',
-      'SYNC_RESTAURANT_ACCOUNTS', 'SET_STATE'
+      'SYNC_RESTAURANT_ACCOUNTS', 'SYNC_SUBSCRIPTION_COUPONS', 'SET_STATE'
     ]);
     setTimeout(() => {
       if (channelRef.current && !isBroadcasting.current && !FIREBASE_SYNC_ACTIONS.has(action.type)) {

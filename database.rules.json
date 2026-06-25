@@ -80,6 +80,10 @@
       ".read": true,
       ".write": true
     },
+    "subscriptionCoupons": {
+      ".read": true,
+      ".write": true
+    },
     "staffMembers": {
       ".read": true,
       ".write": true

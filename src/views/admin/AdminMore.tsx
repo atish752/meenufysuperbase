@@ -163,6 +163,11 @@ export default function AdminMore() {
   const [upgradePrice, setUpgradePrice] = useState(0);
   const [upgradeCurrency, setUpgradeCurrency] = useState('₹');
 
+  // Checkout coupon states
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+
   const [originalPosterSource, setOriginalPosterSource] = useState<string | null>(null);
   const [uploadingPoster, setUploadingPoster] = useState(false);
 
@@ -246,9 +251,7 @@ export default function AdminMore() {
   // Secure payment gateway checkout state
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'select' | 'paying' | 'success'>('select');
-  const [checkoutMethod, setCheckoutMethod] = useState<'upi' | 'card'>('upi');
   const [checkoutProcessing, setCheckoutProcessing] = useState(false);
-  const [cardDetails, setCardDetails] = useState({ number: '', expiry: '', cvv: '' });
 
   const handleSelectPlan = (planName: 'free' | 'base' | 'standard' | 'advance', price: number, currency: string, billingPeriod: 'monthly' | 'yearly') => {
     if (planName === state.subscriptionPlan && billingPeriod === (state.billingPeriod || 'monthly')) {
@@ -267,26 +270,165 @@ export default function AdminMore() {
     setSelectedBillingPeriod(billingPeriod);
     setUpgradePrice(price);
     setUpgradeCurrency(currency);
+    setCouponInput('');
+    setAppliedCoupon(null);
+    setDiscountAmount(0);
     setCheckoutStep('select');
     setCheckoutProcessing(false);
     setShowCheckout(true);
   };
 
-  const handleConfirmCheckoutPayment = async () => {
-    setCheckoutProcessing(true);
-    setCheckoutStep('paying');
-    // Simulate secure bank/UPI gateway verification
-    await new Promise(r => setTimeout(r, 1800));
-    
-    if (selectedUpgradePlan) {
-      dispatch({
-        type: 'UPDATE_SUBSCRIPTION_PLAN',
-        payload: { planName: selectedUpgradePlan, billingPeriod: selectedBillingPeriod }
-      });
-      addToast('success', `Payment securely verified! Plan upgraded to ${selectedUpgradePlan.toUpperCase()} (${selectedBillingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}).`);
+  const handleApplyCoupon = () => {
+    const codeClean = couponInput.trim().toUpperCase();
+    if (!codeClean) {
+      addToast('error', 'Please enter a coupon code.');
+      return;
     }
-    setCheckoutProcessing(false);
-    setCheckoutStep('success');
+
+    const couponsList = state.subscriptionCoupons || [];
+    const matched = couponsList.find(c => c.code === codeClean && c.isActive !== false);
+
+    if (!matched) {
+      addToast('error', 'Invalid or expired coupon code.');
+      return;
+    }
+
+    const activeRegion = state.billingCountry === 'IN' ? 'IN' : 'global';
+    if (matched.billingRegion && matched.billingRegion !== 'all' && matched.billingRegion !== activeRegion) {
+      addToast('error', `This coupon is only valid for ${matched.billingRegion === 'IN' ? 'Indian' : 'International'} subscriptions.`);
+      return;
+    }
+
+    const plansOrder = { free: 0, base: 1, standard: 2, advance: 3 };
+    const minPlanReq = matched.minPlan || 'free';
+    const selectedPlanLevel = plansOrder[selectedUpgradePlan || 'free'];
+    const minPlanLevel = plansOrder[minPlanReq];
+
+    if (selectedPlanLevel < minPlanLevel) {
+      addToast('error', `This coupon requires upgrading to at least the ${minPlanReq.toUpperCase()} plan.`);
+      return;
+    }
+
+    let discount = 0;
+    if (matched.discountType === 'percentage') {
+      discount = Math.round((upgradePrice * matched.discountValue) / 100);
+    } else {
+      discount = matched.discountValue;
+    }
+
+    discount = Math.min(upgradePrice, discount);
+
+    setAppliedCoupon(matched);
+    setDiscountAmount(discount);
+    addToast('success', `Coupon "${codeClean}" applied successfully! Discounted: ${upgradeCurrency}${discount}`);
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setDiscountAmount(0);
+    setCouponInput('');
+    addToast('info', 'Coupon removed.');
+  };
+
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleConfirmCheckoutPayment = async () => {
+    const finalPrice = Math.max(0, upgradePrice - discountAmount);
+    
+    if (finalPrice === 0) {
+      setCheckoutProcessing(true);
+      if (selectedUpgradePlan) {
+        dispatch({
+          type: 'UPDATE_SUBSCRIPTION_PLAN',
+          payload: { planName: selectedUpgradePlan, billingPeriod: selectedBillingPeriod }
+        });
+        addToast('success', `Plan switched to ${selectedUpgradePlan.toUpperCase()} successfully!`);
+      }
+      setCheckoutProcessing(false);
+      setCheckoutStep('success');
+      return;
+    }
+
+    setCheckoutProcessing(true);
+    const scriptLoaded = await loadRazorpay();
+    if (!scriptLoaded) {
+      addToast('error', '❌ Failed to load Razorpay payment gateway. Please check your internet connection.');
+      setCheckoutProcessing(false);
+      return;
+    }
+
+    const subunitMultiplier = 100;
+    const amountInSubunits = Math.round(finalPrice * subunitMultiplier);
+    const currencyCode = state.billingCountry === 'IN' ? 'INR' : 'USD';
+
+    const options = {
+      key: 'rzp_live_SI7eJZcqXniZIm',
+      amount: amountInSubunits,
+      currency: currencyCode,
+      name: 'Meenufy Pay',
+      description: `${selectedUpgradePlan?.toUpperCase()} Plan Subscription`,
+      image: '/meenufy_logo_dark.png',
+      handler: function (response: any) {
+        if (selectedUpgradePlan) {
+          dispatch({
+            type: 'UPDATE_SUBSCRIPTION_PLAN',
+            payload: { planName: selectedUpgradePlan, billingPeriod: selectedBillingPeriod }
+          });
+          
+          addToast('success', `Payment securely verified! Plan upgraded to ${selectedUpgradePlan.toUpperCase()} (${selectedBillingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}). Payment ID: ${response.razorpay_payment_id}`);
+        }
+        setCheckoutProcessing(false);
+        setCheckoutStep('success');
+      },
+      prefill: {
+        name: state.admin?.name || '',
+        email: state.admin?.email || '',
+        contact: state.restaurant.phone || ''
+      },
+      notes: {
+        restaurantId: state.admin?.restaurantId || 'admin-1',
+        planName: selectedUpgradePlan,
+        billingPeriod: selectedBillingPeriod,
+        couponApplied: appliedCoupon ? appliedCoupon.code : 'none'
+      },
+      theme: {
+        color: '#ff7d00'
+      },
+      modal: {
+        ondismiss: function() {
+          setCheckoutProcessing(false);
+          setCheckoutStep('select');
+        }
+      }
+    };
+
+    setCheckoutStep('paying');
+    try {
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function (resp: any) {
+        addToast('error', `❌ Payment failed: ${resp.error.description}`);
+        setCheckoutProcessing(false);
+        setCheckoutStep('select');
+      });
+      rzp.open();
+    } catch (err: any) {
+      console.error('Razorpay initialization error:', err);
+      addToast('error', '❌ Could not initialize Razorpay checkout.');
+      setCheckoutProcessing(false);
+      setCheckoutStep('select');
+    }
   };
 
   // QR Code Manager States
@@ -2037,146 +2179,108 @@ export default function AdminMore() {
                   borderRadius: 12,
                   padding: 16,
                   textAlign: 'center',
-                  marginBottom: 20
+                  marginBottom: 16
                 }}>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Amount to Pay (Subscription)</div>
-                  <div style={{ fontSize: 30, fontWeight: 900, color: 'var(--brand)', marginTop: 4, fontFamily: 'var(--font-display)' }}>
-                    {upgradeCurrency}{upgradePrice}
+                  <div style={{ fontSize: 30, fontWeight: 900, marginTop: 4, fontFamily: 'var(--font-display)' }}>
+                    {appliedCoupon ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                        <span style={{ textDecoration: 'line-through', opacity: 0.4, fontSize: 20 }}>
+                          {upgradeCurrency}{upgradePrice}
+                        </span>
+                        <span style={{ color: '#22c55e' }}>
+                          {upgradeCurrency}{Math.max(0, upgradePrice - discountAmount)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--brand)' }}>
+                        {upgradeCurrency}{upgradePrice}
+                      </span>
+                    )}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Secured by Meenufy Pay</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Secured by Razorpay Pay</div>
                 </div>
 
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>Select Payment Method</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-                  <button
-                    onClick={() => setCheckoutMethod('upi')}
-                    style={{
+                {/* Coupon Apply Section */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
+                    Discount Coupon
+                  </div>
+                  {appliedCoupon ? (
+                    <div style={{
                       display: 'flex',
-                      alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      borderRadius: 10,
-                      background: checkoutMethod === 'upi' ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                      border: checkoutMethod === 'upi' ? '2px solid var(--brand)' : '1px solid var(--border)',
-                      cursor: 'pointer',
-                      color: 'var(--text-primary)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      📱 UPI Payment (GPay, PhonePe, Paytm)
-                    </span>
-                    {checkoutMethod === 'upi' && <span style={{ color: 'var(--brand)' }}>✓</span>}
-                  </button>
-
-                  <button
-                    onClick={() => setCheckoutMethod('card')}
-                    style={{
-                      display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      borderRadius: 10,
-                      background: checkoutMethod === 'card' ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                      border: checkoutMethod === 'card' ? '2px solid var(--brand)' : '1px solid var(--border)',
-                      cursor: 'pointer',
-                      color: 'var(--text-primary)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      💳 Credit / Debit Card
-                    </span>
-                    {checkoutMethod === 'card' && <span style={{ color: 'var(--brand)' }}>✓</span>}
-                  </button>
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      border: '1px solid #22c55e'
+                    }}>
+                      <div style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
+                        🎉 Coupon <strong>{appliedCoupon.code}</strong> Applied! ({appliedCoupon.discountType === 'percentage' ? `${appliedCoupon.discountValue}%` : `${upgradeCurrency}${appliedCoupon.discountValue}`} Off)
+                      </div>
+                      <button
+                        onClick={handleRemoveCoupon}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--error)',
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          fontWeight: 700
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Enter coupon code"
+                        value={couponInput}
+                        onChange={e => setCouponInput(e.target.value)}
+                        style={{ flex: 1, textTransform: 'uppercase', height: 36 }}
+                      />
+                      <button className="btn btn-secondary" onClick={handleApplyCoupon} style={{ height: 36, padding: '0 16px', fontSize: 12 }}>
+                        Apply
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   onClick={handleConfirmCheckoutPayment}
                   className="btn btn-primary btn-full"
-                  style={{ height: 42, fontWeight: 700 }}
+                  style={{ height: 42, fontWeight: 700, background: 'var(--brand)', color: '#fff', border: 'none' }}
                 >
-                  Proceed to Pay {upgradeCurrency}{upgradePrice}
+                  Proceed to Pay {upgradeCurrency}{Math.max(0, upgradePrice - discountAmount)}
                 </button>
               </div>
             )}
 
             {checkoutStep === 'paying' && (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                {checkoutMethod === 'upi' ? (
-                  <div>
-                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                      Scan this secure QR code using GPay, PhonePe or any UPI app
-                    </div>
-                    {/* Mock QR code box */}
-                    <div style={{
-                      width: 160,
-                      height: 160,
-                      background: '#fff',
-                      margin: '0 auto 16px',
-                      borderRadius: 12,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '4px solid var(--brand)',
-                      boxShadow: '0 0 20px rgba(255, 125, 0, 0.15)',
-                      padding: 10
-                    }}>
-                      <div style={{
-                        width: '100%', height: '100%',
-                        backgroundImage: 'radial-gradient(#000 30%, transparent 30%), radial-gradient(#000 30%, transparent 30%)',
-                        backgroundSize: '16px 16px',
-                        backgroundPosition: '0 0, 8px 8px',
-                        opacity: 0.8
-                      }} />
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 20 }}>
-                      Secure Transaction ID: TXN-{Date.now().toString().slice(-6)}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left', marginBottom: 20 }}>
-                    <div className="input-group">
-                      <label className="input-label">Card Number</label>
-                      <input className="input" type="text" placeholder="4111 2222 3333 4444" maxLength={19}
-                        value={cardDetails.number} onChange={e => setCardDetails({ ...cardDetails, number: e.target.value })} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <div className="input-group" style={{ flex: 1 }}>
-                        <label className="input-label">Expiry</label>
-                        <input className="input" type="text" placeholder="MM/YY" maxLength={5}
-                          value={cardDetails.expiry} onChange={e => setCardDetails({ ...cardDetails, expiry: e.target.value })} />
-                      </div>
-                      <div className="input-group" style={{ flex: 1 }}>
-                        <label className="input-label">CVV</label>
-                        <input className="input" type="password" placeholder="***" maxLength={3}
-                          value={cardDetails.cvv} onChange={e => setCardDetails({ ...cardDetails, cvv: e.target.value })} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Processing Overlay/Indicator */}
+              <div style={{ textAlign: 'center', padding: '30px 0' }}>
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 12,
-                  marginTop: 10
+                  gap: 16
                 }}>
                   <div style={{
-                    width: 32,
-                    height: 32,
+                    width: 38,
+                    height: 38,
                     borderRadius: '50%',
-                    border: '3px solid var(--border)',
+                    border: '3.5px solid var(--border)',
                     borderTopColor: 'var(--brand)',
                     animation: 'spin 1s linear infinite'
                   }} />
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)' }}>
-                    Verifying transaction with bank...
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--brand)' }}>
+                    Awaiting Payment Details...
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                    Please do not close or refresh this page.
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', maxWidth: 260, lineHeight: 1.5 }}>
+                    Please complete the transaction in the secure Razorpay checkout overlay. Do not refresh or close this tab.
                   </div>
                 </div>
               </div>

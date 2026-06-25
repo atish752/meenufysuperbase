@@ -17,10 +17,17 @@ export default function SuperAdminDashboard() {
   const [showManageModal, setShowManageModal] = useState(false);
 
   // Tabs and replies
-  const [activeTab, setActiveTab] = useState<'accounts' | 'api_keys' | 'support' | 'feedback'>('accounts');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'api_keys' | 'support' | 'feedback' | 'coupons'>('accounts');
   const [newApiKey, setNewApiKey] = useState('');
   const [supportReplies, setSupportReplies] = useState<Record<string, string>>({});
   const [feedbackReplies, setFeedbackReplies] = useState<Record<string, string>>({});
+
+  // Subscription coupons form state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscountType, setCouponDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [couponDiscountValue, setCouponDiscountValue] = useState(0);
+  const [couponMinPlan, setCouponMinPlan] = useState<'free' | 'base' | 'standard' | 'advance'>('free');
+  const [couponBillingRegion, setCouponBillingRegion] = useState<'all' | 'IN' | 'global'>('all');
 
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT_ADMIN' });
@@ -152,6 +159,51 @@ export default function SuperAdminDashboard() {
     if (window.confirm('Are you sure you want to delete this feedback?')) {
       dispatch({ type: 'DELETE_FEEDBACK', payload: fbId });
       addToast('info', 'Feedback deleted.');
+    }
+  };
+
+  const handleAddSubscriptionCoupon = () => {
+    const codeClean = couponCode.trim().toUpperCase().replace(/\s+/g, '');
+    if (!codeClean) {
+      addToast('error', 'Please enter a valid coupon code.');
+      return;
+    }
+    if (couponDiscountValue <= 0) {
+      addToast('error', 'Discount value must be greater than 0.');
+      return;
+    }
+    if (couponDiscountType === 'percentage' && couponDiscountValue > 100) {
+      addToast('error', 'Percentage discount cannot exceed 100%.');
+      return;
+    }
+    
+    const list = state.subscriptionCoupons || [];
+    if (list.some(c => c.code === codeClean)) {
+      addToast('error', `A coupon with code "${codeClean}" already exists.`);
+      return;
+    }
+
+    const newCoupon = {
+      id: `sub-coupon-${Date.now()}`,
+      code: codeClean,
+      discountType: couponDiscountType,
+      discountValue: Number(couponDiscountValue),
+      minPlan: couponMinPlan,
+      billingRegion: couponBillingRegion,
+      createdAt: Date.now(),
+      isActive: true
+    };
+
+    dispatch({ type: 'ADD_SUBSCRIPTION_COUPON', payload: newCoupon });
+    addToast('success', `Subscription coupon "${codeClean}" created successfully! 🎟️`);
+    setCouponCode('');
+    setCouponDiscountValue(0);
+  };
+
+  const handleRemoveSubscriptionCoupon = (id: string, code: string) => {
+    if (window.confirm(`Are you sure you want to delete coupon "${code}"?`)) {
+      dispatch({ type: 'DELETE_SUBSCRIPTION_COUPON', payload: id });
+      addToast('info', `Coupon "${code}" deleted.`);
     }
   };
 
@@ -347,7 +399,8 @@ export default function SuperAdminDashboard() {
           { id: 'accounts', label: 'Accounts Manager', count: accounts.length },
           { id: 'api_keys', label: 'Gemini API Keys', count: state.geminiApiKeys?.length || 0 },
           { id: 'support', label: 'Support Tickets', count: state.supportRequests?.filter(r => r.status === 'pending').length || 0, badgeColor: 'var(--error)' },
-          { id: 'feedback', label: 'Feedback & Tickets', count: state.ownerFeedbacks?.length || 0 }
+          { id: 'feedback', label: 'Feedback & Tickets', count: state.ownerFeedbacks?.length || 0 },
+          { id: 'coupons', label: 'Subscription Coupons', count: state.subscriptionCoupons?.length || 0 }
         ].map(tab => {
           const isActive = activeTab === tab.id;
           return (
@@ -822,6 +875,160 @@ export default function SuperAdminDashboard() {
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'coupons' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, margin: 0 }}>
+                  Subscription Coupons Manager
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>
+                  Create and manage global coupon codes that restaurant owners can apply when upgrading their plans.
+                </p>
+              </div>
+            </div>
+
+            {/* Create Coupon Form */}
+            <div className="card" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: 20, marginBottom: 24 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brand)' }}>
+                🎟️ Create New Coupon
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+                <div className="input-group">
+                  <label className="input-label">Coupon Code</label>
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="e.g. SAVE50"
+                    value={couponCode}
+                    onChange={e => setCouponCode(e.target.value)}
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Discount Type</label>
+                  <select
+                    className="input"
+                    value={couponDiscountType}
+                    onChange={e => setCouponDiscountType(e.target.value as any)}
+                    style={{ padding: '4px 8px', height: 36 }}
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount</option>
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Discount Value</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 50"
+                    value={couponDiscountValue || ''}
+                    onChange={e => setCouponDiscountValue(Number(e.target.value))}
+                    style={{ height: 36 }}
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Min Plan Required</label>
+                  <select
+                    className="input"
+                    value={couponMinPlan}
+                    onChange={e => setCouponMinPlan(e.target.value as any)}
+                    style={{ padding: '4px 8px', height: 36 }}
+                  >
+                    <option value="free">None (Any Plan)</option>
+                    <option value="base">Base Plan</option>
+                    <option value="standard">Standard Plan</option>
+                    <option value="advance">Advance Plan</option>
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Billing Region</label>
+                  <select
+                    className="input"
+                    value={couponBillingRegion}
+                    onChange={e => setCouponBillingRegion(e.target.value as any)}
+                    style={{ padding: '4px 8px', height: 36 }}
+                  >
+                    <option value="all">All Regions</option>
+                    <option value="IN">India Only (INR)</option>
+                    <option value="global">Global Only (USD)</option>
+                  </select>
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={handleAddSubscriptionCoupon}>
+                Create Coupon
+              </button>
+            </div>
+
+            {/* Coupons List */}
+            <div className="card" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: 16 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 14 }}>
+                Active Coupons ({state.subscriptionCoupons?.length || 0})
+              </h4>
+              {(!state.subscriptionCoupons || state.subscriptionCoupons.length === 0) ? (
+                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-secondary)' }}>
+                  No subscription coupons generated yet.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)', opacity: 0.8 }}>
+                        <th style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>Code</th>
+                        <th style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>Discount</th>
+                        <th style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>Region</th>
+                        <th style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>Min Plan</th>
+                        <th style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>Created At</th>
+                        <th style={{ padding: '10px 8px', color: 'var(--text-muted)', textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {state.subscriptionCoupons.map(c => (
+                        <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '10px 8px', fontWeight: 700, color: 'var(--brand)', fontFamily: 'monospace', fontSize: 14 }}>
+                            {c.code}
+                          </td>
+                          <td style={{ padding: '10px 8px', fontWeight: 600 }}>
+                            {c.discountType === 'percentage' ? `${c.discountValue}% Off` : `${c.discountValue} Flat Off`}
+                          </td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <span style={{
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 10,
+                              background: c.billingRegion === 'IN' ? 'rgba(34, 197, 94, 0.1)' : c.billingRegion === 'global' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.06)',
+                              color: c.billingRegion === 'IN' ? 'var(--success)' : c.billingRegion === 'global' ? 'var(--brand)' : 'var(--text-secondary)',
+                            }}>
+                              {c.billingRegion === 'IN' ? 'India' : c.billingRegion === 'global' ? 'Global' : 'All Regions'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 8px', textTransform: 'capitalize' }}>
+                            {c.minPlan === 'free' || !c.minPlan ? 'None' : c.minPlan}
+                          </td>
+                          <td style={{ padding: '10px 8px', opacity: 0.8 }}>
+                            {new Date(c.createdAt).toLocaleDateString()}
+                          </td>
+                          <td style={{ padding: '10px 8px', textAlign: 'right' }}>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              style={{ borderColor: 'var(--border)', color: 'var(--error)', padding: '4px 8px' }}
+                              onClick={() => handleRemoveSubscriptionCoupon(c.id, c.code)}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
