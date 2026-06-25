@@ -259,6 +259,57 @@ export default function AdminMore() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'select' | 'paying' | 'success'>('select');
   const [checkoutProcessing, setCheckoutProcessing] = useState(false);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+
+  const handleCancelSubscription = async () => {
+    if (!state.subscriptionId) {
+      addToast('error', 'No active subscription ID found to cancel.');
+      return;
+    }
+    
+    const confirmCancel = window.confirm(
+      "Are you sure you want to cancel your subscription? " +
+      "Your auto-pay mandate will be terminated immediately, and your plan will revert to the Free Plan."
+    );
+    
+    if (!confirmCancel) return;
+    
+    setCancellingSubscription(true);
+    addToast('info', '🔄 Processing cancellation with payment gateway...');
+    
+    try {
+      const response = await fetch('/api/cancel-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription_id: state.subscriptionId
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error ${response.status}`);
+      }
+      
+      dispatch({
+        type: 'UPDATE_SUBSCRIPTION_PLAN',
+        payload: {
+          planName: 'free',
+          billingPeriod: 'monthly',
+          subscriptionId: null
+        }
+      });
+      
+      addToast('success', '✅ Subscription and auto-pay mandate cancelled successfully. Your account is now on the Free Plan.');
+    } catch (err: any) {
+      console.error('Cancellation failed:', err);
+      addToast('error', `❌ Failed to cancel subscription: ${err.message || err}. Please try again or contact support.`);
+    } finally {
+      setCancellingSubscription(false);
+    }
+  };
 
   const handleSelectPlan = (planName: 'free' | 'base' | 'standard' | 'advance', price: number, currency: string, billingPeriod: 'monthly' | 'yearly') => {
     if (planName === state.subscriptionPlan && billingPeriod === (state.billingPeriod || 'monthly')) {
@@ -266,11 +317,45 @@ export default function AdminMore() {
       return;
     }
     if (price === 0) {
-      dispatch({
-        type: 'UPDATE_SUBSCRIPTION_PLAN',
-        payload: { planName, billingPeriod }
-      });
-      addToast('success', `Plan switched to ${planName.toUpperCase()} successfully!`);
+      if (state.subscriptionId) {
+        const confirmCancel = window.confirm(
+          "You have an active auto-pay subscription. Switching to the Free Plan will cancel your active auto-pay mandate. Do you want to proceed?"
+        );
+        if (!confirmCancel) return;
+
+        setCheckoutProcessing(true);
+        addToast('info', '🔄 Cancelling active auto-pay subscription mandate...');
+
+        fetch('/api/cancel-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription_id: state.subscriptionId })
+        })
+        .then(async (response) => {
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || `HTTP ${response.status}`);
+          }
+          dispatch({
+            type: 'UPDATE_SUBSCRIPTION_PLAN',
+            payload: { planName: 'free', billingPeriod, subscriptionId: null }
+          });
+          addToast('success', `✅ Subscription cancelled and switched to FREE plan successfully!`);
+        })
+        .catch(err => {
+          console.error(err);
+          addToast('error', `❌ Failed to cancel auto-pay mandate: ${err.message}. Switching aborted.`);
+        })
+        .finally(() => {
+          setCheckoutProcessing(false);
+        });
+      } else {
+        dispatch({
+          type: 'UPDATE_SUBSCRIPTION_PLAN',
+          payload: { planName, billingPeriod }
+        });
+        addToast('success', `Plan switched to ${planName.toUpperCase()} successfully!`);
+      }
       return;
     }
     setSelectedUpgradePlan(planName);
@@ -308,8 +393,19 @@ export default function AdminMore() {
       if (selectedUpgradePlan) {
         dispatch({
           type: 'UPDATE_SUBSCRIPTION_PLAN',
-          payload: { planName: selectedUpgradePlan, billingPeriod: selectedBillingPeriod }
+          payload: { planName: selectedUpgradePlan, billingPeriod: selectedBillingPeriod, subscriptionId: null }
         });
+        
+        // Auto-cancel old subscription if exists
+        const oldSubId = state.subscriptionId;
+        if (oldSubId) {
+          fetch('/api/cancel-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscription_id: oldSubId })
+          }).catch(err => console.error('Failed to cancel old subscription:', err));
+        }
+
         addToast('success', `Plan switched to ${selectedUpgradePlan.toUpperCase()} successfully!`);
       }
       setCheckoutProcessing(false);
@@ -379,12 +475,35 @@ export default function AdminMore() {
           const finalBillingPeriod = isIndia ? 'monthly' : selectedBillingPeriod;
           dispatch({
             type: 'UPDATE_SUBSCRIPTION_PLAN',
-            payload: { planName: selectedUpgradePlan, billingPeriod: finalBillingPeriod }
+            payload: { 
+              planName: selectedUpgradePlan, 
+              billingPeriod: finalBillingPeriod,
+              subscriptionId: subscriptionId
+            }
           });
           
           const paymentIdMsg = response.razorpay_subscription_id 
             ? `Subscription ID: ${response.razorpay_subscription_id}` 
             : `Payment ID: ${response.razorpay_payment_id}`;
+          
+          // Auto-cancel old subscription if exists
+          const oldSubId = state.subscriptionId;
+          if (oldSubId && oldSubId !== subscriptionId) {
+            fetch('/api/cancel-subscription', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ subscription_id: oldSubId })
+            })
+            .then(res => {
+              if (res.ok) {
+                console.log('Old subscription successfully cancelled in background:', oldSubId);
+              } else {
+                console.error('Failed to cancel old subscription in background:', oldSubId);
+              }
+            })
+            .catch(err => console.error('Error auto-cancelling old subscription:', err));
+          }
+
           addToast('success', `Payment securely verified! Plan upgraded to ${selectedUpgradePlan.toUpperCase()} (${selectedBillingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}). ${paymentIdMsg}`);
         }
         setCheckoutProcessing(false);
@@ -1539,7 +1658,7 @@ export default function AdminMore() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.25)', paddingTop: 12 }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.25)', paddingTop: 12 }}>
                   <span style={{ fontSize: 11, color: '#ffffff', fontWeight: 600 }}>
                     Billing Country: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{state.billingCountry === 'IN' ? 'India (INR)' : 'Global (USD)'}</strong>
                   </span>
@@ -1550,6 +1669,49 @@ export default function AdminMore() {
                     Renews: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{renewalFormatted}</strong>
                   </span>
                 </div>
+
+                {state.subscriptionPlan !== 'free' && state.subscriptionId && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTop: '1px solid rgba(255, 255, 255, 0.25)',
+                    flexWrap: 'wrap',
+                    gap: 8
+                  }}>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace' }}>
+                      ID: {state.subscriptionId}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={cancellingSubscription}
+                      onClick={handleCancelSubscription}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.25)',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: 6,
+                        color: '#ffcbcb',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '4px 10px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseOver={(e) => {
+                        (e.currentTarget as any).style.background = 'rgba(239, 68, 68, 0.45)';
+                        (e.currentTarget as any).style.color = '#ffffff';
+                      }}
+                      onMouseOut={(e) => {
+                        (e.currentTarget as any).style.background = 'rgba(239, 68, 68, 0.25)';
+                        (e.currentTarget as any).style.color = '#ffcbcb';
+                      }}
+                    >
+                      {cancellingSubscription ? 'Cancelling...' : 'Cancel Auto-Pay'}
+                    </button>
+                  </div>
+                )}
               </div>
               
               {/* Order Limit Exceeded Alert Box */}
@@ -1769,6 +1931,38 @@ export default function AdminMore() {
                   );
                 });
               })()}
+            </div>
+
+            {/* Subscription FAQs / Notice Card */}
+            <div className="card" style={{
+              background: 'var(--bg-elevated)',
+              border: '1px dashed var(--border)',
+              borderRadius: 12,
+              padding: 16,
+              marginTop: 20,
+              fontSize: 12,
+              lineHeight: 1.5,
+              color: 'var(--text-secondary)'
+            }}>
+              <h5 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>ℹ️</span> Subscription & Cancellation Info
+              </h5>
+              <ul style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li>
+                  <strong>Cancel Anytime:</strong> You can cancel your subscription at any time. There are no lock-in periods or cancellation fees.
+                </li>
+                <li>
+                  <strong>Cancellation Process:</strong>
+                  <ul style={{ paddingLeft: 16, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <li><strong>Directly:</strong> Click the <em>"Cancel Auto-Pay"</em> button on your active plan card above to stop recurring payments immediately.</li>
+                    <li><strong>UPI Apps:</strong> If you subscribed using UPI (Google Pay, PhonePe, Paytm, BHIM, etc.), open your UPI app, navigate to <em>Settings/Profile &rarr; UPI Autopay / Mandates</em>, select the <em>Meenufy Pay</em> mandate, and revoke it.</li>
+                    <li><strong>Cards:</strong> If subscribed via Card, you can cancel directly on our dashboard or via your bank's netbanking under <em>Manage E-Mandates</em>.</li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Upgrading or Changing Plans:</strong> You do <strong>not</strong> need to manually cancel your existing plan before choosing a new one. Simply select your desired upgrade plan and complete the checkout. Our system will <strong>automatically terminate</strong> your previous plan's auto-pay mandate in the background to ensure you are never double-billed.
+                </li>
+              </ul>
             </div>
           </div>
         </div>

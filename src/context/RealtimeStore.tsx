@@ -179,6 +179,7 @@ export type RestaurantInfo = {
   allowNegativeOrders?: boolean;
   offersMarqueeEnabled?: boolean;
   isManualClosed?: boolean;
+  subscriptionId?: string | null;
 };
 
 export type Coupon = {
@@ -249,6 +250,7 @@ export type RestaurantAccount = {
   billingCountry?: 'IN' | 'global';
   billingPeriod?: 'monthly' | 'yearly';
   hasCompletedOnboarding?: boolean;
+  subscriptionId?: string | null;
 };
 
 export type StaffMember = {
@@ -351,6 +353,7 @@ export type AppState = {
   subscriptionRenewalDate: number;
   billingCountry: 'IN' | 'global';
   billingPeriod: 'monthly' | 'yearly';
+  subscriptionId: string | null;
   // Restaurant Accounts (Super Admin)
   restaurantAccounts: RestaurantAccount[];
   subscriptionCoupons: SubscriptionCoupon[];
@@ -751,6 +754,7 @@ const DEFAULT_STATE: AppState = {
   subscriptionRenewalDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
   billingCountry: detectBillingCountry(),
   billingPeriod: 'monthly',
+  subscriptionId: null,
   restaurantAccounts: [
     {
       id: 'admin-1',
@@ -906,7 +910,7 @@ type Action =
   | { type: 'SYNC_SUBSCRIPTION_COUPONS'; payload: SubscriptionCoupon[] }
   | { type: 'ADD_SUBSCRIPTION_COUPON'; payload: SubscriptionCoupon }
   | { type: 'DELETE_SUBSCRIPTION_COUPON'; payload: string }
-  | { type: 'UPDATE_SUBSCRIPTION_PLAN'; payload: { planName: 'free' | 'base' | 'standard' | 'advance'; billingPeriod: 'monthly' | 'yearly' } }
+  | { type: 'UPDATE_SUBSCRIPTION_PLAN'; payload: { planName: 'free' | 'base' | 'standard' | 'advance'; billingPeriod: 'monthly' | 'yearly'; subscriptionId?: string | null } }
   | { type: 'SUPER_ADMIN_UPDATE_SUBSCRIPTION'; payload: { id: string; subscriptionPlan: 'free' | 'base' | 'standard' | 'advance'; ordersPlacedThisMonth: number; subscriptionRenewalDate: number; billingCountry: 'IN' | 'global'; billingPeriod: 'monthly' | 'yearly' } }
   | { type: 'ADD_GEMINI_KEY'; payload: string }
   | { type: 'REMOVE_GEMINI_KEY'; payload: string }
@@ -1051,6 +1055,7 @@ function reducer(state: AppState, action: Action): AppState {
       let subscriptionRenewalDate = state.subscriptionRenewalDate;
       let billingCountry = state.billingCountry;
       let billingPeriod = state.billingPeriod;
+      let subscriptionId = state.subscriptionId;
       
       if (currentAdmin && !currentAdmin.isSuperAdmin) {
         const matched = accounts.find(acc => acc.id === currentAdmin.id);
@@ -1061,6 +1066,7 @@ function reducer(state: AppState, action: Action): AppState {
           subscriptionRenewalDate = matched.subscriptionRenewalDate || (matched.createdAt + 30 * 24 * 60 * 60 * 1000);
           billingCountry = matched.billingCountry || detectBillingCountry();
           billingPeriod = matched.billingPeriod || 'monthly';
+          subscriptionId = matched.subscriptionId || null;
         }
       }
       return {
@@ -1071,7 +1077,8 @@ function reducer(state: AppState, action: Action): AppState {
         ordersPlacedThisMonth,
         subscriptionRenewalDate,
         billingCountry,
-        billingPeriod
+        billingPeriod,
+        subscriptionId
       };
     }
     case 'SET_ADMIN_TAB': return { ...state, adminTab: action.payload };
@@ -1124,6 +1131,7 @@ function reducer(state: AppState, action: Action): AppState {
       const subscriptionRenewalDate = existingAccount ? (existingAccount.subscriptionRenewalDate || (Date.now() + 30 * 24 * 60 * 60 * 1000)) : state.subscriptionRenewalDate;
       const billingCountry = existingAccount ? (existingAccount.billingCountry || detectedCountry) : state.billingCountry;
       const billingPeriod = existingAccount ? (existingAccount.billingPeriod || 'monthly') : state.billingPeriod;
+      const subscriptionId = existingAccount ? (existingAccount.subscriptionId || null) : state.subscriptionId;
       
       let defaultTab: 'home' | 'menu' | 'customers' | 'analysis' | 'more' = 'home';
       if (action.payload.isStaff && action.payload.permissions) {
@@ -1148,6 +1156,7 @@ function reducer(state: AppState, action: Action): AppState {
         subscriptionRenewalDate,
         billingCountry,
         billingPeriod,
+        subscriptionId,
         adminTab: defaultTab,
         // Reset dynamic state parameters to prevent session data leak
         orders: isSuper ? state.orders : (isDemoAdmin ? MOCK_ORDERS : []),
@@ -1639,7 +1648,7 @@ function reducer(state: AppState, action: Action): AppState {
         restaurantAccounts: state.restaurantAccounts.filter(acc => acc.id !== action.payload)
       };
     case 'UPDATE_SUBSCRIPTION_PLAN': {
-      const { planName, billingPeriod } = action.payload;
+      const { planName, billingPeriod, subscriptionId } = action.payload;
       const targetId = state.admin?.id || 'admin-1';
       const days = billingPeriod === 'yearly' ? 365 : 30;
       const newRenewalDate = Date.now() + days * 24 * 60 * 60 * 1000;
@@ -1650,7 +1659,8 @@ function reducer(state: AppState, action: Action): AppState {
             ...acc,
             subscriptionPlan: planName,
             subscriptionRenewalDate: newRenewalDate,
-            billingPeriod
+            billingPeriod,
+            subscriptionId: subscriptionId || null
           };
         }
         return acc;
@@ -1661,6 +1671,7 @@ function reducer(state: AppState, action: Action): AppState {
         subscriptionPlan: planName,
         subscriptionRenewalDate: newRenewalDate,
         billingPeriod,
+        subscriptionId: subscriptionId || null,
         restaurantAccounts: newAccounts
       };
     }
@@ -2797,14 +2808,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'UPDATE_SUBSCRIPTION_PLAN': {
             const targetId = currentState.admin?.id || 'admin-1';
-            const { planName, billingPeriod } = action.payload;
+            const { planName, billingPeriod, subscriptionId } = action.payload;
             const days = billingPeriod === 'yearly' ? 365 : 30;
             const renewal = Date.now() + days * 24 * 60 * 60 * 1000;
             handleDbPromise(
               update(ref(db, `restaurantAccounts/${targetId}`), {
                 subscriptionPlan: planName,
                 subscriptionRenewalDate: renewal,
-                billingPeriod
+                billingPeriod,
+                subscriptionId: subscriptionId || null
               }),
               'Failed to update subscription plan in database'
             );
@@ -2812,7 +2824,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               update(ref(db, `restaurants/${targetId}`), {
                 subscriptionPlan: planName,
                 subscriptionRenewalDate: renewal,
-                billingPeriod
+                billingPeriod,
+                subscriptionId: subscriptionId || null
               }),
               'Failed to update subscription plan in restaurant'
             );
