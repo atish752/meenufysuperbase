@@ -289,7 +289,11 @@ export default function AdminMore() {
     const matched = couponsList.find(c => c.code === codeClean && c.isActive !== false);
 
     if (!matched) {
-      addToast('error', 'Invalid or expired coupon code.');
+      if (couponsList.length === 0) {
+        addToast('error', '❌ Invalid coupon. No coupons loaded. Make sure your database rules are deployed in the Firebase Console.');
+      } else {
+        addToast('error', '❌ Invalid or expired coupon code.');
+      }
       return;
     }
 
