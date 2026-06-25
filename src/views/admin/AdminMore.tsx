@@ -163,6 +163,14 @@ export default function AdminMore() {
   const [upgradePrice, setUpgradePrice] = useState(0);
   const [upgradeCurrency, setUpgradeCurrency] = useState('₹');
 
+  // Force billing period to monthly for Indian accounts
+  useEffect(() => {
+    if (state.billingCountry === 'IN') {
+      setBillingPeriodToggle('monthly');
+      setSelectedBillingPeriod('monthly');
+    }
+  }, [state.billingCountry]);
+
   // Checkout coupon states
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
@@ -374,10 +382,9 @@ export default function AdminMore() {
     }
 
     const isIndia = state.billingCountry === 'IN';
-    const isMonthly = selectedBillingPeriod === 'monthly';
     let subscriptionId = null;
 
-    if (isIndia && isMonthly && selectedUpgradePlan && selectedUpgradePlan !== 'free') {
+    if (isIndia && selectedUpgradePlan && selectedUpgradePlan !== 'free') {
       const planMap: Record<string, string> = {
         base: 'plan_T5jAbFzD8S6d3z',
         standard: 'plan_T5jBF3G9LNhjhq',
@@ -413,14 +420,18 @@ export default function AdminMore() {
           });
           
           if (!response.ok) {
-            throw new Error(`Server returned HTTP ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`Server returned HTTP ${response.status}: ${errorText}`);
           }
           
           const data = await response.json();
           subscriptionId = data.id;
-        } catch (err) {
-          console.warn('Auto-pay mandate setup failed, falling back to one-time payment:', err);
-          addToast('warning', '⚠️ Auto-pay setup failed. Falling back to secure one-time payment.');
+        } catch (err: any) {
+          console.error('Auto-pay mandate setup failed:', err);
+          addToast('error', `❌ Auto-pay subscription setup failed: ${err.message || err}. Please try again or contact support.`);
+          setCheckoutProcessing(false);
+          setCheckoutStep('select');
+          return;
         }
       }
     }
@@ -433,9 +444,10 @@ export default function AdminMore() {
       image: '/meenufy_logo_dark.png',
       handler: function (response: any) {
         if (selectedUpgradePlan) {
+          const finalBillingPeriod = isIndia ? 'monthly' : selectedBillingPeriod;
           dispatch({
             type: 'UPDATE_SUBSCRIPTION_PLAN',
-            payload: { planName: selectedUpgradePlan, billingPeriod: selectedBillingPeriod }
+            payload: { planName: selectedUpgradePlan, billingPeriod: finalBillingPeriod }
           });
           
           const paymentIdMsg = response.razorpay_subscription_id 
@@ -1682,62 +1694,64 @@ export default function AdminMore() {
             </h4>
 
             {/* Monthly / Yearly Billing Toggle */}
-            <div style={{
-              display: 'flex',
-              background: 'var(--bg-elevated)',
-              padding: '4px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              marginBottom: '16px',
-              maxWidth: '280px'
-            }}>
-              <button
-                type="button"
-                onClick={() => setBillingPeriodToggle('monthly')}
-                style={{
-                  flex: 1,
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  background: billingPeriodToggle === 'monthly' ? 'var(--brand)' : 'transparent',
-                  color: billingPeriodToggle === 'monthly' ? '#ffffff' : 'var(--text-secondary)',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingPeriodToggle('yearly')}
-                style={{
-                  flex: 1,
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  background: billingPeriodToggle === 'yearly' ? 'var(--brand)' : 'transparent',
-                  color: billingPeriodToggle === 'yearly' ? '#ffffff' : 'var(--text-secondary)',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '4px'
-                }}
-              >
-                Yearly <span style={{
-                  fontSize: '9px',
-                  background: billingPeriodToggle === 'yearly' ? 'rgba(255,255,255,0.2)' : 'rgba(255,125,0,0.15)',
-                  color: billingPeriodToggle === 'yearly' ? '#ffffff' : 'var(--brand)',
-                  padding: '1px 4px',
-                  borderRadius: '4px'
-                }}>Save 15%</span>
-              </button>
-            </div>
+            {state.billingCountry !== 'IN' && (
+              <div style={{
+                display: 'flex',
+                background: 'var(--bg-elevated)',
+                padding: '4px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                marginBottom: '16px',
+                maxWidth: '280px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setBillingPeriodToggle('monthly')}
+                  style={{
+                    flex: 1,
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: billingPeriodToggle === 'monthly' ? 'var(--brand)' : 'transparent',
+                    color: billingPeriodToggle === 'monthly' ? '#ffffff' : 'var(--text-secondary)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingPeriodToggle('yearly')}
+                  style={{
+                    flex: 1,
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: billingPeriodToggle === 'yearly' ? 'var(--brand)' : 'transparent',
+                    color: billingPeriodToggle === 'yearly' ? '#ffffff' : 'var(--text-secondary)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  Yearly <span style={{
+                    fontSize: '9px',
+                    background: billingPeriodToggle === 'yearly' ? 'rgba(255,255,255,0.2)' : 'rgba(255,125,0,0.15)',
+                    color: billingPeriodToggle === 'yearly' ? '#ffffff' : 'var(--brand)',
+                    padding: '1px 4px',
+                    borderRadius: '4px'
+                  }}>Save 15%</span>
+                </button>
+              </div>
+            )}
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {(() => {
@@ -2264,53 +2278,72 @@ export default function AdminMore() {
                 </div>
 
                 {/* Coupon Apply Section */}
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
-                    Discount Coupon
+                {state.billingCountry === 'IN' ? (
+                  <div style={{
+                    background: 'rgba(255, 125, 0, 0.05)',
+                    border: '1px solid rgba(255, 125, 0, 0.15)',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    marginBottom: 20,
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4
+                  }}>
+                    <span style={{ fontWeight: 700, color: 'var(--brand)' }}>ℹ️ Recurring Subscription Notice</span>
+                    <span>Coupons are not supported for recurring auto-pay subscriptions in India due to payment gateway billing mandates. Your plan will auto-renew monthly at the standard rate.</span>
                   </div>
-                  {appliedCoupon ? (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px 12px',
-                      borderRadius: 8,
-                      background: 'rgba(34, 197, 94, 0.1)',
-                      border: '1px solid #22c55e'
-                    }}>
-                      <div style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
-                        🎉 Coupon <strong>{appliedCoupon.code}</strong> Applied! ({appliedCoupon.discountType === 'percentage' ? `${appliedCoupon.discountValue}%` : `${upgradeCurrency}${appliedCoupon.discountValue}`} Off)
+                ) : (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
+                      Discount Coupon
+                    </div>
+                    {appliedCoupon ? (
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        background: 'rgba(34, 197, 94, 0.1)',
+                        border: '1px solid #22c55e'
+                      }}>
+                        <div style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
+                          🎉 Coupon <strong>{appliedCoupon.code}</strong> Applied! ({appliedCoupon.discountType === 'percentage' ? `${appliedCoupon.discountValue}%` : `${upgradeCurrency}${appliedCoupon.discountValue}`} Off)
+                        </div>
+                        <button
+                          onClick={handleRemoveCoupon}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--error)',
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            fontWeight: 700
+                          }}
+                        >
+                          Remove
+                        </button>
                       </div>
-                      <button
-                        onClick={handleRemoveCoupon}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--error)',
-                          cursor: 'pointer',
-                          fontSize: 11,
-                          fontWeight: 700
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Enter coupon code"
-                        value={couponInput}
-                        onChange={e => setCouponInput(e.target.value)}
-                        style={{ flex: 1, textTransform: 'uppercase', height: 36 }}
-                      />
-                      <button className="btn btn-secondary" onClick={handleApplyCoupon} style={{ height: 36, padding: '0 16px', fontSize: 12 }}>
-                        Apply
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder="Enter coupon code"
+                          value={couponInput}
+                          onChange={e => setCouponInput(e.target.value)}
+                          style={{ flex: 1, textTransform: 'uppercase', height: 36 }}
+                        />
+                        <button className="btn btn-secondary" onClick={handleApplyCoupon} style={{ height: 36, padding: '0 16px', fontSize: 12 }}>
+                          Apply
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <button
                   onClick={handleConfirmCheckoutPayment}
