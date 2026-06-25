@@ -1,6 +1,6 @@
-const https = require('https');
+import https from 'https';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -73,4 +73,4 @@ module.exports = async (req, res) => {
 
   razorpayReq.write(data);
   razorpayReq.end();
-};
+}
