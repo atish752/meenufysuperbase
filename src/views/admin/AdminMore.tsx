@@ -341,25 +341,13 @@ export default function AdminMore() {
         try {
           addToast('info', '🔄 Setting up secure auto-pay subscription mandate...');
           
-          const username = 'rzp_live_SI7eJZcqXniZIm';
-          const password = 'Jl7W1zrQbIJx8OC6eMBQE8oH';
-          const credentials = btoa(`${username}:${password}`);
-          
-          // Use corsproxy.io to securely relay headers and request body to Razorpay API
-          const targetUrl = 'https://api.razorpay.com/v1/subscriptions';
-          const reqHeaders = `authorization:Basic ${credentials}`;
-          const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}&reqHeaders=${encodeURIComponent(reqHeaders)}`;
-          
-          const response = await fetch(proxyUrl, {
+          const response = await fetch('/api/create-subscription', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              plan_id: planId,
-              total_count: 60, // set up for 60 months (5 years recurring)
-              quantity: 1,
-              customer_notify: 1
+              plan_id: planId
             })
           });
           
