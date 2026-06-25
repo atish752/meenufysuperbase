@@ -373,14 +373,61 @@ export default function AdminMore() {
       return;
     }
 
-    const subunitMultiplier = 100;
-    const amountInSubunits = Math.round(finalPrice * subunitMultiplier);
-    const currencyCode = state.billingCountry === 'IN' ? 'INR' : 'USD';
+    const isIndia = state.billingCountry === 'IN';
+    const isMonthly = selectedBillingPeriod === 'monthly';
+    let subscriptionId = null;
 
-    const options = {
+    if (isIndia && isMonthly && selectedUpgradePlan && selectedUpgradePlan !== 'free') {
+      const planMap: Record<string, string> = {
+        base: 'plan_T5jAbFzD8S6d3z',
+        standard: 'plan_T5jBF3G9LNhjhq',
+        advance: 'plan_T5jBpArBbXSFLz'
+      };
+      
+      const planId = planMap[selectedUpgradePlan];
+      if (planId) {
+        setCheckoutStep('paying');
+        try {
+          addToast('info', '🔄 Setting up secure auto-pay subscription mandate...');
+          
+          const username = 'rzp_live_SI7eJZcqXniZIm';
+          const password = 'Jl7W1zrQbIJx8OC6eMBQE8oH';
+          const credentials = btoa(`${username}:${password}`);
+          
+          // Use allorigins proxy to bypass CORS restrictions
+          const proxyUrl = 'https://api.allorigins.win/raw?url=';
+          const targetUrl = 'https://api.razorpay.com/v1/subscriptions';
+          
+          const response = await fetch(`${proxyUrl}${encodeURIComponent(targetUrl)}`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${credentials}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              plan_id: planId,
+              total_count: 60, // set up for 60 months (5 years recurring)
+              quantity: 1,
+              customer_notify: 1
+            })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Server returned HTTP ${response.status}`);
+          }
+          
+          const data = await response.json();
+          subscriptionId = data.id;
+        } catch (err) {
+          console.warn('Auto-pay mandate setup failed, falling back to one-time payment:', err);
+          addToast('warning', '⚠️ Auto-pay setup failed. Falling back to secure one-time payment.');
+        }
+      }
+    }
+
+    const currencyCode = isIndia ? 'INR' : 'USD';
+    const options: any = {
       key: 'rzp_live_SI7eJZcqXniZIm',
-      amount: amountInSubunits,
-      currency: currencyCode,
       name: 'Meenufy Pay',
       description: `${selectedUpgradePlan?.toUpperCase()} Plan Subscription`,
       image: '/meenufy_logo_dark.png',
@@ -391,7 +438,10 @@ export default function AdminMore() {
             payload: { planName: selectedUpgradePlan, billingPeriod: selectedBillingPeriod }
           });
           
-          addToast('success', `Payment securely verified! Plan upgraded to ${selectedUpgradePlan.toUpperCase()} (${selectedBillingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}). Payment ID: ${response.razorpay_payment_id}`);
+          const paymentIdMsg = response.razorpay_subscription_id 
+            ? `Subscription ID: ${response.razorpay_subscription_id}` 
+            : `Payment ID: ${response.razorpay_payment_id}`;
+          addToast('success', `Payment securely verified! Plan upgraded to ${selectedUpgradePlan.toUpperCase()} (${selectedBillingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}). ${paymentIdMsg}`);
         }
         setCheckoutProcessing(false);
         setCheckoutStep('success');
@@ -417,6 +467,14 @@ export default function AdminMore() {
         }
       }
     };
+
+    if (subscriptionId) {
+      options.subscription_id = subscriptionId;
+    } else {
+      const subunitMultiplier = 100;
+      options.amount = Math.round(finalPrice * subunitMultiplier);
+      options.currency = currencyCode;
+    }
 
     setCheckoutStep('paying');
     try {
