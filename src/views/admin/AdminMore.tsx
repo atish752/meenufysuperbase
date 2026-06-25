@@ -172,7 +172,6 @@ export default function AdminMore() {
   }, [state.billingCountry]);
 
   // Checkout coupon states
-  const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
 
@@ -278,7 +277,6 @@ export default function AdminMore() {
     setSelectedBillingPeriod(billingPeriod);
     setUpgradePrice(price);
     setUpgradeCurrency(currency);
-    setCouponInput('');
     setAppliedCoupon(null);
     setDiscountAmount(0);
     setCheckoutStep('select');
@@ -286,61 +284,7 @@ export default function AdminMore() {
     setShowCheckout(true);
   };
 
-  const handleApplyCoupon = () => {
-    const codeClean = couponInput.trim().toUpperCase();
-    if (!codeClean) {
-      addToast('error', 'Please enter a coupon code.');
-      return;
-    }
 
-    const couponsList = state.subscriptionCoupons || [];
-    const matched = couponsList.find(c => c.code === codeClean && c.isActive !== false);
-
-    if (!matched) {
-      if (couponsList.length === 0) {
-        addToast('error', '❌ Invalid coupon. No coupons loaded. Make sure your database rules are deployed in the Firebase Console.');
-      } else {
-        addToast('error', '❌ Invalid or expired coupon code.');
-      }
-      return;
-    }
-
-    const activeRegion = state.billingCountry === 'IN' ? 'IN' : 'global';
-    if (matched.billingRegion && matched.billingRegion !== 'all' && matched.billingRegion !== activeRegion) {
-      addToast('error', `This coupon is only valid for ${matched.billingRegion === 'IN' ? 'Indian' : 'International'} subscriptions.`);
-      return;
-    }
-
-    const plansOrder = { free: 0, base: 1, standard: 2, advance: 3 };
-    const minPlanReq = matched.minPlan || 'free';
-    const selectedPlanLevel = plansOrder[selectedUpgradePlan || 'free'];
-    const minPlanLevel = plansOrder[minPlanReq];
-
-    if (selectedPlanLevel < minPlanLevel) {
-      addToast('error', `This coupon requires upgrading to at least the ${minPlanReq.toUpperCase()} plan.`);
-      return;
-    }
-
-    let discount = 0;
-    if (matched.discountType === 'percentage') {
-      discount = Math.round((upgradePrice * matched.discountValue) / 100);
-    } else {
-      discount = matched.discountValue;
-    }
-
-    discount = Math.min(upgradePrice, discount);
-
-    setAppliedCoupon(matched);
-    setDiscountAmount(discount);
-    addToast('success', `Coupon "${codeClean}" applied successfully! Discounted: ${upgradeCurrency}${discount}`);
-  };
-
-  const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
-    setDiscountAmount(0);
-    setCouponInput('');
-    addToast('info', 'Coupon removed.');
-  };
 
   const loadRazorpay = () => {
     return new Promise((resolve) => {
@@ -401,14 +345,14 @@ export default function AdminMore() {
           const password = 'Jl7W1zrQbIJx8OC6eMBQE8oH';
           const credentials = btoa(`${username}:${password}`);
           
-          // Use allorigins proxy to bypass CORS restrictions
-          const proxyUrl = 'https://api.allorigins.win/raw?url=';
+          // Use corsproxy.io to securely relay headers and request body to Razorpay API
           const targetUrl = 'https://api.razorpay.com/v1/subscriptions';
+          const reqHeaders = `authorization:Basic ${credentials}`;
+          const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}&reqHeaders=${encodeURIComponent(reqHeaders)}`;
           
-          const response = await fetch(`${proxyUrl}${encodeURIComponent(targetUrl)}`, {
+          const response = await fetch(proxyUrl, {
             method: 'POST',
             headers: {
-              'Authorization': `Basic ${credentials}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -2259,98 +2203,19 @@ export default function AdminMore() {
                 }}>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Amount to Pay (Subscription)</div>
                   <div style={{ fontSize: 30, fontWeight: 900, marginTop: 4, fontFamily: 'var(--font-display)' }}>
-                    {appliedCoupon ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                        <span style={{ textDecoration: 'line-through', opacity: 0.4, fontSize: 20 }}>
-                          {upgradeCurrency}{upgradePrice}
-                        </span>
-                        <span style={{ color: '#22c55e' }}>
-                          {upgradeCurrency}{Math.max(0, upgradePrice - discountAmount)}
-                        </span>
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--brand)' }}>
-                        {upgradeCurrency}{upgradePrice}
-                      </span>
-                    )}
+                    <span style={{ color: 'var(--brand)' }}>
+                      {upgradeCurrency}{upgradePrice}
+                    </span>
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Secured by Razorpay Pay</div>
                 </div>
 
-                {/* Coupon Apply Section */}
-                {state.billingCountry === 'IN' ? (
-                  <div style={{
-                    background: 'rgba(255, 125, 0, 0.05)',
-                    border: '1px solid rgba(255, 125, 0, 0.15)',
-                    borderRadius: 12,
-                    padding: '12px 14px',
-                    marginBottom: 20,
-                    fontSize: 11,
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.5,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 4
-                  }}>
-                    <span style={{ fontWeight: 700, color: 'var(--brand)' }}>ℹ️ Recurring Subscription Notice</span>
-                    <span>Coupons are not supported for recurring auto-pay subscriptions in India due to payment gateway billing mandates. Your plan will auto-renew monthly at the standard rate.</span>
-                  </div>
-                ) : (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
-                      Discount Coupon
-                    </div>
-                    {appliedCoupon ? (
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '8px 12px',
-                        borderRadius: 8,
-                        background: 'rgba(34, 197, 94, 0.1)',
-                        border: '1px solid #22c55e'
-                      }}>
-                        <div style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
-                          🎉 Coupon <strong>{appliedCoupon.code}</strong> Applied! ({appliedCoupon.discountType === 'percentage' ? `${appliedCoupon.discountValue}%` : `${upgradeCurrency}${appliedCoupon.discountValue}`} Off)
-                        </div>
-                        <button
-                          onClick={handleRemoveCoupon}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--error)',
-                            cursor: 'pointer',
-                            fontSize: 11,
-                            fontWeight: 700
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <input
-                          className="input"
-                          type="text"
-                          placeholder="Enter coupon code"
-                          value={couponInput}
-                          onChange={e => setCouponInput(e.target.value)}
-                          style={{ flex: 1, textTransform: 'uppercase', height: 36 }}
-                        />
-                        <button className="btn btn-secondary" onClick={handleApplyCoupon} style={{ height: 36, padding: '0 16px', fontSize: 12 }}>
-                          Apply
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 <button
                   onClick={handleConfirmCheckoutPayment}
                   className="btn btn-primary btn-full"
-                  style={{ height: 42, fontWeight: 700, background: 'var(--brand)', color: '#fff', border: 'none' }}
+                  style={{ height: 42, fontWeight: 700, background: 'var(--brand)', color: '#fff', border: 'none', marginTop: 8 }}
                 >
-                  Proceed to Pay {upgradeCurrency}{Math.max(0, upgradePrice - discountAmount)}
+                  Proceed to Pay {upgradeCurrency}{upgradePrice}
                 </button>
               </div>
             )}
