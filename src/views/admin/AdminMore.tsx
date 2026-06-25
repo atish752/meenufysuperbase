@@ -332,7 +332,7 @@ export default function AdminMore() {
       const planMap: Record<string, string> = {
         base: 'plan_T5jAbFzD8S6d3z',
         standard: 'plan_T5jBF3G9LNhjhq',
-        advance: 'plan_T5jBpArBbXSFLz'
+        advance: 'plan_T5jBpArBbXSfLz'
       };
       
       const planId = planMap[selectedUpgradePlan];
