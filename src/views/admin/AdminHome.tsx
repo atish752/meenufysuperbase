@@ -3031,11 +3031,18 @@ function TabularOrderRow({
           touchAction: 'none',
         }}
       >
+        <style>{`
+          @keyframes activeDotBlink {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.85); opacity: 0.65; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+        `}</style>
         {[
-          { key: 'pending', label: 'new', color: '#f59e0b', textColor: '#000000' },
-          { key: 'preparing', label: 'Preparing', color: '#a855f7', textColor: '#ffffff' },
-          { key: 'ready', label: 'Ready', color: '#22c55e', textColor: '#ffffff' },
-          { key: 'bill_pay', label: 'Bill & pay', color: '#3b82f6', textColor: '#ffffff' },
+          { key: 'pending', label: 'New', color: '#ffc078', textColor: '#000000' },
+          { key: 'preparing', label: 'Preparing', color: '#ffa94d', textColor: '#ffffff' },
+          { key: 'ready', label: 'Ready', color: '#fd7e14', textColor: '#ffffff' },
+          { key: 'bill_pay', label: 'Bill & Pay', color: '#e8590c', textColor: '#ffffff' },
         ].map(item => {
           const isActive = order.status === item.key;
           return (
@@ -3074,6 +3081,7 @@ function TabularOrderRow({
                 border: isActive ? '2.5px solid #ffffff' : '1px solid rgba(0, 0, 0, 0.2)',
                 transition: 'all 0.2s ease',
                 boxShadow: isActive ? '0 0 6px rgba(0,0,0,0.35)' : 'none',
+                animation: isActive ? 'activeDotBlink 1.4s infinite ease-in-out' : 'none',
               }} />
             </div>
           );

@@ -572,7 +572,29 @@ export default function CustomerHome({ table }: Props) {
               marginTop: 10
             }}>
               {variantModalItem.image ? (
-                <img src={variantModalItem.image} alt={variantModalItem.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <>
+                  <img src={variantModalItem.image} alt={variantModalItem.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {state.restaurant.overlayLogoOnMeals && state.restaurant.logo && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 8,
+                      right: 8,
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      border: '0.5px solid #fff',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.35)',
+                      background: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 10
+                    }}>
+                      <img src={state.restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                </>
               ) : (
                 <div style={{ fontSize: 64 }}>🍽️</div>
               )}
@@ -896,7 +918,7 @@ function FeaturedCard({
                 height: 24,
                 borderRadius: '50%',
                 overflow: 'hidden',
-                border: '1.5px solid #fff',
+                border: '0.5px solid #fff',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.35)',
                 background: '#fff',
                 display: 'flex',

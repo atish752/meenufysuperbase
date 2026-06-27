@@ -7,19 +7,19 @@
     "restaurants": {
       "$restaurantId": {
         ".read": true,
-        ".write": "auth != null && (auth.uid == $restaurantId || $restaurantId == 'admin-1')"
+        ".write": true
       }
     },
     "menuItems": {
       "$restaurantId": {
         ".read": true,
-        ".write": "auth != null && (auth.uid == $restaurantId || $restaurantId == 'admin-1')"
+        ".write": true
       }
     },
     "categories": {
       "$restaurantId": {
         ".read": true,
-        ".write": "auth != null && (auth.uid == $restaurantId || $restaurantId == 'admin-1')"
+        ".write": true
       }
     },
     "orders": {

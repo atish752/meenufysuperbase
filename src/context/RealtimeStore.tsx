@@ -1279,14 +1279,14 @@ function reducer(state: AppState, action: Action): AppState {
     case 'UPDATE_RESTAURANT': return { ...state, restaurant: { ...state.restaurant, ...action.payload } };
     case 'SET_MANUAL_CLOSED': return { ...state, restaurant: { ...state.restaurant, isManualClosed: action.payload } };
     case 'ADD_MENU_ITEM': {
-      const restId = state.admin?.id || 'admin-1';
+      const restId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
       const newItem = { ...action.payload, restaurantId: action.payload.restaurantId || restId };
       return { ...state, menuItems: [...state.menuItems, newItem] };
     }
     case 'UPDATE_MENU_ITEM': return { ...state, menuItems: state.menuItems.map(i => i.id === action.payload.id ? { ...i, ...action.payload } : i) };
     case 'DELETE_MENU_ITEM': return { ...state, menuItems: state.menuItems.filter(i => i.id !== action.payload) };
     case 'ADD_CATEGORY': {
-      const restId = state.admin?.id || 'admin-1';
+      const restId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
       const newCat = { ...action.payload, restaurantId: action.payload.restaurantId || restId };
       return { ...state, categories: [...state.categories, newCat] };
     }
