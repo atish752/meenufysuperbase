@@ -1,5 +1,6 @@
 import { useStore } from '../../context/RealtimeStore';
 import { ShoppingBag, UtensilsCrossed, Users, BarChart3, MoreHorizontal, Bell, ChevronRight } from 'lucide-react';
+import AdminNotificationBell from '../../components/AdminNotificationBell';
 
 const NAV_ITEMS = [
   { key: 'home', label: 'Orders', icon: ShoppingBag },
@@ -163,6 +164,7 @@ export default function AdminSidebar() {
               {state.admin?.email}
             </div>
           </div>
+          <AdminNotificationBell />
         </div>
       </div>
     </div>

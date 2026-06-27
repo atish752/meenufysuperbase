@@ -2995,107 +2995,55 @@ function TabularOrderRow({
         )}
       </div>
 
-      {/* Horizontal Status Switcher Bar */}
-      <div 
-        onTouchStart={(e) => {
-          e.stopPropagation();
-          const rect = e.currentTarget.getBoundingClientRect();
-          const touch = e.touches[0];
-          const x = touch.clientX - rect.left;
-          const percent = x / rect.width;
-          let targetStatus: OrderStatus;
-          if (percent < 0.25) targetStatus = 'pending';
-          else if (percent < 0.5) targetStatus = 'preparing';
-          else if (percent < 0.75) targetStatus = 'ready';
-          else targetStatus = 'bill_pay';
-
-          if (order.status !== targetStatus) {
-            onStatusChange(order.id, targetStatus);
-          }
-        }}
-        onTouchMove={(e) => {
-          e.stopPropagation();
-          const rect = e.currentTarget.getBoundingClientRect();
-          const touch = e.touches[0];
-          const x = touch.clientX - rect.left;
-          const percent = x / rect.width;
-          let targetStatus: OrderStatus;
-          if (percent < 0.25) targetStatus = 'pending';
-          else if (percent < 0.5) targetStatus = 'preparing';
-          else if (percent < 0.75) targetStatus = 'ready';
-          else targetStatus = 'bill_pay';
-
-          if (order.status !== targetStatus) {
-            onStatusChange(order.id, targetStatus);
-          }
-        }}
-        style={{
-          display: 'flex',
-          borderRadius: 8,
-          overflow: 'hidden',
-          border: '1px solid var(--border)',
-          marginTop: 4,
-          marginBottom: 4,
-          background: 'var(--bg-elevated)',
-          touchAction: 'none',
-        }}
-      >
-        <style>{`
-          @keyframes activeDotBlink {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(0.85); opacity: 0.65; }
-            100% { transform: scale(1); opacity: 1; }
-          }
-        `}</style>
-        {[
-          { key: 'pending', label: 'New', color: '#ffc078', textColor: '#000000' },
-          { key: 'preparing', label: 'Preparing', color: '#ffa94d', textColor: '#ffffff' },
-          { key: 'ready', label: 'Ready', color: '#fd7e14', textColor: '#ffffff' },
-          { key: 'bill_pay', label: 'Bill & Pay', color: '#e8590c', textColor: '#ffffff' },
-        ].map(item => {
-          const isActive = order.status === item.key;
-          return (
-            <div
-              key={item.key}
-              onClick={(e) => {
+      {/* Status Dropdown — replaces horizontal touch-bar to avoid accidental scroll triggers */}
+      {(() => {
+        const STATUS_OPTIONS = [
+          { key: 'pending',   label: '🟡 New',         color: '#ffc078', textColor: '#000000' },
+          { key: 'preparing', label: '🟠 Preparing',   color: '#ffa94d', textColor: '#ffffff' },
+          { key: 'ready',     label: '🔥 Ready',       color: '#fd7e14', textColor: '#ffffff' },
+          { key: 'bill_pay',  label: '💳 Bill & Pay',  color: '#e8590c', textColor: '#ffffff' },
+        ] as const;
+        const current = STATUS_OPTIONS.find(s => s.key === order.status) || STATUS_OPTIONS[0];
+        return (
+          <div style={{ position: 'relative', marginTop: 6, marginBottom: 4 }}>
+            <select
+              value={order.status}
+              onChange={(e) => {
                 e.stopPropagation();
-                if (!isActive) {
-                  onStatusChange(order.id, item.key as OrderStatus);
-                }
+                const next = e.target.value as OrderStatus;
+                if (next !== order.status) onStatusChange(order.id, next);
               }}
+              onClick={e => e.stopPropagation()}
               style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '6px 4px',
-                background: item.color,
-                color: item.textColor,
+                width: '100%',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                background: current.color,
+                color: current.textColor,
+                border: 'none',
+                borderRadius: 8,
+                padding: '7px 32px 7px 12px',
+                fontSize: 12,
+                fontWeight: 800,
                 cursor: 'pointer',
-                filter: isActive ? 'none' : 'saturate(0.55) brightness(0.9)',
-                transition: 'all 0.2s ease',
-                position: 'relative',
-                userSelect: 'none',
+                outline: 'none',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+                letterSpacing: '0.02em',
               }}
             >
-              <span style={{ fontSize: 10, fontWeight: isActive ? 900 : 700, color: item.textColor, textTransform: 'capitalize', letterSpacing: '0.01em', marginBottom: 3 }}>
-                {item.label}
-              </span>
-              <div style={{
-                width: 14,
-                height: 14,
-                borderRadius: '50%',
-                background: isActive ? '#000000' : 'rgba(0, 0, 0, 0.15)',
-                border: isActive ? '2.5px solid #ffffff' : '1px solid rgba(0, 0, 0, 0.2)',
-                transition: 'all 0.2s ease',
-                boxShadow: isActive ? '0 0 6px rgba(0,0,0,0.35)' : 'none',
-                animation: isActive ? 'activeDotBlink 1.4s infinite ease-in-out' : 'none',
-              }} />
-            </div>
-          );
-        })}
-      </div>
+              {STATUS_OPTIONS.map(s => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
+            </select>
+            {/* Custom chevron arrow */}
+            <span style={{
+              position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+              pointerEvents: 'none', fontSize: 11, color: current.textColor, opacity: 0.85,
+            }}>▼</span>
+          </div>
+        );
+      })()}
+
 
       {/* Bottom row: Total Amount & Actions */}
       <div style={{

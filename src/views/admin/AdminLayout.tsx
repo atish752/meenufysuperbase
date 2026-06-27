@@ -11,6 +11,7 @@ import AdminSidebar from './AdminSidebar';
 import AdminBottomNav from './AdminBottomNav';
 import NewOrderAlert from './NewOrderAlert';
 import SuperAdminDashboard from './SuperAdminDashboard';
+import AdminNotificationBell from '../../components/AdminNotificationBell';
 
 export default function AdminLayout() {
   const { state, dispatch } = useStore();
@@ -122,6 +123,19 @@ export default function AdminLayout() {
 
         {/* New Order Alert overlay */}
         {state.newOrderAlert && (!state.admin?.isStaff || state.admin.permissions?.includes('orders')) && <NewOrderAlert order={state.newOrderAlert} />}
+      </div>
+
+      {/* Global Notification Bell — floats over all tabs (mobile) */}
+      <div
+        className="mobile-only"
+        style={{
+          position: 'fixed',
+          bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          right: 16,
+          zIndex: 9990,
+        }}
+      >
+        <AdminNotificationBell />
       </div>
     </div>
   );

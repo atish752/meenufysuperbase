@@ -308,6 +308,7 @@ export type AdminUser = {
   isSuperAdmin?: boolean;
   password?: string;
   isStaff?: boolean;
+  isFirebaseUser?: boolean;
   permissions?: ('orders' | 'menu' | 'customers' | 'analysis' | 'outlet_setting' | 'qr_tables')[];
 };
 
@@ -896,6 +897,7 @@ type Action =
   | { type: 'DELETE_SCHEDULE'; payload: string }
   | { type: 'CALL_WAITER'; payload: WaiterRequest }
   | { type: 'RESOLVE_WAITER'; payload: string }
+  | { type: 'LINK_GOOGLE_ACCOUNT'; payload: { uid: string; name: string; email: string } }
   | { type: 'ADD_TOAST'; payload: Toast }
   | { type: 'REMOVE_TOAST'; payload: string }
   | { type: 'CLEAR_NEW_ORDER_ALERT' }
@@ -1490,6 +1492,26 @@ function reducer(state: AppState, action: Action): AppState {
       ...state,
       waiterRequests: state.waiterRequests.filter(r => r.id !== action.payload)
     };
+    case 'LINK_GOOGLE_ACCOUNT': {
+      if (!state.admin) return state;
+      // Remap all data from old local ID to new Firebase UID
+      const oldId = state.admin.restaurantId;
+      const newId = action.payload.uid;
+      return {
+        ...state,
+        admin: {
+          ...state.admin,
+          id: newId,
+          restaurantId: newId,
+          name: action.payload.name || state.admin.name,
+          email: action.payload.email || state.admin.email,
+          isFirebaseUser: true,
+        },
+        menuItems: state.menuItems.map(i => i.restaurantId === oldId ? { ...i, restaurantId: newId } : i),
+        categories: state.categories.map(c => c.restaurantId === oldId ? { ...c, restaurantId: newId } : c),
+        orders: state.orders.map(o => o.restaurantId === oldId ? { ...o, restaurantId: newId } : o),
+      };
+    }
     case 'ADD_TOAST': return { ...state, toasts: [...state.toasts, action.payload] };
     case 'REMOVE_TOAST': return { ...state, toasts: state.toasts.filter(t => t.id !== action.payload) };
     case 'CLEAR_NEW_ORDER_ALERT': return { ...state, newOrderAlert: null };

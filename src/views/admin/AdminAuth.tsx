@@ -166,6 +166,7 @@ export default function AdminAuth() {
           email: fbUser.email || form.email,
           restaurantId: resolvedAdminId,
           isLoggedIn: true,
+          isFirebaseUser: true,
         };
 
         if (mode === 'signup') {
@@ -288,6 +289,7 @@ export default function AdminAuth() {
         email: fbUser.email || '',
         restaurantId: resolvedAdminId,
         isLoggedIn: true,
+        isFirebaseUser: true,
       };
 
       if (!existingAccount) {
