@@ -41,6 +41,13 @@
     }
   </script>
 
+  <!-- React and ReactDOM UMD CDNs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel for browser-side JSX transpilation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.12/babel.min.js"></script>
+
   <!-- jsPDF & html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
@@ -166,15 +173,6 @@
   }
   </script>
 
-  <!-- React ESM Loading -->
-  <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.3.1",
-        "react-dom": "https://esm.sh/react-dom@18.3.1/client"
-      }
-    }
-  </script>
   <style>
     /* Accordion styles */
     .faq-title::-webkit-details-marker {
@@ -229,9 +227,8 @@
   <div id="app"></div>
 
   <!-- React App Code -->
-  <script type="module">
-    import React, { useState, useMemo, useEffect, useRef } from 'react';
-    import ReactDOM from 'react-dom';
+  <script type="text/babel">
+    const { useState, useMemo, useEffect, useRef } = React;
 
     // Currencies list
     const CURRENCIES = [
@@ -1156,7 +1153,10 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+    // Fixed rendering method for standard React 18 UMD setup
+    const container = document.getElementById('app');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
   </script>
 
   <!-- ============================== FULL SEO CONTENT BELOW THE TOOL ============================== -->
