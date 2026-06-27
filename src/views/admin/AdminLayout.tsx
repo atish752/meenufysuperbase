@@ -130,7 +130,7 @@ export default function AdminLayout() {
         className="mobile-only"
         style={{
           position: 'fixed',
-          bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          top: 'calc(16px + env(safe-area-inset-top, 0px))',
           right: 16,
           zIndex: 9990,
         }}
