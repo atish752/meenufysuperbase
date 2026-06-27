@@ -1020,6 +1020,35 @@ export default function AdminMore() {
                   </div>
                 </div>
               )}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div>
+                  <label className="input-label" style={{ marginBottom: 2 }}>Overlay Logo on Meals</label>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Automatically overlays the restaurant's logo in the bottom-right of all dish photos on the customer menu.</p>
+                </div>
+                <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer', flexShrink: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={restaurantForm.overlayLogoOnMeals || false}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, overlayLogoOnMeals: e.target.checked })}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute', inset: 0, borderRadius: 24,
+                    background: restaurantForm.overlayLogoOnMeals ? 'var(--brand)' : 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    transition: '0.2s',
+                  }}>
+                    <span style={{
+                      position: 'absolute', left: 2, bottom: 1, width: 20, height: 20, borderRadius: '50%',
+                      background: '#fff',
+                      transform: restaurantForm.overlayLogoOnMeals ? 'translateX(20px)' : 'translateX(0)',
+                      transition: '0.2s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                    }} />
+                  </span>
+                </label>
+              </div>
             </div>
 
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>

@@ -178,6 +178,7 @@ export type RestaurantInfo = {
   billingPeriod?: 'monthly' | 'yearly';
   allowNegativeOrders?: boolean;
   offersMarqueeEnabled?: boolean;
+  overlayLogoOnMeals?: boolean;
   isManualClosed?: boolean;
   subscriptionId?: string | null;
 };
@@ -422,6 +423,7 @@ const DEFAULT_RESTAURANT: RestaurantInfo = {
   subscriptionRenewalDate: 0,
   billingPeriod: 'monthly',
   allowNegativeOrders: false,
+  overlayLogoOnMeals: false,
 };
 
 export const MOCK_RESTAURANT_INFOS: Record<string, RestaurantInfo> = {

@@ -461,7 +461,29 @@ export default function CustomerMenu() {
                             }}
                           >
                             {item.image ? (
-                              <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <>
+                                <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                {state.restaurant.overlayLogoOnMeals && state.restaurant.logo && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: 6,
+                                    right: 6,
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: '50%',
+                                    overflow: 'hidden',
+                                    border: '1.5px solid #fff',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.35)',
+                                    background: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    zIndex: 10
+                                  }}>
+                                    <img src={state.restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  </div>
+                                )}
+                              </>
                             ) : (
                               <div style={{ fontSize: 32 }}>🍽️</div>
                             )}
@@ -724,7 +746,29 @@ export default function CustomerMenu() {
                             }}
                           >
                             {item.image ? (
-                              <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <>
+                                <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                {state.restaurant.overlayLogoOnMeals && state.restaurant.logo && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: 6,
+                                    right: 6,
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: '50%',
+                                    overflow: 'hidden',
+                                    border: '1.5px solid #fff',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.35)',
+                                    background: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    zIndex: 10
+                                  }}>
+                                    <img src={state.restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  </div>
+                                )}
+                              </>
                             ) : (
                               <div style={{ fontSize: 32 }}>🍽️</div>
                             )}
