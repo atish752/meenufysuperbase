@@ -1591,7 +1591,7 @@ export default function AdminHome() {
       {/* Manual Order Placement Modal */}
       {showManualOrderModal && (
         <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) { setShowManualOrderModal(false); resetManualOrderForm(); } }} style={{ zIndex: 1200 }}>
-          <div className="modal-content" style={{ maxWidth: 850, width: '95%', padding: 24, position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '90vh', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 16 }}>
+          <div className="modal-content" style={{ maxWidth: 850, width: '95%', padding: 24, position: 'relative', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto' }}>
             <button
               onClick={() => {
                 setShowManualOrderModal(false);
@@ -1623,10 +1623,10 @@ export default function AdminHome() {
             </h3>
 
             {/* Split layout: left form & selection, right order summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth > 768 ? '1.2fr 0.8fr' : '1fr', gap: 20, minHeight: 0, overflowY: 'auto', flex: 1, paddingBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth > 768 ? '1.2fr 0.8fr' : '1fr', gap: 20, paddingBottom: 10 }}>
               
               {/* Left Side: Order Settings & Menu Selection */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 
                 {/* Section 1: Customer & Dining Details */}
                 <div className="card" style={{ padding: 16, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12 }}>
@@ -2911,20 +2911,48 @@ function TabularOrderRow({
           </span>
         </div>
         
-        {/* Status Badge */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          padding: '2px 8px',
-          borderRadius: 99,
-          background: cfg.bgColor,
-          color: cfg.color,
-          fontSize: 9.5,
-          fontWeight: 700
-        }}>
-          <cfg.icon size={9} />
-          {cfg.label}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* Status Badge */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '2px 8px',
+            borderRadius: 99,
+            background: cfg.bgColor,
+            color: cfg.color,
+            fontSize: 9.5,
+            fontWeight: 700
+          }}>
+            <cfg.icon size={9} />
+            {cfg.label}
+          </div>
+
+          {/* Cancel Button */}
+          {order.status !== 'served' && order.status !== 'cancelled' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm('Are you sure you want to cancel this order?')) {
+                  onStatusChange(order.id, 'cancelled');
+                }
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{
+                fontSize: 9,
+                padding: '2px 8px',
+                height: 20,
+                borderRadius: 4,
+                color: 'var(--error)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                background: 'rgba(239, 68, 68, 0.05)',
+                cursor: 'pointer',
+                fontWeight: 700
+              }}
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </div>
 
@@ -2959,15 +2987,50 @@ function TabularOrderRow({
       </div>
 
       {/* Horizontal Status Switcher Bar */}
-      <div style={{
-        display: 'flex',
-        borderRadius: 8,
-        overflow: 'hidden',
-        border: '1px solid var(--border)',
-        marginTop: 4,
-        marginBottom: 4,
-        background: 'var(--bg-elevated)',
-      }}>
+      <div 
+        onTouchStart={(e) => {
+          e.stopPropagation();
+          const rect = e.currentTarget.getBoundingClientRect();
+          const touch = e.touches[0];
+          const x = touch.clientX - rect.left;
+          const percent = x / rect.width;
+          let targetStatus: OrderStatus;
+          if (percent < 0.25) targetStatus = 'pending';
+          else if (percent < 0.5) targetStatus = 'preparing';
+          else if (percent < 0.75) targetStatus = 'ready';
+          else targetStatus = 'bill_pay';
+
+          if (order.status !== targetStatus) {
+            onStatusChange(order.id, targetStatus);
+          }
+        }}
+        onTouchMove={(e) => {
+          e.stopPropagation();
+          const rect = e.currentTarget.getBoundingClientRect();
+          const touch = e.touches[0];
+          const x = touch.clientX - rect.left;
+          const percent = x / rect.width;
+          let targetStatus: OrderStatus;
+          if (percent < 0.25) targetStatus = 'pending';
+          else if (percent < 0.5) targetStatus = 'preparing';
+          else if (percent < 0.75) targetStatus = 'ready';
+          else targetStatus = 'bill_pay';
+
+          if (order.status !== targetStatus) {
+            onStatusChange(order.id, targetStatus);
+          }
+        }}
+        style={{
+          display: 'flex',
+          borderRadius: 8,
+          overflow: 'hidden',
+          border: '1px solid var(--border)',
+          marginTop: 4,
+          marginBottom: 4,
+          background: 'var(--bg-elevated)',
+          touchAction: 'none',
+        }}
+      >
         {[
           { key: 'pending', label: 'new', color: '#f59e0b', textColor: '#000000' },
           { key: 'preparing', label: 'Preparing', color: '#a855f7', textColor: '#ffffff' },
@@ -2994,13 +3057,13 @@ function TabularOrderRow({
                 background: item.color,
                 color: item.textColor,
                 cursor: 'pointer',
-                opacity: isActive ? 1 : 0.45,
+                filter: isActive ? 'none' : 'saturate(0.55) brightness(0.9)',
                 transition: 'all 0.2s ease',
                 position: 'relative',
                 userSelect: 'none',
               }}
             >
-              <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'capitalize', letterSpacing: '0.01em', marginBottom: 3 }}>
+              <span style={{ fontSize: 10, fontWeight: isActive ? 900 : 700, color: item.textColor, textTransform: 'capitalize', letterSpacing: '0.01em', marginBottom: 3 }}>
                 {item.label}
               </span>
               <div style={{
@@ -3105,27 +3168,6 @@ function TabularOrderRow({
             )
           )}
           
-          {/* Cancel Button */}
-          {order.status !== 'served' && (
-            <button
-              onClick={() => {
-                if (confirm('Are you sure you want to cancel this order?')) {
-                  onStatusChange(order.id, 'cancelled');
-                }
-              }}
-              className="btn btn-secondary btn-sm"
-              style={{
-                fontSize: 11,
-                padding: '4px 8px',
-                height: 28,
-                borderRadius: 6,
-                color: 'var(--error)',
-                borderColor: 'rgba(239, 68, 68, 0.2)'
-              }}
-            >
-              Cancel
-            </button>
-          )}
 
           {/* Print Buttons */}
           <button
