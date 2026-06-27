@@ -396,6 +396,10 @@ const groupMap = {
 // =============================================
 function onToolClick(id, e) {
   e.preventDefault();
+  if (id === 'food-cost-calc') {
+    window.location.href = '/tools/food-cost-calculator/';
+    return;
+  }
   const tool = TOOLS.find(t => t.id === id);
   if (!tool) return;
 

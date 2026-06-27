@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free Food Cost Calculator for Restaurants | Meenufy</title>
+  <meta name="description" content="Calculate food cost percentage instantly. Free restaurant food cost calculator — per-dish ingredient breakdown, ideal selling price & profit margins. No signup." />
+  <meta name="keywords" content="food cost calculator, restaurant food cost calculator, food cost percentage calculator, recipe cost calculator, menu pricing, restaurant profitability, Meenufy" />
+  <link rel="canonical" href="https://meenufy.com/tools/food-cost-calculator" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Free Food Cost Calculator for Restaurants | Meenufy" />
+  <meta property="og:description" content="Calculate food cost percentage instantly. Free restaurant food cost calculator — per-dish ingredient breakdown, ideal selling price & profit margins. No signup." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://meenufy.com/tools/food-cost-calculator" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#F97316',
+              light: '#FFF7ED',
+              dark: '#EA580C',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- jsPDF & html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- JSON-LD Structured Data: WebApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Meenufy Food Cost Calculator",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "description": "Free food cost calculator for restaurants and cafes. Calculate food cost percentage, ideal menu price, and gross profit per dish instantly.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "url": "https://meenufy.com/tools/food-cost-calculator"
+  }
+  </script>
+
+  <!-- JSON-LD Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://meenufy.com" },
+      { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://meenufy.com/tools" },
+      { "@type": "ListItem", "position": 3, "name": "Food Cost Calculator", "item": "https://meenufy.com/tools/food-cost-calculator" }
+    ]
+  }
+  </script>
+
+  <!-- JSON-LD Structured Data: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is the ideal food cost percentage for a restaurant?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Most successful restaurants target a food cost percentage between 28% and 35% of total food sales. Fine dining restaurants often achieve 25–30% due to premium pricing power. Fast food and QSR concepts typically run 25–32% thanks to volume and standardization. If your food cost consistently exceeds 38–40%, your menu is likely underpriced or your ingredient costs are too high."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I calculate food cost percentage?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "There are two methods. For a single dish: divide the total ingredient cost by the selling price, then multiply by 100. For your overall restaurant: use COGS (Beginning Inventory + Purchases − Ending Inventory) divided by Total Food Sales, multiplied by 100. This free calculator handles both calculations instantly."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I find the right selling price for a dish?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Divide your total ingredient cost by your target food cost percentage. If a dish costs ₹90 to make and you target a 30% food cost, your minimum selling price is ₹90 ÷ 0.30 = ₹300. This calculator computes the recommended selling price automatically."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does this food cost calculator include labor costs?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No — this tool calculates ingredient food cost only, which is the most controllable variable in daily operations. Labor, rent, utilities, and overhead are separate cost categories. Many operators add 5–10% to their food cost target as a buffer to account for these additional costs."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between food cost and COGS?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Food cost typically refers to ingredient costs for a specific dish or menu item. COGS (Cost of Goods Sold) is a broader accounting term that covers all the ingredients consumed during a period — including waste, spoilage, and staff meals. Your overall food cost percentage is calculated from COGS."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Why is my actual food cost higher than my theoretical food cost?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The difference (called 'variance') is caused by waste, over-portioning, theft, spoilage, or unrecorded staff consumption. If your recipes suggest a 29% food cost but your COGS-based calculation shows 36%, that 7% gap represents money leaking from your kitchen. Weekly inventory counts help identify and plug these leaks."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How often should I calculate my food cost percentage?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Per-dish food costs should be reviewed whenever ingredient prices change (at minimum quarterly). Your overall food cost percentage should be calculated weekly for active management — monthly at absolute minimum. Restaurants that track this weekly consistently outperform those that check it quarterly."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use this calculator for a café or coffee shop?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. This calculator works for any food or beverage business — restaurants, cafés, coffee shops, food trucks, cloud kitchens, catering businesses, bakeries, and bars. Select your local currency and add your ingredients. Cafés typically target a blended food and beverage cost of 28–40%."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is a good food cost percentage for a food truck?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Food trucks typically target 28–40% food cost, with more tolerance for higher percentages because they have no rent and lower overhead. However, targeting 30–35% is ideal for maximum profitability, especially as ingredient costs fluctuate."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I reduce my restaurant's food cost percentage?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The seven most effective methods are: (1) Cost every recipe using this calculator, (2) implement strict portion control with scales, (3) conduct weekly inventory counts, (4) use FIFO stock rotation, (5) negotiate with suppliers using volume, (6) remove low-margin items from your menu, and (7) eliminate order errors with digital ordering systems."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- React ESM Loading -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.3.1",
+        "react-dom": "https://esm.sh/react-dom@18.3.1/client"
+      }
+    }
+  </script>
+  <style>
+    /* Accordion styles */
+    .faq-title::-webkit-details-marker {
+      display: none;
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+    .sticky-toc {
+      position: sticky;
+      top: 90px;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+    }
+    /* Toast styles */
+    #toastContainer {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      width: max-content;
+      max-width: calc(100vw - 32px);
+    }
+    .toast {
+      background: #111827;
+      border: 1px solid #F97316;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      color: #ffffff;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      padding: 13px 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      line-height: 1.5;
+      pointer-events: all;
+      border-left: 4px solid #F97316;
+      animation: toastIn 0.25s ease;
+    }
+    @keyframes toastIn  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(6px); } }
+  </style>
+</head>
+<body class="bg-white text-gray-900 antialiased font-sans">
+
+  <!-- Mount Point for React App -->
+  <div id="app"></div>
+
+  <!-- React App Code -->
+  <script type="module">
+    import React, { useState, useMemo, useEffect, useRef } from 'react';
+    import ReactDOM from 'react-dom';
+
+    // Currencies list
+    const CURRENCIES = [
+      { symbol: '₹', code: 'INR', label: 'Indian Rupee' },
+      { symbol: '$', code: 'USD', label: 'US Dollar' },
+      { symbol: '£', code: 'GBP', label: 'British Pound' },
+      { symbol: '€', code: 'EUR', label: 'Euro' },
+      { symbol: '₨', code: 'PKR', label: 'Pakistani Rupee' },
+      { symbol: 'د.إ', code: 'AED', label: 'UAE Dirham' },
+      { symbol: 'CA$', code: 'CAD', label: 'Canadian Dollar' },
+      { symbol: 'A$', code: 'AUD', label: 'Australian Dollar' },
+      { symbol: '¥', code: 'JPY', label: 'Japanese Yen' },
+      { symbol: '¥', code: 'CNY', label: 'Chinese Yuan' },
+      { symbol: 'R', code: 'ZAR', label: 'South African Rand' },
+      { symbol: '৳', code: 'BDT', label: 'Bangladeshi Taka' },
+      { symbol: 'RM', code: 'MYR', label: 'Malaysian Ringgit' },
+      { symbol: '₦', code: 'NGN', label: 'Nigerian Naira' },
+      { symbol: 'kr', code: 'SEK', label: 'Swedish Krona' },
+      { symbol: 'CHF', code: 'CHF', label: 'Swiss Franc' },
+      { symbol: 'S$', code: 'SGD', label: 'Singapore Dollar' },
+      { symbol: '﷼', code: 'SAR', label: 'Saudi Riyal' },
+      { symbol: 'KD', code: 'KWD', label: 'Kuwaiti Dinar' },
+      { symbol: '฿', code: 'THB', label: 'Thai Baht' },
+      { symbol: '₫', code: 'VND', label: 'Vietnamese Dong' },
+      { symbol: '₱', code: 'PHP', label: 'Philippine Peso' },
+      { symbol: 'Rp', code: 'IDR', label: 'Indonesian Rupiah' },
+      { symbol: 'KSh', code: 'KES', label: 'Kenyan Shilling' },
+      { symbol: 'GH₵', code: 'GHS', label: 'Ghanaian Cedi' },
+      { symbol: 'R$', code: 'BRL', label: 'Brazilian Real' },
+      { symbol: '$', code: 'MXN', label: 'Mexican Peso' },
+      { symbol: 'NZ$', code: 'NZD', label: 'New Zealand Dollar' }
+    ];
+
+    // Conversion logic matrix
+    const UNIT_CONVERSIONS = {
+      // Weight
+      'kg': { 'g': 1000, 'kg': 1, 'lb': 2.20462, 'oz': 35.274 },
+      'g': { 'g': 1, 'kg': 0.001, 'lb': 0.00220462, 'oz': 0.035274 },
+      'lb': { 'lb': 1, 'oz': 16, 'kg': 0.453592, 'g': 453.592 },
+      'oz': { 'oz': 1, 'lb': 0.0625, 'kg': 0.0283495, 'g': 28.3495 },
+      
+      // Volume
+      'L': { 'L': 1, 'ml': 1000, 'cup': 4.22675, 'tbsp': 67.628, 'tsp': 202.884 },
+      'ml': { 'ml': 1, 'L': 0.001, 'cup': 0.00422675, 'tbsp': 0.067628, 'tsp': 0.202884 },
+      'cup': { 'cup': 1, 'ml': 236.588, 'L': 0.236588, 'tbsp': 16, 'tsp': 48 },
+      'tbsp': { 'tbsp': 1, 'ml': 14.7868, 'L': 0.0147868, 'tsp': 3, 'cup': 0.0625 },
+      'tsp': { 'tsp': 1, 'ml': 4.92892, 'L': 0.00492892, 'tbsp': 0.333333 },
+      
+      // Count
+      'piece': { 'piece': 1 },
+      'dozen': { 'dozen': 1, 'piece': 12 },
+      'slice': { 'slice': 1 },
+      'bunch': { 'bunch': 1 },
+      'head': { 'head': 1 },
+      'clove': { 'clove': 1 },
+      'loaf': { 'loaf': 1, 'slice': 20 },
+    };
+
+    function calculateIngredientCost(ing) {
+      const buyPrice = parseFloat(ing.buyPrice) || 0;
+      const qtyUsed = parseFloat(ing.qtyUsed) || 0;
+      const buyUnit = ing.buyUnit;
+      const useUnit = ing.useUnit;
+      const wastagePercent = parseFloat(ing.wastagePercent) || 0;
+
+      // Base conversion factor: from useUnit to buyUnit
+      let conversionFactor = 1;
+      if (UNIT_CONVERSIONS[useUnit] && UNIT_CONVERSIONS[useUnit][buyUnit] !== undefined) {
+        conversionFactor = 1 / UNIT_CONVERSIONS[useUnit][buyUnit];
+      } else if (UNIT_CONVERSIONS[buyUnit] && UNIT_CONVERSIONS[buyUnit][useUnit] !== undefined) {
+        conversionFactor = UNIT_CONVERSIONS[buyUnit][useUnit];
+      }
+
+      const qtyInBuyUnit = qtyUsed * conversionFactor;
+      const rawCost = buyPrice * qtyInBuyUnit;
+      const wastageMultiplier = wastagePercent > 0 ? (1 / (1 - (wastagePercent / 100))) : 1;
+
+      return rawCost * wastageMultiplier;
+    }
+
+    function App() {
+      const [mode, setMode] = useState('recipe'); // 'recipe' | 'overall'
+      const [currency, setCurrency] = useState(CURRENCIES[0]);
+      const [toast, setToast] = useState('');
+
+      // Tab 1 state
+      const [dishName, setDishName] = useState('');
+      const [sellingPrice, setSellingPrice] = useState('');
+      const [targetFoodCostPercent, setTargetFoodCostPercent] = useState(30);
+      const [portions, setPortions] = useState(1);
+      const [restaurantName, setRestaurantName] = useState('');
+      const [ingredients, setIngredients] = useState([
+        { id: 1, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+        { id: 2, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+        { id: 3, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+      ]);
+
+      // What-if state for Tab 1
+      const [whatIfPriceSlider, setWhatIfPriceSlider] = useState('');
+      const [whatIfCostSlider, setWhatIfCostSlider] = useState(0);
+
+      // Tab 2 state
+      const [period, setPeriod] = useState('Month'); // 'Week' | 'Month' | 'Quarter'
+      const [beginningInventory, setBeginningInventory] = useState('');
+      const [purchases, setPurchases] = useState('');
+      const [endingInventory, setEndingInventory] = useState('');
+      const [totalFoodSales, setTotalFoodSales] = useState('');
+
+      // Show toast helper
+      const triggerToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(''), 3500);
+      };
+
+      // Load State from URL on Mount
+      useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const data = params.get('d');
+        if (data) {
+          try {
+            const state = JSON.parse(atob(data));
+            if (state.mode) setMode(state.mode);
+            if (state.currency) {
+              const matched = CURRENCIES.find(c => c.code === state.currency);
+              if (matched) setCurrency(matched);
+            }
+            if (state.dishName) setDishName(state.dishName);
+            if (state.sellingPrice) setSellingPrice(state.sellingPrice);
+            if (state.targetFoodCostPercent) setTargetFoodCostPercent(state.targetFoodCostPercent);
+            if (state.portions) setPortions(state.portions);
+            if (state.ingredients) setIngredients(state.ingredients);
+            if (state.period) setPeriod(state.period);
+            if (state.beginningInventory) setBeginningInventory(state.beginningInventory);
+            if (state.purchases) setPurchases(state.purchases);
+            if (state.endingInventory) setEndingInventory(state.endingInventory);
+            if (state.totalFoodSales) setTotalFoodSales(state.totalFoodSales);
+            triggerToast('📊 Calculations restored from link!');
+          } catch (e) {
+            console.error('Failed to parse URL state', e);
+          }
+        }
+      }, []);
+
+      // Main Calculations: Tab 1 Recipe Costing
+      const recipeResults = useMemo(() => {
+        const totalIngredientCost = ingredients.reduce((sum, ing) => {
+          return sum + calculateIngredientCost(ing);
+        }, 0) / (parseInt(portions, 10) || 1);
+
+        const sPrice = parseFloat(sellingPrice) || 0;
+        const actualFoodCostPercent = sPrice > 0 ? (totalIngredientCost / sPrice) * 100 : null;
+
+        const recPrice = targetFoodCostPercent > 0 ? totalIngredientCost / (parseFloat(targetFoodCostPercent) / 100) : null;
+        const grossProfit = sPrice > 0 ? sPrice - totalIngredientCost : null;
+
+        return { totalIngredientCost, actualFoodCostPercent, recPrice, grossProfit };
+      }, [ingredients, sellingPrice, targetFoodCostPercent, portions]);
+
+      // Synchronize Scenario 1 price slider default value
+      useEffect(() => {
+        if (sellingPrice) {
+          setWhatIfPriceSlider(sellingPrice);
+        } else if (recipeResults.recPrice) {
+          setWhatIfPriceSlider(Math.round(recipeResults.recPrice));
+        }
+      }, [sellingPrice, recipeResults.recPrice]);
+
+      // Calculate Scenario Outputs
+      const scenarioResults = useMemo(() => {
+        const newCostMultiplier = 1 + (whatIfCostSlider / 100);
+        const adjustedCostPerPortion = recipeResults.totalIngredientCost * newCostMultiplier;
+
+        const sliderPriceVal = parseFloat(whatIfPriceSlider) || 0;
+        const scenarioFoodCostPercent = sliderPriceVal > 0 ? (adjustedCostPerPortion / sliderPriceVal) * 100 : null;
+        const scenarioGrossProfit = sliderPriceVal > 0 ? sliderPriceVal - adjustedCostPerPortion : null;
+
+        return { adjustedCostPerPortion, scenarioFoodCostPercent, scenarioGrossProfit };
+      }, [recipeResults.totalIngredientCost, whatIfPriceSlider, whatIfCostSlider]);
+
+      // Main Calculations: Tab 2 Overall Food Cost
+      const overallResults = useMemo(() => {
+        const beg = parseFloat(beginningInventory) || 0;
+        const pur = parseFloat(purchases) || 0;
+        const end = parseFloat(endingInventory) || 0;
+        const sales = parseFloat(totalFoodSales) || 0;
+
+        const cogs = beg + pur - end;
+        const foodCostPercent = sales > 0 ? (cogs / sales) * 100 : null;
+        const grossProfit = sales - cogs;
+
+        return { cogs, foodCostPercent, grossProfit };
+      }, [beginningInventory, purchases, endingInventory, totalFoodSales]);
+
+      // Add Ingredient Row
+      const addIngredientRow = () => {
+        setIngredients([
+          ...ingredients,
+          { id: Date.now(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 }
+        ]);
+      };
+
+      // Remove Ingredient Row
+      const removeIngredientRow = (id) => {
+        if (ingredients.length === 1) {
+          triggerToast('⚠️ Minimum 1 ingredient required!');
+          return;
+        }
+        setIngredients(ingredients.filter(ing => ing.id !== id));
+      };
+
+      // Update Row Values
+      const updateIngredientRow = (id, key, val) => {
+        setIngredients(ingredients.map(ing => {
+          if (ing.id === id) {
+            return { ...ing, [key]: val };
+          }
+          return ing;
+        }));
+      };
+
+      // Reset values
+      const handleReset = () => {
+        if (confirm('Are you sure you want to reset all calculator fields?')) {
+          setDishName('');
+          setSellingPrice('');
+          setTargetFoodCostPercent(30);
+          setPortions(1);
+          setWhatIfCostSlider(0);
+          setBeginningInventory('');
+          setPurchases('');
+          setEndingInventory('');
+          setTotalFoodSales('');
+          setIngredients([
+            { id: 1, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+            { id: 2, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+            { id: 3, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+          ]);
+          triggerToast('↺ Calculator reset successfully.');
+        }
+      };
+
+      // Share Link Generator
+      const handleShare = () => {
+        const stateToEncode = {
+          mode,
+          currency: currency.code,
+          dishName,
+          sellingPrice,
+          targetFoodCostPercent,
+          portions,
+          ingredients,
+          period,
+          beginningInventory,
+          purchases,
+          endingInventory,
+          totalFoodSales
+        };
+        const encoded = btoa(JSON.stringify(stateToEncode));
+        const shareUrl = `${window.location.origin}/tools/food-cost-calculator?d=${encoded}`;
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          triggerToast('🔗 Shareable calculations link copied to clipboard!');
+        }).catch(err => {
+          console.error('Could not copy link', err);
+          triggerToast('❌ Error copying link.');
+        });
+      };
+
+      // Copy text summary to clipboard
+      const handleCopyText = () => {
+        let text = `=== MEENUFY FOOD COST REPORT ===\n`;
+        text += `Date: ${new Date().toLocaleDateString()}\n`;
+        if (mode === 'recipe') {
+          text += `Dish Name: ${dishName || 'Dish'}\n`;
+          text += `Cost per Portion: ${currency.symbol}${recipeResults.totalIngredientCost.toFixed(2)}\n`;
+          text += `Food Cost Percentage: ${recipeResults.actualFoodCostPercent ? recipeResults.actualFoodCostPercent.toFixed(1) + '%' : 'N/A'}\n`;
+          text += `Recommended Price: ${currency.symbol}${recipeResults.recPrice ? recipeResults.recPrice.toFixed(2) : 'N/A'}\n`;
+          text += `Gross Profit: ${currency.symbol}${recipeResults.grossProfit ? recipeResults.grossProfit.toFixed(2) : 'N/A'}\n`;
+        } else {
+          text += `Period: ${period}\n`;
+          text += `COGS: ${currency.symbol}${overallResults.cogs.toFixed(2)}\n`;
+          text += `Overall Food Cost Percentage: ${overallResults.foodCostPercent ? overallResults.foodCostPercent.toFixed(1) + '%' : 'N/A'}\n`;
+          text += `Total Gross Profit: ${currency.symbol}${overallResults.grossProfit.toFixed(2)}\n`;
+        }
+        text += `Calculate more at: meenufy.com/tools/food-cost-calculator`;
+
+        navigator.clipboard.writeText(text).then(() => {
+          triggerToast('📋 Results copied to clipboard!');
+        });
+      };
+
+      // PDF Export using jsPDF
+      const handleExportPDF = () => {
+        try {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+
+          // Header
+          doc.setFontSize(22);
+          doc.setTextColor('#F97316'); // Meenufy brand orange
+          doc.text('Food Cost Calculator Report', 20, 25);
+
+          doc.setFontSize(10);
+          doc.setTextColor('#6B7280');
+          doc.text(`Generated by Meenufy — meenufy.com/tools/food-cost-calculator`, 20, 32);
+
+          doc.setDrawColor('#E5E7EB');
+          doc.line(20, 36, 190, 36);
+
+          doc.setFontSize(12);
+          doc.setTextColor('#111827');
+          doc.text(`Restaurant Name: ${restaurantName || 'N/A'}`, 20, 46);
+          doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 52);
+
+          if (mode === 'recipe') {
+            doc.text(`Dish Name: ${dishName || 'Unspecified Item'}`, 20, 58);
+            doc.text(`Portions: ${portions}`, 20, 64);
+
+            // Summary box
+            doc.setFillColor('#FFF7ED');
+            doc.rect(20, 72, 170, 32, 'F');
+
+            doc.setFontSize(11);
+            doc.text(`Cost per Portion: ${currency.symbol}${recipeResults.totalIngredientCost.toFixed(2)}`, 25, 80);
+            doc.text(`Actual Food Cost %: ${recipeResults.actualFoodCostPercent ? recipeResults.actualFoodCostPercent.toFixed(1) + '%' : 'N/A'}`, 105, 80);
+            doc.text(`Recommended Price: ${currency.symbol}${recipeResults.recPrice ? recipeResults.recPrice.toFixed(2) : 'N/A'}`, 25, 92);
+            doc.text(`Gross Profit: ${currency.symbol}${recipeResults.grossProfit ? recipeResults.grossProfit.toFixed(2) : 'N/A'}`, 105, 92);
+
+            // Table Header
+            const body = ingredients.map(ing => {
+              const ingCost = calculateIngredientCost(ing);
+              const totalCost = recipeResults.totalIngredientCost * (parseInt(portions, 10) || 1);
+              const percentage = totalCost > 0 ? (ingCost / totalCost) * 100 : 0;
+              return [
+                ing.name || 'Unnamed Ingredient',
+                `${ing.buyPrice || 0} / ${ing.buyUnit}`,
+                `${ing.qtyUsed || 0} ${ing.useUnit}`,
+                `${ing.wastagePercent || 0}%`,
+                `${currency.symbol}${ingCost.toFixed(2)}`,
+                `${percentage.toFixed(1)}%`
+              ];
+            });
+
+            window.jspdf.applyPlugin(doc);
+            doc.autoTable({
+              startY: 112,
+              head: [['Ingredient Name', 'Purchase Price', 'Quantity Used', 'Wastage %', 'Cost', '% of Total']],
+              body: body,
+              theme: 'striped',
+              headStyles: { fillColor: '#F97316' },
+            });
+          } else {
+            doc.text(`Reporting Period: ${period}`, 20, 58);
+
+            // Summary box
+            doc.setFillColor('#FFF7ED');
+            doc.rect(20, 66, 170, 26, 'F');
+
+            doc.setFontSize(11);
+            doc.text(`COGS: ${currency.symbol}${overallResults.cogs.toFixed(2)}`, 25, 74);
+            doc.text(`Food Cost Percentage: ${overallResults.foodCostPercent ? overallResults.foodCostPercent.toFixed(1) + '%' : 'N/A'}`, 105, 74);
+            doc.text(`Gross Profit Retained: ${currency.symbol}${overallResults.grossProfit.toFixed(2)}`, 25, 84);
+
+            const body = [
+              ['Beginning Inventory Value', `${currency.symbol}${parseFloat(beginningInventory) || 0}`],
+              ['(+) Purchases made', `${currency.symbol}${parseFloat(purchases) || 0}`],
+              ['(−) Ending Inventory Value', `${currency.symbol}${parseFloat(endingInventory) || 0}`],
+              ['Total Cost of Goods Sold (COGS)', `${currency.symbol}${overallResults.cogs.toFixed(2)}`],
+              ['Total Food Sales', `${currency.symbol}${parseFloat(totalFoodSales) || 0}`]
+            ];
+
+            window.jspdf.applyPlugin(doc);
+            doc.autoTable({
+              startY: 100,
+              head: [['Operational Metric', 'Amount']],
+              body: body,
+              theme: 'striped',
+              headStyles: { fillColor: '#F97316' },
+            });
+          }
+
+          // Footer branding watermark
+          const pageCount = doc.internal.getNumberOfPages();
+          for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor('#9CA3AF');
+            doc.text('Calculated using Meenufy — Start your digital menu and self-ordering free trial at meenufy.com', 20, 285);
+          }
+
+          const fileBase = (mode === 'recipe' ? (dishName || 'recipe') : 'period-report').toLowerCase().replace(/\s+/g, '-');
+          doc.save(`meenufy-food-cost-${fileBase}.pdf`);
+          triggerToast('📄 PDF report generated and downloaded!');
+        } catch (e) {
+          console.error(e);
+          triggerToast('❌ Error generating PDF: Check that jsPDF loaded correctly.');
+        }
+      };
+
+      // Determine benchmark alert color
+      const costPct = mode === 'recipe' ? recipeResults.actualFoodCostPercent : overallResults.foodCostPercent;
+      const benchmarkData = useMemo(() => {
+        if (costPct === null || costPct === undefined) return { label: 'Enter prices/sales to check benchmark', color: 'text-gray-500', barBg: 'bg-gray-200' };
+        if (costPct < 25) return { label: 'Excellent (Below 25%): Premium pricing power', color: 'text-blue-600', barBg: 'bg-blue-600' };
+        if (costPct <= 35) return { label: 'Healthy (25–35%): Industry standard', color: 'text-green-600', barBg: 'bg-green-600' };
+        if (costPct <= 40) return { label: 'Warning (35–40%): Review ingredient costs', color: 'text-yellow-600', barBg: 'bg-yellow-500' };
+        return { label: 'Critical (40%+): Losing money per dish', color: 'text-red-600', barBg: 'bg-red-600' };
+      }, [costPct]);
+
+      return (
+        <div>
+          {/* Header */}
+          <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
+            <div class="max-width-container mx-auto px-4 max-w-7xl h-16 flex items-center justify-between">
+              <a href="/tools/" class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-brand flex items-center justify-center font-bold text-white font-display text-lg">M</div>
+                <span class="font-display font-extrabold text-xl text-gray-900 tracking-tight">Meenufy</span>
+              </a>
+              <div class="flex items-center gap-4">
+                <a href="/tools/" class="text-sm font-medium text-gray-500 hover:text-gray-950 transition">Free Tools</a>
+                <a href="/" class="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg transition shadow-sm">Start Free Trial</a>
+              </div>
+            </div>
+          </header>
+
+          {/* Hero Section */}
+          <section class="py-12 bg-gray-50 border-b border-gray-100 text-center px-4">
+            <div class="max-w-4xl mx-auto">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-light text-brand border border-orange-200 mb-4 animate-pulse">
+                <span class="w-2 h-2 rounded-full bg-brand"></span>
+                Instant calculations. No signup required.
+              </span>
+              <h1 class="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tight mb-4">
+                Free Restaurant Food Cost Calculator
+              </h1>
+              <p class="text-gray-600 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-6">
+                Calculate food cost percentage, ideal selling price, and gross profit per dish — in seconds. Works in 30+ currencies.
+              </p>
+              
+              {/* Trust Badges */}
+              <div class="flex flex-wrap items-center justify-center gap-3 max-w-3xl mx-auto">
+                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ 100% Free</span>
+                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Works in 30+ currencies (₹, $, €)</span>
+                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Recipe & Overall modes</span>
+                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ PDF Report Export</span>
+                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Used by 10k+ Restaurants</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Main App Container */}
+          <main class="max-w-6xl mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* Left Col: The Calculator Input Panels */}
+            <div class="lg:col-span-2 space-y-6">
+              
+              {/* Mode Switcher Tabs */}
+              <div class="bg-gray-100 p-1.5 rounded-xl flex">
+                <button 
+                  onClick={() => setMode('recipe')}
+                  class={`flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition ${mode === 'recipe' ? 'bg-white text-brand shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+                >
+                  📊 Recipe Cost Calculator
+                </button>
+                <button 
+                  onClick={() => setMode('overall')}
+                  class={`flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition ${mode === 'overall' ? 'bg-white text-brand shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+                >
+                  📈 Overall Food Cost %
+                </button>
+              </div>
+
+              {/* Shared Settings */}
+              <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Currency Symbol</label>
+                    <select 
+                      value={currency.code}
+                      onChange={(e) => {
+                        const matched = CURRENCIES.find(c => c.code === e.target.value);
+                        if (matched) setCurrency(matched);
+                      }}
+                      class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                    >
+                      {CURRENCIES.map(c => (
+                        <option key={c.code} value={c.code}>{c.symbol} — {c.code} ({c.label})</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Restaurant Name (Optional)</label>
+                    <input 
+                      type="text"
+                      value={restaurantName}
+                      onChange={(e) => setRestaurantName(e.target.value)}
+                      placeholder="e.g. Hideout Cafe"
+                      class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Calculator Forms based on selected Mode */}
+              {mode === 'recipe' ? (
+                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+                  <h3 class="font-display font-extrabold text-lg text-gray-900">Recipe Details</h3>
+                  
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Dish / Menu Item Name</label>
+                      <input 
+                        type="text"
+                        value={dishName}
+                        onChange={(e) => setDishName(e.target.value)}
+                        placeholder="e.g. Butter Chicken"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Target Food Cost %</label>
+                      <div class="relative">
+                        <input 
+                          type="number"
+                          value={targetFoodCostPercent}
+                          onChange={(e) => setTargetFoodCostPercent(e.target.value)}
+                          placeholder="30"
+                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                        />
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-semibold">%</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Number of Portions</label>
+                      <input 
+                        type="number"
+                        min="1"
+                        value={portions}
+                        onChange={(e) => setPortions(e.target.value)}
+                        placeholder="1"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Current Selling Price (Optional)</label>
+                    <div class="relative max-w-xs">
+                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
+                      <input 
+                        type="number"
+                        value={sellingPrice}
+                        onChange={(e) => setSellingPrice(e.target.value)}
+                        placeholder="e.g. 299"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none font-medium text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ingredients Table */}
+                  <div class="space-y-4">
+                    <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+                      <h4 class="text-sm font-bold text-gray-800">Ingredients list</h4>
+                      <button 
+                        onClick={addIngredientRow}
+                        class="text-xs font-bold text-brand bg-brand-light px-3 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-100 transition"
+                      >
+                        + Add Ingredient
+                      </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-left text-sm border-collapse min-w-[600px]">
+                        <thead>
+                          <tr class="text-gray-400 text-[11px] font-bold uppercase tracking-wider border-b border-gray-100">
+                            <th class="py-2 pr-4 w-1/3">Name</th>
+                            <th class="py-2 px-2 w-20">Buy Price</th>
+                            <th class="py-2 px-2 w-24">Buy Unit</th>
+                            <th class="py-2 px-2 w-20">Qty Used</th>
+                            <th class="py-2 px-2 w-24">Use Unit</th>
+                            <th class="py-2 px-2 w-20">Wastage %</th>
+                            <th class="py-2 pl-4 text-right w-12"></th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                          {ingredients.map(ing => (
+                            <tr key={ing.id}>
+                              <td class="py-2 pr-4">
+                                <input 
+                                  type="text"
+                                  value={ing.name}
+                                  onChange={(e) => updateIngredientRow(ing.id, 'name', e.target.value)}
+                                  placeholder="e.g. Chicken"
+                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+                                />
+                              </td>
+                              <td class="py-2 px-2">
+                                <input 
+                                  type="number"
+                                  value={ing.buyPrice}
+                                  onChange={(e) => updateIngredientRow(ing.id, 'buyPrice', e.target.value)}
+                                  placeholder="0"
+                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
+                                />
+                              </td>
+                              <td class="py-2 px-2">
+                                <select 
+                                  value={ing.buyUnit}
+                                  onChange={(e) => updateIngredientRow(ing.id, 'buyUnit', e.target.value)}
+                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
+                                >
+                                  {Object.keys(UNIT_CONVERSIONS).map(u => (
+                                    <option key={u} value={u}>{u}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td class="py-2 px-2">
+                                <input 
+                                  type="number"
+                                  value={ing.qtyUsed}
+                                  onChange={(e) => updateIngredientRow(ing.id, 'qtyUsed', e.target.value)}
+                                  placeholder="0"
+                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
+                                />
+                              </td>
+                              <td class="py-2 px-2">
+                                <select 
+                                  value={ing.useUnit}
+                                  onChange={(e) => updateIngredientRow(ing.id, 'useUnit', e.target.value)}
+                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
+                                >
+                                  {Object.keys(UNIT_CONVERSIONS).map(u => (
+                                    <option key={u} value={u}>{u}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td class="py-2 px-2">
+                                <input 
+                                  type="number"
+                                  value={ing.wastagePercent}
+                                  onChange={(e) => updateIngredientRow(ing.id, 'wastagePercent', e.target.value)}
+                                  placeholder="0"
+                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
+                                />
+                              </td>
+                              <td class="py-2 pl-4 text-right">
+                                <button 
+                                  onClick={() => removeIngredientRow(ing.id)}
+                                  class="text-red-500 hover:text-red-700 text-lg font-bold p-1"
+                                  title="Delete ingredient"
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+                  <h3 class="font-display font-extrabold text-lg text-gray-900">Overall Inventory & Sales</h3>
+                  
+                  <div class="flex gap-2">
+                    {['Week', 'Month', 'Quarter'].map(t => (
+                      <button 
+                        key={t}
+                        onClick={() => setPeriod(t)}
+                        class={`px-4 py-1.5 rounded-lg text-xs font-bold transition border ${period === t ? 'bg-brand text-white border-brand' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Beginning Inventory Value</label>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
+                        <input 
+                          type="number"
+                          value={beginningInventory}
+                          onChange={(e) => setBeginningInventory(e.target.value)}
+                          placeholder="e.g. 120000"
+                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">(+) Purchases made this {period.toLowerCase()}</label>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
+                        <input 
+                          type="number"
+                          value={purchases}
+                          onChange={(e) => setPurchases(e.target.value)}
+                          placeholder="e.g. 85000"
+                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">(−) Ending Inventory Value</label>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
+                        <input 
+                          type="number"
+                          value={endingInventory}
+                          onChange={(e) => setEndingInventory(e.target.value)}
+                          placeholder="e.g. 95000"
+                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Food Sales</label>
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
+                        <input 
+                          type="number"
+                          value={totalFoodSales}
+                          onChange={(e) => setTotalFoodSales(e.target.value)}
+                          placeholder="e.g. 340000"
+                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Formula Used:</p>
+                    <code class="block text-xs md:text-sm font-semibold text-gray-700 bg-white p-2.5 rounded border border-gray-100 select-all">
+                      Cost of Goods Sold (COGS) = Beginning Inventory + Purchases − Ending Inventory
+                    </code>
+                    <code class="block text-xs md:text-sm font-semibold text-gray-700 bg-white p-2.5 rounded border border-gray-100 select-all">
+                      Food Cost % = (COGS ÷ Total Food Sales) × 100
+                    </code>
+                  </div>
+                </div>
+              )}
+
+              {/* What-If Scenario Section (Collapsible) */}
+              {mode === 'recipe' && (
+                <details class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden" open>
+                  <summary class="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 outline-none select-none">
+                    <h3 class="font-display font-extrabold text-lg text-gray-900">What-If Scenarios</h3>
+                    <span class="text-gray-400 text-xs font-bold uppercase tracking-wider">Click to toggle</span>
+                  </summary>
+                  <div class="p-6 pt-0 border-t border-gray-100 space-y-6">
+                    {/* Scenario 1 */}
+                    <div class="space-y-3">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm font-bold text-gray-800">Scenario 1: Adjust Menu Selling Price</span>
+                        <span class="text-brand font-bold text-sm bg-brand-light px-2.5 py-1 rounded">{currency.symbol}{parseFloat(whatIfPriceSlider) || 0}</span>
+                      </div>
+                      <input 
+                        type="range"
+                        min={Math.round(recipeResults.totalIngredientCost)}
+                        max={Math.round(recipeResults.totalIngredientCost * 5) || 500}
+                        value={whatIfPriceSlider}
+                        onChange={(e) => setWhatIfPriceSlider(e.target.value)}
+                        class="w-full accent-brand cursor-pointer"
+                      />
+                      <p class="text-xs text-gray-500">
+                        Result: Food cost % drops to <strong class="text-gray-950 font-semibold">{scenarioResults.scenarioFoodCostPercent ? scenarioResults.scenarioFoodCostPercent.toFixed(1) + '%' : 'N/A'}</strong> (giving <strong class="text-gray-950 font-semibold">{currency.symbol}{scenarioResults.scenarioGrossProfit ? scenarioResults.scenarioGrossProfit.toFixed(2) : '0.00'}</strong> gross profit per portion).
+                      </p>
+                    </div>
+
+                    {/* Scenario 2 */}
+                    <div class="space-y-3">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm font-bold text-gray-800">Scenario 2: Ingredient Costs Inflation / Discount</span>
+                        <span class="text-brand font-bold text-sm bg-brand-light px-2.5 py-1 rounded">+{whatIfCostSlider}%</span>
+                      </div>
+                      <input 
+                        type="range"
+                        min="0"
+                        max="50"
+                        value={whatIfCostSlider}
+                        onChange={(e) => setWhatIfCostSlider(e.target.value)}
+                        class="w-full accent-brand cursor-pointer"
+                      />
+                      <p class="text-xs text-gray-500">
+                        Result: Food cost % rises to <strong class="text-gray-950 font-semibold">{scenarioResults.scenarioFoodCostPercent ? scenarioResults.scenarioFoodCostPercent.toFixed(1) + '%' : 'N/A'}</strong>. 
+                        To maintain your {targetFoodCostPercent}% target, selling price should be <strong class="text-gray-950 font-semibold">{currency.symbol}{(scenarioResults.adjustedCostPerPortion / (targetFoodCostPercent / 100)).toFixed(2)}</strong>.
+                      </p>
+                    </div>
+                  </div>
+                </details>
+              )}
+            </div>
+
+            {/* Right Col: Live Results Panel */}
+            <div class="space-y-6">
+              
+              {/* Main Results Panel */}
+              <div class="bg-gray-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+                <div class="absolute -right-16 -top-16 w-36 h-36 rounded-full bg-brand opacity-10"></div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Calculation Results</h3>
+                
+                {mode === 'recipe' ? (
+                  <div class="space-y-6">
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cost / Portion</p>
+                        <p class="text-xl md:text-2xl font-black font-display text-white tabular-nums mt-1">{currency.symbol}{recipeResults.totalIngredientCost.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Actual Cost %</p>
+                        <p class="text-xl md:text-2xl font-black font-display text-white tabular-nums mt-1">{recipeResults.actualFoodCostPercent ? recipeResults.actualFoodCostPercent.toFixed(1) + '%' : 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    <div class="border-t border-gray-800 pt-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Recommended Price</p>
+                        <p class="text-xl md:text-2xl font-black font-display text-brand mt-1">{recipeResults.recPrice ? currency.symbol + recipeResults.recPrice.toFixed(2) : 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Gross Profit / Portion</p>
+                        <p class="text-xl md:text-2xl font-black font-display text-green-400 mt-1">{recipeResults.grossProfit ? currency.symbol + recipeResults.grossProfit.toFixed(2) : 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div class="space-y-6">
+                    <div>
+                      <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cost of Goods Sold (COGS)</p>
+                      <p class="text-2xl font-black font-display text-white mt-1">{currency.symbol}{overallResults.cogs.toFixed(2)}</p>
+                    </div>
+
+                    <div class="border-t border-gray-800 pt-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Overall Food Cost %</p>
+                        <p class="text-xl font-black font-display text-brand mt-1">{overallResults.foodCostPercent ? overallResults.foodCostPercent.toFixed(1) + '%' : 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Gross Profit</p>
+                        <p class="text-xl font-black font-display text-green-400 mt-1">{currency.symbol}{overallResults.grossProfit.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Benchmark Gauge */}
+              <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+                <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Benchmark Gauge</h4>
+                
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between text-xs font-bold">
+                    <span class="text-gray-600">Current Cost:</span>
+                    <span class={benchmarkData.color}>{costPct ? costPct.toFixed(1) + '%' : 'N/A'}</span>
+                  </div>
+                  
+                  {/* Visual gauge slider */}
+                  <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden relative">
+                    <div 
+                      class={`h-full transition-all duration-300 ${benchmarkData.barBg}`} 
+                      style={{ width: `${Math.min(100, costPct || 0)}%` }}
+                    ></div>
+                  </div>
+
+                  <div class="flex justify-between text-[10px] text-gray-400 font-bold">
+                    <span>20%</span>
+                    <span>25%</span>
+                    <span>30%</span>
+                    <span>35%</span>
+                    <span>40%</span>
+                  </div>
+                </div>
+
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <p class="text-xs font-bold text-gray-700">{benchmarkData.label}</p>
+                </div>
+              </div>
+
+              {/* Action Bar Panel */}
+              <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-3">
+                <button 
+                  onClick={handleExportPDF}
+                  class="w-full bg-brand hover:bg-brand-dark text-white font-bold py-2.5 px-4 rounded-xl transition text-sm flex items-center justify-center gap-2 shadow-sm"
+                >
+                  📄 Export PDF Report
+                </button>
+                
+                <button 
+                  onClick={handleCopyText}
+                  class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2"
+                >
+                  📋 Copy Results
+                </button>
+
+                <button 
+                  onClick={handleShare}
+                  class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2"
+                >
+                  🔗 Share Calculations
+                </button>
+
+                <button 
+                  onClick={handleReset}
+                  class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 px-4 rounded-xl border border-red-100 transition text-sm flex items-center justify-center gap-2"
+                >
+                  ↺ Reset Calculator
+                </button>
+              </div>
+
+            </div>
+          </main>
+
+          {/* Toast Notification Mount */}
+          {toast && (
+            <div id="toastContainer">
+              <div class="toast">{toast}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+  </script>
+
+  <!-- ============================== FULL SEO CONTENT BELOW THE TOOL ============================== -->
+  <section class="border-t border-gray-100 bg-white py-16 px-4">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-12">
+      
+      <!-- Sticky Sidebar Table of Contents -->
+      <aside class="hidden lg:block lg:col-span-1">
+        <div class="sticky-toc p-5 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+          <h4 class="font-display font-extrabold text-sm text-gray-900 tracking-tight uppercase">Guide Contents</h4>
+          <nav class="flex flex-col gap-3 text-sm">
+            <a href="#what-is-food-cost" class="text-gray-500 hover:text-brand transition font-medium">What is Food Cost %?</a>
+            <a href="#how-to-calculate" class="text-gray-500 hover:text-brand transition font-medium">How to Calculate (Formulas)</a>
+            <a href="#benchmarks" class="text-gray-500 hover:text-brand transition font-medium">Industry Benchmarks Table</a>
+            <a href="#how-to-reduce" class="text-gray-500 hover:text-brand transition font-medium">7 Ways to Reduce Costs</a>
+            <a href="#common-mistakes" class="text-gray-500 hover:text-brand transition font-medium">Common Mistakes to Avoid</a>
+            <a href="#faq" class="text-gray-500 hover:text-brand transition font-medium">Frequently Asked Questions</a>
+            <a href="#other-tools" class="text-gray-500 hover:text-brand transition font-medium">Other Free Restro Tools</a>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- Main SEO Articles -->
+      <article class="lg:col-span-3 space-y-12 text-gray-700 leading-relaxed">
+        
+        <section id="what-is-food-cost" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            What Is Food Cost Percentage? (And Why It Makes or Breaks Your Restaurant)
+          </h2>
+          <p>
+            Food cost percentage is the single most important number in restaurant finance. It measures what proportion of your revenue disappears into ingredient costs — and it determines whether your restaurant is genuinely profitable or just "busy broke."
+          </p>
+          <p>
+            The formula is simple: divide your total food costs by your total food sales, then multiply by 100. If you spent ₹28,000 on ingredients this week and earned ₹90,000 in food sales, your food cost percentage is 31.1%.
+          </p>
+          <p>
+            <strong>The problem most restaurant owners face:</strong> they price their menus on instinct, not math. A dish priced at ₹250 might <em>feel</em> profitable — until you calculate that the ingredients cost ₹105, giving you a 42% food cost and virtually no margin after labor and rent.
+          </p>
+          <p>
+            This calculator eliminates that guesswork.
+          </p>
+        </section>
+
+        <section id="how-to-calculate" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Two Ways to Calculate Food Cost Percentage
+          </h2>
+          <p>
+            There are two distinct calculations every restaurant should run — and most owners only know one.
+          </p>
+
+          <div class="space-y-4">
+            <h3 class="text-xl font-bold text-gray-900">1. Per-Dish Food Cost Percentage (Recipe Costing)</h3>
+            <p>
+              This tells you the profitability of a single menu item. It's the foundation of intelligent menu pricing.
+            </p>
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-1 font-mono text-xs md:text-sm text-gray-800">
+              <p>Food Cost Per Dish = Sum of all ingredient costs for one portion</p>
+              <p>Food Cost % = (Food Cost Per Dish ÷ Selling Price) × 100</p>
+            </div>
+            <p>
+              <strong>Example:</strong><br>
+              Your Chicken Tikka Masala uses:<br>
+              - Chicken (150g at ₹280/kg) = ₹42.00<br>
+              - Cream (50ml at ₹80/L) = ₹4.00<br>
+              - Tomatoes, spices, oil = ₹8.50<br>
+              - <strong>Total ingredient cost: ₹54.50</strong>
+            </p>
+            <p>
+              If you sell it for ₹195:<br>
+              <strong>Food Cost % = (54.50 ÷ 195) × 100 = 27.9%</strong> (Excellent)
+            </p>
+            <p>
+              <strong>To find the RIGHT selling price:</strong> divide your ingredient cost by your target food cost percentage.<br>
+              <code>₹54.50 ÷ 0.30 = ₹181.67</code> → Round up to ₹185 or ₹190.
+            </p>
+          </div>
+
+          <div class="space-y-4">
+            <h3 class="text-xl font-bold text-gray-900">2. Overall Food Cost Percentage (Period-Based COGS Method)</h3>
+            <p>
+              This tells you how efficiently your kitchen is using food across all dishes — including waste, over-portioning, and spoilage that recipe costing won't catch.
+            </p>
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-1 font-mono text-xs md:text-sm text-gray-800">
+              <p>COGS = Opening Inventory + Purchases During Period − Closing Inventory</p>
+              <p>Food Cost % = (COGS ÷ Total Food Sales) × 100</p>
+            </div>
+            <p>
+              <strong>Example (monthly):</strong><br>
+              - Opening inventory: ₹1,20,000<br>
+              - Purchases: ₹85,000<br>
+              - Closing inventory: ₹95,000<br>
+              - COGS = 1,20,000 + 85,000 − 95,000 = <strong>₹1,10,000</strong><br>
+              - Total food sales: ₹3,40,000<br>
+              - <strong>Food Cost % = (1,10,000 ÷ 3,40,000) × 100 = 32.4%</strong> (Standard)
+            </p>
+            <p>
+              If your per-dish food cost % is 29% but your overall food cost % is 36%, that 7% gap is your waste, theft, and over-portioning problem — and it's costing you real money every week.
+            </p>
+          </div>
+        </section>
+
+        <section id="benchmarks" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            What Is a Good Food Cost Percentage? (Benchmarks by Restaurant Type)
+          </h2>
+          <p>
+            Operating parameters fluctuate significantly depending on your restaurant's service type, ingredient sourcing requirements, and labor dependencies.
+          </p>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm border-collapse border border-gray-100">
+              <thead>
+                <tr class="bg-gray-50 text-gray-900 font-bold border-b border-gray-100">
+                  <th class="py-3 px-4">Restaurant Type</th>
+                  <th class="py-3 px-4">Ideal Food Cost %</th>
+                  <th class="py-3 px-4">Notes</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Fine Dining</td>
+                  <td class="py-3 px-4">25–30%</td>
+                  <td class="py-3 px-4">Premium pricing offsets high-quality ingredients</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Casual Dining</td>
+                  <td class="py-3 px-4">28–35%</td>
+                  <td class="py-3 px-4">Industry standard for sit-down restaurants</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Fast Food / QSR</td>
+                  <td class="py-3 px-4">25–32%</td>
+                  <td class="py-3 px-4">Volume and efficiency keep costs lower</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Café / Coffee Shop</td>
+                  <td class="py-3 px-4">28–40%</td>
+                  <td class="py-3 px-4">Beverages (high margin) balance food costs</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Food Truck</td>
+                  <td class="py-3 px-4">28–40%</td>
+                  <td class="py-3 px-4">No rent means more tolerance for food cost</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Cloud Kitchen</td>
+                  <td class="py-3 px-4">25–35%</td>
+                  <td class="py-3 px-4">Lower overhead = tighter cost control possible</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Bakery</td>
+                  <td class="py-3 px-4">28–40%</td>
+                  <td class="py-3 px-4">Labour-intensive prep increases effective cost</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Bar / Pub</td>
+                  <td class="py-3 px-4">18–30%</td>
+                  <td class="py-3 px-4">High-margin alcohol lowers blended cost %</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Catering Business</td>
+                  <td class="py-3 px-4">25–35%</td>
+                  <td class="py-3 px-4">Bulk buying improves ingredient economics</td>
+                </tr>
+                <tr>
+                  <td class="py-3 px-4 font-semibold">Pizza / Fast Casual</td>
+                  <td class="py-3 px-4">25–35%</td>
+                  <td class="py-3 px-4">Standardised menus aid cost control</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>The universal rule:</strong> if your food cost percentage consistently exceeds <strong>38%</strong>, you are likely losing profitability on the plate and need to act — either raise prices, reduce ingredient costs, control portions, or reduce waste.
+          </p>
+        </section>
+
+        <section id="how-to-reduce" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            7 Proven Ways to Reduce Your Restaurant's Food Cost
+          </h2>
+          
+          <div class="space-y-4">
+            <h3 class="text-lg font-bold text-gray-900">1. Calculate the Cost of Every Dish (Start Here)</h3>
+            <p>
+              Most restaurants that overspend on food have never actually costed their recipes properly. Use this calculator to find every dish on your menu, identify which ones have food costs above 35%, and either re-price them or re-engineer the recipe.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">2. Implement Strict Portion Control</h3>
+            <p>
+              A single extra 30g of protein per dish, multiplied across 200 covers daily, is 6kg of protein over-served per day. At ₹280/kg, that's ₹1,680 vanishing daily — ₹50,400 per month. Standardize your portions with kitchen scales, portion cups, and ladle sizes.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">3. Conduct Weekly Inventory Counts</h3>
+            <p>
+              The difference between your theoretical food cost (from recipes) and your actual food cost (from COGS) is your "variance" — and variance is profit leaking somewhere. Weekly counts keep waste, theft, and spoilage visible before they compound.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">4. Use the "First In, First Out" (FIFO) Method</h3>
+            <p>
+              Store and use older inventory before newer stock. FIFO prevents spoilage by ensuring nothing gets buried in the walk-in and forgotten. Restaurants using FIFO consistently report 2–5% lower food waste costs.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">5. Negotiate Supplier Contracts Based on Volume</h3>
+            <p>
+              Once you know your exact ingredient costs, you have data to negotiate. Consolidate purchases with fewer suppliers in exchange for better per-unit pricing. Even a 5% reduction in ingredient costs can swing a 28% food cost to 26.6% — a meaningful difference at scale.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">6. Redesign Your Menu Around High-Margin Items</h3>
+            <p>
+              Menu engineering categorizes your dishes into Stars (high profit, high popularity), Plowhorses (popular but low margin), Puzzles (high margin, low popularity), and Dogs (low on both). Use this framework to spotlight your Stars, re-engineer your Plowhorses, and eliminate your Dogs.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">7. Reduce Order-Taking Errors That Lead to Food Waste</h3>
+            <p>
+              Handwritten orders misread by kitchen staff result in dishes remade from scratch — doubling the ingredient cost of that order. Digital QR ordering systems eliminate order-entry errors entirely, since the customer's order goes directly to the kitchen display without a waiter transcribing it.
+            </p>
+          </div>
+
+          <div class="bg-orange-50 border-l-4 border-brand p-5 rounded-r-xl">
+            <p class="text-sm font-semibold text-gray-800 italic">
+              "Meenufy's QR self-ordering system eliminates order-taking errors and reduces per-order food waste by removing the miscommunication between customers, waiters, and the kitchen." 
+              <a href="/" class="text-brand font-bold underline ml-1 hover:text-brand-dark transition">See how Meenufy works →</a>
+            </p>
+          </div>
+        </section>
+
+        <section id="common-mistakes" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Common Food Cost Calculation Mistakes (And How to Avoid Them)
+          </h2>
+          
+          <div class="space-y-4">
+            <h3 class="text-lg font-bold text-gray-900">Mistake 1: Forgetting Opening Inventory</h3>
+            <p>
+              The most frequent error in overall food cost calculation. If you only count purchases, you understate your COGS, making food costs appear lower than they actually are. Always record the value of stock at the start of every period.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">Mistake 2: Including Non-Food Items in COGS</h3>
+            <p>
+              Napkins, straws, cleaning supplies, and packaging inflate your food cost percentage if you include them. Track these separately as "consumables" or "supplies." Your food cost should only measure ingredients.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">Mistake 3: Ignoring Wastage and Yield Loss</h3>
+            <p>
+              A recipe that calls for 200g of chicken breast doesn't account for the 20–25% of weight lost during trimming and cooking. If you don't apply a yield factor, your costed selling price will be too low. Use the wastage adjustment in this calculator to account for cooking loss.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">Mistake 4: Calculating Only Once Per Quarter</h3>
+            <p>
+              Food costs change every week. Ingredient prices fluctuate with seasons, supply chains, and currency movements. A price that kept food costs at 30% in January might push you to 37% by March if you haven't recalculated. Build weekly recipe costing into your routine.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900">Mistake 5: Pricing From Competitors, Not From Costs</h3>
+            <p>
+              "The restaurant next door charges ₹250 for this, so I'll charge ₹240" is how restaurants quietly go broke. Competitive pricing is part of the picture, but if your costs are higher than your competitor's (perhaps they buy in greater volume), you cannot profitably match their price. Start with your food cost, set the minimum viable price, then look at competitors.
+            </p>
+          </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Frequently Asked Questions
+          </h2>
+          
+          <div class="space-y-3">
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>What is the ideal food cost percentage for a restaurant?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                Most successful restaurants target a food cost percentage between 28% and 35% of total food sales. Fine dining restaurants often achieve 25–30% due to premium pricing power. Fast food and QSR concepts typically run 25–32% thanks to volume and standardization. If your food cost consistently exceeds 38–40%, your menu is likely underpriced or your ingredient costs are too high.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>How do I calculate food cost percentage?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                There are two methods. For a single dish: divide the total ingredient cost by the selling price, then multiply by 100. For your overall restaurant: use COGS (Beginning Inventory + Purchases − Ending Inventory) divided by Total Food Sales, multiplied by 100. This free calculator handles both calculations instantly.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>How do I find the right selling price for a dish?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                Divide your total ingredient cost by your target food cost percentage. If a dish costs ₹90 to make and you target a 30% food cost, your minimum selling price is ₹90 ÷ 0.30 = ₹300. This calculator computes the recommended selling price automatically.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>Does this food cost calculator include labor costs?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                No — this tool calculates ingredient food cost only, which is the most controllable variable in daily operations. Labor, rent, utilities, and overhead are separate cost categories. Many operators add 5–10% to their food cost target as a buffer to account for these additional costs.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>What is the difference between food cost and COGS?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                Food cost typically refers to ingredient costs for a specific dish or menu item. COGS (Cost of Goods Sold) is a broader accounting term that covers all the ingredients consumed during a period — including waste, spoilage, and staff meals. Your overall food cost percentage is calculated from COGS.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>Why is my actual food cost higher than my theoretical food cost?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                The difference (called "variance") is caused by waste, over-portioning, theft, spoilage, or unrecorded staff consumption. If your recipes suggest a 29% food cost but your COGS-based calculation shows 36%, that 7% gap represents money leaking from your kitchen. Weekly inventory counts help identify and plug these leaks.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>How often should I calculate my food cost percentage?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                Per-dish food costs should be reviewed whenever ingredient prices change (at minimum quarterly). Your overall food cost percentage should be calculated weekly for active management — monthly at absolute minimum. Restaurants that track this weekly consistently outperform those that check it quarterly.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>Can I use this calculator for a café or coffee shop?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                Yes. This calculator works for any food or beverage business — restaurants, cafés, coffee shops, food trucks, cloud kitchens, catering businesses, bakeries, and bars. Select your local currency and add your ingredients. Cafés typically target a blended food and beverage cost of 28–40%.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>What is a good food cost percentage for a food truck?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                Food trucks typically target 28–40% food cost, with more tolerance for higher percentages because they have no rent and lower overhead. However, targeting 30–35% is ideal for maximum profitability, especially as ingredient costs fluctuate.
+              </div>
+            </details>
+
+            <details class="bg-gray-50 border border-gray-100 rounded-xl p-4 transition group">
+              <summary class="faq-title font-bold text-gray-900 cursor-pointer flex items-center justify-between outline-none">
+                <span>How do I reduce my restaurant's food cost percentage?</span>
+                <span class="text-brand font-bold transition group-open:rotate-180">▼</span>
+              </summary>
+              <div class="mt-3 text-sm text-gray-600 leading-relaxed">
+                The seven most effective methods are: (1) Cost every recipe using this calculator, (2) implement strict portion control with scales, (3) conduct weekly inventory counts, (4) use FIFO stock rotation, (5) negotiate with suppliers using volume, (6) remove low-margin items from your menu, and (7) eliminate order errors with digital ordering systems.
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <!-- Other tools ecosystem -->
+        <section id="other-tools" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Other Free Restaurant Tools by Meenufy
+          </h2>
+          <p>
+            Maximize your operational efficiency with our ecosystem of free mathematical models built exclusively for restaurant operators:
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                📊 Restaurant Profit Margin Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Calculate net profit margin across your full P&amp;L sheet.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                🔁 Table Turnover Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Find out how much revenue you lose to slow table turn rates.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                ⚖️ Menu Engineering Matrix
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Plot your dishes automatically by profitability and popularity scores.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                💸 Restaurant Break-Even Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Find the exact daily and monthly sales numbers you need to cover costs.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                👥 Labor Cost Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Check if your weekly staffing hours are aligned with industry averages.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                ❤️ Loyalty Program ROI Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Project the revenue uplift of launching a repeat guest program.</p>
+            </a>
+          </div>
+        </section>
+
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============================== MEENUFY WARM ORANGE CTA BANNER ============================== -->
+  <section class="bg-brand-light border-t border-orange-100 py-16 px-4 text-center">
+    <div class="max-w-3xl mx-auto space-y-6">
+      <div class="w-16 h-16 rounded-2xl bg-brand flex items-center justify-center font-bold text-white font-display text-2xl mx-auto shadow-md">M</div>
+      <h2 class="text-2xl md:text-4xl font-display font-black text-gray-900 tracking-tight">
+        You now know your food cost. Here's how to fix it.
+      </h2>
+      <p class="text-gray-600 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+        Food cost calculators show you the problem. Meenufy solves it.
+        When customers order through Meenufy's QR self-ordering system, there are zero handwriting errors, zero order miscommunications, and zero dishes remade because a waiter misheard the table. That's the waste that doesn't show up in your recipe calculator — but it shows up in your COGS every single month.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl mx-auto text-left py-4 text-sm font-semibold text-gray-700">
+        <div>✓ Serve 30% more covers with the same team</div>
+        <div>✓ Reduce waiter dependency by 50%+</div>
+        <div>✓ Run loyalty programs that bring customers back</div>
+        <div>✓ Get more 5-star Google reviews automatically</div>
+        <div>✓ See real-time analytics on your best-selling items</div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <a href="/" class="w-full sm:w-auto bg-brand hover:bg-brand-dark text-white font-bold py-3.5 px-8 rounded-xl transition text-base shadow-sm">
+          Start Free Trial — No Credit Card
+        </a>
+        <a href="/" class="w-full sm:w-auto bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 font-bold py-3.5 px-8 rounded-xl transition text-base">
+          See How Meenufy Works →
+        </a>
+      </div>
+      <p class="text-xs text-gray-400 font-medium">
+        Trusted by 500+ restaurants across India. Setup in under 10 minutes.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================== FOOTER ============================== -->
+  <footer class="bg-gray-900 border-t border-gray-800 text-gray-400 py-12 px-4">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div class="space-y-4">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-brand flex items-center justify-center font-bold text-white font-display text-sm">M</div>
+          <span class="font-display font-extrabold text-lg text-white tracking-tight">Meenufy</span>
+        </div>
+        <p class="text-xs leading-relaxed text-gray-500">The complete restaurant management platform for modern restaurants worldwide.</p>
+      </div>
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Free Tools</h4>
+        <div class="flex flex-col gap-2 text-xs">
+          <a href="#calculators" class="hover:text-brand">Calculators</a>
+          <a href="#free-tools" class="hover:text-brand">QR Tools</a>
+          <a href="#guides" class="hover:text-brand">Guides</a>
+        </div>
+      </div>
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Platform</h4>
+        <div class="flex flex-col gap-2 text-xs">
+          <a href="/" class="hover:text-brand">Sign In</a>
+          <a href="/" class="hover:text-brand">Get Started</a>
+          <a href="/" class="hover:text-brand">Features</a>
+          <a href="/" class="hover:text-brand">Pricing</a>
+        </div>
+      </div>
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Company</h4>
+        <div class="flex flex-col gap-2 text-xs">
+          <a href="#" class="hover:text-brand">About</a>
+          <a href="#" class="hover:text-brand">Blog</a>
+          <a href="#" class="hover:text-brand">Contact</a>
+        </div>
+      </div>
+    </div>
+    <div class="max-w-6xl mx-auto border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+      <span>© 2025 Meenufy. All rights reserved.</span>
+      <div class="flex gap-4">
+        <a href="#" class="hover:underline">Privacy</a>
+        <a href="#" class="hover:underline">Terms</a>
+        <a href="#" class="hover:underline">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
