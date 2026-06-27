@@ -1488,7 +1488,7 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'RESOLVE_WAITER': return {
       ...state,
-      waiterRequests: state.waiterRequests.map(r => r.id === action.payload ? { ...r, resolved: true } : r)
+      waiterRequests: state.waiterRequests.filter(r => r.id !== action.payload)
     };
     case 'ADD_TOAST': return { ...state, toasts: [...state.toasts, action.payload] };
     case 'REMOVE_TOAST': return { ...state, toasts: state.toasts.filter(t => t.id !== action.payload) };
@@ -2488,7 +2488,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'RESOLVE_WAITER': {
             const waiterRestId = currentState.waiterRequests.find(r => r.id === action.payload)?.restaurantId || restId;
             handleDbPromise(
-              update(ref(db, `waiterRequests/${waiterRestId}/${action.payload}`), { resolved: true }),
+              remove(ref(db, `waiterRequests/${waiterRestId}/${action.payload}`)),
               'Failed to resolve waiter request'
             );
             break;

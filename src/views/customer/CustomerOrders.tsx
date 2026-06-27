@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useStore, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import type { Order, OrderStatus } from '../../context/RealtimeStore';
-import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, Bell, ChevronDown, ChevronUp, Calendar, Printer } from 'lucide-react';
+import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, ChevronDown, ChevronUp, Calendar, Printer } from 'lucide-react';
 import { printThermalReceipt } from '../../utils/printReceipt';
 
-import { playChime } from '../../utils/notifications';
 
 type Props = { tableId: string };
 
@@ -20,7 +19,7 @@ const STATUS_INFO: Record<OrderStatus, { label: string; desc: string; icon: any;
 };
 
 export default function CustomerOrders({ tableId }: Props) {
-  const { state, dispatch, addToast } = useStore();
+  const { state, dispatch } = useStore();
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all' | string>('all');
   const [customDate, setCustomDate] = useState('');
 
@@ -87,21 +86,7 @@ export default function CustomerOrders({ tableId }: Props) {
     .filter(o => o.customerPhone === myPhoneIdentifier || o.tableId === tableId)
     .sort((a, b) => b.createdAt - a.createdAt);
 
-  const handleCallWaiter = () => {
-    const table = state.tables.find(t => t.id === tableId);
-    dispatch({
-      type: 'CALL_WAITER',
-      payload: {
-        id: `waiter-${Date.now()}`,
-        tableNumber: table?.number || 0,
-        tableId,
-        createdAt: Date.now(),
-        resolved: false,
-      }
-    });
-    addToast('info', 'Waiter has been notified! 🔔');
-    playChime();
-  };
+
 
   // Find all unique months in user's orders
   const uniqueMonths: string[] = []; // format "YYYY-MM"
@@ -193,13 +178,6 @@ export default function CustomerOrders({ tableId }: Props) {
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>My Orders</h2>
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{filteredOrders.length} order(s) shown</p>
         </div>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={handleCallWaiter}
-          style={{ height: 32, display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          <Bell size={14} /> Call Waiter
-        </button>
       </div>
 
       {/* Date & Period Filters */}

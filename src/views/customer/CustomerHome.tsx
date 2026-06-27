@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, useTranslation, getActiveRestaurantInfo, getActiveRestaurantId } from '../../context/RealtimeStore';
 import type { TableInfo, MenuItem } from '../../context/RealtimeStore';
-import { MapPin, Phone, Clock, ChevronRight, Star, Utensils, X, Mail } from 'lucide-react';
+import { MapPin, Phone, Clock, ChevronRight, Star, Utensils, X, Mail, Bell } from 'lucide-react';
 
 const VegNonVegIndicator = ({ isVeg, size = 14 }: { isVeg: boolean; size?: number }) => (
   <div style={{
@@ -162,6 +162,49 @@ export default function CustomerHome({ table }: Props) {
           gap: 8,
           zIndex: 10
         }}>
+          {/* Call Waiter Button */}
+          <button
+            onClick={() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              const tableId = table?.id || urlParams.get('table') || 'table-1';
+              const tableInfo = state.tables.find(t => t.id === tableId);
+              dispatch({
+                type: 'CALL_WAITER',
+                payload: {
+                  id: `waiter-${Date.now()}`,
+                  tableNumber: tableInfo?.number || 0,
+                  tableId,
+                  createdAt: Date.now(),
+                  resolved: false,
+                }
+              });
+              addToast('success', 'Waiter has been notified! 🔔');
+              try {
+                const audio = new Audio('/chime.mp3');
+                audio.play().catch(() => {});
+              } catch (e) {}
+            }}
+            style={{
+              background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)',
+              color: '#000000',
+              fontSize: 11,
+              fontWeight: 800,
+              padding: '6px 12px',
+              borderRadius: 99,
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              boxShadow: '0 4px 12px rgba(255, 125, 0, 0.35)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+            onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            <Bell size={12} /> Call Waiter
+          </button>
+
           {/* Language Switcher */}
           <div style={{ position: 'relative' }}>
             <button
@@ -340,30 +383,6 @@ export default function CustomerHome({ table }: Props) {
             {restaurant.description}
           </p>
         )}
-
-        {/* Info chips */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 8 }}>
-          {restaurant.openTime && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              background: 'var(--bg-elevated)', borderRadius: 99,
-              padding: '5px 12px', fontSize: 12, color: 'var(--text-secondary)',
-              border: '1px solid var(--border)'
-            }}>
-              <Clock size={12} color="var(--brand)" /> {restaurant.openTime} – {restaurant.closeTime}
-            </div>
-          )}
-          {restaurant.address && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              background: 'var(--bg-elevated)', borderRadius: 99,
-              padding: '5px 12px', fontSize: 12, color: 'var(--text-secondary)',
-              border: '1px solid var(--border)'
-            }}>
-              <MapPin size={12} color="var(--brand)" /> {restaurant.address.split(',')[0]}
-            </div>
-          )}
-        </div>
 
         {/* Marquee Banner */}
         {restaurant.offersMarqueeEnabled && (state.coupons?.filter(c => c.isActive).length || 0) > 0 && (

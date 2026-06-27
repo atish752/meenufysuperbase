@@ -426,7 +426,11 @@ export default function AdminHome() {
 
   const adminId = state.admin?.restaurantId || 'admin-1';
   const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && (r.restaurantId || 'admin-1') === adminId);
-  const activeOrders = state.orders.filter(o => ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status) && (o.restaurantId || 'admin-1') === adminId);
+  const activeOrders = state.orders.filter(o => {
+    const isActive = ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status);
+    const isUnder180Min = Date.now() - o.createdAt < 180 * 60 * 1000;
+    return isActive && isUnder180Min && (o.restaurantId || 'admin-1') === adminId;
+  });
 
   // Unique months in orders for filter dropdown
   const uniqueMonths: string[] = []; // format "YYYY-MM"
@@ -891,6 +895,9 @@ export default function AdminHome() {
         </div>
       </div>
 
+      {/* Horizontal Line Below Buttons */}
+      <hr style={{ border: 'none', height: '2.5px', backgroundColor: '#000000', margin: '20px 0' }} />
+
       {/* Active Orders Section */}
       {hasOrdersPermission ? (
         <div style={{ marginBottom: 24 }}>
@@ -1220,6 +1227,9 @@ export default function AdminHome() {
           🍳 Orders Board access is restricted.
         </div>
       )}
+
+      {/* Horizontal Line where active orders end and Table map starts */}
+      <hr style={{ border: 'none', height: '2.5px', backgroundColor: '#000000', margin: '24px 0 20px' }} />
 
       {/* Live Table Map */}
       {hasQrTablesPermission ? (
@@ -2016,7 +2026,7 @@ function TableMap() {
   const myOrders = orders.filter(o => (o.restaurantId || 'admin-1') === adminRestaurantId);
   const occupiedMap: Record<string, { customerName: string; orderCount: number }> = {};
   myOrders.forEach(o => {
-    if (['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status)) {
+    if (['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status) && (Date.now() - o.createdAt < 180 * 60 * 1000)) {
       if (!occupiedMap[o.tableId]) {
         occupiedMap[o.tableId] = { customerName: o.customerName || 'Guest', orderCount: 1 };
       } else {
@@ -2871,8 +2881,7 @@ function TabularOrderRow({
   return (
     <div style={{
       background: 'var(--bg-primary)',
-      border: `1px solid var(--border)`,
-      borderLeft: `4px solid ${cfg.color}`,
+      border: `2.5px solid ${cfg.color}`,
       borderRadius: 10,
       padding: '10px 12px',
       display: 'flex',
