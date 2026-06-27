@@ -402,8 +402,8 @@ function onToolClick(id, e) {
   const isSoon = tool.badge === 'soon';
   showToast(
     isSoon
-      ? `🚧 <b>${tool.title}</b> is coming soon! Meanwhile, <a href="/?view=admin" style="color:var(--brand);font-weight:700">try Meenufy free</a>.`
-      : `🚧 <b>${tool.title}</b> is being built! <a href="/?view=admin" style="color:var(--brand);font-weight:700">Try Meenufy</a> — the full platform.`
+      ? `🚧 <b>${tool.title}</b> is coming soon! Meanwhile, <a href="/" style="color:var(--brand);font-weight:700">try Meenufy free</a>.`
+      : `🚧 <b>${tool.title}</b> is being built! <a href="/" style="color:var(--brand);font-weight:700">Try Meenufy</a> — the full platform.`
   );
 }
 
