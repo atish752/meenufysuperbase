@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meenufy — Smart Restaurant Management Platform</title>
+  <meta name="description" content="Meenufy is the all-in-one restaurant management platform. Digital QR menus, order management, loyalty programs, and staff tools — plus 15+ free calculators and guides for restaurant owners." />
+  <meta name="keywords" content="restaurant management software, food cost calculator, QR menu, restaurant tools, profit margin calculator, restaurant analytics" />
+  <meta property="og:title" content="Meenufy — Smarter Restaurant Management" />
+  <meta property="og:description" content="Free restaurant tools, calculators, and guides — plus a complete management platform." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body id="body">
+
+  <!-- ============================== NAVBAR ============================== -->
+  <header class="navbar" id="navbar">
+    <div class="container navbar-inner">
+
+      <a href="../index.html" class="nav-logo" aria-label="Meenufy Home">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+          <rect width="30" height="30" rx="8" fill="#FF7D00"/>
+          <path d="M7 22V12a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M10 16h10M10 19.5h7" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="15" cy="10" r="1.8" fill="#fff"/>
+        </svg>
+        <span class="logo-wordmark">Meenufy</span>
+      </a>
+
+      <nav class="nav-center" aria-label="Main navigation">
+        <a href="#free-tools" class="nav-link">Free Tools</a>
+        <a href="#calculators" class="nav-link">Calculators</a>
+        <a href="#guides" class="nav-link">Guides</a>
+        <a href="../index.html?view=admin" class="nav-link">Platform</a>
+      </nav>
+
+      <div class="nav-right">
+        <a href="../index.html?view=admin" class="btn-signin">Sign in</a>
+        <a href="../index.html?view=admin" class="btn-cta-nav">Get Started Free</a>
+      </div>
+
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="mobile-nav" id="mobileNav" aria-hidden="true">
+      <a href="#free-tools" class="mobile-nav-link">Free Tools</a>
+      <a href="#calculators" class="mobile-nav-link">Calculators</a>
+      <a href="#guides" class="mobile-nav-link">Guides</a>
+      <div class="mobile-nav-divider"></div>
+      <a href="../index.html?view=admin" class="mobile-nav-link">Sign in</a>
+      <a href="../index.html?view=admin" class="btn-cta-nav" style="margin-top:4px">Get Started Free</a>
+    </div>
+  </header>
+
+
+  <!-- ============================== HERO ============================== -->
+  <section class="hero">
+    <div class="container hero-inner">
+
+      <div class="hero-eyebrow">
+        <span class="eyebrow-dot"></span>
+        Trusted by restaurants worldwide
+      </div>
+
+      <h1 class="hero-title">The smarter way to<br>run your restaurant</h1>
+
+      <p class="hero-subtitle">Meenufy brings together digital QR menus, real-time order management, built-in loyalty programs, staff controls, and powerful analytics — all in one platform, starting free.</p>
+
+      <div class="hero-cta-row">
+        <a href="../index.html?view=admin" class="btn-primary-lg">Try Meenufy Free</a>
+        <a href="#free-tools" class="btn-ghost-lg">Watch Demo</a>
+      </div>
+
+      <div class="hero-trust-row">
+        <div class="trust-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          No credit card required
+        </div>
+        <span class="trust-sep">·</span>
+        <div class="trust-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Setup in 2 minutes
+        </div>
+        <span class="trust-sep">·</span>
+        <div class="trust-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Free forever
+        </div>
+      </div>
+
+      <!-- Feature pills -->
+      <div class="hero-features">
+        <span class="feature-pill">📱 QR Digital Menu</span>
+        <span class="feature-pill">📋 Order Management</span>
+        <span class="feature-pill">❤️ Loyalty Program</span>
+        <span class="feature-pill">📊 Analytics Dashboard</span>
+        <span class="feature-pill">👥 Staff Controls</span>
+        <span class="feature-pill">🖨️ KOT &amp; Bill Print</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================== DIVIDER ============================== -->
+  <div class="section-divider"></div>
+
+  <!-- ============================== FREE TOOLS ============================== -->
+  <section class="tools-section" id="free-tools">
+    <div class="container">
+
+      <div class="tools-section-header">
+        <div>
+          <h2 class="tools-heading">Free restaurant tools</h2>
+          <p class="tools-subheading">Every tool you need to run a smarter, more profitable restaurant — 100% free, no account required.</p>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="search-wrap">
+        <div class="search-box">
+          <svg class="search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input id="searchInput" class="search-input" type="text" placeholder="Search tools…" autocomplete="off" spellcheck="false" />
+          <button id="searchClear" class="search-clear" style="display:none" aria-label="Clear search">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Pills (centered, like Stitch design) -->
+      <div class="filter-tabs" id="filterTabs" role="tablist">
+        <button class="tab active" data-filter="all" role="tab" aria-selected="true">All</button>
+        <button class="tab" data-filter="calculator" role="tab" aria-selected="false">Calculators</button>
+        <button class="tab" data-filter="qr" role="tab" aria-selected="false">QR Tools</button>
+        <button class="tab" data-filter="growth" role="tab" aria-selected="false">Analytics</button>
+        <button class="tab" data-filter="staff" role="tab" aria-selected="false">Staff</button>
+        <button class="tab" data-filter="guide" role="tab" aria-selected="false">Guides</button>
+      </div>
+
+      <!-- Tool Grids by Category -->
+      <div id="toolsContainer">
+
+        <!-- Calculators group -->
+        <div class="tool-group" id="calculators">
+          <h3 class="group-heading">
+            <span class="group-heading-dot dot-orange"></span>
+            Calculators
+          </h3>
+          <div class="tool-grid" id="grid-calculator"></div>
+        </div>
+
+        <!-- QR Tools group -->
+        <div class="tool-group" id="qr-tools">
+          <h3 class="group-heading">
+            <span class="group-heading-dot dot-blue"></span>
+            QR &amp; Digital Menu Tools
+          </h3>
+          <div class="tool-grid" id="grid-qr"></div>
+        </div>
+
+        <!-- Growth group -->
+        <div class="tool-group" id="growth-tools">
+          <h3 class="group-heading">
+            <span class="group-heading-dot dot-green"></span>
+            Growth &amp; Profitability Tools
+          </h3>
+          <div class="tool-grid" id="grid-growth"></div>
+        </div>
+
+        <!-- Staff Tools group -->
+        <div class="tool-group" id="staff-tools">
+          <h3 class="group-heading">
+            <span class="group-heading-dot dot-purple"></span>
+            Staff Tools
+          </h3>
+          <div class="tool-grid" id="grid-staff"></div>
+        </div>
+
+        <!-- Guides group -->
+        <div class="tool-group" id="guides">
+          <h3 class="group-heading">
+            <span class="group-heading-dot dot-gray"></span>
+            Guides &amp; Resources
+          </h3>
+          <div class="tool-grid" id="grid-guide"></div>
+        </div>
+
+        <!-- No Results -->
+        <div id="noResults" class="no-results" style="display:none">
+          <p class="no-results-emoji">🔍</p>
+          <h3>No tools found</h3>
+          <p>Try a different keyword or <button class="link-btn" onclick="clearSearch()">show all tools</button></p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================== MEENUFY PROMO ============================== -->
+  <section class="promo-section">
+    <div class="container promo-inner">
+      <div class="promo-content">
+        <div class="promo-logo">
+          <svg width="40" height="40" viewBox="0 0 30 30" fill="none">
+            <rect width="30" height="30" rx="8" fill="#FF7D00"/>
+            <path d="M7 22V12a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M10 16h10M10 19.5h7" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="15" cy="10" r="1.8" fill="#fff"/>
+          </svg>
+          <span>Meenufy</span>
+        </div>
+        <h2 class="promo-title">Ready to run a smarter restaurant?</h2>
+        <p class="promo-desc">Meenufy replaces your separate POS, ordering system, loyalty app, staff management tool, and analytics software — all in one platform. Start free, no credit card needed.</p>
+        <div class="promo-features">
+          <div class="promo-feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> QR menus that actually take orders</div>
+          <div class="promo-feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Real-time kitchen order board</div>
+          <div class="promo-feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Built-in loyalty points system</div>
+          <div class="promo-feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Revenue &amp; customer analytics</div>
+          <div class="promo-feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Multi-staff permissions management</div>
+          <div class="promo-feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Works on any phone or tablet</div>
+        </div>
+        <a href="../index.html?view=admin" class="btn-primary-lg" style="display:inline-flex;margin-top:8px">Get Started — It's Free →</a>
+      </div>
+      <div class="promo-visual" aria-hidden="true">
+        <div class="mock-dashboard">
+          <div class="mock-bar">
+            <div class="mock-dot r"></div><div class="mock-dot y"></div><div class="mock-dot g"></div>
+            <span style="flex:1;text-align:center;font-size:11px;color:#999">Meenufy Dashboard</span>
+          </div>
+          <div class="mock-body">
+            <div class="mock-stat-row">
+              <div class="mock-stat"><div class="mock-stat-val">₹48,200</div><div class="mock-stat-lbl">Today's Revenue</div></div>
+              <div class="mock-stat"><div class="mock-stat-val">142</div><div class="mock-stat-lbl">Orders Today</div></div>
+              <div class="mock-stat"><div class="mock-stat-val">96%</div><div class="mock-stat-lbl">Satisfaction</div></div>
+            </div>
+            <div class="mock-orders">
+              <div class="mock-order-hdr">Live Orders</div>
+              <div class="mock-order new">
+                <div class="mock-order-dot new-dot"></div>
+                <div class="mock-order-info"><b>Table 4</b> · Priya S. · 3 items</div>
+                <div class="mock-order-badge new-badge">New</div>
+              </div>
+              <div class="mock-order prep">
+                <div class="mock-order-dot prep-dot"></div>
+                <div class="mock-order-info"><b>Table 7</b> · Rahul M. · 5 items</div>
+                <div class="mock-order-badge prep-badge">Preparing</div>
+              </div>
+              <div class="mock-order ready">
+                <div class="mock-order-dot ready-dot"></div>
+                <div class="mock-order-info"><b>Table 2</b> · Ankit K. · 2 items</div>
+                <div class="mock-order-badge ready-badge">Ready</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================== FOOTER ============================== -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <svg width="22" height="22" viewBox="0 0 30 30" fill="none">
+            <rect width="30" height="30" rx="8" fill="#FF7D00"/>
+            <path d="M7 22V12a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M10 16h10M10 19.5h7" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="15" cy="10" r="1.8" fill="#fff"/>
+          </svg>
+          <span class="footer-logo-text">Meenufy</span>
+        </div>
+        <p class="footer-tagline">The complete restaurant management platform for modern restaurants worldwide.</p>
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col">
+          <h4>Free Tools</h4>
+          <a href="#calculators">Calculators</a>
+          <a href="#growth-tools">Growth Tools</a>
+          <a href="#qr-tools">QR Tools</a>
+          <a href="#guides">Guides</a>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="../index.html?view=admin">Sign In</a>
+          <a href="../index.html?view=admin">Get Started</a>
+          <a href="../index.html?view=admin">Features</a>
+          <a href="../index.html?view=admin">Pricing</a>
+        </div>
+        <div class="footer-col">
+          <h4>Company</h4>
+          <a href="#">About</a>
+          <a href="#">Blog</a>
+          <a href="#">Contact</a>
+          <a href="#">Privacy Policy</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container footer-bottom-inner">
+        <span>© 2025 Meenufy. All rights reserved.</span>
+        <div class="footer-bottom-links">
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">Contact</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
