@@ -41,13 +41,6 @@
     }
   </script>
 
-  <!-- React and ReactDOM UMD CDNs -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-  
-  <!-- Babel for browser-side JSX transpilation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.12/babel.min.js"></script>
-
   <!-- jsPDF & html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
@@ -223,941 +216,315 @@
 </head>
 <body class="bg-white text-gray-900 antialiased font-sans">
 
-  <!-- Mount Point for React App -->
-  <div id="app"></div>
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
+    <div class="max-width-container mx-auto px-4 max-w-7xl h-16 flex items-center justify-between">
+      <a href="/tools/" class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-brand flex items-center justify-center font-bold text-white font-display text-lg">M</div>
+        <span class="font-display font-extrabold text-xl text-gray-900 tracking-tight">Meenufy</span>
+      </a>
+      <div class="flex items-center gap-4">
+        <a href="/tools/" class="text-sm font-medium text-gray-500 hover:text-gray-950 transition">Free Tools</a>
+        <a href="/" class="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg transition shadow-sm">Start Free Trial</a>
+      </div>
+    </div>
+  </header>
 
-  <!-- React App Code -->
-  <script type="text/babel">
-    const { useState, useMemo, useEffect, useRef } = React;
-
-    // Currencies list
-    const CURRENCIES = [
-      { symbol: '₹', code: 'INR', label: 'Indian Rupee' },
-      { symbol: '$', code: 'USD', label: 'US Dollar' },
-      { symbol: '£', code: 'GBP', label: 'British Pound' },
-      { symbol: '€', code: 'EUR', label: 'Euro' },
-      { symbol: '₨', code: 'PKR', label: 'Pakistani Rupee' },
-      { symbol: 'د.إ', code: 'AED', label: 'UAE Dirham' },
-      { symbol: 'CA$', code: 'CAD', label: 'Canadian Dollar' },
-      { symbol: 'A$', code: 'AUD', label: 'Australian Dollar' },
-      { symbol: '¥', code: 'JPY', label: 'Japanese Yen' },
-      { symbol: '¥', code: 'CNY', label: 'Chinese Yuan' },
-      { symbol: 'R', code: 'ZAR', label: 'South African Rand' },
-      { symbol: '৳', code: 'BDT', label: 'Bangladeshi Taka' },
-      { symbol: 'RM', code: 'MYR', label: 'Malaysian Ringgit' },
-      { symbol: '₦', code: 'NGN', label: 'Nigerian Naira' },
-      { symbol: 'kr', code: 'SEK', label: 'Swedish Krona' },
-      { symbol: 'CHF', code: 'CHF', label: 'Swiss Franc' },
-      { symbol: 'S$', code: 'SGD', label: 'Singapore Dollar' },
-      { symbol: '﷼', code: 'SAR', label: 'Saudi Riyal' },
-      { symbol: 'KD', code: 'KWD', label: 'Kuwaiti Dinar' },
-      { symbol: '฿', code: 'THB', label: 'Thai Baht' },
-      { symbol: '₫', code: 'VND', label: 'Vietnamese Dong' },
-      { symbol: '₱', code: 'PHP', label: 'Philippine Peso' },
-      { symbol: 'Rp', code: 'IDR', label: 'Indonesian Rupiah' },
-      { symbol: 'KSh', code: 'KES', label: 'Kenyan Shilling' },
-      { symbol: 'GH₵', code: 'GHS', label: 'Ghanaian Cedi' },
-      { symbol: 'R$', code: 'BRL', label: 'Brazilian Real' },
-      { symbol: '$', code: 'MXN', label: 'Mexican Peso' },
-      { symbol: 'NZ$', code: 'NZD', label: 'New Zealand Dollar' }
-    ];
-
-    // Conversion logic matrix
-    const UNIT_CONVERSIONS = {
-      // Weight
-      'kg': { 'g': 1000, 'kg': 1, 'lb': 2.20462, 'oz': 35.274 },
-      'g': { 'g': 1, 'kg': 0.001, 'lb': 0.00220462, 'oz': 0.035274 },
-      'lb': { 'lb': 1, 'oz': 16, 'kg': 0.453592, 'g': 453.592 },
-      'oz': { 'oz': 1, 'lb': 0.0625, 'kg': 0.0283495, 'g': 28.3495 },
+  <!-- Hero Section -->
+  <section class="py-12 bg-gray-50 border-b border-gray-100 text-center px-4">
+    <div class="max-w-4xl mx-auto">
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-light text-brand border border-orange-200 mb-4">
+        <span class="w-2 h-2 rounded-full bg-brand"></span>
+        Instant calculations. No signup required.
+      </span>
+      <h1 class="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tight mb-4">
+        Free Restaurant Food Cost Calculator
+      </h1>
+      <p class="text-gray-600 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-6">
+        Calculate food cost percentage, ideal selling price, and gross profit per dish — in seconds. Works in 30+ currencies.
+      </p>
       
-      // Volume
-      'L': { 'L': 1, 'ml': 1000, 'cup': 4.22675, 'tbsp': 67.628, 'tsp': 202.884 },
-      'ml': { 'ml': 1, 'L': 0.001, 'cup': 0.00422675, 'tbsp': 0.067628, 'tsp': 0.202884 },
-      'cup': { 'cup': 1, 'ml': 236.588, 'L': 0.236588, 'tbsp': 16, 'tsp': 48 },
-      'tbsp': { 'tbsp': 1, 'ml': 14.7868, 'L': 0.0147868, 'tsp': 3, 'cup': 0.0625 },
-      'tsp': { 'tsp': 1, 'ml': 4.92892, 'L': 0.00492892, 'tbsp': 0.333333 },
+      {/* Trust Badges */}
+      <div class="flex flex-wrap items-center justify-center gap-3 max-w-3xl mx-auto">
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ 100% Free</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Works in 30+ currencies (₹, $, €)</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Recipe & Overall modes</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ PDF Report Export</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Used by 10k+ Restaurants</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main App Grid -->
+  <main class="max-w-6xl mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- Left Column: Calculator Panel -->
+    <div class="lg:col-span-2 space-y-6">
       
-      // Count
-      'piece': { 'piece': 1 },
-      'dozen': { 'dozen': 1, 'piece': 12 },
-      'slice': { 'slice': 1 },
-      'bunch': { 'bunch': 1 },
-      'head': { 'head': 1 },
-      'clove': { 'clove': 1 },
-      'loaf': { 'loaf': 1, 'slice': 20 },
-    };
-
-    function calculateIngredientCost(ing) {
-      const buyPrice = parseFloat(ing.buyPrice) || 0;
-      const qtyUsed = parseFloat(ing.qtyUsed) || 0;
-      const buyUnit = ing.buyUnit;
-      const useUnit = ing.useUnit;
-      const wastagePercent = parseFloat(ing.wastagePercent) || 0;
-
-      // Base conversion factor: from useUnit to buyUnit
-      let conversionFactor = 1;
-      if (UNIT_CONVERSIONS[useUnit] && UNIT_CONVERSIONS[useUnit][buyUnit] !== undefined) {
-        conversionFactor = 1 / UNIT_CONVERSIONS[useUnit][buyUnit];
-      } else if (UNIT_CONVERSIONS[buyUnit] && UNIT_CONVERSIONS[buyUnit][useUnit] !== undefined) {
-        conversionFactor = UNIT_CONVERSIONS[buyUnit][useUnit];
-      }
-
-      const qtyInBuyUnit = qtyUsed * conversionFactor;
-      const rawCost = buyPrice * qtyInBuyUnit;
-      const wastageMultiplier = wastagePercent > 0 ? (1 / (1 - (wastagePercent / 100))) : 1;
-
-      return rawCost * wastageMultiplier;
-    }
-
-    function App() {
-      const [mode, setMode] = useState('recipe'); // 'recipe' | 'overall'
-      const [currency, setCurrency] = useState(CURRENCIES[0]);
-      const [toast, setToast] = useState('');
-
-      // Tab 1 state
-      const [dishName, setDishName] = useState('');
-      const [sellingPrice, setSellingPrice] = useState('');
-      const [targetFoodCostPercent, setTargetFoodCostPercent] = useState(30);
-      const [portions, setPortions] = useState(1);
-      const [restaurantName, setRestaurantName] = useState('');
-      const [ingredients, setIngredients] = useState([
-        { id: 1, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
-        { id: 2, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
-        { id: 3, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
-      ]);
-
-      // What-if state for Tab 1
-      const [whatIfPriceSlider, setWhatIfPriceSlider] = useState('');
-      const [whatIfCostSlider, setWhatIfCostSlider] = useState(0);
-
-      // Tab 2 state
-      const [period, setPeriod] = useState('Month'); // 'Week' | 'Month' | 'Quarter'
-      const [beginningInventory, setBeginningInventory] = useState('');
-      const [purchases, setPurchases] = useState('');
-      const [endingInventory, setEndingInventory] = useState('');
-      const [totalFoodSales, setTotalFoodSales] = useState('');
-
-      // Show toast helper
-      const triggerToast = (msg) => {
-        setToast(msg);
-        setTimeout(() => setToast(''), 3500);
-      };
-
-      // Load State from URL on Mount
-      useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const data = params.get('d');
-        if (data) {
-          try {
-            const state = JSON.parse(atob(data));
-            if (state.mode) setMode(state.mode);
-            if (state.currency) {
-              const matched = CURRENCIES.find(c => c.code === state.currency);
-              if (matched) setCurrency(matched);
-            }
-            if (state.dishName) setDishName(state.dishName);
-            if (state.sellingPrice) setSellingPrice(state.sellingPrice);
-            if (state.targetFoodCostPercent) setTargetFoodCostPercent(state.targetFoodCostPercent);
-            if (state.portions) setPortions(state.portions);
-            if (state.ingredients) setIngredients(state.ingredients);
-            if (state.period) setPeriod(state.period);
-            if (state.beginningInventory) setBeginningInventory(state.beginningInventory);
-            if (state.purchases) setPurchases(state.purchases);
-            if (state.endingInventory) setEndingInventory(state.endingInventory);
-            if (state.totalFoodSales) setTotalFoodSales(state.totalFoodSales);
-            triggerToast('📊 Calculations restored from link!');
-          } catch (e) {
-            console.error('Failed to parse URL state', e);
-          }
-        }
-      }, []);
-
-      // Main Calculations: Tab 1 Recipe Costing
-      const recipeResults = useMemo(() => {
-        const totalIngredientCost = ingredients.reduce((sum, ing) => {
-          return sum + calculateIngredientCost(ing);
-        }, 0) / (parseInt(portions, 10) || 1);
-
-        const sPrice = parseFloat(sellingPrice) || 0;
-        const actualFoodCostPercent = sPrice > 0 ? (totalIngredientCost / sPrice) * 100 : null;
-
-        const recPrice = targetFoodCostPercent > 0 ? totalIngredientCost / (parseFloat(targetFoodCostPercent) / 100) : null;
-        const grossProfit = sPrice > 0 ? sPrice - totalIngredientCost : null;
-
-        return { totalIngredientCost, actualFoodCostPercent, recPrice, grossProfit };
-      }, [ingredients, sellingPrice, targetFoodCostPercent, portions]);
-
-      // Synchronize Scenario 1 price slider default value
-      useEffect(() => {
-        if (sellingPrice) {
-          setWhatIfPriceSlider(sellingPrice);
-        } else if (recipeResults.recPrice) {
-          setWhatIfPriceSlider(Math.round(recipeResults.recPrice));
-        }
-      }, [sellingPrice, recipeResults.recPrice]);
-
-      // Calculate Scenario Outputs
-      const scenarioResults = useMemo(() => {
-        const newCostMultiplier = 1 + (whatIfCostSlider / 100);
-        const adjustedCostPerPortion = recipeResults.totalIngredientCost * newCostMultiplier;
-
-        const sliderPriceVal = parseFloat(whatIfPriceSlider) || 0;
-        const scenarioFoodCostPercent = sliderPriceVal > 0 ? (adjustedCostPerPortion / sliderPriceVal) * 100 : null;
-        const scenarioGrossProfit = sliderPriceVal > 0 ? sliderPriceVal - adjustedCostPerPortion : null;
-
-        return { adjustedCostPerPortion, scenarioFoodCostPercent, scenarioGrossProfit };
-      }, [recipeResults.totalIngredientCost, whatIfPriceSlider, whatIfCostSlider]);
-
-      // Main Calculations: Tab 2 Overall Food Cost
-      const overallResults = useMemo(() => {
-        const beg = parseFloat(beginningInventory) || 0;
-        const pur = parseFloat(purchases) || 0;
-        const end = parseFloat(endingInventory) || 0;
-        const sales = parseFloat(totalFoodSales) || 0;
-
-        const cogs = beg + pur - end;
-        const foodCostPercent = sales > 0 ? (cogs / sales) * 100 : null;
-        const grossProfit = sales - cogs;
-
-        return { cogs, foodCostPercent, grossProfit };
-      }, [beginningInventory, purchases, endingInventory, totalFoodSales]);
-
-      // Add Ingredient Row
-      const addIngredientRow = () => {
-        setIngredients([
-          ...ingredients,
-          { id: Date.now(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 }
-        ]);
-      };
-
-      // Remove Ingredient Row
-      const removeIngredientRow = (id) => {
-        if (ingredients.length === 1) {
-          triggerToast('⚠️ Minimum 1 ingredient required!');
-          return;
-        }
-        setIngredients(ingredients.filter(ing => ing.id !== id));
-      };
-
-      // Update Row Values
-      const updateIngredientRow = (id, key, val) => {
-        setIngredients(ingredients.map(ing => {
-          if (ing.id === id) {
-            return { ...ing, [key]: val };
-          }
-          return ing;
-        }));
-      };
-
-      // Reset values
-      const handleReset = () => {
-        if (confirm('Are you sure you want to reset all calculator fields?')) {
-          setDishName('');
-          setSellingPrice('');
-          setTargetFoodCostPercent(30);
-          setPortions(1);
-          setWhatIfCostSlider(0);
-          setBeginningInventory('');
-          setPurchases('');
-          setEndingInventory('');
-          setTotalFoodSales('');
-          setIngredients([
-            { id: 1, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
-            { id: 2, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
-            { id: 3, name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
-          ]);
-          triggerToast('↺ Calculator reset successfully.');
-        }
-      };
-
-      // Share Link Generator
-      const handleShare = () => {
-        const stateToEncode = {
-          mode,
-          currency: currency.code,
-          dishName,
-          sellingPrice,
-          targetFoodCostPercent,
-          portions,
-          ingredients,
-          period,
-          beginningInventory,
-          purchases,
-          endingInventory,
-          totalFoodSales
-        };
-        const encoded = btoa(JSON.stringify(stateToEncode));
-        const shareUrl = `${window.location.origin}/tools/food-cost-calculator?d=${encoded}`;
-        navigator.clipboard.writeText(shareUrl).then(() => {
-          triggerToast('🔗 Shareable calculations link copied to clipboard!');
-        }).catch(err => {
-          console.error('Could not copy link', err);
-          triggerToast('❌ Error copying link.');
-        });
-      };
-
-      // Copy text summary to clipboard
-      const handleCopyText = () => {
-        let text = `=== MEENUFY FOOD COST REPORT ===\n`;
-        text += `Date: ${new Date().toLocaleDateString()}\n`;
-        if (mode === 'recipe') {
-          text += `Dish Name: ${dishName || 'Dish'}\n`;
-          text += `Cost per Portion: ${currency.symbol}${recipeResults.totalIngredientCost.toFixed(2)}\n`;
-          text += `Food Cost Percentage: ${recipeResults.actualFoodCostPercent ? recipeResults.actualFoodCostPercent.toFixed(1) + '%' : 'N/A'}\n`;
-          text += `Recommended Price: ${currency.symbol}${recipeResults.recPrice ? recipeResults.recPrice.toFixed(2) : 'N/A'}\n`;
-          text += `Gross Profit: ${currency.symbol}${recipeResults.grossProfit ? recipeResults.grossProfit.toFixed(2) : 'N/A'}\n`;
-        } else {
-          text += `Period: ${period}\n`;
-          text += `COGS: ${currency.symbol}${overallResults.cogs.toFixed(2)}\n`;
-          text += `Overall Food Cost Percentage: ${overallResults.foodCostPercent ? overallResults.foodCostPercent.toFixed(1) + '%' : 'N/A'}\n`;
-          text += `Total Gross Profit: ${currency.symbol}${overallResults.grossProfit.toFixed(2)}\n`;
-        }
-        text += `Calculate more at: meenufy.com/tools/food-cost-calculator`;
-
-        navigator.clipboard.writeText(text).then(() => {
-          triggerToast('📋 Results copied to clipboard!');
-        });
-      };
-
-      // PDF Export using jsPDF
-      const handleExportPDF = () => {
-        try {
-          const { jsPDF } = window.jspdf;
-          const doc = new jsPDF();
-
-          // Header
-          doc.setFontSize(22);
-          doc.setTextColor('#F97316'); // Meenufy brand orange
-          doc.text('Food Cost Calculator Report', 20, 25);
-
-          doc.setFontSize(10);
-          doc.setTextColor('#6B7280');
-          doc.text(`Generated by Meenufy — meenufy.com/tools/food-cost-calculator`, 20, 32);
-
-          doc.setDrawColor('#E5E7EB');
-          doc.line(20, 36, 190, 36);
-
-          doc.setFontSize(12);
-          doc.setTextColor('#111827');
-          doc.text(`Restaurant Name: ${restaurantName || 'N/A'}`, 20, 46);
-          doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 52);
-
-          if (mode === 'recipe') {
-            doc.text(`Dish Name: ${dishName || 'Unspecified Item'}`, 20, 58);
-            doc.text(`Portions: ${portions}`, 20, 64);
-
-            // Summary box
-            doc.setFillColor('#FFF7ED');
-            doc.rect(20, 72, 170, 32, 'F');
-
-            doc.setFontSize(11);
-            doc.text(`Cost per Portion: ${currency.symbol}${recipeResults.totalIngredientCost.toFixed(2)}`, 25, 80);
-            doc.text(`Actual Food Cost %: ${recipeResults.actualFoodCostPercent ? recipeResults.actualFoodCostPercent.toFixed(1) + '%' : 'N/A'}`, 105, 80);
-            doc.text(`Recommended Price: ${currency.symbol}${recipeResults.recPrice ? recipeResults.recPrice.toFixed(2) : 'N/A'}`, 25, 92);
-            doc.text(`Gross Profit: ${currency.symbol}${recipeResults.grossProfit ? recipeResults.grossProfit.toFixed(2) : 'N/A'}`, 105, 92);
-
-            // Table Header
-            const body = ingredients.map(ing => {
-              const ingCost = calculateIngredientCost(ing);
-              const totalCost = recipeResults.totalIngredientCost * (parseInt(portions, 10) || 1);
-              const percentage = totalCost > 0 ? (ingCost / totalCost) * 100 : 0;
-              return [
-                ing.name || 'Unnamed Ingredient',
-                `${ing.buyPrice || 0} / ${ing.buyUnit}`,
-                `${ing.qtyUsed || 0} ${ing.useUnit}`,
-                `${ing.wastagePercent || 0}%`,
-                `${currency.symbol}${ingCost.toFixed(2)}`,
-                `${percentage.toFixed(1)}%`
-              ];
-            });
-
-            window.jspdf.applyPlugin(doc);
-            doc.autoTable({
-              startY: 112,
-              head: [['Ingredient Name', 'Purchase Price', 'Quantity Used', 'Wastage %', 'Cost', '% of Total']],
-              body: body,
-              theme: 'striped',
-              headStyles: { fillColor: '#F97316' },
-            });
-          } else {
-            doc.text(`Reporting Period: ${period}`, 20, 58);
-
-            // Summary box
-            doc.setFillColor('#FFF7ED');
-            doc.rect(20, 66, 170, 26, 'F');
-
-            doc.setFontSize(11);
-            doc.text(`COGS: ${currency.symbol}${overallResults.cogs.toFixed(2)}`, 25, 74);
-            doc.text(`Food Cost Percentage: ${overallResults.foodCostPercent ? overallResults.foodCostPercent.toFixed(1) + '%' : 'N/A'}`, 105, 74);
-            doc.text(`Gross Profit Retained: ${currency.symbol}${overallResults.grossProfit.toFixed(2)}`, 25, 84);
-
-            const body = [
-              ['Beginning Inventory Value', `${currency.symbol}${parseFloat(beginningInventory) || 0}`],
-              ['(+) Purchases made', `${currency.symbol}${parseFloat(purchases) || 0}`],
-              ['(−) Ending Inventory Value', `${currency.symbol}${parseFloat(endingInventory) || 0}`],
-              ['Total Cost of Goods Sold (COGS)', `${currency.symbol}${overallResults.cogs.toFixed(2)}`],
-              ['Total Food Sales', `${currency.symbol}${parseFloat(totalFoodSales) || 0}`]
-            ];
-
-            window.jspdf.applyPlugin(doc);
-            doc.autoTable({
-              startY: 100,
-              head: [['Operational Metric', 'Amount']],
-              body: body,
-              theme: 'striped',
-              headStyles: { fillColor: '#F97316' },
-            });
-          }
-
-          // Footer branding watermark
-          const pageCount = doc.internal.getNumberOfPages();
-          for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(8);
-            doc.setTextColor('#9CA3AF');
-            doc.text('Calculated using Meenufy — Start your digital menu and self-ordering free trial at meenufy.com', 20, 285);
-          }
-
-          const fileBase = (mode === 'recipe' ? (dishName || 'recipe') : 'period-report').toLowerCase().replace(/\s+/g, '-');
-          doc.save(`meenufy-food-cost-${fileBase}.pdf`);
-          triggerToast('📄 PDF report generated and downloaded!');
-        } catch (e) {
-          console.error(e);
-          triggerToast('❌ Error generating PDF: Check that jsPDF loaded correctly.');
-        }
-      };
-
-      // Determine benchmark alert color
-      const costPct = mode === 'recipe' ? recipeResults.actualFoodCostPercent : overallResults.foodCostPercent;
-      const benchmarkData = useMemo(() => {
-        if (costPct === null || costPct === undefined) return { label: 'Enter prices/sales to check benchmark', color: 'text-gray-500', barBg: 'bg-gray-200' };
-        if (costPct < 25) return { label: 'Excellent (Below 25%): Premium pricing power', color: 'text-blue-600', barBg: 'bg-blue-600' };
-        if (costPct <= 35) return { label: 'Healthy (25–35%): Industry standard', color: 'text-green-600', barBg: 'bg-green-600' };
-        if (costPct <= 40) return { label: 'Warning (35–40%): Review ingredient costs', color: 'text-yellow-600', barBg: 'bg-yellow-500' };
-        return { label: 'Critical (40%+): Losing money per dish', color: 'text-red-600', barBg: 'bg-red-600' };
-      }, [costPct]);
-
-      return (
-        <div>
-          {/* Header */}
-          <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
-            <div class="max-width-container mx-auto px-4 max-w-7xl h-16 flex items-center justify-between">
-              <a href="/tools/" class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-lg bg-brand flex items-center justify-center font-bold text-white font-display text-lg">M</div>
-                <span class="font-display font-extrabold text-xl text-gray-900 tracking-tight">Meenufy</span>
-              </a>
-              <div class="flex items-center gap-4">
-                <a href="/tools/" class="text-sm font-medium text-gray-500 hover:text-gray-950 transition">Free Tools</a>
-                <a href="/" class="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg transition shadow-sm">Start Free Trial</a>
-              </div>
-            </div>
-          </header>
-
-          {/* Hero Section */}
-          <section class="py-12 bg-gray-50 border-b border-gray-100 text-center px-4">
-            <div class="max-w-4xl mx-auto">
-              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-light text-brand border border-orange-200 mb-4 animate-pulse">
-                <span class="w-2 h-2 rounded-full bg-brand"></span>
-                Instant calculations. No signup required.
-              </span>
-              <h1 class="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tight mb-4">
-                Free Restaurant Food Cost Calculator
-              </h1>
-              <p class="text-gray-600 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-6">
-                Calculate food cost percentage, ideal selling price, and gross profit per dish — in seconds. Works in 30+ currencies.
-              </p>
-              
-              {/* Trust Badges */}
-              <div class="flex flex-wrap items-center justify-center gap-3 max-w-3xl mx-auto">
-                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ 100% Free</span>
-                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Works in 30+ currencies (₹, $, €)</span>
-                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Recipe & Overall modes</span>
-                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ PDF Report Export</span>
-                <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Used by 10k+ Restaurants</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Main App Container */}
-          <main class="max-w-6xl mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            {/* Left Col: The Calculator Input Panels */}
-            <div class="lg:col-span-2 space-y-6">
-              
-              {/* Mode Switcher Tabs */}
-              <div class="bg-gray-100 p-1.5 rounded-xl flex">
-                <button 
-                  onClick={() => setMode('recipe')}
-                  class={`flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition ${mode === 'recipe' ? 'bg-white text-brand shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-                >
-                  📊 Recipe Cost Calculator
-                </button>
-                <button 
-                  onClick={() => setMode('overall')}
-                  class={`flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition ${mode === 'overall' ? 'bg-white text-brand shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-                >
-                  📈 Overall Food Cost %
-                </button>
-              </div>
-
-              {/* Shared Settings */}
-              <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Currency Symbol</label>
-                    <select 
-                      value={currency.code}
-                      onChange={(e) => {
-                        const matched = CURRENCIES.find(c => c.code === e.target.value);
-                        if (matched) setCurrency(matched);
-                      }}
-                      class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                    >
-                      {CURRENCIES.map(c => (
-                        <option key={c.code} value={c.code}>{c.symbol} — {c.code} ({c.label})</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div class="md:col-span-2">
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Restaurant Name (Optional)</label>
-                    <input 
-                      type="text"
-                      value={restaurantName}
-                      onChange={(e) => setRestaurantName(e.target.value)}
-                      placeholder="e.g. Hideout Cafe"
-                      class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Calculator Forms based on selected Mode */}
-              {mode === 'recipe' ? (
-                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
-                  <h3 class="font-display font-extrabold text-lg text-gray-900">Recipe Details</h3>
-                  
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Dish / Menu Item Name</label>
-                      <input 
-                        type="text"
-                        value={dishName}
-                        onChange={(e) => setDishName(e.target.value)}
-                        placeholder="e.g. Butter Chicken"
-                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Target Food Cost %</label>
-                      <div class="relative">
-                        <input 
-                          type="number"
-                          value={targetFoodCostPercent}
-                          onChange={(e) => setTargetFoodCostPercent(e.target.value)}
-                          placeholder="30"
-                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                        />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-semibold">%</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Number of Portions</label>
-                      <input 
-                        type="number"
-                        min="1"
-                        value={portions}
-                        onChange={(e) => setPortions(e.target.value)}
-                        placeholder="1"
-                        class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Current Selling Price (Optional)</label>
-                    <div class="relative max-w-xs">
-                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
-                      <input 
-                        type="number"
-                        value={sellingPrice}
-                        onChange={(e) => setSellingPrice(e.target.value)}
-                        placeholder="e.g. 299"
-                        class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none font-medium text-gray-900"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Ingredients Table */}
-                  <div class="space-y-4">
-                    <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-                      <h4 class="text-sm font-bold text-gray-800">Ingredients list</h4>
-                      <button 
-                        onClick={addIngredientRow}
-                        class="text-xs font-bold text-brand bg-brand-light px-3 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-100 transition"
-                      >
-                        + Add Ingredient
-                      </button>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                      <table class="w-full text-left text-sm border-collapse min-w-[600px]">
-                        <thead>
-                          <tr class="text-gray-400 text-[11px] font-bold uppercase tracking-wider border-b border-gray-100">
-                            <th class="py-2 pr-4 w-1/3">Name</th>
-                            <th class="py-2 px-2 w-20">Buy Price</th>
-                            <th class="py-2 px-2 w-24">Buy Unit</th>
-                            <th class="py-2 px-2 w-20">Qty Used</th>
-                            <th class="py-2 px-2 w-24">Use Unit</th>
-                            <th class="py-2 px-2 w-20">Wastage %</th>
-                            <th class="py-2 pl-4 text-right w-12"></th>
-                          </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                          {ingredients.map(ing => (
-                            <tr key={ing.id}>
-                              <td class="py-2 pr-4">
-                                <input 
-                                  type="text"
-                                  value={ing.name}
-                                  onChange={(e) => updateIngredientRow(ing.id, 'name', e.target.value)}
-                                  placeholder="e.g. Chicken"
-                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2.5 py-1.5 text-sm outline-none focus:border-brand"
-                                />
-                              </td>
-                              <td class="py-2 px-2">
-                                <input 
-                                  type="number"
-                                  value={ing.buyPrice}
-                                  onChange={(e) => updateIngredientRow(ing.id, 'buyPrice', e.target.value)}
-                                  placeholder="0"
-                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
-                                />
-                              </td>
-                              <td class="py-2 px-2">
-                                <select 
-                                  value={ing.buyUnit}
-                                  onChange={(e) => updateIngredientRow(ing.id, 'buyUnit', e.target.value)}
-                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
-                                >
-                                  {Object.keys(UNIT_CONVERSIONS).map(u => (
-                                    <option key={u} value={u}>{u}</option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td class="py-2 px-2">
-                                <input 
-                                  type="number"
-                                  value={ing.qtyUsed}
-                                  onChange={(e) => updateIngredientRow(ing.id, 'qtyUsed', e.target.value)}
-                                  placeholder="0"
-                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
-                                />
-                              </td>
-                              <td class="py-2 px-2">
-                                <select 
-                                  value={ing.useUnit}
-                                  onChange={(e) => updateIngredientRow(ing.id, 'useUnit', e.target.value)}
-                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
-                                >
-                                  {Object.keys(UNIT_CONVERSIONS).map(u => (
-                                    <option key={u} value={u}>{u}</option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td class="py-2 px-2">
-                                <input 
-                                  type="number"
-                                  value={ing.wastagePercent}
-                                  onChange={(e) => updateIngredientRow(ing.id, 'wastagePercent', e.target.value)}
-                                  placeholder="0"
-                                  class="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand"
-                                />
-                              </td>
-                              <td class="py-2 pl-4 text-right">
-                                <button 
-                                  onClick={() => removeIngredientRow(ing.id)}
-                                  class="text-red-500 hover:text-red-700 text-lg font-bold p-1"
-                                  title="Delete ingredient"
-                                >
-                                  ✕
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
-                  <h3 class="font-display font-extrabold text-lg text-gray-900">Overall Inventory & Sales</h3>
-                  
-                  <div class="flex gap-2">
-                    {['Week', 'Month', 'Quarter'].map(t => (
-                      <button 
-                        key={t}
-                        onClick={() => setPeriod(t)}
-                        class={`px-4 py-1.5 rounded-lg text-xs font-bold transition border ${period === t ? 'bg-brand text-white border-brand' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Beginning Inventory Value</label>
-                      <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
-                        <input 
-                          type="number"
-                          value={beginningInventory}
-                          onChange={(e) => setBeginningInventory(e.target.value)}
-                          placeholder="e.g. 120000"
-                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">(+) Purchases made this {period.toLowerCase()}</label>
-                      <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
-                        <input 
-                          type="number"
-                          value={purchases}
-                          onChange={(e) => setPurchases(e.target.value)}
-                          placeholder="e.g. 85000"
-                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">(−) Ending Inventory Value</label>
-                      <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
-                        <input 
-                          type="number"
-                          value={endingInventory}
-                          onChange={(e) => setEndingInventory(e.target.value)}
-                          placeholder="e.g. 95000"
-                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Food Sales</label>
-                      <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">{currency.symbol}</span>
-                        <input 
-                          type="number"
-                          value={totalFoodSales}
-                          onChange={(e) => setTotalFoodSales(e.target.value)}
-                          placeholder="e.g. 340000"
-                          class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2">
-                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Formula Used:</p>
-                    <code class="block text-xs md:text-sm font-semibold text-gray-700 bg-white p-2.5 rounded border border-gray-100 select-all">
-                      Cost of Goods Sold (COGS) = Beginning Inventory + Purchases − Ending Inventory
-                    </code>
-                    <code class="block text-xs md:text-sm font-semibold text-gray-700 bg-white p-2.5 rounded border border-gray-100 select-all">
-                      Food Cost % = (COGS ÷ Total Food Sales) × 100
-                    </code>
-                  </div>
-                </div>
-              )}
-
-              {/* What-If Scenario Section (Collapsible) */}
-              {mode === 'recipe' && (
-                <details class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden" open>
-                  <summary class="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 outline-none select-none">
-                    <h3 class="font-display font-extrabold text-lg text-gray-900">What-If Scenarios</h3>
-                    <span class="text-gray-400 text-xs font-bold uppercase tracking-wider">Click to toggle</span>
-                  </summary>
-                  <div class="p-6 pt-0 border-t border-gray-100 space-y-6">
-                    {/* Scenario 1 */}
-                    <div class="space-y-3">
-                      <div class="flex items-center justify-between">
-                        <span class="text-sm font-bold text-gray-800">Scenario 1: Adjust Menu Selling Price</span>
-                        <span class="text-brand font-bold text-sm bg-brand-light px-2.5 py-1 rounded">{currency.symbol}{parseFloat(whatIfPriceSlider) || 0}</span>
-                      </div>
-                      <input 
-                        type="range"
-                        min={Math.round(recipeResults.totalIngredientCost)}
-                        max={Math.round(recipeResults.totalIngredientCost * 5) || 500}
-                        value={whatIfPriceSlider}
-                        onChange={(e) => setWhatIfPriceSlider(e.target.value)}
-                        class="w-full accent-brand cursor-pointer"
-                      />
-                      <p class="text-xs text-gray-500">
-                        Result: Food cost % drops to <strong class="text-gray-950 font-semibold">{scenarioResults.scenarioFoodCostPercent ? scenarioResults.scenarioFoodCostPercent.toFixed(1) + '%' : 'N/A'}</strong> (giving <strong class="text-gray-950 font-semibold">{currency.symbol}{scenarioResults.scenarioGrossProfit ? scenarioResults.scenarioGrossProfit.toFixed(2) : '0.00'}</strong> gross profit per portion).
-                      </p>
-                    </div>
-
-                    {/* Scenario 2 */}
-                    <div class="space-y-3">
-                      <div class="flex items-center justify-between">
-                        <span class="text-sm font-bold text-gray-800">Scenario 2: Ingredient Costs Inflation / Discount</span>
-                        <span class="text-brand font-bold text-sm bg-brand-light px-2.5 py-1 rounded">+{whatIfCostSlider}%</span>
-                      </div>
-                      <input 
-                        type="range"
-                        min="0"
-                        max="50"
-                        value={whatIfCostSlider}
-                        onChange={(e) => setWhatIfCostSlider(e.target.value)}
-                        class="w-full accent-brand cursor-pointer"
-                      />
-                      <p class="text-xs text-gray-500">
-                        Result: Food cost % rises to <strong class="text-gray-950 font-semibold">{scenarioResults.scenarioFoodCostPercent ? scenarioResults.scenarioFoodCostPercent.toFixed(1) + '%' : 'N/A'}</strong>. 
-                        To maintain your {targetFoodCostPercent}% target, selling price should be <strong class="text-gray-950 font-semibold">{currency.symbol}{(scenarioResults.adjustedCostPerPortion / (targetFoodCostPercent / 100)).toFixed(2)}</strong>.
-                      </p>
-                    </div>
-                  </div>
-                </details>
-              )}
-            </div>
-
-            {/* Right Col: Live Results Panel */}
-            <div class="space-y-6">
-              
-              {/* Main Results Panel */}
-              <div class="bg-gray-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
-                <div class="absolute -right-16 -top-16 w-36 h-36 rounded-full bg-brand opacity-10"></div>
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Calculation Results</h3>
-                
-                {mode === 'recipe' ? (
-                  <div class="space-y-6">
-                    <div class="grid grid-cols-2 gap-4">
-                      <div>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cost / Portion</p>
-                        <p class="text-xl md:text-2xl font-black font-display text-white tabular-nums mt-1">{currency.symbol}{recipeResults.totalIngredientCost.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Actual Cost %</p>
-                        <p class="text-xl md:text-2xl font-black font-display text-white tabular-nums mt-1">{recipeResults.actualFoodCostPercent ? recipeResults.actualFoodCostPercent.toFixed(1) + '%' : 'N/A'}</p>
-                      </div>
-                    </div>
-
-                    <div class="border-t border-gray-800 pt-4 grid grid-cols-2 gap-4">
-                      <div>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Recommended Price</p>
-                        <p class="text-xl md:text-2xl font-black font-display text-brand mt-1">{recipeResults.recPrice ? currency.symbol + recipeResults.recPrice.toFixed(2) : 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Gross Profit / Portion</p>
-                        <p class="text-xl md:text-2xl font-black font-display text-green-400 mt-1">{recipeResults.grossProfit ? currency.symbol + recipeResults.grossProfit.toFixed(2) : 'N/A'}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div class="space-y-6">
-                    <div>
-                      <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cost of Goods Sold (COGS)</p>
-                      <p class="text-2xl font-black font-display text-white mt-1">{currency.symbol}{overallResults.cogs.toFixed(2)}</p>
-                    </div>
-
-                    <div class="border-t border-gray-800 pt-4 grid grid-cols-2 gap-4">
-                      <div>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Overall Food Cost %</p>
-                        <p class="text-xl font-black font-display text-brand mt-1">{overallResults.foodCostPercent ? overallResults.foodCostPercent.toFixed(1) + '%' : 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Gross Profit</p>
-                        <p class="text-xl font-black font-display text-green-400 mt-1">{currency.symbol}{overallResults.grossProfit.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Benchmark Gauge */}
-              <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Benchmark Gauge</h4>
-                
-                <div class="space-y-2">
-                  <div class="flex items-center justify-between text-xs font-bold">
-                    <span class="text-gray-600">Current Cost:</span>
-                    <span class={benchmarkData.color}>{costPct ? costPct.toFixed(1) + '%' : 'N/A'}</span>
-                  </div>
-                  
-                  {/* Visual gauge slider */}
-                  <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden relative">
-                    <div 
-                      class={`h-full transition-all duration-300 ${benchmarkData.barBg}`} 
-                      style={{ width: `${Math.min(100, costPct || 0)}%` }}
-                    ></div>
-                  </div>
-
-                  <div class="flex justify-between text-[10px] text-gray-400 font-bold">
-                    <span>20%</span>
-                    <span>25%</span>
-                    <span>30%</span>
-                    <span>35%</span>
-                    <span>40%</span>
-                  </div>
-                </div>
-
-                <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                  <p class="text-xs font-bold text-gray-700">{benchmarkData.label}</p>
-                </div>
-              </div>
-
-              {/* Action Bar Panel */}
-              <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-3">
-                <button 
-                  onClick={handleExportPDF}
-                  class="w-full bg-brand hover:bg-brand-dark text-white font-bold py-2.5 px-4 rounded-xl transition text-sm flex items-center justify-center gap-2 shadow-sm"
-                >
-                  📄 Export PDF Report
-                </button>
-                
-                <button 
-                  onClick={handleCopyText}
-                  class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2"
-                >
-                  📋 Copy Results
-                </button>
-
-                <button 
-                  onClick={handleShare}
-                  class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2"
-                >
-                  🔗 Share Calculations
-                </button>
-
-                <button 
-                  onClick={handleReset}
-                  class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 px-4 rounded-xl border border-red-100 transition text-sm flex items-center justify-center gap-2"
-                >
-                  ↺ Reset Calculator
-                </button>
-              </div>
-
-            </div>
-          </main>
-
-          {/* Toast Notification Mount */}
-          {toast && (
-            <div id="toastContainer">
-              <div class="toast">{toast}</div>
-            </div>
-          )}
+      <!-- Mode Switcher Tabs -->
+      <div class="bg-gray-100 p-1.5 rounded-xl flex">
+        <button id="tabRecipe" class="flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition bg-white text-brand shadow-sm">
+          📊 Recipe Cost Calculator
+        </button>
+        <button id="tabOverall" class="flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition text-gray-600 hover:text-gray-900">
+          📈 Overall Food Cost %
+        </button>
+      </div>
+
+      <!-- Shared Configuration Card -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Currency Symbol</label>
+            <select id="currencySelect" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-brand focus:border-transparent"></select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Restaurant Name (Optional)</label>
+            <input type="text" id="restaurantNameInput" placeholder="e.g. Hideout Cafe" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+          </div>
         </div>
-      );
-    }
+      </div>
 
-    // Fixed rendering method for standard React 18 UMD setup
-    const container = document.getElementById('app');
-    const root = ReactDOM.createRoot(container);
-    root.render(<App />);
-  </script>
+      <!-- Panel 1: Recipe Cost Calculator -->
+      <div id="recipePanel" class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+        <h3 class="font-display font-extrabold text-lg text-gray-900">Recipe Details</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Dish Name</label>
+            <input type="text" id="dishNameInput" placeholder="e.g. Butter Chicken" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Target Food Cost %</label>
+            <div class="relative">
+              <input type="number" id="targetCostInput" value="30" placeholder="30" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-semibold">%</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Number of Portions</label>
+            <input type="number" id="portionsInput" value="1" min="1" placeholder="1" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Current Selling Price (Optional)</label>
+          <div class="relative max-w-xs">
+            <span class="currency-symbol-label absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₹</span>
+            <input type="number" id="sellingPriceInput" placeholder="e.g. 299" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium text-gray-900" />
+          </div>
+        </div>
+
+        <!-- Ingredients table -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+            <h4 class="text-sm font-bold text-gray-800">Ingredients list</h4>
+            <button id="addIngredientBtn" class="text-xs font-bold text-brand bg-brand-light px-3 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-100 transition">
+              + Add Ingredient
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm border-collapse min-w-[600px]">
+              <thead>
+                <tr class="text-gray-400 text-[11px] font-bold uppercase tracking-wider border-b border-gray-100">
+                  <th class="py-2 pr-4 w-1/3">Name</th>
+                  <th class="py-2 px-2 w-20">Buy Price</th>
+                  <th class="py-2 px-2 w-24">Buy Unit</th>
+                  <th class="py-2 px-2 w-20">Qty Used</th>
+                  <th class="py-2 px-2 w-24">Use Unit</th>
+                  <th class="py-2 px-2 w-20">Wastage %</th>
+                  <th class="py-2 pl-4 text-right w-12"></th>
+                </tr>
+              </thead>
+              <tbody id="ingredientsBody" class="divide-y divide-gray-50">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Overall Period Food Cost -->
+      <div id="overallPanel" class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6 hidden">
+        <h3 class="font-display font-extrabold text-lg text-gray-900">Overall Inventory & Sales</h3>
+        
+        <div class="flex gap-2">
+          <button class="period-btn px-4 py-1.5 rounded-lg text-xs font-bold transition border bg-brand text-white border-brand">Week</button>
+          <button class="period-btn px-4 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100">Month</button>
+          <button class="period-btn px-4 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100">Quarter</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Beginning Inventory Value</label>
+            <div class="relative">
+              <span class="currency-symbol-label absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₹</span>
+              <input type="number" id="begInventoryInput" placeholder="e.g. 120000" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2" id="purchasesLabel">(+) Purchases made this week</label>
+            <div class="relative">
+              <span class="currency-symbol-label absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₹</span>
+              <input type="number" id="purchasesInput" placeholder="e.g. 85000" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">(−) Ending Inventory Value</label>
+            <div class="relative">
+              <span class="currency-symbol-label absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₹</span>
+              <input type="number" id="endingInventoryInput" placeholder="e.g. 95000" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Food Sales</label>
+            <div class="relative">
+              <span class="currency-symbol-label absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₹</span>
+              <input type="number" id="totalSalesInput" placeholder="e.g. 340000" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2">
+          <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Formula Used:</p>
+          <code class="block text-xs md:text-sm font-semibold text-gray-700 bg-white p-2.5 rounded border border-gray-100 select-all">
+            Cost of Goods Sold (COGS) = Beginning Inventory + Purchases − Ending Inventory
+          </code>
+          <code class="block text-xs md:text-sm font-semibold text-gray-700 bg-white p-2.5 rounded border border-gray-100 select-all">
+            Food Cost % = (COGS ÷ Total Food Sales) × 100
+          </code>
+        </div>
+      </div>
+
+      <!-- Collapsible What-If Scenarios -->
+      <div id="whatIfSection" class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+        <div id="whatIfHeader" class="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 select-none">
+          <h3 class="font-display font-extrabold text-lg text-gray-900">What-If Scenarios</h3>
+          <span class="text-gray-400 text-xs font-bold uppercase tracking-wider">Expand / Collapse</span>
+        </div>
+        <div id="whatIfBody" class="p-6 pt-0 border-t border-gray-100 space-y-6">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-gray-800">Scenario 1: Adjust Menu Selling Price</span>
+              <span id="whatIfPriceLabel" class="text-brand font-bold text-sm bg-brand-light px-2.5 py-1 rounded">₹0</span>
+            </div>
+            <input type="range" id="priceSlider" class="w-full accent-brand cursor-pointer" />
+            <p class="text-xs text-gray-500" id="whatIfPriceOutput"></p>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-gray-800">Scenario 2: Ingredient Costs Inflation</span>
+              <span id="whatIfCostLabel" class="text-brand font-bold text-sm bg-brand-light px-2.5 py-1 rounded">+0%</span>
+            </div>
+            <input type="range" id="costSlider" min="0" max="50" value="0" class="w-full accent-brand cursor-pointer" />
+            <p class="text-xs text-gray-500" id="whatIfCostOutput"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Live Results Cards -->
+    <div class="space-y-6">
+      
+      <!-- Live calculation box -->
+      <div class="bg-gray-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+        <div class="absolute -right-16 -top-16 w-36 h-36 rounded-full bg-brand opacity-10"></div>
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Calculation Results</h3>
+        
+        <!-- Recipe costing results -->
+        <div id="recipeResultsBox" class="space-y-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cost / Portion</p>
+              <p id="costPerPortionVal" class="text-xl md:text-2xl font-black font-display text-white tabular-nums mt-1">₹0.00</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Actual Cost %</p>
+              <p id="actualCostPctVal" class="text-xl md:text-2xl font-black font-display text-white tabular-nums mt-1">N/A</p>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-800 pt-4 grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Recommended Price</p>
+              <p id="recommendedPriceVal" class="text-xl md:text-2xl font-black font-display text-brand mt-1">N/A</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Gross Profit / Portion</p>
+              <p id="grossProfitVal" class="text-xl md:text-2xl font-black font-display text-green-400 mt-1">N/A</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overall period results -->
+        <div id="overallResultsBox" class="space-y-6 hidden">
+          <div>
+            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cost of Goods Sold (COGS)</p>
+            <p id="cogsVal" class="text-2xl font-black font-display text-white mt-1">₹0.00</p>
+          </div>
+
+          <div class="border-t border-gray-800 pt-4 grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Overall Food Cost %</p>
+              <p id="overallCostPctVal" class="text-xl font-black font-display text-brand mt-1">N/A</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Gross Profit</p>
+              <p id="overallGrossProfitVal" class="text-xl font-black font-display text-green-400 mt-1">₹0.00</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Benchmark Gauge -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Benchmark Gauge</h4>
+        
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs font-bold">
+            <span class="text-gray-600">Current Cost:</span>
+            <span id="benchmarkCostPct" class="text-gray-500">N/A</span>
+          </div>
+          
+          <!-- Visual progress bar -->
+          <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden relative">
+            <div id="benchmarkBar" class="h-full bg-gray-200 transition-all duration-300 w-0"></div>
+          </div>
+
+          <div class="flex justify-between text-[10px] text-gray-400 font-bold">
+            <span>20%</span>
+            <span>25%</span>
+            <span>30%</span>
+            <span>35%</span>
+            <span>40%</span>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
+          <p id="benchmarkStatusLabel" class="text-xs font-bold text-gray-700">Enter details to verify benchmark</p>
+        </div>
+      </div>
+
+      <!-- Actions Panel -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-3">
+        <button id="pdfExportBtn" class="w-full bg-brand hover:bg-brand-dark text-white font-bold py-2.5 px-4 rounded-xl transition text-sm flex items-center justify-center gap-2 shadow-sm">
+          📄 Export PDF Report
+        </button>
+        <button id="copyResultsBtn" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2">
+          📋 Copy Results
+        </button>
+        <button id="shareBtn" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2">
+          🔗 Share Calculations
+        </button>
+        <button id="resetBtn" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 px-4 rounded-xl border border-red-100 transition text-sm flex items-center justify-center gap-2">
+          ↺ Reset Calculator
+        </button>
+      </div>
+
+    </div>
+  </main>
 
   <!-- ============================== FULL SEO CONTENT BELOW THE TOOL ============================== -->
   <section class="border-t border-gray-100 bg-white py-16 px-4">
@@ -1660,5 +1027,6 @@
     </div>
   </footer>
 
+  <script src="app.js"></script>
 </body>
 </html>
