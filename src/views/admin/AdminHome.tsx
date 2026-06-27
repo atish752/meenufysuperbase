@@ -2958,6 +2958,65 @@ function TabularOrderRow({
         )}
       </div>
 
+      {/* Horizontal Status Switcher Bar */}
+      <div style={{
+        display: 'flex',
+        borderRadius: 8,
+        overflow: 'hidden',
+        border: '1px solid var(--border)',
+        marginTop: 4,
+        marginBottom: 4,
+        background: 'var(--bg-elevated)',
+      }}>
+        {[
+          { key: 'pending', label: 'new', color: '#f59e0b', textColor: '#000000' },
+          { key: 'preparing', label: 'Preparing', color: '#a855f7', textColor: '#ffffff' },
+          { key: 'ready', label: 'Ready', color: '#22c55e', textColor: '#ffffff' },
+          { key: 'bill_pay', label: 'Bill & pay', color: '#3b82f6', textColor: '#ffffff' },
+        ].map(item => {
+          const isActive = order.status === item.key;
+          return (
+            <div
+              key={item.key}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isActive) {
+                  onStatusChange(order.id, item.key as OrderStatus);
+                }
+              }}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 4px',
+                background: item.color,
+                color: item.textColor,
+                cursor: 'pointer',
+                opacity: isActive ? 1 : 0.45,
+                transition: 'all 0.2s ease',
+                position: 'relative',
+                userSelect: 'none',
+              }}
+            >
+              <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'capitalize', letterSpacing: '0.01em', marginBottom: 3 }}>
+                {item.label}
+              </span>
+              <div style={{
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: isActive ? '#000000' : 'rgba(0, 0, 0, 0.15)',
+                border: isActive ? '2.5px solid #ffffff' : '1px solid rgba(0, 0, 0, 0.2)',
+                transition: 'all 0.2s ease',
+                boxShadow: isActive ? '0 0 6px rgba(0,0,0,0.35)' : 'none',
+              }} />
+            </div>
+          );
+        })}
+      </div>
+
       {/* Bottom row: Total Amount & Actions */}
       <div style={{
         display: 'flex',
