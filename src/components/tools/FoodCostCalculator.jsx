@@ -34,20 +34,17 @@ const CURRENCIES = [
 ];
 
 const UNIT_CONVERSIONS = {
-  // Weight
   'kg': { 'g': 1000, 'kg': 1, 'lb': 2.20462, 'oz': 35.274 },
   'g': { 'g': 1, 'kg': 0.001, 'lb': 0.00220462, 'oz': 0.035274 },
   'lb': { 'lb': 1, 'oz': 16, 'kg': 0.453592, 'g': 453.592 },
   'oz': { 'oz': 1, 'lb': 0.0625, 'kg': 0.0283495, 'g': 28.3495 },
   
-  // Volume
   'L': { 'L': 1, 'ml': 1000, 'cup': 4.22675, 'tbsp': 67.628, 'tsp': 202.884 },
   'ml': { 'ml': 1, 'L': 0.001, 'cup': 0.00422675, 'tbsp': 0.067628, 'tsp': 0.202884 },
   'cup': { 'cup': 1, 'ml': 236.588, 'L': 0.236588, 'tbsp': 16, 'tsp': 48 },
   'tbsp': { 'tbsp': 1, 'ml': 14.7868, 'L': 0.0147868, 'tsp': 3, 'cup': 0.0625 },
   'tsp': { 'tsp': 1, 'ml': 4.92892, 'L': 0.00492892, 'tbsp': 0.333333 },
   
-  // Count
   'piece': { 'piece': 1 },
   'dozen': { 'dozen': 1, 'piece': 12 },
   'slice': { 'slice': 1 },
@@ -64,15 +61,15 @@ function calculateIngredientCost(ing) {
   const useUnit = ing.useUnit;
   const wastagePercent = parseFloat(ing.wastagePercent) || 0;
 
-  let conversionFactor = 1;
+  let factor = 1;
   if (UNIT_CONVERSIONS[useUnit] && UNIT_CONVERSIONS[useUnit][buyUnit] !== undefined) {
-    conversionFactor = 1 / UNIT_CONVERSIONS[useUnit][buyUnit];
+    factor = UNIT_CONVERSIONS[useUnit][buyUnit];
   } else if (UNIT_CONVERSIONS[buyUnit] && UNIT_CONVERSIONS[buyUnit][useUnit] !== undefined) {
-    conversionFactor = UNIT_CONVERSIONS[buyUnit][useUnit];
+    factor = 1 / UNIT_CONVERSIONS[buyUnit][useUnit];
   }
 
-  const qtyInBuyUnit = qtyUsed * conversionFactor;
-  const rawCost = buyPrice * qtyInBuyUnit;
+  const qtyInBuy = qtyUsed * factor;
+  const rawCost = buyPrice * qtyInBuy;
   const wastageMultiplier = wastagePercent > 0 ? (1 / (1 - (wastagePercent / 100))) : 1;
 
   return rawCost * wastageMultiplier;
@@ -83,7 +80,7 @@ export default function FoodCostCalculator() {
   const [currency, setCurrency] = useState(CURRENCIES[0]);
   const [toast, setToast] = useState('');
 
-  // Tab 1 state
+  // Tab 1 state - defaults to zero/blank on load
   const [dishName, setDishName] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [targetFoodCostPercent, setTargetFoodCostPercent] = useState(30);
@@ -239,8 +236,9 @@ export default function FoodCostCalculator() {
 
     if (mode === 'recipe') {
       doc.text(`Dish Name: ${dishName || 'Unspecified'}`, 20, 48);
-      doc.text(`Cost per Portion: ${currency.symbol}${recipeResults.totalIngredientCost.toFixed(2)}`, 20, 56);
-      doc.text(`Actual Food Cost %: ${recipeResults.actualFoodCostPercent ? recipeResults.actualFoodCostPercent.toFixed(1) + '%' : 'N/A'}`, 20, 64);
+      doc.text(`Portions: ${portions}`, 20, 64);
+      doc.text(`Cost per Portion: ${currency.symbol}${recipeResults.totalIngredientCost.toFixed(2)}`, 20, 72);
+      doc.text(`Actual Food Cost %: ${recipeResults.actualFoodCostPercent ? recipeResults.actualFoodCostPercent.toFixed(1) + '%' : 'N/A'}`, 20, 80);
       
       const body = ingredients.map(ing => [
         ing.name || 'Unnamed',
@@ -250,7 +248,7 @@ export default function FoodCostCalculator() {
       ]);
 
       doc.autoTable({
-        startY: 76,
+        startY: 92,
         head: [['Ingredient', 'Buy Price', 'Quantity Used', 'Cost']],
         body: body,
       });
@@ -264,7 +262,7 @@ export default function FoodCostCalculator() {
 
   const costPct = mode === 'recipe' ? recipeResults.actualFoodCostPercent : overallResults.foodCostPercent;
   const benchmarkData = useMemo(() => {
-    if (costPct === null) return { label: 'Enter details to verify benchmark', color: 'text-gray-500', barBg: 'bg-gray-200' };
+    if (costPct === null || costPct === 0) return { label: 'Enter details to verify benchmark', color: 'text-gray-500', barBg: 'bg-gray-200' };
     if (costPct < 25) return { label: 'Excellent (<25%)', color: 'text-blue-600', barBg: 'bg-blue-600' };
     if (costPct <= 35) return { label: 'Healthy (25–35%)', color: 'text-green-600', barBg: 'bg-green-600' };
     if (costPct <= 40) return { label: 'Warning (35–40%)', color: 'text-yellow-600', barBg: 'bg-yellow-500' };
@@ -273,7 +271,6 @@ export default function FoodCostCalculator() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-6">
-      {/* Selector and Layout */}
       <div className="flex gap-4 border-b border-gray-200 pb-2">
         <button onClick={() => setMode('recipe')} className={`pb-2 font-bold ${mode === 'recipe' ? 'border-b-2 border-brand text-brand' : 'text-gray-500'}`}>Recipe Costing</button>
         <button onClick={() => setMode('overall')} className={`pb-2 font-bold ${mode === 'overall' ? 'border-b-2 border-brand text-brand' : 'text-gray-500'}`}>Overall COGS</button>
@@ -303,7 +300,7 @@ export default function FoodCostCalculator() {
               </div>
 
               <div className="space-y-4">
-                <div class="flex justify-between items-center">
+                <div className="flex justify-between items-center">
                   <h3 className="font-bold">Ingredients</h3>
                   <button onClick={addIngredientRow} className="text-brand font-bold text-xs bg-brand-light px-3 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-100 transition">+ Add Ingredient</button>
                 </div>

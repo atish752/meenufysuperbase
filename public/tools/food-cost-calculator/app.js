@@ -55,17 +55,18 @@ const UNIT_CONVERSIONS = {
 };
 
 // State
-let currentMode = 'recipe'; // 'recipe' | 'overall'
+let currentMode = 'recipe';
 let currentCurrency = CURRENCIES[0];
 let currentPeriod = 'Week';
+let cachedKeys = null;
 
-// Initial state helpers
 const getNewId = () => Date.now() + Math.random().toString(36).substring(2, 7);
 
+// Default to blank/zero values on startup as requested
 let ingredients = [
-  { id: getNewId(), name: 'Chicken', buyPrice: 280, buyUnit: 'kg', qtyUsed: 200, useUnit: 'g', wastagePercent: 0 },
-  { id: getNewId(), name: 'Onions', buyPrice: 40, buyUnit: 'kg', qtyUsed: 100, useUnit: 'g', wastagePercent: 0 },
-  { id: getNewId(), name: 'Spices & Oil', buyPrice: 150, buyUnit: 'L', qtyUsed: 10, useUnit: 'ml', wastagePercent: 0 }
+  { id: getNewId(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+  { id: getNewId(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+  { id: getNewId(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 }
 ];
 
 // Toast notification helper
@@ -87,7 +88,7 @@ function showToast(msg) {
   }, 3500);
 }
 
-// Convert units
+// Convert units correctly (resolved factor division bug)
 function getIngredientCost(ing) {
   const buyPrice = parseFloat(ing.buyPrice) || 0;
   const qtyUsed = parseFloat(ing.qtyUsed) || 0;
@@ -97,9 +98,9 @@ function getIngredientCost(ing) {
 
   let factor = 1;
   if (UNIT_CONVERSIONS[useUnit] && UNIT_CONVERSIONS[useUnit][buyUnit] !== undefined) {
-    factor = 1 / UNIT_CONVERSIONS[useUnit][buyUnit];
+    factor = UNIT_CONVERSIONS[useUnit][buyUnit];
   } else if (UNIT_CONVERSIONS[buyUnit] && UNIT_CONVERSIONS[buyUnit][useUnit] !== undefined) {
-    factor = UNIT_CONVERSIONS[buyUnit][useUnit];
+    factor = 1 / UNIT_CONVERSIONS[buyUnit][useUnit];
   }
 
   const qtyInBuy = qtyUsed * factor;
@@ -118,7 +119,6 @@ function renderIngredientRows() {
     const tr = document.createElement('tr');
     tr.dataset.id = ing.id;
     
-    // Select units options
     const buyUnitOptions = Object.keys(UNIT_CONVERSIONS).map(u => 
       `<option value="${u}" ${ing.buyUnit === u ? 'selected' : ''}>${u}</option>`
     ).join('');
@@ -129,22 +129,22 @@ function renderIngredientRows() {
 
     tr.innerHTML = `
       <td class="py-2 pr-4">
-        <input type="text" class="ing-name w-full bg-gray-50 border border-gray-200 rounded px-2.5 py-1.5 text-sm outline-none focus:border-brand" placeholder="e.g. Chicken" value="${ing.name}" />
+        <input type="text" class="ing-name w-full bg-gray-50 border border-gray-200 rounded px-2.5 py-1.5 text-sm outline-none focus:border-brand" placeholder="e.g. Flour" value="${ing.name || ''}" />
       </td>
       <td class="py-2 px-2">
-        <input type="number" class="ing-buyPrice w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand" placeholder="0" value="${ing.buyPrice}" />
+        <input type="number" class="ing-buyPrice w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand" placeholder="0" value="${ing.buyPrice !== undefined ? ing.buyPrice : ''}" />
       </td>
       <td class="py-2 px-2">
         <select class="ing-buyUnit w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand">${buyUnitOptions}</select>
       </td>
       <td class="py-2 px-2">
-        <input type="number" class="ing-qtyUsed w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand" placeholder="0" value="${ing.qtyUsed}" />
+        <input type="number" class="ing-qtyUsed w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand" placeholder="0" value="${ing.qtyUsed !== undefined ? ing.qtyUsed : ''}" />
       </td>
       <td class="py-2 px-2">
         <select class="ing-useUnit w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand">${useUnitOptions}</select>
       </td>
       <td class="py-2 px-2">
-        <input type="number" class="ing-wastage w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand" placeholder="0" value="${ing.wastagePercent}" />
+        <input type="number" class="ing-wastage w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-brand" placeholder="0" value="${ing.wastagePercent !== undefined ? ing.wastagePercent : 0}" />
       </td>
       <td class="py-2 pl-4 text-right">
         <button class="delete-row-btn text-red-500 hover:text-red-700 text-lg font-bold p-1">✕</button>
@@ -153,7 +153,7 @@ function renderIngredientRows() {
     tbody.appendChild(tr);
   });
 
-  // Bind Listeners to Rows
+  // Bind Listeners
   tbody.querySelectorAll('tr').forEach(tr => {
     const id = tr.dataset.id;
     
@@ -161,13 +161,13 @@ function renderIngredientRows() {
       updateIngField(id, 'name', e.target.value);
     });
     tr.querySelector('.ing-buyPrice').addEventListener('input', (e) => {
-      updateIngField(id, 'buyPrice', parseFloat(e.target.value) || 0);
+      updateIngField(id, 'buyPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0));
     });
     tr.querySelector('.ing-qtyUsed').addEventListener('input', (e) => {
-      updateIngField(id, 'qtyUsed', parseFloat(e.target.value) || 0);
+      updateIngField(id, 'qtyUsed', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0));
     });
     tr.querySelector('.ing-wastage').addEventListener('input', (e) => {
-      updateIngField(id, 'wastagePercent', parseFloat(e.target.value) || 0);
+      updateIngField(id, 'wastagePercent', e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0));
     });
     tr.querySelector('.ing-buyUnit').addEventListener('change', (e) => {
       updateIngField(id, 'buyUnit', e.target.value);
@@ -199,12 +199,17 @@ function deleteIngredientRow(id) {
   calculateAndRender();
 }
 
+function addIngredientRow() {
+  ingredients.push({ id: getNewId(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 });
+  renderIngredientRows();
+  calculateAndRender();
+}
+
 // Perform calculations and update DOM elements
 function calculateAndRender() {
   const sym = currentCurrency.symbol;
 
   if (currentMode === 'recipe') {
-    // Mode 1 calculations
     const portions = parseFloat(document.getElementById('portionsInput').value) || 1;
     const targetPct = parseFloat(document.getElementById('targetCostInput').value) || 30;
     const sellPrice = parseFloat(document.getElementById('sellingPriceInput').value) || 0;
@@ -225,14 +230,10 @@ function calculateAndRender() {
     document.getElementById('recommendedPriceVal').innerText = recPrice !== null ? `${sym}${recPrice.toFixed(2)}` : 'N/A';
     document.getElementById('grossProfitVal').innerText = grossProfit !== null ? `${sym}${grossProfit.toFixed(2)}` : 'N/A';
 
-    // Update Benchmark Gauge
     updateBenchmarkGauge(actualCostPct);
-
-    // Update What-If sliders
     updateWhatIfSliders(costPerPortion, sellPrice, targetPct);
 
   } else {
-    // Mode 2 calculations
     const beg = parseFloat(document.getElementById('begInventoryInput').value) || 0;
     const pur = parseFloat(document.getElementById('purchasesInput').value) || 0;
     const end = parseFloat(document.getElementById('endingInventoryInput').value) || 0;
@@ -256,7 +257,7 @@ function updateBenchmarkGauge(pct) {
   const label = document.getElementById('benchmarkCostPct');
   const status = document.getElementById('benchmarkStatusLabel');
 
-  if (pct === null || pct === undefined || isNaN(pct)) {
+  if (pct === null || pct === undefined || isNaN(pct) || pct === 0) {
     bar.style.width = '0%';
     bar.className = 'h-full bg-gray-200';
     label.innerText = 'N/A';
@@ -297,14 +298,12 @@ function updateWhatIfSliders(costPerPortion, currentPrice, targetPct) {
 
   const sym = currentCurrency.symbol;
 
-  // Set min/max for sliders
   const minVal = Math.round(costPerPortion);
   const maxVal = Math.round(costPerPortion * 5) || 500;
   
   priceSlider.min = minVal;
   priceSlider.max = maxVal;
 
-  // If user hasn't set custom slider value, follow recommended price
   const sliderPrice = parseFloat(priceSlider.value) || Math.round(currentPrice || costPerPortion / (targetPct / 100));
   if (!priceSlider.value) {
     priceSlider.value = sliderPrice;
@@ -315,7 +314,6 @@ function updateWhatIfSliders(costPerPortion, currentPrice, targetPct) {
   priceLabel.innerText = `${sym}${priceSlider.value}`;
   costLabel.innerText = `+${inflationPct}%`;
 
-  // Calculate outputs
   const adjustedCost = costPerPortion * (1 + (inflationPct / 100));
   const newPrice = parseFloat(priceSlider.value) || 0;
   const newFoodCostPct = newPrice > 0 ? (adjustedCost / newPrice) * 100 : 0;
@@ -329,7 +327,131 @@ function updateWhatIfSliders(costPerPortion, currentPrice, targetPct) {
     `Result: Food cost % rises to <strong>${((adjustedCost / (newPrice || 1)) * 100).toFixed(1)}%</strong>. To maintain your ${targetPct}% target, selling price should be <strong>${sym}${newRecPrice.toFixed(2)}</strong>.`;
 }
 
-// PDF generation using jsPDF UMD script global
+// Fetch super admin Gemini keys
+async function getGeminiApiKeys() {
+  if (cachedKeys && cachedKeys.length > 0) return cachedKeys;
+  try {
+    const res = await fetch('https://meenufy-default-rtdb.firebaseio.com/geminiApiKeys.json');
+    if (!res.ok) throw new Error('Failed to load keys');
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      cachedKeys = data;
+      return cachedKeys;
+    }
+  } catch (e) {
+    console.error('Failed to get Gemini keys', e);
+  }
+  return [];
+}
+
+// Call AI generation
+async function callGeminiAI(promptText) {
+  const keys = await getGeminiApiKeys();
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          { text: promptText }
+        ]
+      }
+    ]
+  };
+
+  const finalKeys = keys.length > 0 ? keys : ['DEMO_KEY_PLACEHOLDER'];
+  const shuffledKeys = [...finalKeys].sort(() => Math.random() - 0.5);
+
+  for (const key of shuffledKeys) {
+    for (const model of models) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          }
+        );
+        if (response.ok) {
+          const resJson = await response.json();
+          const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text;
+        }
+      } catch (e) {
+        console.warn(`Gemini call failed with key suffix ...${key.slice(-6)} on model ${model}:`, e);
+      }
+    }
+  }
+  throw new Error('AI extraction failed. Please configure active API keys in Super Admin.');
+}
+
+// AI Autofill recipe ingredients
+async function handleAIAutofill() {
+  const dishName = document.getElementById('dishNameInput').value.trim();
+  if (!dishName) {
+    showToast('⚠️ Please enter a dish name first to use AI auto-fill!');
+    return;
+  }
+
+  const btn = document.getElementById('aiAutofillBtn');
+  const oldText = btn.innerText;
+  btn.innerText = '✨ Generating...';
+  btn.disabled = true;
+
+  const promptText = `Extract or estimate the standard recipe ingredients used to make a portion of the dish: "${dishName}".
+The target pricing currency is ${currentCurrency.code}.
+Return ONLY a valid JSON array of objects, with NO markdown backticks, NO markdown block, and NO other explanation text.
+The JSON array should contain exactly these fields:
+[
+  {
+    "name": "Ingredient Name",
+    "buyPrice": number, // estimated purchase price in local market in ${currentCurrency.code}
+    "buyUnit": "kg or L or piece or dozen",
+    "qtyUsed": number, // portion size quantity
+    "useUnit": "g or ml or piece"
+  }
+]
+Estimate reasonable quantities and average local market prices.`;
+
+  try {
+    const rawText = await callGeminiAI(promptText);
+    
+    // Clean markdown wrap if any
+    let cleanJsonStr = rawText.trim();
+    if (cleanJsonStr.startsWith('```')) {
+      cleanJsonStr = cleanJsonStr.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
+    }
+
+    const data = JSON.parse(cleanJsonStr);
+    if (Array.isArray(data) && data.length > 0) {
+      // Replace ingredients state
+      ingredients = data.map(item => ({
+        id: getNewId(),
+        name: item.name || 'Ingredient',
+        buyPrice: parseFloat(item.buyPrice) || 0,
+        buyUnit: item.buyUnit || 'kg',
+        qtyUsed: parseFloat(item.qtyUsed) || 0,
+        useUnit: item.useUnit || 'g',
+        wastagePercent: 0
+      }));
+
+      renderIngredientRows();
+      calculateAndRender();
+      showToast(`✨ Recipe ingredients for "${dishName}" generated successfully using AI!`);
+    } else {
+      throw new Error('Invalid JSON format from AI response');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('❌ AI Autofill failed. Please try again or type the details manually.');
+  } finally {
+    btn.innerText = oldText;
+    btn.disabled = false;
+  }
+}
+
+// PDF generation using jsPDF
 function handlePDFExport() {
   try {
     const { jsPDF } = window.jspdf;
@@ -372,7 +494,6 @@ function handlePDFExport() {
       doc.text(`Dish Name: ${dish}`, 20, 58);
       doc.text(`Portions: ${portions}`, 20, 64);
 
-      // Summary box
       doc.setFillColor('#FFF7ED');
       doc.rect(20, 72, 170, 32, 'F');
 
@@ -500,7 +621,7 @@ function handleShareCalculations() {
     sellingPrice: sellPrice,
     targetFoodCostPercent: targetPct,
     portions: portions,
-    ingredients: ingredients,
+    ingredients: ingredients.filter(i => i.name),
     period: currentPeriod,
     beginningInventory: beg,
     purchases: pur,
@@ -534,9 +655,9 @@ function handleResetCalculator() {
     document.getElementById('costSlider').value = '0';
 
     ingredients = [
-      { id: getNewId(), name: 'Chicken', buyPrice: 280, buyUnit: 'kg', qtyUsed: 200, useUnit: 'g', wastagePercent: 0 },
-      { id: getNewId(), name: 'Onions', buyPrice: 40, buyUnit: 'kg', qtyUsed: 100, useUnit: 'g', wastagePercent: 0 },
-      { id: getNewId(), name: 'Spices & Oil', buyPrice: 150, buyUnit: 'L', qtyUsed: 10, useUnit: 'ml', wastagePercent: 0 }
+      { id: getNewId(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+      { id: getNewId(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 },
+      { id: getNewId(), name: '', buyPrice: '', buyUnit: 'kg', qtyUsed: '', useUnit: 'g', wastagePercent: 0 }
     ];
 
     renderIngredientRows();
@@ -547,7 +668,6 @@ function handleResetCalculator() {
 
 // Page Load Initializer
 document.addEventListener('DOMContentLoaded', () => {
-  // Populate currency dropdown
   const currencySelect = document.getElementById('currencySelect');
   currencySelect.innerHTML = CURRENCIES.map(c => 
     `<option value="${c.code}">${c.symbol} — ${c.code} (${c.label})</option>`
@@ -631,11 +751,52 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById(id).addEventListener('input', calculateAndRender);
   });
 
-  // Dynamic row adding
+  // Dynamic row adding (fixed: now renders to DOM)
   document.getElementById('addIngredientBtn').addEventListener('click', () => {
     addIngredientRow();
-    calculateAndRender();
   });
+
+  // Quick-Add Common Ingredient Chips
+  document.querySelectorAll('.quick-add-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.name;
+      const price = parseFloat(btn.dataset.price) || 0;
+      const bunit = btn.dataset.bunit;
+      const qty = parseFloat(btn.dataset.qty) || 0;
+      const uunit = btn.dataset.uunit;
+
+      // Replace first blank row if available, otherwise append
+      let blankRowIndex = ingredients.findIndex(i => !i.name && !i.buyPrice && !i.qtyUsed);
+      if (blankRowIndex !== -1) {
+        ingredients[blankRowIndex] = {
+          id: ingredients[blankRowIndex].id,
+          name: name,
+          buyPrice: price,
+          buyUnit: bunit,
+          qtyUsed: qty,
+          useUnit: uunit,
+          wastagePercent: 0
+        };
+      } else {
+        ingredients.push({
+          id: getNewId(),
+          name: name,
+          buyPrice: price,
+          buyUnit: bunit,
+          qtyUsed: qty,
+          useUnit: uunit,
+          wastagePercent: 0
+        });
+      }
+
+      renderIngredientRows();
+      calculateAndRender();
+      showToast(`🧂 Added "${name}" to ingredients list!`);
+    });
+  });
+
+  // AI Autofill Button
+  document.getElementById('aiAutofillBtn').addEventListener('click', handleAIAutofill);
 
   // What-if Collapsible Toggle
   const whatIfHeader = document.getElementById('whatIfHeader');
@@ -690,6 +851,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error(e);
     }
   }
+
+  // Pre-load keys list
+  getGeminiApiKeys();
 
   // First render
   renderIngredientRows();

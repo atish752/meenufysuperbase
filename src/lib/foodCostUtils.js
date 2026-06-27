@@ -29,15 +29,14 @@ export function calculateIngredientCost(ingredient) {
   const useUnit = ingredient.useUnit || 'g';
   const wastagePercent = parseFloat(ingredient.wastagePercent) || 0;
   
-  // Convert qtyUsed (in useUnit) to buyUnit
-  let conversionFactor = 1;
+  let factor = 1;
   if (UNIT_CONVERSIONS[useUnit] && UNIT_CONVERSIONS[useUnit][buyUnit] !== undefined) {
-    conversionFactor = 1 / UNIT_CONVERSIONS[useUnit][buyUnit];
+    factor = UNIT_CONVERSIONS[useUnit][buyUnit];
   } else if (UNIT_CONVERSIONS[buyUnit] && UNIT_CONVERSIONS[buyUnit][useUnit] !== undefined) {
-    conversionFactor = UNIT_CONVERSIONS[buyUnit][useUnit];
+    factor = 1 / UNIT_CONVERSIONS[buyUnit][useUnit];
   }
   
-  const qtyInBuyUnit = qtyUsed * conversionFactor;
+  const qtyInBuyUnit = qtyUsed * factor;
   const rawCost = buyPrice * qtyInBuyUnit;
   
   // Apply wastage factor
