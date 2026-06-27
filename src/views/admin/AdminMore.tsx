@@ -777,7 +777,7 @@ export default function AdminMore() {
     setStaffName(staff.name);
     setStaffUsername(staff.username);
     setStaffPassword(staff.password || '');
-    setStaffPermissions(staff.permissions);
+    setStaffPermissions(staff.permissions || []);
   };
 
   const handleDeleteStaffClick = (id: string) => {
@@ -2293,7 +2293,7 @@ export default function AdminMore() {
                   
                   {/* Permissions Badges */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {staff.permissions.map(pKey => {
+                    {(staff.permissions || []).map(pKey => {
                       const labels: Record<string, string> = {
                         orders: '🍳 Orders Board',
                         menu: '📖 Menu',
@@ -2319,7 +2319,7 @@ export default function AdminMore() {
                         </span>
                       );
                     })}
-                    {staff.permissions.length === 0 && (
+                    {(!staff.permissions || staff.permissions.length === 0) && (
                       <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
                         No permissions assigned
                       </span>

@@ -190,7 +190,7 @@ const EMPTY_ITEM: Omit<MenuItem, 'id'> = {
 
 export default function AdminMenu() {
   const { state, dispatch, addToast } = useStore();
-  const adminId = state.admin?.id || 'admin-1';
+  const adminId = state.admin?.restaurantId || 'admin-1';
   const adminMenuItems = state.menuItems.filter(item => (item.restaurantId || 'admin-1') === adminId);
   const adminCategories = state.categories.filter(c => (c.restaurantId || 'admin-1') === adminId);
 

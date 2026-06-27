@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../../context/RealtimeStore';
-import type { Order, OrderStatus, Coupon } from '../../context/RealtimeStore';
+import type { Order, OrderStatus, Coupon, OrderItem, MenuItem, MenuItemVariant } from '../../context/RealtimeStore';
 import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, HelpCircle, Edit2 } from 'lucide-react';
 import { triggerNotification } from '../../utils/notifications';
 import { printThermalReceipt } from '../../utils/printReceipt';
@@ -41,6 +41,125 @@ export default function AdminHome() {
   const hasOrdersPermission = !state.admin?.isStaff || state.admin.permissions?.includes('orders');
   const hasQrTablesPermission = !state.admin?.isStaff || state.admin.permissions?.includes('qr_tables');
   const hasOutletSettingPermission = !state.admin?.isStaff || state.admin.permissions?.includes('outlet_setting');
+
+  // Manual Order Placement States
+  const [showManualOrderModal, setShowManualOrderModal] = useState(false);
+  const [manualOrderName, setManualOrderName] = useState('');
+  const [manualOrderPhone, setManualOrderPhone] = useState('');
+  const [manualOrderType, setManualOrderType] = useState<'in-dining' | 'take-away'>('in-dining');
+  const [manualOrderTableId, setManualOrderTableId] = useState('');
+  const [manualOrderTableNumber, setManualOrderTableNumber] = useState(0);
+  const [manualOrderNote, setManualOrderNote] = useState('');
+  const [manualOrderPaymentMethod, setManualOrderPaymentMethod] = useState<'upi' | 'card' | 'cash'>('cash');
+  const [manualOrderPaymentStatus, setManualOrderPaymentStatus] = useState<'pending' | 'paid'>('pending');
+  const [manualOrderItems, setManualOrderItems] = useState<OrderItem[]>([]);
+  const [manualSearchQuery, setManualSearchQuery] = useState('');
+  const [manualSelectedCategory, setManualSelectedCategory] = useState('all');
+
+  const handleAddManualItem = (item: MenuItem, variant?: MenuItemVariant) => {
+    setManualOrderItems(prev => {
+      const matchIndex = prev.findIndex(x => 
+        x.menuItemId === item.id && 
+        (!variant ? !x.variant : x.variant?.name === variant.name)
+      );
+      
+      if (matchIndex >= 0) {
+        const next = [...prev];
+        next[matchIndex] = {
+          ...next[matchIndex],
+          qty: next[matchIndex].qty + 1
+        };
+        return next;
+      } else {
+        const newOrderItem: OrderItem = {
+          menuItemId: item.id,
+          name: item.name,
+          price: variant ? variant.price : item.price,
+          qty: 1,
+          variant: variant
+        };
+        return [...prev, newOrderItem];
+      }
+    });
+  };
+
+  const handleRemoveManualItem = (item: MenuItem, variant?: MenuItemVariant) => {
+    setManualOrderItems(prev => {
+      const matchIndex = prev.findIndex(x => 
+        x.menuItemId === item.id && 
+        (!variant ? !x.variant : x.variant?.name === variant.name)
+      );
+      
+      if (matchIndex >= 0) {
+        const next = [...prev];
+        const newQty = next[matchIndex].qty - 1;
+        if (newQty <= 0) {
+          return next.filter((_, idx) => idx !== matchIndex);
+        } else {
+          next[matchIndex] = {
+            ...next[matchIndex],
+            qty: newQty
+          };
+          return next;
+        }
+      }
+      return prev;
+    });
+  };
+
+  const resetManualOrderForm = () => {
+    setManualOrderName('');
+    setManualOrderPhone('');
+    setManualOrderType('in-dining');
+    setManualOrderTableId('');
+    setManualOrderTableNumber(0);
+    setManualOrderNote('');
+    setManualOrderPaymentMethod('cash');
+    setManualOrderPaymentStatus('pending');
+    setManualOrderItems([]);
+    setManualSearchQuery('');
+    setManualSelectedCategory('all');
+  };
+
+  const handlePlaceManualOrder = () => {
+    if (manualOrderItems.length === 0) {
+      addToast('error', '❌ Please select at least one dish for the order.');
+      return;
+    }
+    
+    if (manualOrderType === 'in-dining' && !manualOrderTableId) {
+      addToast('error', '❌ Please select a table for In-Dining orders.');
+      return;
+    }
+
+    const totalAmount = manualOrderItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const orderId = `order-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const newOrder: Order = {
+      id: orderId,
+      tableNumber: manualOrderType === 'take-away' ? 0 : manualOrderTableNumber,
+      tableId: manualOrderType === 'take-away' ? '' : manualOrderTableId,
+      restaurantId: state.admin?.restaurantId || 'admin-1',
+      restaurantName: state.restaurant.name,
+      customerName: manualOrderName.trim() || 'Guest (Manual)',
+      customerPhone: manualOrderPhone.trim() || '9999999999',
+      items: manualOrderItems,
+      status: 'pending',
+      totalAmount,
+      specialNote: manualOrderNote.trim(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      paymentMethod: manualOrderPaymentStatus === 'paid' ? manualOrderPaymentMethod : undefined,
+      paymentStatus: manualOrderPaymentStatus,
+      pointsEarned: Math.floor(totalAmount * (state.restaurant.pointsPer100Spent || 0) / 100),
+      pointsRedeemed: 0
+    };
+
+    dispatch({ type: 'PLACE_ORDER', payload: newOrder });
+    addToast('success', `🎉 Manual Order #${orderId.slice(-4).toUpperCase()} placed successfully!`);
+    setShowManualOrderModal(false);
+    resetManualOrderForm();
+  };
 
   const [isTabularView, setIsTabularView] = useState(() => {
     return typeof window !== 'undefined' && localStorage.getItem('meenufy_admin_orders_tabular_view') === 'true';
@@ -205,7 +324,7 @@ export default function AdminHome() {
     if (state.admin?.isStaff && !state.admin.permissions?.includes('orders')) {
       return;
     }
-    const adminId = state.admin?.id || 'admin-1';
+    const adminId = state.admin?.restaurantId || 'admin-1';
     const myOrders = state.orders.filter(o => (o.restaurantId || 'admin-1') === adminId);
 
     if (isOrdersMount.current) {
@@ -271,7 +390,7 @@ export default function AdminHome() {
     if (state.admin?.isStaff && !state.admin.permissions?.includes('qr_tables')) {
       return;
     }
-    const adminId = state.admin?.id || 'admin-1';
+    const adminId = state.admin?.restaurantId || 'admin-1';
     const myRequests = state.waiterRequests.filter(r => (r.restaurantId || 'admin-1') === adminId);
 
     if (isWaiterMount.current) {
@@ -305,7 +424,7 @@ export default function AdminHome() {
     prevWaiterRequestsRef.current = currentRequests;
   }, [state.waiterRequests, state.admin]);
 
-  const adminId = state.admin?.id || 'admin-1';
+  const adminId = state.admin?.restaurantId || 'admin-1';
   const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && (r.restaurantId || 'admin-1') === adminId);
   const activeOrders = state.orders.filter(o => ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status) && (o.restaurantId || 'admin-1') === adminId);
 
@@ -379,6 +498,10 @@ export default function AdminHome() {
 
 
   const handleUpdateStatus = (orderId: string, status: OrderStatus) => {
+    if (status === 'cancelled') {
+      const confirmCancel = window.confirm("Are you sure you want to cancel this order? This action cannot be undone.");
+      if (!confirmCancel) return;
+    }
     dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status } });
     if (status === 'served') {
       dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, status: 'paid' } });
@@ -550,6 +673,26 @@ export default function AdminHome() {
           >
             <span style={{ fontSize: 10, width: 8, height: 8, borderRadius: '50%', background: state.restaurant.isManualClosed ? '#ef4444' : '#22c55e', display: 'inline-block', boxShadow: state.restaurant.isManualClosed ? '0 0 6px #ef4444' : '0 0 6px #22c55e', flexShrink: 0 }} />
             {state.restaurant.isManualClosed ? '🔴 CLOSED' : '🟢 OPEN'}
+          </button>
+
+          {/* Place Manual Order Button */}
+          <button
+            onClick={() => setShowManualOrderModal(true)}
+            className="btn btn-primary"
+            style={{
+              height: 38,
+              borderRadius: 12,
+              fontSize: 12,
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 4px 12px rgba(255, 125, 0, 0.25)',
+              padding: '0 14px',
+              cursor: 'pointer'
+            }}
+          >
+            ➕ Place Order
           </button>
 
           {/* History Toggle Button */}
@@ -1445,6 +1588,349 @@ export default function AdminHome() {
           </div>
         </div>
       )}
+      {/* Manual Order Placement Modal */}
+      {showManualOrderModal && (
+        <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) { setShowManualOrderModal(false); resetManualOrderForm(); } }} style={{ zIndex: 1200 }}>
+          <div className="modal-content" style={{ maxWidth: 850, width: '95%', padding: 24, position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '90vh', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 16 }}>
+            <button
+              onClick={() => {
+                setShowManualOrderModal(false);
+                resetManualOrderForm();
+              }}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border)',
+                borderRadius: '50%',
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                zIndex: 10,
+                transition: 'all 0.2s'
+              }}
+            >
+              <X size={16} />
+            </button>
+
+            <h3 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800, color: 'var(--brand)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>➕</span> Place Manual Order
+            </h3>
+
+            {/* Split layout: left form & selection, right order summary */}
+            <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth > 768 ? '1.2fr 0.8fr' : '1fr', gap: 20, minHeight: 0, overflowY: 'auto', flex: 1, paddingBottom: 10 }}>
+              
+              {/* Left Side: Order Settings & Menu Selection */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: '100%' }}>
+                
+                {/* Section 1: Customer & Dining Details */}
+                <div className="card" style={{ padding: 16, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12 }}>
+                  <h4 style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>👤</span> 1. Customer & Dining Details
+                  </h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                    <div>
+                      <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Customer Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Doe (Optional)"
+                        value={manualOrderName}
+                        onChange={e => setManualOrderName(e.target.value)}
+                        className="input"
+                        style={{ height: 36, padding: '0 10px', fontSize: 12, width: '100%' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Customer Phone</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 9876543210 (Optional)"
+                        value={manualOrderPhone}
+                        onChange={e => setManualOrderPhone(e.target.value)}
+                        className="input"
+                        style={{ height: 36, padding: '0 10px', fontSize: 12, width: '100%' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Order Type</label>
+                      <select
+                        value={manualOrderType}
+                        onChange={e => setManualOrderType(e.target.value as any)}
+                        className="input"
+                        style={{ height: 36, padding: '0 10px', fontSize: 12, width: '100%', background: 'var(--bg-primary)' }}
+                      >
+                        <option value="in-dining">🪑 In-Dining</option>
+                        <option value="take-away">🛍️ Take-Away</option>
+                      </select>
+                    </div>
+
+                    {manualOrderType === 'in-dining' && (
+                      <div>
+                        <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Select Table</label>
+                        <select
+                          value={manualOrderTableId}
+                          onChange={e => {
+                            const tblId = e.target.value;
+                            setManualOrderTableId(tblId);
+                            const tbl = state.tables.find(t => t.id === tblId);
+                            setManualOrderTableNumber(tbl ? tbl.number : 0);
+                          }}
+                          className="input"
+                          style={{ height: 36, padding: '0 10px', fontSize: 12, width: '100%', background: 'var(--bg-primary)' }}
+                        >
+                          <option value="">-- Choose Table --</option>
+                          {state.tables.map(t => (
+                            <option key={t.id} value={t.id}>
+                              Table {t.number} ({t.label})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 2: Dish Selector */}
+                <div className="card" style={{ padding: 16, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 280 }}>
+                  <h4 style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>📖</span> 2. Select Dishes
+                  </h4>
+                  
+                  {/* Search and Category Filters */}
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                    <input
+                      type="text"
+                      placeholder="Search dish name..."
+                      value={manualSearchQuery}
+                      onChange={e => setManualSearchQuery(e.target.value)}
+                      className="input"
+                      style={{ height: 36, padding: '0 10px', fontSize: 12, flex: 1 }}
+                    />
+                    <select
+                      value={manualSelectedCategory}
+                      onChange={e => setManualSelectedCategory(e.target.value)}
+                      className="input"
+                      style={{ height: 36, padding: '0 10px', fontSize: 12, width: 140, background: 'var(--bg-primary)' }}
+                    >
+                      <option value="all">All Categories</option>
+                      {state.categories.filter(c => (c.restaurantId || 'admin-1') === (state.admin?.restaurantId || 'admin-1')).map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.icon} {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Dishes Scrollable List */}
+                  <div style={{ flex: 1, overflowY: 'auto', maxHeight: 220, border: '1px solid var(--border)', borderRadius: 8, padding: 8, background: 'var(--bg-primary)' }}>
+                    {(() => {
+                      const filteredDishes = state.menuItems.filter(item => {
+                        const matchesRest = (item.restaurantId || 'admin-1') === (state.admin?.restaurantId || 'admin-1');
+                        const matchesCat = manualSelectedCategory === 'all' || item.category === manualSelectedCategory || (item.categories && item.categories.includes(manualSelectedCategory));
+                        const matchesSearch = item.name.toLowerCase().includes(manualSearchQuery.toLowerCase());
+                        return matchesRest && matchesCat && matchesSearch;
+                      });
+
+                      if (filteredDishes.length === 0) {
+                        return (
+                          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0', fontSize: 12 }}>
+                            No dishes found matching filters.
+                          </div>
+                        );
+                      }
+
+                      return filteredDishes.map(item => {
+                        const hasVariants = Array.isArray(item.variants) && item.variants.length > 0;
+                        
+                        return (
+                          <div key={item.id} style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--border)', padding: '8px 4px', gap: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 12 }}>{item.isVeg ? '🟢' : '🔴'}</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{item.name}</span>
+                              </div>
+                              {!hasVariants && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                    {state.restaurant.currency || '₹'}{item.price}
+                                  </span>
+                                  
+                                  {/* Plus/Minus Counters */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 4px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveManualItem(item)}
+                                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, fontWeight: 800, padding: '0 4px', color: 'var(--brand)' }}
+                                    >
+                                      -
+                                    </button>
+                                    <span style={{ fontSize: 11, fontWeight: 700, minWidth: 14, textAlign: 'center', color: 'var(--text-primary)' }}>
+                                      {manualOrderItems.find(x => x.menuItemId === item.id && !x.variant)?.qty || 0}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddManualItem(item)}
+                                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 800, padding: '0 4px', color: 'var(--brand)' }}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Render Variants if present */}
+                            {hasVariants && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 20 }}>
+                                {item.variants!.map(v => (
+                                  <div key={v.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>• {v.name}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{ color: 'var(--text-muted)' }}>
+                                        {state.restaurant.currency || '₹'}{v.price}
+                                      </span>
+                                      
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 6, padding: '1px 4px' }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveManualItem(item, v)}
+                                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 800, padding: '0 4px', color: 'var(--brand)' }}
+                                        >
+                                          -
+                                        </button>
+                                        <span style={{ fontSize: 10, fontWeight: 700, minWidth: 12, textAlign: 'center', color: 'var(--text-primary)' }}>
+                                          {manualOrderItems.find(x => x.menuItemId === item.id && x.variant?.name === v.name)?.qty || 0}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleAddManualItem(item, v)}
+                                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 10, fontWeight: 800, padding: '0 4px', color: 'var(--brand)' }}
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side: Order Summary & Placement Details */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                
+                {/* Summary Box */}
+                <div className="card" style={{ padding: 16, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <h4 style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>🛒</span> 3. Order Summary
+                    </h4>
+
+                    <div style={{ overflowY: 'auto', maxHeight: 180, border: '1px solid var(--border)', borderRadius: 8, padding: 8, marginBottom: 12, background: 'var(--bg-primary)' }}>
+                      {manualOrderItems.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px 0', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <span>🛍️ Empty Cart</span>
+                          <span style={{ fontSize: 11, opacity: 0.7 }}>Add dishes from the left selection</span>
+                        </div>
+                      ) : (
+                        manualOrderItems.map((item, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, borderBottom: '1px dashed var(--border)', padding: '6px 2px' }}>
+                            <div>
+                              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {item.name} {item.variant ? `(${item.variant.name})` : ''}
+                              </div>
+                              <div style={{ color: 'var(--text-muted)' }}>
+                                {item.qty} x {state.restaurant.currency || '₹'}{item.price}
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {state.restaurant.currency || '₹'}{item.qty * item.price}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid var(--border)', paddingTop: 10, marginBottom: 12 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>Total Amount</span>
+                      <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--brand)', fontFamily: 'var(--font-display)' }}>
+                        {state.restaurant.currency || '₹'}{manualOrderItems.reduce((sum, item) => sum + (item.price * item.qty), 0)}
+                      </span>
+                    </div>
+
+                    <div style={{ marginBottom: 12 }}>
+                      <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Special Instructions</label>
+                      <textarea
+                        placeholder="e.g. Less spicy, Extra sauce..."
+                        rows={2}
+                        value={manualOrderNote}
+                        onChange={e => setManualOrderNote(e.target.value)}
+                        className="input"
+                        style={{ padding: '8px 10px', fontSize: 12, resize: 'none', width: '100%', height: 48 }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                      <div>
+                        <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Payment Status</label>
+                        <select
+                          value={manualOrderPaymentStatus}
+                          onChange={e => setManualOrderPaymentStatus(e.target.value as any)}
+                          className="input"
+                          style={{ height: 34, padding: '0 8px', fontSize: 11.5, background: 'var(--bg-primary)' }}
+                        >
+                          <option value="pending">⏳ Pending (Unpaid)</option>
+                          <option value="paid">✅ Paid (Completed)</option>
+                        </select>
+                      </div>
+
+                      {manualOrderPaymentStatus === 'paid' && (
+                        <div>
+                          <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Payment Method</label>
+                          <select
+                            value={manualOrderPaymentMethod}
+                            onChange={e => setManualOrderPaymentMethod(e.target.value as any)}
+                            className="input"
+                            style={{ height: 34, padding: '0 8px', fontSize: 11.5, background: 'var(--bg-primary)' }}
+                          >
+                            <option value="cash">💵 Cash</option>
+                            <option value="upi">📱 UPI</option>
+                            <option value="card">💳 Card</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handlePlaceManualOrder}
+                    disabled={manualOrderItems.length === 0}
+                    className="btn btn-primary"
+                    style={{ height: 40, fontSize: 13, fontWeight: 800, width: '100%', borderRadius: 10, cursor: manualOrderItems.length === 0 ? 'not-allowed' : 'pointer' }}
+                  >
+                    🚀 Place Manual Order
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2074,11 +2560,14 @@ function OrderCard({
       }}
       className="card"
       style={{
-        borderLeft: `3px solid ${cfg.color}`,
+        borderLeft: `4px solid ${cfg.color}`,
+        borderTop: order.orderType === 'take-away' ? '2.5px solid #ef4444' : undefined,
+        borderRight: order.orderType === 'take-away' ? '1px solid rgba(239, 68, 68, 0.25)' : undefined,
+        borderBottom: order.orderType === 'take-away' ? '1px solid rgba(239, 68, 68, 0.25)' : undefined,
         padding: '12px 14px',
         animation: 'fadeIn 0.3s ease',
         cursor: 'grab',
-        background: 'var(--bg-primary)',
+        background: order.orderType === 'take-away' ? 'rgba(239, 68, 68, 0.03)' : 'var(--bg-primary)',
         transition: 'transform 0.15s ease, border-color 0.15s ease',
       }}
     >
@@ -2086,8 +2575,8 @@ function OrderCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-              Table {order.tableNumber}
+            <span style={{ fontSize: 14, fontWeight: 700, color: order.orderType === 'take-away' ? '#ef4444' : 'var(--text-primary)' }}>
+              {order.orderType === 'take-away' ? '🛍️ Take-Away Order' : `Table ${order.tableNumber}`}
             </span>
             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               #{order.id.slice(-4).toUpperCase()}
@@ -2115,7 +2604,15 @@ function OrderCard({
               </span>
             )}
             {order.orderType && (
-              <span style={{
+              <span style={order.orderType === 'take-away' ? {
+                fontSize: 9.5, fontWeight: 800,
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#ef4444',
+                border: '1.5px solid #ef4444',
+                padding: '2px 6px', borderRadius: 4,
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)'
+              } : {
                 fontSize: 9.5, fontWeight: 700,
                 background: 'var(--bg-elevated)',
                 color: 'var(--text-secondary)',
