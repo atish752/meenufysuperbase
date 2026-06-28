@@ -158,11 +158,155 @@ export default function CustomerHome({ table }: Props) {
           top: 16,
           right: 16,
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
           gap: 8,
           zIndex: 10
         }}>
-          {/* Call Waiter Button */}
+          {/* Row 1: Switchers & Table Badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Language Switcher */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowLangDropdown(prev => !prev)}
+                style={{
+                  background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)',
+                  color: '#000000',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: '6px 12px',
+                  borderRadius: 99,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  boxShadow: '0 4px 12px rgba(255, 125, 0, 0.35)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                }}
+                onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+                onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+              >
+                🌐 {
+                  state.language === 'en' ? 'EN' :
+                  state.language === 'hi' ? 'हिन्दी' :
+                  state.language === 'bn' ? 'বাংলা' :
+                  state.language === 'te' ? 'తెలుగు' :
+                  state.language === 'mr' ? 'मराठी' :
+                  state.language === 'ta' ? 'தமிழ்' : '🌐'
+                }
+              </button>
+
+              {showLangDropdown && (
+                <>
+                  <div 
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                    onClick={() => setShowLangDropdown(false)}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: '120%',
+                    right: 0,
+                    background: 'var(--bg-elevated)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    boxShadow: 'var(--shadow-lg)',
+                    padding: '6px 0',
+                    minWidth: 160,
+                    zIndex: 1000,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    animation: 'fadeIn 0.2s ease',
+                  }}>
+                    {[
+                      { code: 'en', label: '🇺🇸 English' },
+                      { code: 'hi', label: '🇮🇳 हिन्दी (Hindi)' },
+                      { code: 'bn', label: '🇮🇳 বাংলা (Bengali)' },
+                      { code: 'te', label: '🇮🇳 తెలుగు (Telugu)' },
+                      { code: 'mr', label: '🇮🇳 मराठी (Marathi)' },
+                      { code: 'ta', label: '🇮🇳 தமிழ் (Tamil)' }
+                    ].map((lang) => {
+                      const isSelected = state.language === lang.code;
+                      return (
+                        <button
+                          key={lang.code}
+                          onClick={() => {
+                            dispatch({ type: 'SET_STATE', payload: { language: lang.code } });
+                            addToast('success', `Language switched to ${lang.label.split(' ')[1]}`);
+                            setShowLangDropdown(false);
+                          }}
+                          style={{
+                            background: isSelected ? 'var(--brand-dim)' : 'transparent',
+                            color: isSelected ? 'var(--brand)' : 'var(--text-primary)',
+                            padding: '10px 16px',
+                            fontSize: 12,
+                            fontWeight: isSelected ? 700 : 500,
+                            textAlign: 'left',
+                            border: 'none',
+                            width: '100%',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            transition: 'background 0.2s',
+                          }}
+                        >
+                          {lang.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Theme Switcher */}
+            <button
+              onClick={() => {
+                dispatch({ type: 'TOGGLE_CUSTOMER_THEME' });
+                addToast('info', state.customerTheme === 'dark' ? 'Switched to Light Mode ☀️' : 'Switched to Dark Mode 🌙');
+              }}
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,125,0,0.2) 0%, rgba(255,125,0,0.05) 100%)',
+                color: 'var(--text-primary)',
+                fontSize: 14,
+                padding: '6px',
+                borderRadius: '50%',
+                border: '1px solid var(--brand)',
+                boxShadow: '0 0 10px rgba(255,125,0,0.3)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                transition: 'all 0.2s ease',
+              }}
+              title="Toggle theme"
+            >
+              {state.customerTheme === 'light' ? '🌙' : '☀️'}
+            </button>
+
+            {/* Table Badge */}
+            {table && (
+              <div style={{
+                background: 'var(--brand)',
+                color: '#000',
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '5px 12px',
+                borderRadius: 99,
+                letterSpacing: '0.06em',
+                boxShadow: '0 4px 12px rgba(255, 125, 0, 0.2)',
+              }}>
+                📍 {table.label}
+              </div>
+            )}
+          </div>
+
+          {/* Row 2: Call Waiter Button */}
           <button
             onClick={() => {
               const urlParams = new URLSearchParams(window.location.search);
@@ -189,7 +333,7 @@ export default function CustomerHome({ table }: Props) {
               color: '#000000',
               fontSize: 11,
               fontWeight: 800,
-              padding: '6px 12px',
+              padding: '6px 14px',
               borderRadius: 99,
               border: 'none',
               cursor: 'pointer',
@@ -204,145 +348,6 @@ export default function CustomerHome({ table }: Props) {
           >
             <Bell size={12} /> Call Waiter
           </button>
-
-          {/* Language Switcher */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowLangDropdown(prev => !prev)}
-              style={{
-                background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)',
-                color: '#000000',
-                fontSize: 11,
-                fontWeight: 800,
-                padding: '6px 12px',
-                borderRadius: 99,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                boxShadow: '0 4px 12px rgba(255, 125, 0, 0.35)',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-              }}
-              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
-              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-            >
-              🌐 {
-                state.language === 'en' ? 'EN' :
-                state.language === 'hi' ? 'हिन्दी' :
-                state.language === 'bn' ? 'বাংলা' :
-                state.language === 'te' ? 'తెలుగు' :
-                state.language === 'mr' ? 'मराठी' :
-                state.language === 'ta' ? 'தமிழ்' : '🌐'
-              }
-            </button>
-
-            {showLangDropdown && (
-              <>
-                <div 
-                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
-                  onClick={() => setShowLangDropdown(false)}
-                />
-                <div style={{
-                  position: 'absolute',
-                  top: '120%',
-                  right: 0,
-                  background: 'var(--bg-elevated)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  boxShadow: 'var(--shadow-lg)',
-                  padding: '6px 0',
-                  minWidth: 160,
-                  zIndex: 1000,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  animation: 'fadeIn 0.2s ease',
-                }}>
-                  {[
-                    { code: 'en', label: '🇺🇸 English' },
-                    { code: 'hi', label: '🇮🇳 हिन्दी (Hindi)' },
-                    { code: 'bn', label: '🇮🇳 বাংলা (Bengali)' },
-                    { code: 'te', label: '🇮🇳 తెలుగు (Telugu)' },
-                    { code: 'mr', label: '🇮🇳 मराठी (Marathi)' },
-                    { code: 'ta', label: '🇮🇳 தமிழ் (Tamil)' }
-                  ].map((lang) => {
-                    const isSelected = state.language === lang.code;
-                    return (
-                      <button
-                        key={lang.code}
-                        onClick={() => {
-                          dispatch({ type: 'SET_STATE', payload: { language: lang.code } });
-                          addToast('success', `Language switched to ${lang.label.split(' ')[1]}`);
-                          setShowLangDropdown(false);
-                        }}
-                        style={{
-                          background: isSelected ? 'var(--brand-dim)' : 'transparent',
-                          color: isSelected ? 'var(--brand)' : 'var(--text-primary)',
-                          padding: '10px 16px',
-                          fontSize: 12,
-                          fontWeight: isSelected ? 700 : 500,
-                          textAlign: 'left',
-                          border: 'none',
-                          width: '100%',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          transition: 'background 0.2s',
-                        }}
-                      >
-                        {lang.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Theme Switcher */}
-          <button
-            onClick={() => {
-              dispatch({ type: 'TOGGLE_CUSTOMER_THEME' });
-              addToast('info', state.customerTheme === 'dark' ? 'Switched to Light Mode ☀️' : 'Switched to Dark Mode 🌙');
-            }}
-            style={{
-              background: 'linear-gradient(135deg, rgba(255,125,0,0.2) 0%, rgba(255,125,0,0.05) 100%)',
-              color: 'var(--text-primary)',
-              fontSize: 14,
-              padding: '6px',
-              borderRadius: '50%',
-              border: '1px solid var(--brand)',
-              boxShadow: '0 0 10px rgba(255,125,0,0.3)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 32,
-              height: 32,
-              transition: 'all 0.2s ease',
-            }}
-            title="Toggle theme"
-          >
-            {state.customerTheme === 'light' ? '🌙' : '☀️'}
-          </button>
-
-          {/* Table badge */}
-          {table && (
-            <div style={{
-              background: 'var(--brand)',
-              color: '#000',
-              fontSize: 11,
-              fontWeight: 700,
-              padding: '5px 12px',
-              borderRadius: 99,
-              letterSpacing: '0.06em',
-            }}>
-              📍 {table.label}
-            </div>
-          )}
         </div>
 
         {/* Logo / Icon */}

@@ -590,7 +590,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
       const mapping: Record<string, string> = {};
       uniqueCats.forEach(cat => {
-        const match = state.categories.find(
+        const match = adminCategories.find(
           c => c.name.toLowerCase() === cat.toLowerCase()
         );
         if (match) {
@@ -631,7 +631,8 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           payload: {
             id: newCatId,
             name: extCat,
-            icon: randomEmoji
+            icon: randomEmoji,
+            restaurantId: adminId
           }
         });
         
@@ -656,7 +657,8 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           isAvailable: true,
           isFeatured: false,
           tags: item.tags || [],
-          variants: item.variants || []
+          variants: item.variants || [],
+          restaurantId: adminId
         }
       });
     });

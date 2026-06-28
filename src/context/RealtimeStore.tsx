@@ -2962,6 +2962,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }, 50);
   }, []);
 
+  // Auto-cancel active orders older than 180 minutes
+  useEffect(() => {
+    const activeOrders = state.orders.filter(o => 
+      ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status)
+    );
+    activeOrders.forEach(o => {
+      const elapsedMs = Date.now() - o.createdAt;
+      if (elapsedMs >= 180 * 60 * 1000) {
+        wrappedDispatch({
+          type: 'UPDATE_ORDER_STATUS',
+          payload: { id: o.id, status: 'cancelled' }
+        });
+      }
+    });
+  }, [state.orders, wrappedDispatch]);
+
   return (
     <StoreContext.Provider value={{ state, dispatch: wrappedDispatch, addToast }}>
       {children}
