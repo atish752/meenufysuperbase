@@ -2833,7 +2833,7 @@ export default function AdminMore() {
                   </h4>
                   
                   {/* Category Indicator Preview */}
-                  <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid var(--border)', pb: 6, fontSize: 12 }}>
+                  <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 6, fontSize: 12 }}>
                     <div style={{ 
                       color: themeForm.primaryBg || 'var(--brand)', 
                       fontWeight: 700, 
@@ -2858,7 +2858,7 @@ export default function AdminMore() {
                     boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, pr: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, paddingRight: 8 }}>
                         
                         {/* Bestseller Badge */}
                         <div>
@@ -2928,7 +2928,7 @@ export default function AdminMore() {
                   </div>
 
                   {/* Help note */}
-                  <div style={{ display: 'flex', gap: 6, mt: 'auto', background: 'rgba(255, 125, 0, 0.05)', borderRadius: 8, padding: 8, border: '1px solid rgba(255, 125, 0, 0.1)' }}>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 'auto', background: 'rgba(255, 125, 0, 0.05)', borderRadius: 8, padding: 8, border: '1px solid rgba(255, 125, 0, 0.1)' }}>
                     <HelpCircle size={14} style={{ color: 'var(--brand)', flexShrink: 0, marginTop: 1 }} />
                     <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
                       Colors entered above will apply to the public customer menu instantly upon saving. Use HEX color codes or pick via selector.
@@ -2942,7 +2942,7 @@ export default function AdminMore() {
             </div>
 
             {/* Modal Footer */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', pt: 16, marginTop: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 20 }}>
               <button
                 type="button"
                 onClick={handleResetThemeColors}
