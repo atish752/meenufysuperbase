@@ -356,7 +356,13 @@ export default function AdminHome() {
           );
           // Auto print KOT if enabled
           if (state.restaurant.autoprintKotEnabled) {
-            printThermalReceipt(order, 'kot', state.restaurant);
+            printThermalReceipt(order, 'kot', state.restaurant).then(result => {
+              if (result.error) {
+                addToast('info', `🖨️ KOT: ${result.error}`);
+              } else {
+                addToast('success', `🖨️ KOT auto-printed for Table ${order.tableNumber}`);
+              }
+            }).catch(e => addToast('error', `Print error: ${e?.message || e}`));
           }
         }
       } else {
@@ -377,7 +383,13 @@ export default function AdminHome() {
         // Auto print Bill if payment status transitions to 'paid'
         const justPaid = currentPayStatus === 'paid' && prev.paymentStatus !== 'paid';
         if (justPaid && state.restaurant.autoprintBillEnabled) {
-          printThermalReceipt(order, 'bill', state.restaurant);
+          printThermalReceipt(order, 'bill', state.restaurant).then(result => {
+            if (result.error) {
+              addToast('info', `🖨️ Bill: ${result.error}`);
+            } else {
+              addToast('success', `🖨️ Bill auto-printed for Table ${order.tableNumber}`);
+            }
+          }).catch(e => addToast('error', `Print error: ${e?.message || e}`));
         }
       }
     });

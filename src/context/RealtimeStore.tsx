@@ -172,6 +172,8 @@ export type RestaurantInfo = {
   printFooterMessage?: string;
   printShowDateTime?: boolean;
   printShowOrderNumber?: boolean;
+  printMethod?: 'browser' | 'bluetooth';
+  bluetoothPrinterName?: string;
   subscriptionPlan?: 'free' | 'base' | 'standard' | 'advance';
   ordersPlacedThisMonth?: number;
   subscriptionRenewalDate?: number;
@@ -419,6 +421,8 @@ const DEFAULT_RESTAURANT: RestaurantInfo = {
   printFooterMessage: 'Thank you for dining with us! Visit again.',
   printShowDateTime: true,
   printShowOrderNumber: true,
+  printMethod: 'browser',
+  bluetoothPrinterName: '',
   subscriptionPlan: 'free',
   ordersPlacedThisMonth: 0,
   subscriptionRenewalDate: 0,

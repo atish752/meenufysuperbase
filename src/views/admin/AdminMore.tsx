@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { auth, googleProvider, hasFirebaseConfig } from '../../utils/firebase';
 import { signInWithPopup } from 'firebase/auth';
+import { connectBluetoothPrinter, disconnectBluetoothPrinter, printThermalReceipt } from '../../utils/printReceipt';
 
 
 function getQRUrl(tableId: string, restaurantId: string): string {
@@ -242,6 +243,10 @@ export default function AdminMore() {
 
   const [selectedInstructionDevice, setSelectedInstructionDevice] = useState<'android' | 'ios' | 'windows' | 'mac' | 'pos'>('android');
   const [showInstructions, setShowInstructions] = useState(false);
+  const [btConnecting, setBtConnecting] = useState(false);
+  const [btConnected, setBtConnected] = useState(false);
+  const [btPrinterName, setBtPrinterName] = useState('');
+  const [btError, setBtError] = useState('');
   const [selectedBillingPeriod, setSelectedBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [billingPeriodToggle, setBillingPeriodToggle] = useState<'monthly' | 'yearly'>('monthly');
   const [upgradePrice, setUpgradePrice] = useState(0);
@@ -1451,7 +1456,104 @@ export default function AdminMore() {
             <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 700, margin: 0 }}>Autoprint KOT & Bill Settings</h3>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Toggles */}
+
+            {/* ── Print Method Selector ── */}
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>🖨️ Print Method</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Choose how receipts are printed</div>
+              </div>
+              <div style={{ display: 'flex', gap: 0 }}>
+                {[
+                  { id: 'browser', label: '🌐 Browser Print', desc: 'Opens a print dialog. Works on all devices.' },
+                  { id: 'bluetooth', label: '📡 Bluetooth Direct', desc: 'Sends ESC/POS directly. Needs Chrome on Android/Desktop.' }
+                ].map(method => (
+                  <button
+                    key={method.id}
+                    type="button"
+                    onClick={() => setRestaurantForm(prev => ({ ...prev, printMethod: method.id as 'browser' | 'bluetooth' }))}
+                    style={{
+                      flex: 1,
+                      padding: '12px 8px',
+                      background: (restaurantForm.printMethod || 'browser') === method.id ? 'rgba(var(--brand-rgb, 0,0,0), 0.12)' : 'transparent',
+                      border: 'none',
+                      borderRight: method.id === 'browser' ? '1px solid var(--border)' : 'none',
+                      cursor: 'pointer',
+                      textAlign: 'left' as const,
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: (restaurantForm.printMethod || 'browser') === method.id ? 'var(--brand)' : 'var(--text-primary)' }}>{method.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{method.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Bluetooth Pairing Panel (only when bluetooth mode selected) ── */}
+            {(restaurantForm.printMethod || 'browser') === 'bluetooth' && (
+              <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, border: `1px solid ${btConnected ? '#22c55e' : 'var(--border)'}`, padding: 14, transition: 'border-color 0.3s' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: btConnected ? '#22c55e' : '#ef4444', display: 'inline-block', boxShadow: btConnected ? '0 0 6px #22c55e' : '0 0 6px #ef4444' }} />
+                      {btConnected ? `Connected: ${btPrinterName || 'Printer'}` : 'No Bluetooth Printer Connected'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {btConnected ? 'Printer is ready. You can test print or disconnect.' : 'Tap "Pair Printer" and select your thermal printer from the list.'}
+                    </div>
+                  </div>
+                  {btConnected ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await disconnectBluetoothPrinter();
+                        setBtConnected(false);
+                        setBtPrinterName('');
+                        setBtError('');
+                        setRestaurantForm(prev => ({ ...prev, bluetoothPrinterName: '' }));
+                      }}
+                      style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, borderRadius: 8, background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+                    >
+                      Disconnect
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={btConnecting}
+                      onClick={async () => {
+                        setBtError('');
+                        setBtConnecting(true);
+                        const result = await connectBluetoothPrinter();
+                        setBtConnecting(false);
+                        if (result.success) {
+                          setBtConnected(true);
+                          setBtPrinterName(result.name || 'Printer');
+                          setRestaurantForm(prev => ({ ...prev, bluetoothPrinterName: result.name || 'Printer' }));
+                        } else {
+                          setBtError(result.error || 'Connection failed');
+                        }
+                      }}
+                      style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, borderRadius: 8, background: btConnecting ? 'var(--bg-primary)' : 'var(--brand)', color: btConnecting ? 'var(--text-muted)' : '#000', border: 'none', cursor: btConnecting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' as const, minWidth: 90 }}
+                    >
+                      {btConnecting ? '🔄 Pairing...' : '📡 Pair Printer'}
+                    </button>
+                  )}
+                </div>
+                {btError && (
+                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: '#ef4444', lineHeight: 1.4 }}>
+                    ⚠️ {btError}
+                  </div>
+                )}
+                {!btConnected && !btError && (
+                  <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: '#60a5fa', lineHeight: 1.5 }}>
+                    <strong>Requirements:</strong> Use <strong>Google Chrome</strong> on Android or Desktop. Enable Bluetooth on your phone/tablet. Pair the printer with your device first via system Bluetooth settings, then tap "Pair Printer" here.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Toggles: KOT & Bill ── */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Autoprint Kitchen Order Ticket (KOT)</div>
@@ -1480,7 +1582,7 @@ export default function AdminMore() {
               </div>
             </div>
 
-            {/* Collapsible Connection Instructions */}
+            {/* ── Connection Instructions (collapsible) ── */}
             <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)', padding: 12 }}>
               <button 
                 type="button"
@@ -1491,7 +1593,7 @@ export default function AdminMore() {
                   fontWeight: 700, fontSize: 13, color: 'var(--brand)', padding: 0
                 }}
               >
-                <span>📋 Instructions to Connect Printer</span>
+                <span>📋 How to Connect & Use Your Printer</span>
                 <span style={{ fontSize: 10 }}>{showInstructions ? '▲' : '▼'}</span>
               </button>
 
@@ -1499,11 +1601,11 @@ export default function AdminMore() {
                 <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, animation: 'fadeIn 0.2s ease' }}>
                   <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }} className="hide-scrollbar">
                     {[
-                      { id: 'android', label: 'Android' },
-                      { id: 'ios', label: 'iPhone/iPad' },
-                      { id: 'windows', label: 'Windows PC' },
-                      { id: 'mac', label: 'MacBook' },
-                      { id: 'pos', label: 'POS Terminal' }
+                      { id: 'android', label: '🤖 Android (BT)' },
+                      { id: 'ios', label: '🍎 iPhone/iPad' },
+                      { id: 'windows', label: '🪟 Windows' },
+                      { id: 'mac', label: '🍏 Mac' },
+                      { id: 'pos', label: '🖥️ POS Terminal' }
                     ].map(dev => (
                       <button
                         key={dev.id}
@@ -1526,43 +1628,44 @@ export default function AdminMore() {
                     ))}
                   </div>
 
-                  <div style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: 11, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
                     {selectedInstructionDevice === 'android' && (
-                      <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <li>Turn on <strong>Bluetooth</strong> and <strong>GPS Location</strong> on your Android phone or tablet.</li>
-                        <li>Go to Bluetooth Settings → <strong>Pair New Device</strong>.</li>
-                        <li>Select your thermal printer (e.g., <em>MTP-II</em> or <em>PT-210</em>) and enter PIN <code>0000</code> or <code>1234</code>.</li>
-                        <li>Ensure <strong>Autoprint KOT/Bill</strong> toggles are enabled above.</li>
-                        <li>When a print window appears, select your paired Bluetooth printer, set paper width, and click print.</li>
+                      <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <li><strong>Step 1 — Pair via System Settings:</strong> Go to phone's <em>Settings → Bluetooth</em>. Turn on Bluetooth. Select your thermal printer (e.g., <em>MTP-II</em>, <em>PT-210</em>, <em>RPP02N</em>) from the list. Enter PIN <code>0000</code> or <code>1234</code> if prompted. Wait for "Paired" status.</li>
+                        <li><strong>Step 2 — Open Meenufy in Chrome:</strong> Use <strong>Google Chrome</strong> (NOT Samsung Browser or Firefox). Chrome is the only browser that supports Web Bluetooth on Android.</li>
+                        <li><strong>Step 3 — Select Bluetooth Print Method:</strong> In this settings panel, tap <em>Bluetooth Direct</em> as the Print Method above.</li>
+                        <li><strong>Step 4 — Tap "Pair Printer":</strong> Tap the <em>📡 Pair Printer</em> button above. Chrome will show a list of nearby Bluetooth devices. Select your printer from the list.</li>
+                        <li><strong>Step 5 — Enable Autoprint Toggles:</strong> Turn on <em>Autoprint KOT</em> and/or <em>Autoprint Bill</em> toggles above and tap <em>Save Printer Preferences</em>.</li>
+                        <li><strong>Step 6 — Keep Chrome Open:</strong> The Admin page must remain open on your phone/tablet while receiving orders. Receipts will print automatically! ✅</li>
                       </ol>
                     )}
                     {selectedInstructionDevice === 'ios' && (
                       <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <li>For Bluetooth printers, install a print routing helper app like <em>Print Hammermill</em> or <em>TSPL printer tools</em> from the App Store.</li>
-                        <li>For Wi-Fi thermal printers, connect your iOS device to the same Wi-Fi and ensure Apple <strong>AirPrint</strong> is supported.</li>
-                        <li>Enable KOT and Bill autoprint toggles in this panel.</li>
-                        <li>The system print dialogue will open automatically in Safari/Chrome when printing.</li>
+                        <li><strong>Web Bluetooth is NOT supported on iOS Safari or Chrome.</strong> For Bluetooth printing on iPhone/iPad, you must use a third-party app bridge.</li>
+                        <li>Alternative: Connect your thermal printer to <strong>Wi-Fi</strong> (if it supports it), then use the <em>Browser Print</em> method. The print dialog will let you select a Wi-Fi printer.</li>
+                        <li>Best option for iOS: Use the <em>Browser Print</em> method and connect the printer via <strong>AirPrint</strong>-compatible Wi-Fi printers only.</li>
                       </ol>
                     )}
                     {selectedInstructionDevice === 'windows' && (
                       <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <li>Connect printer to your PC/Laptop via USB. Install the manufacturer's receipt printer driver.</li>
-                        <li>Go to Control Panel → Devices &amp; Printers. Right-click the printer → Printer Properties → Preferences. Set default size to <strong>58mm x Receipt</strong> or <strong>80mm x Receipt</strong>.</li>
-                        <li><strong>Enable Silent Autoprint (Recommended):</strong> Close Chrome. Right-click Chrome shortcut → Properties. Add <code>--kiosk-printing</code> at the very end of the <strong>Target</strong> field (after quotes). Open Chrome. It will now print receipts silently instantly!</li>
+                        <li>Connect printer to PC via USB or Bluetooth. Install the manufacturer's receipt printer driver.</li>
+                        <li>Go to Control Panel → Devices & Printers. Right-click the printer → Printer Properties → Preferences. Set default size to <strong>58mm x Receipt</strong> or <strong>80mm x Receipt</strong>.</li>
+                        <li>Use <em>Browser Print</em> method. When a print dialog opens, select your receipt printer as default.</li>
+                        <li><strong>Silent printing (no dialog):</strong> Right-click Chrome shortcut → Properties → Target field, add <code>--kiosk-printing</code> at end. Reopen Chrome → it will now print silently!</li>
                       </ol>
                     )}
                     {selectedInstructionDevice === 'mac' && (
                       <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <li>Connect USB thermal printer. Go to System Settings → Printers &amp; Scanners → Add Printer. Choose driver <strong>Generic PostScript</strong> or install CUPS driver.</li>
-                        <li>Enable macOS printer web admin: Open Terminal and run <code>cupsctl WebInterface=yes</code>. Open browser to <code>http://localhost:631</code>, select printer, and set default paper width.</li>
-                        <li>Safari/Chrome will invoke the print dialog automatically on order updates.</li>
+                        <li>Connect USB thermal printer. Go to System Settings → Printers & Scanners → Add Printer. Choose driver <strong>Generic PostScript</strong> or install CUPS driver.</li>
+                        <li>Use <em>Browser Print</em> method. Safari/Chrome will invoke the print dialog on order updates.</li>
+                        <li>For Bluetooth on Mac: Pair the printer via System Settings → Bluetooth, then select it in the print dialog.</li>
                       </ol>
                     )}
                     {selectedInstructionDevice === 'pos' && (
                       <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <li>For Android POS machines (e.g. Sunmi, Epson, etc.), the printer is connected internally.</li>
+                        <li>For Android POS machines (e.g. Sunmi, Epson, Castles), the printer is connected internally.</li>
                         <li>Go to Settings → Printing → select <strong>InnerPrinter</strong> (or local POS print service) as default.</li>
-                        <li>Ensure KOT and Bill autoprint toggles are active above. The browser print command will auto-route to the inner receipt slot.</li>
+                        <li>Use <em>Browser Print</em> method. The browser print command will auto-route to the inner receipt slot.</li>
                       </ol>
                     )}
                   </div>
@@ -1570,7 +1673,7 @@ export default function AdminMore() {
               )}
             </div>
 
-            {/* Customization Details */}
+            {/* ── Customization Details ── */}
             <div className="input-group">
               <label className="input-label">Tax Percentage (%)</label>
               <input className="input" type="number" step="0.01" min={0} max={100} value={restaurantForm.taxPercentage ?? 5}
@@ -1622,7 +1725,7 @@ export default function AdminMore() {
               </div>
             </div>
 
-            {/* Test Print Actions */}
+            {/* ── Test Print Actions ── */}
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <button 
                 type="button" 
@@ -1636,8 +1739,8 @@ export default function AdminMore() {
                     customerName: 'Test Customer',
                     customerPhone: '9876543210',
                     items: [
-                      { id: 'item-1', menuItemId: 'item-1', name: 'Mock Paneer Tikka', price: 250, qty: 2, variant: { name: 'Full', price: 250 } },
-                      { id: 'item-2', menuItemId: 'item-2', name: 'Mock Butter Naan', price: 40, qty: 3 }
+                      { id: 'item-1', menuItemId: 'item-1', name: 'Paneer Tikka', price: 250, qty: 2, variant: { name: 'Full', price: 250 } },
+                      { id: 'item-2', menuItemId: 'item-2', name: 'Butter Naan', price: 40, qty: 3 }
                     ],
                     totalAmount: 620,
                     status: 'pending' as const,
@@ -1646,8 +1749,9 @@ export default function AdminMore() {
                     updatedAt: Date.now(),
                     specialNote: 'Make it spicy'
                   };
-                  import('../../utils/printReceipt').then(({ printThermalReceipt }) => {
-                    printThermalReceipt(mockOrder, 'kot', restaurantForm);
+                  printThermalReceipt(mockOrder, 'kot', restaurantForm).then(r => {
+                    if (r.error) addToast('info', r.error);
+                    else addToast('success', '🖨️ Test KOT sent to printer!');
                   });
                 }}
               >
@@ -1665,8 +1769,8 @@ export default function AdminMore() {
                     customerName: 'Test Customer',
                     customerPhone: '9876543210',
                     items: [
-                      { id: 'item-1', menuItemId: 'item-1', name: 'Mock Paneer Tikka', price: 250, qty: 2, variant: { name: 'Full', price: 250 } },
-                      { id: 'item-2', menuItemId: 'item-2', name: 'Mock Butter Naan', price: 40, qty: 3 }
+                      { id: 'item-1', menuItemId: 'item-1', name: 'Paneer Tikka', price: 250, qty: 2, variant: { name: 'Full', price: 250 } },
+                      { id: 'item-2', menuItemId: 'item-2', name: 'Butter Naan', price: 40, qty: 3 }
                     ],
                     totalAmount: 620,
                     status: 'served' as const,
@@ -1675,8 +1779,9 @@ export default function AdminMore() {
                     updatedAt: Date.now(),
                     specialNote: 'Make it spicy'
                   };
-                  import('../../utils/printReceipt').then(({ printThermalReceipt }) => {
-                    printThermalReceipt(mockOrder, 'bill', restaurantForm);
+                  printThermalReceipt(mockOrder, 'bill', restaurantForm).then(r => {
+                    if (r.error) addToast('info', r.error);
+                    else addToast('success', '🖨️ Test Bill sent to printer!');
                   });
                 }}
               >
@@ -1684,7 +1789,7 @@ export default function AdminMore() {
               </button>
             </div>
 
-            {/* Save Button */}
+            {/* ── Save Button ── */}
             <button 
               type="button" 
               className="btn btn-primary" 
@@ -1698,6 +1803,7 @@ export default function AdminMore() {
       )}
 
       {/* QR Code Manager */}
+
       {activeSection === 'qr' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
