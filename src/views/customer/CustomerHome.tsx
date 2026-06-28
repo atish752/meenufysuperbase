@@ -320,6 +320,7 @@ export default function CustomerHome({ table }: Props) {
                   tableId,
                   createdAt: Date.now(),
                   resolved: false,
+                  restaurantId,
                 }
               });
               addToast('success', 'Waiter has been notified! 🔔');
