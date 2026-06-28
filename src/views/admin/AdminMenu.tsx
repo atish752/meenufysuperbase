@@ -202,6 +202,9 @@ export default function AdminMenu() {
   const adminId = state.admin?.restaurantId || 'admin-1';
   const adminMenuItems = state.menuItems.filter(item => (item.restaurantId || 'admin-1') === adminId);
   const adminCategories = state.categories.filter(c => (c.restaurantId || 'admin-1') === adminId);
+  const uncategorizedItems = adminMenuItems.filter(item => 
+    !item.category || !adminCategories.some(c => c.id === item.category)
+  );
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -686,7 +689,14 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
   };
 
   const filteredItems = adminMenuItems.filter(item => {
-    const matchCat = selectedCategory === 'all' || item.category === selectedCategory || (item.categories && item.categories.includes(selectedCategory));
+    let matchCat = false;
+    if (selectedCategory === 'all') {
+      matchCat = true;
+    } else if (selectedCategory === 'uncategorized') {
+      matchCat = !item.category || !adminCategories.some(c => c.id === item.category);
+    } else {
+      matchCat = item.category === selectedCategory || !!(item.categories && item.categories.includes(selectedCategory));
+    }
     const matchSearch = !search || item.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
@@ -1117,45 +1127,29 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           >
             All ({adminMenuItems.length})
           </button>
+          <button
+            className={`btn btn-sm ${selectedCategory === 'uncategorized' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setSelectedCategory('uncategorized')}
+            style={{ flexShrink: 0 }}
+          >
+            📂 Uncategorized ({uncategorizedItems.length})
+          </button>
           {adminCategories.map(cat => {
             const isSelected = selectedCategory === cat.id;
-            const isDeleting = deletingCatId === cat.id;
             return (
-              <div key={cat.id} style={{ display: 'flex', gap: 0, flexShrink: 0, alignItems: 'center' }}>
-                <button
-                  className={`btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  style={{
-                    borderTopRightRadius: 0,
-                    borderBottomRightRadius: 0,
-                    paddingRight: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}
-                >
-                  {cat.icon} {cat.name} ({adminMenuItems.filter(i => i.category === cat.id || (i.categories && i.categories.includes(cat.id))).length})
-                </button>
-                <button
-                  className={`btn btn-sm ${isDeleting ? 'btn-danger' : isSelected ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => handleDeleteCategoryClick(cat.id)}
-                  style={{
-                    borderTopLeftRadius: 0,
-                    borderBottomLeftRadius: 0,
-                    borderLeft: isSelected ? '1px solid rgba(0,0,0,0.15)' : 'none',
-                    paddingLeft: 8,
-                    paddingRight: 8,
-                    color: isDeleting ? '#fff' : isSelected ? '#000' : 'var(--error)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    alignSelf: 'stretch',
-                  }}
-                  title={isDeleting ? "Click again to delete" : "Delete category"}
-                >
-                  {isDeleting ? 'Confirm?' : <X size={13} />}
-                </button>
-              </div>
+              <button
+                key={cat.id}
+                className={`btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setSelectedCategory(cat.id)}
+                style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                {cat.icon} {cat.name} ({adminMenuItems.filter(i => i.category === cat.id || (i.categories && i.categories.includes(cat.id))).length})
+              </button>
             );
           })}
         </div>
@@ -1214,45 +1208,46 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               opacity: item.isAvailable ? 1 : 0.6,
               transition: 'var(--transition)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
                 {/* Veg/Non-veg indicator */}
                 <div style={{
-                  width: 18, height: 18, borderRadius: 3, flexShrink: 0, marginTop: 2,
+                  width: 16, height: 16, borderRadius: 3, flexShrink: 0, marginTop: 3,
                   border: `2px solid ${item.isVeg ? 'var(--success)' : '#ef4444'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   <div style={{
-                    width: 8, height: 8, borderRadius: '50%',
+                    width: 6, height: 6, borderRadius: '50%',
                     background: item.isVeg ? 'var(--success)' : '#ef4444',
                   }} />
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Details */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{item.name}</span>
-                    {item.isFeatured && <span className="badge badge-brand" style={{ fontSize: 9 }}>Featured</span>}
-                    {!item.isAvailable && <span className="badge badge-muted" style={{ fontSize: 9 }}>Unavailable</span>}
-                    {cat && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{cat.icon} {cat.name}</span>}
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{item.name}</span>
+                    {item.isFeatured && <span className="badge badge-brand" style={{ fontSize: 8, padding: '1px 4px' }}>Featured</span>}
+                    {!item.isAvailable && <span className="badge badge-muted" style={{ fontSize: 8, padding: '1px 4px' }}>Unavailable</span>}
+                    {cat && <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{cat.icon} {cat.name}</span>}
                   </div>
                   {item.description && (
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.5 }} className="truncate">
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3, margin: '2px 0' }} className="truncate">
                       {item.description}
                     </p>
                   )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--brand)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--brand)' }}>
                       {item.variants && item.variants.length > 0 ? `From ₹${item.price}` : `₹${item.price}`}
                     </span>
                     {item.variants && item.variants.length > 0 && (
-                      <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                      <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
                         ({item.variants.length} options)
                       </span>
                     )}
                   </div>
                   {item.variants && item.variants.length > 0 && (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
                       {item.variants.map((v, i) => (
-                        <span key={i} style={{ fontSize: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '2px 6px', borderRadius: 4, color: 'var(--text-secondary)' }}>
+                        <span key={i} style={{ fontSize: 9, background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '1px 4px', borderRadius: 4, color: 'var(--text-secondary)' }}>
                           {v.name}: ₹{v.price}
                         </span>
                       ))}
@@ -1260,23 +1255,43 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                   )}
                 </div>
 
-                {/* Actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                  {/* Toggle availability */}
-                  <div
-                    className={`toggle ${item.isAvailable ? 'on' : ''}`}
-                    onClick={() => handleToggleAvailable(item)}
-                    title={item.isAvailable ? 'Click to mark unavailable' : 'Click to mark available'}
-                  >
-                    <div className="toggle-thumb" />
+                {/* Right: Actions (Top) & Image (Bottom) */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', gap: 6, flexShrink: 0 }}>
+                  {/* Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {/* Toggle availability */}
+                    <div
+                      className={`toggle ${item.isAvailable ? 'on' : ''}`}
+                      onClick={() => handleToggleAvailable(item)}
+                      title={item.isAvailable ? 'Click to mark unavailable' : 'Click to mark available'}
+                      style={{ transform: 'scale(0.8)', margin: 0 }}
+                    >
+                      <div className="toggle-thumb" />
+                    </div>
+                    <button className="btn btn-ghost btn-icon" onClick={() => handleEditItem(item)} title="Edit" style={{ padding: 4 }}>
+                      <Pencil size={13} />
+                    </button>
+                    <button className="btn btn-ghost btn-icon" onClick={() => handleDeleteItem(item.id)}
+                      style={{ color: 'var(--error)', padding: 4 }} title="Delete">
+                      <Trash2 size={13} />
+                    </button>
                   </div>
-                  <button className="btn btn-ghost btn-icon" onClick={() => handleEditItem(item)} title="Edit">
-                    <Pencil size={15} />
-                  </button>
-                  <button className="btn btn-ghost btn-icon" onClick={() => handleDeleteItem(item.id)}
-                    style={{ color: 'var(--error)' }} title="Delete">
-                    <Trash2 size={15} />
-                  </button>
+
+                  {/* Meal Photo (Right Bottom) */}
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 6,
+                    border: '1px solid var(--border)',
+                    overflow: 'hidden', background: 'var(--bg-elevated)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 15, flexShrink: 0,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                  }}>
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      '🍽️'
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
