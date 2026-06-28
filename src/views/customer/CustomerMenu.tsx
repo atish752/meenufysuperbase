@@ -338,8 +338,8 @@ export default function CustomerMenu() {
                     padding: '5px 14px',
                     fontSize: 11,
                     borderRadius: 'var(--radius-full)',
-                    background: isSelected ? 'var(--brand)' : 'var(--bg-elevated)',
-                    color: isSelected ? '#000' : 'var(--text-primary)',
+                    background: isSelected ? 'var(--customer-bg-override, var(--brand))' : 'var(--bg-elevated)',
+                    color: isSelected ? 'var(--customer-add-to-cart-text, #000)' : 'var(--text-primary)',
                     border: isSelected ? 'none' : '1px solid var(--border)',
                     whiteSpace: 'nowrap'
                   }}
@@ -363,8 +363,8 @@ export default function CustomerMenu() {
                     padding: '5px 14px',
                     fontSize: 11,
                     borderRadius: 'var(--radius-full)',
-                    background: isSelected ? 'var(--brand)' : 'var(--bg-elevated)',
-                    color: isSelected ? '#000' : 'var(--text-primary)',
+                    background: isSelected ? 'var(--customer-bg-override, var(--brand))' : 'var(--bg-elevated)',
+                    color: isSelected ? 'var(--customer-add-to-cart-text, #000)' : 'var(--text-primary)',
                     border: isSelected ? 'none' : '1px solid var(--border)',
                     whiteSpace: 'nowrap'
                   }}

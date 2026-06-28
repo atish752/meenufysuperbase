@@ -3,7 +3,7 @@ import { useStore } from '../../context/RealtimeStore';
 import {
   Store, Phone, Mail, Clock, MapPin, Save, LogOut,
   MessageSquare, Smartphone, Send, Download, QrCode, ExternalLink,
-  CreditCard, Printer, Users,
+  CreditCard, Printer, Users, Palette, X, HelpCircle
 } from 'lucide-react';
 import { auth, googleProvider, hasFirebaseConfig } from '../../utils/firebase';
 import { signInWithPopup } from 'firebase/auth';
@@ -160,6 +160,59 @@ export default function AdminMore() {
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
+
+  // Customer Menu Theme States
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [themeForm, setThemeForm] = useState({
+    primaryBg: '',
+    itemName: '',
+    itemDesc: '',
+    addToCartBg: '',
+    addToCartText: '',
+    bestsellerBg: '',
+    bestsellerText: '',
+  });
+
+  const openThemeModal = () => {
+    setThemeForm({
+      primaryBg: state.customerMenuTheme?.primaryBg || '',
+      itemName: state.customerMenuTheme?.itemName || '',
+      itemDesc: state.customerMenuTheme?.itemDesc || '',
+      addToCartBg: state.customerMenuTheme?.addToCartBg || '',
+      addToCartText: state.customerMenuTheme?.addToCartText || '',
+      bestsellerBg: state.customerMenuTheme?.bestsellerBg || '',
+      bestsellerText: state.customerMenuTheme?.bestsellerText || '',
+    });
+    setShowThemeModal(true);
+  };
+
+  const handleSaveThemeColors = () => {
+    dispatch({
+      type: 'UPDATE_CUSTOMER_THEME_COLORS',
+      payload: themeForm
+    });
+    addToast('success', 'Customer menu theme colors updated! 🎨');
+    setShowThemeModal(false);
+  };
+
+  const handleResetThemeColors = () => {
+    const cleared = {
+      primaryBg: '',
+      itemName: '',
+      itemDesc: '',
+      addToCartBg: '',
+      addToCartText: '',
+      bestsellerBg: '',
+      bestsellerText: '',
+    };
+    setThemeForm(cleared);
+    dispatch({
+      type: 'UPDATE_CUSTOMER_THEME_COLORS',
+      payload: cleared
+    });
+    addToast('info', 'Customer menu theme reset to system defaults.');
+    setShowThemeModal(false);
+  };
 
   // Staff state hooks
   const [staffName, setStaffName] = useState('');
@@ -970,400 +1023,423 @@ export default function AdminMore() {
 
       {/* Outlet Settings */}
       {activeSection === 'outlet' && (
-        <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
-          <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16 }}>Outlet Information</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div className="input-group">
-              <label className="input-label">Restaurant Name</label>
-              <div className="input-icon-wrap">
-                <Store size={15} className="input-icon" />
-                <input className="input" type="text" value={restaurantForm.name}
-                  onChange={e => setRestaurantForm({ ...restaurantForm, name: e.target.value })} />
-              </div>
-            </div>
-            <div className="input-group">
-              <label className="input-label">Tagline</label>
-              <input className="input" type="text" value={restaurantForm.tagline}
-                onChange={e => setRestaurantForm({ ...restaurantForm, tagline: e.target.value })} />
-            </div>
-            <div className="input-group">
-              <label className="input-label">About / Description</label>
-              <textarea className="input" rows={3} value={restaurantForm.description}
-                onChange={e => setRestaurantForm({ ...restaurantForm, description: e.target.value })}
-                style={{ resize: 'vertical' }} />
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <div className="input-group" style={{ flex: 1 }}>
-                <label className="input-label">Opens At</label>
-                <div className="input-icon-wrap">
-                  <Clock size={15} className="input-icon" />
-                  <input className="input" type="time" value={restaurantForm.openTime}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, openTime: e.target.value })} />
-                </div>
-              </div>
-              <div className="input-group" style={{ flex: 1 }}>
-                <label className="input-label">Closes At</label>
-                <div className="input-icon-wrap">
-                  <Clock size={15} className="input-icon" />
-                  <input className="input" type="time" value={restaurantForm.closeTime}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, closeTime: e.target.value })} />
-                </div>
-              </div>
-            </div>
-            <div className="input-group">
-              <label className="input-label">Phone Number</label>
-              <div className="input-icon-wrap">
-                <Phone size={15} className="input-icon" />
-                <input className="input" type="tel" value={restaurantForm.phone}
-                  onChange={e => setRestaurantForm({ ...restaurantForm, phone: e.target.value })} />
-              </div>
-            </div>
-            <div className="input-group">
-              <label className="input-label">Email</label>
-              <div className="input-icon-wrap">
-                <Mail size={15} className="input-icon" />
-                <input className="input" type="email" value={restaurantForm.email}
-                  onChange={e => setRestaurantForm({ ...restaurantForm, email: e.target.value })} />
-              </div>
-            </div>
-            <div className="input-group">
-              <label className="input-label">Address</label>
-              <div className="input-icon-wrap">
-                <MapPin size={15} className="input-icon" />
-                <input className="input" type="text" value={restaurantForm.address}
-                  onChange={e => setRestaurantForm({ ...restaurantForm, address: e.target.value })} />
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
-              <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Restaurant Logo Settings</h4>
-              <div className="input-group" style={{ marginBottom: 12 }}>
-                <label className="input-label">Logo Image URL / Upload</label>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Paste image URL or upload photo below"
-                    value={restaurantForm.logo || ''}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, logo: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="file"
-                      id="logo-upload-input"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      style={{ display: 'none' }}
-                    />
-                    <label
-                      htmlFor="logo-upload-input"
-                      className="btn btn-secondary"
-                      style={{
-                        height: 38,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        borderRadius: 10,
-                        fontSize: 12,
-                        padding: '0 12px'
-                      }}
-                    >
-                      {uploadingLogo ? 'Uploading...' : '📁 Upload Photo'}
-                    </label>
-                  </div>
-                </div>
-              </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
+          
+          {/* Box 1: Additional Customization */}
+          <div className="card" style={{ padding: '16px' }}>
+            <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>Additional Customization</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               
-              {restaurantForm.logo && (
-                <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
-                  <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Logo Preview</label>
-                  <div style={{
-                    margin: '0 auto',
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    border: '2px solid var(--brand)',
-                    background: 'var(--bg-elevated)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <img
-                      src={restaurantForm.logo}
-                      alt="Logo Preview"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              {/* Menu Theme Switcher */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <label className="input-label" style={{ marginBottom: 2 }}>Overlay Logo on Meals</label>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Automatically overlays the restaurant's logo in the bottom-right of all dish photos on the customer menu.</p>
+                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Customer Menu Theme</h4>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Customize colors for your customer digital menu.</p>
                 </div>
-                <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer', flexShrink: 0 }}>
-                  <input
-                    type="checkbox"
-                    checked={restaurantForm.overlayLogoOnMeals || false}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, overlayLogoOnMeals: e.target.checked })}
-                    style={{ opacity: 0, width: 0, height: 0 }}
-                  />
-                  <span style={{
-                    position: 'absolute', inset: 0, borderRadius: 24,
-                    background: restaurantForm.overlayLogoOnMeals ? 'var(--brand)' : 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
-                    transition: '0.2s',
-                  }}>
-                    <span style={{
-                      position: 'absolute', left: 2, bottom: 1, width: 20, height: 20, borderRadius: '50%',
-                      background: '#fff',
-                      transform: restaurantForm.overlayLogoOnMeals ? 'translateX(20px)' : 'translateX(0)',
-                      transition: '0.2s',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                    }} />
-                  </span>
-                </label>
+                <button
+                  type="button"
+                  onClick={openThemeModal}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, height: 32, borderRadius: 8 }}
+                >
+                  🎨 Customize Theme
+                </button>
               </div>
-            </div>
 
-            <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
-              <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Poster Display Settings</h4>
-              <div className="input-group" style={{ marginBottom: 12 }}>
-                <label className="input-label">Poster Image URL / Upload</label>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Paste image URL or upload photo below"
-                    value={restaurantForm.posterImage || ''}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, posterImage: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="file"
-                      id="poster-upload-input"
-                      accept="image/*"
-                      onChange={handlePosterUpload}
-                      style={{ display: 'none' }}
-                    />
-                    <label
-                      htmlFor="poster-upload-input"
-                      className="btn btn-secondary"
-                      style={{
-                        height: 38,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        borderRadius: 10,
-                        fontSize: 12,
-                        padding: '0 12px'
-                      }}
-                    >
-                      {uploadingPoster ? 'Uploading...' : '📁 Upload Photo'}
-                    </label>
-                  </div>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+
+              {/* Customer Must Login Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Customer Must Login</h4>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Force customers to sign in before placing an order.</p>
+                </div>
+                <div 
+                  className={`toggle ${restaurantForm.mustLoginBeforeOrder ? 'on' : ''}`}
+                  onClick={() => setRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="toggle-thumb" />
                 </div>
               </div>
-              
-              {restaurantForm.posterImage && (
-                <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
-                  <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Poster Preview</label>
-                  <div style={{
-                    margin: '0 auto',
-                    maxWidth: 160,
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    border: '1px solid var(--border)',
-                    aspectRatio: restaurantForm.posterRatio === '9:16' ? '9 / 16' : (restaurantForm.posterRatio === '3:4' ? '3 / 4' : '1 / 1'),
-                    background: 'var(--bg-elevated)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <img
-                      src={restaurantForm.posterImage}
-                      alt="Poster Preview"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                    />
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+
+              {/* Overlay Logo on Meals Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Overlay Logo on Meals</h4>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Overlay restaurant logo on dish photos on the customer menu.</p>
+                </div>
+                <div 
+                  className={`toggle ${restaurantForm.overlayLogoOnMeals ? 'on' : ''}`}
+                  onClick={() => setRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="toggle-thumb" />
+                </div>
+              </div>
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+
+              {/* Live Location Ordering Settings */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Live Location Order Enforcement</h4>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Restricts ordering to customers inside or near the restaurant.</p>
+                  </div>
+                  <div 
+                    className={`toggle ${restaurantForm.locationVerificationEnabled ? 'on' : ''}`}
+                    onClick={() => setRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: !prev.locationVerificationEnabled }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="toggle-thumb" />
                   </div>
                 </div>
-              )}
 
-              <div className="input-group">
-                <label className="input-label">Poster Aspect Ratio</label>
-                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-                  {[
-                    { ratio: '1:1', w: 24, h: 24, label: 'Square (1:1)' },
-                    { ratio: '3:4', w: 18, h: 24, label: 'Portrait (3:4)' },
-                    { ratio: '9:16', w: 13, h: 24, label: 'Tall (9:16)' }
-                  ].map(opt => {
-                    const isSelected = (restaurantForm.posterRatio || '1:1') === opt.ratio;
-                    return (
+                {restaurantForm.locationVerificationEnabled && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12, animation: 'fadeIn 0.2s ease', borderLeft: '3px solid var(--brand)', paddingLeft: 12 }}>
+                    <div className="input-group">
+                      <label className="input-label">Google Maps Link</label>
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Paste share link (will auto-extract coordinates)"
+                        value={restaurantForm.googleMapsUrl || ''}
+                        onChange={e => {
+                          const url = e.target.value;
+                          const parsed = parseCoordsFromGmaps(url);
+                          if (parsed) {
+                            setRestaurantForm(prev => ({
+                              ...prev,
+                              googleMapsUrl: url,
+                              latitude: parseFloat(parsed.lat.toFixed(6)),
+                              longitude: parseFloat(parsed.lng.toFixed(6)),
+                            }));
+                            addToast('success', '✨ Coordinates auto-extracted!');
+                          } else {
+                            setRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                      <div className="input-group" style={{ flex: 1 }}>
+                        <label className="input-label">Latitude</label>
+                        <input
+                          className="input"
+                          type="number"
+                          step="any"
+                          placeholder="e.g. 12.9348"
+                          value={restaurantForm.latitude ?? ''}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
+                        />
+                      </div>
+                      <div className="input-group" style={{ flex: 1 }}>
+                        <label className="input-label">Longitude</label>
+                        <input
+                          className="input"
+                          type="number"
+                          step="any"
+                          placeholder="e.g. 77.6202"
+                          value={restaurantForm.longitude ?? ''}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
+                        />
+                      </div>
                       <button
-                        key={opt.ratio}
                         type="button"
-                        onClick={() => handleRatioChange(opt.ratio as any)}
+                        className="btn btn-secondary"
+                        onClick={handleCaptureCurrentLocation}
+                        disabled={capturingLocation}
                         style={{
-                          flex: 1,
-                          padding: '10px 8px',
-                          borderRadius: '8px',
-                          background: isSelected ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                          border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: 8,
-                          transition: 'all 0.2s ease',
-                          color: isSelected ? '#fff' : 'var(--text-secondary)'
+                          padding: '10px 12px', border: '1px solid var(--border)',
+                          color: 'var(--text-primary)', height: 38, display: 'flex', alignItems: 'center', gap: 6
                         }}
                       >
-                        <div style={{
-                          width: opt.w,
-                          height: opt.h,
-                          border: `2px solid ${isSelected ? 'var(--brand)' : 'var(--text-muted)'}`,
-                          background: isSelected ? 'rgba(255, 125, 0, 0.2)' : 'transparent',
-                          borderRadius: '2px',
-                          transition: 'all 0.2s ease'
-                        }} />
-                        <span style={{ fontSize: 11, fontWeight: 600 }}>{opt.label}</span>
+                        {capturingLocation ? 'Capturing...' : 'Use My GPS'}
                       </button>
-                    );
-                  })}
-                </div>
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">Allowed Perimeter Radius (meters)</label>
+                      <input
+                        className="input"
+                        type="number"
+                        min={10} max={1000}
+                        placeholder="e.g. 50"
+                        value={restaurantForm.verificationRadius ?? 50}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
+          </div>
 
-            {/* Live Location Ordering Settings */}
-            <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div>
-                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)' }}>Live Location Order Enforcement</h4>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Restricts ordering to customers inside or near the restaurant.</p>
+          {/* Box 2: Outlet Information */}
+          <div className="card" style={{ padding: '16px' }}>
+            <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>Outlet Information</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="input-group">
+                <label className="input-label">Restaurant Name</label>
+                <div className="input-icon-wrap">
+                  <Store size={15} className="input-icon" />
+                  <input className="input" type="text" value={restaurantForm.name}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, name: e.target.value })} />
                 </div>
-                <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={restaurantForm.locationVerificationEnabled || false}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, locationVerificationEnabled: e.target.checked })}
-                    style={{ opacity: 0, width: 0, height: 0 }}
-                  />
-                  <span style={{
-                    position: 'absolute', inset: 0, borderRadius: 24,
-                    background: restaurantForm.locationVerificationEnabled ? 'var(--brand)' : 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
-                    transition: '0.2s',
-                  }}>
-                    <span style={{
-                      position: 'absolute', left: 2, bottom: 1, width: 20, height: 20, borderRadius: '50%',
-                      background: '#fff',
-                      transform: restaurantForm.locationVerificationEnabled ? 'translateX(20px)' : 'translateX(0)',
-                      transition: '0.2s',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                    }} />
-                  </span>
-                </label>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Tagline</label>
+                <input className="input" type="text" value={restaurantForm.tagline}
+                  onChange={e => setRestaurantForm({ ...restaurantForm, tagline: e.target.value })} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">About / Description</label>
+                <textarea className="input" rows={3} value={restaurantForm.description}
+                  onChange={e => setRestaurantForm({ ...restaurantForm, description: e.target.value })}
+                  style={{ resize: 'vertical' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label className="input-label">Opens At</label>
+                  <div className="input-icon-wrap">
+                    <Clock size={15} className="input-icon" />
+                    <input className="input" type="time" value={restaurantForm.openTime}
+                      onChange={e => setRestaurantForm({ ...restaurantForm, openTime: e.target.value })} />
+                  </div>
+                </div>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label className="input-label">Closes At</label>
+                  <div className="input-icon-wrap">
+                    <Clock size={15} className="input-icon" />
+                    <input className="input" type="time" value={restaurantForm.closeTime}
+                      onChange={e => setRestaurantForm({ ...restaurantForm, closeTime: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Address</label>
+                <div className="input-icon-wrap">
+                  <MapPin size={15} className="input-icon" />
+                  <input className="input" type="text" value={restaurantForm.address}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, address: e.target.value })} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Phone Number</label>
+                <div className="input-icon-wrap">
+                  <Phone size={15} className="input-icon" />
+                  <input className="input" type="tel" value={restaurantForm.phone}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, phone: e.target.value })} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Email</label>
+                <div className="input-icon-wrap">
+                  <Mail size={15} className="input-icon" />
+                  <input className="input" type="email" value={restaurantForm.email}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, email: e.target.value })} />
+                </div>
               </div>
 
-              {restaurantForm.locationVerificationEnabled && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12, animation: 'fadeIn 0.2s ease' }}>
-                  <div className="input-group">
-                    <label className="input-label">Google Maps Link</label>
+              {/* Logo Settings */}
+              <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Restaurant Logo Settings</h4>
+                <div className="input-group" style={{ marginBottom: 12 }}>
+                  <label className="input-label">Logo Image URL / Upload</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
                     <input
                       className="input"
                       type="text"
-                      placeholder="Paste share link (will auto-extract coordinates)"
-                      value={restaurantForm.googleMapsUrl || ''}
-                      onChange={e => {
-                        const url = e.target.value;
-                        const parsed = parseCoordsFromGmaps(url);
-                        if (parsed) {
-                          setRestaurantForm(prev => ({
-                            ...prev,
-                            googleMapsUrl: url,
-                            latitude: parseFloat(parsed.lat.toFixed(6)),
-                            longitude: parseFloat(parsed.lng.toFixed(6)),
-                          }));
-                          addToast('success', '✨ Coordinates auto-extracted!');
-                        } else {
-                          setRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
-                        }
-                      }}
+                      placeholder="Paste image URL or upload photo below"
+                      value={restaurantForm.logo || ''}
+                      onChange={e => setRestaurantForm({ ...restaurantForm, logo: e.target.value })}
+                      style={{ flex: 1 }}
                     />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                    <div className="input-group" style={{ flex: 1 }}>
-                      <label className="input-label">Latitude</label>
+                    <div style={{ position: 'relative' }}>
                       <input
-                        className="input"
-                        type="number"
-                        step="any"
-                        placeholder="e.g. 12.9348"
-                        value={restaurantForm.latitude ?? ''}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
+                        type="file"
+                        id="logo-upload-input"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        style={{ display: 'none' }}
                       />
+                      <label
+                        htmlFor="logo-upload-input"
+                        className="btn btn-secondary"
+                        style={{
+                          height: 38,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          borderRadius: 10,
+                          fontSize: 12,
+                          padding: '0 12px'
+                        }}
+                      >
+                        {uploadingLogo ? 'Uploading...' : '📁 Upload Photo'}
+                      </label>
                     </div>
-                    <div className="input-group" style={{ flex: 1 }}>
-                      <label className="input-label">Longitude</label>
-                      <input
-                        className="input"
-                        type="number"
-                        step="any"
-                        placeholder="e.g. 77.6202"
-                        value={restaurantForm.longitude ?? ''}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={handleCaptureCurrentLocation}
-                      disabled={capturingLocation}
-                      style={{
-                        padding: '10px 12px', border: '1px solid var(--border)',
-                        color: 'var(--text-primary)', height: 38, display: 'flex', alignItems: 'center', gap: 6
-                      }}
-                    >
-                      {capturingLocation ? 'Capturing...' : 'Use My GPS'}
-                    </button>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label">Allowed Perimeter Radius (meters)</label>
-                    <input
-                      className="input"
-                      type="number"
-                      min={10} max={1000}
-                      placeholder="e.g. 50"
-                      value={restaurantForm.verificationRadius ?? 50}
-                      onChange={e => setRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
-                    />
                   </div>
                 </div>
-              )}
-            </div>
+                
+                {restaurantForm.logo && (
+                  <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
+                    <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Logo Preview</label>
+                    <div style={{
+                      margin: '0 auto',
+                      width: 80,
+                      height: 80,
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      border: '2px solid var(--brand)',
+                      background: 'var(--bg-elevated)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <img
+                        src={restaurantForm.logo}
+                        alt="Logo Preview"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
 
-            <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 12 }}>
-              <Save size={15} /> Save Changes
-            </button>
+              {/* Poster Display Settings */}
+              <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Poster Display Settings</h4>
+                <div className="input-group" style={{ marginBottom: 12 }}>
+                  <label className="input-label">Poster Image URL / Upload</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Paste image URL or upload photo below"
+                      value={restaurantForm.posterImage || ''}
+                      onChange={e => setRestaurantForm({ ...restaurantForm, posterImage: e.target.value })}
+                      style={{ flex: 1 }}
+                    />
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="file"
+                        id="poster-upload-input"
+                        accept="image/*"
+                        onChange={handlePosterUpload}
+                        style={{ display: 'none' }}
+                      />
+                      <label
+                        htmlFor="poster-upload-input"
+                        className="btn btn-secondary"
+                        style={{
+                          height: 38,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          borderRadius: 10,
+                          fontSize: 12,
+                          padding: '0 12px'
+                        }}
+                      >
+                        {uploadingPoster ? 'Uploading...' : '📁 Upload Photo'}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                
+                {restaurantForm.posterImage && (
+                  <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
+                    <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Poster Preview</label>
+                    <div style={{
+                      margin: '0 auto',
+                      maxWidth: 160,
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      border: '1px solid var(--border)',
+                      aspectRatio: restaurantForm.posterRatio === '9:16' ? '9 / 16' : (restaurantForm.posterRatio === '3:4' ? '3 / 4' : '1 / 1'),
+                      background: 'var(--bg-elevated)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <img
+                        src={restaurantForm.posterImage}
+                        alt="Poster Preview"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="input-group">
+                  <label className="input-label">Poster Aspect Ratio</label>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                    {[
+                      { ratio: '1:1', w: 24, h: 24, label: 'Square (1:1)' },
+                      { ratio: '3:4', w: 18, h: 24, label: 'Portrait (3:4)' },
+                      { ratio: '9:16', w: 13, h: 24, label: 'Tall (9:16)' }
+                    ].map(opt => {
+                      const isSelected = (restaurantForm.posterRatio || '1:1') === opt.ratio;
+                      return (
+                        <button
+                          key={opt.ratio}
+                          type="button"
+                          onClick={() => handleRatioChange(opt.ratio as any)}
+                          style={{
+                            flex: 1,
+                            padding: '10px 8px',
+                            borderRadius: '8px',
+                            background: isSelected ? 'var(--brand-dim)' : 'var(--bg-elevated)',
+                            border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 8,
+                            transition: 'all 0.2s ease',
+                            color: isSelected ? '#fff' : 'var(--text-secondary)'
+                          }}
+                        >
+                          <div style={{
+                            width: opt.w,
+                            height: opt.h,
+                            border: `2px solid ${isSelected ? 'var(--brand)' : 'var(--text-muted)'}`,
+                            background: isSelected ? 'rgba(255, 125, 0, 0.2)' : 'transparent',
+                            borderRadius: '2px',
+                            transition: 'all 0.2s ease'
+                          }} />
+                          <span style={{ fontSize: 11, fontWeight: 600 }}>{opt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 12 }}>
+                <Save size={15} /> Save Changes
+              </button>
+            </div>
           </div>
+
         </div>
       )}
 
@@ -2574,6 +2650,326 @@ export default function AdminMore() {
                 </button>
               </div>
             )}
+
+          </div>
+        </div>
+      )}
+
+      {/* Customer Menu Theme Customizer Modal */}
+      {showThemeModal && (
+        <div className="modal-backdrop" onClick={() => setShowThemeModal(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: 540, padding: 24, position: 'relative' }} onClick={e => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Palette size={20} style={{ color: 'var(--brand)' }} />
+                <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, margin: 0 }}>
+                  Customize Customer Menu Theme
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowThemeModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '65vh', overflowY: 'auto', paddingRight: 4 }}>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                
+                {/* Inputs Column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  
+                  <div className="input-group">
+                    <label className="input-label" style={{ fontSize: 11 }}>Primary Accent (e.g. active tab line, borders)</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="color"
+                        value={themeForm.primaryBg || '#FF7D00'}
+                        onChange={e => setThemeForm({ ...themeForm, primaryBg: e.target.value })}
+                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Default (#FF7D00)"
+                        value={themeForm.primaryBg}
+                        onChange={e => setThemeForm({ ...themeForm, primaryBg: e.target.value })}
+                        style={{ flex: 1, height: 34, fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label" style={{ fontSize: 11 }}>Dish Name Text Color</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="color"
+                        value={themeForm.itemName || '#111111'}
+                        onChange={e => setThemeForm({ ...themeForm, itemName: e.target.value })}
+                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Default (#111111)"
+                        value={themeForm.itemName}
+                        onChange={e => setThemeForm({ ...themeForm, itemName: e.target.value })}
+                        style={{ flex: 1, height: 34, fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label" style={{ fontSize: 11 }}>Dish Description Text Color</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="color"
+                        value={themeForm.itemDesc || '#666666'}
+                        onChange={e => setThemeForm({ ...themeForm, itemDesc: e.target.value })}
+                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Default (#666666)"
+                        value={themeForm.itemDesc}
+                        onChange={e => setThemeForm({ ...themeForm, itemDesc: e.target.value })}
+                        style={{ flex: 1, height: 34, fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label" style={{ fontSize: 11 }}>Add to Cart Button BG</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="color"
+                        value={themeForm.addToCartBg || '#FF7D00'}
+                        onChange={e => setThemeForm({ ...themeForm, addToCartBg: e.target.value })}
+                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Default (#FF7D00)"
+                        value={themeForm.addToCartBg}
+                        onChange={e => setThemeForm({ ...themeForm, addToCartBg: e.target.value })}
+                        style={{ flex: 1, height: 34, fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label" style={{ fontSize: 11 }}>Add to Cart Button Text</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="color"
+                        value={themeForm.addToCartText || '#FFFFFF'}
+                        onChange={e => setThemeForm({ ...themeForm, addToCartText: e.target.value })}
+                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Default (#FFFFFF)"
+                        value={themeForm.addToCartText}
+                        onChange={e => setThemeForm({ ...themeForm, addToCartText: e.target.value })}
+                        style={{ flex: 1, height: 34, fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label" style={{ fontSize: 11 }}>Bestseller Badge BG</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="color"
+                        value={themeForm.bestsellerBg || '#FF7D00'}
+                        onChange={e => setThemeForm({ ...themeForm, bestsellerBg: e.target.value })}
+                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Default (#FF7D00)"
+                        value={themeForm.bestsellerBg}
+                        onChange={e => setThemeForm({ ...themeForm, bestsellerBg: e.target.value })}
+                        style={{ flex: 1, height: 34, fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label" style={{ fontSize: 11 }}>Bestseller Badge Text</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="color"
+                        value={themeForm.bestsellerText || '#FFFFFF'}
+                        onChange={e => setThemeForm({ ...themeForm, bestsellerText: e.target.value })}
+                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Default (#FFFFFF)"
+                        value={themeForm.bestsellerText}
+                        onChange={e => setThemeForm({ ...themeForm, bestsellerText: e.target.value })}
+                        style={{ flex: 1, height: 34, fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Preview Column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--bg-elevated)', borderRadius: 12, padding: 14, border: '1px solid var(--border)' }}>
+                  <h4 style={{ fontSize: 12, fontWeight: 700, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>✨ Live Preview</span>
+                  </h4>
+                  
+                  {/* Category Indicator Preview */}
+                  <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid var(--border)', pb: 6, fontSize: 12 }}>
+                    <div style={{ 
+                      color: themeForm.primaryBg || 'var(--brand)', 
+                      fontWeight: 700, 
+                      paddingBottom: 4, 
+                      borderBottom: `2px solid ${themeForm.primaryBg || 'var(--brand)'}` 
+                    }}>
+                      Bestsellers
+                    </div>
+                    <div style={{ color: 'var(--text-muted)' }}>Main Course</div>
+                  </div>
+
+                  {/* Item Card Preview */}
+                  <div style={{ 
+                    background: '#fff', 
+                    borderRadius: 12, 
+                    border: '1px solid #e5e7eb', 
+                    padding: 12, 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: 8,
+                    marginTop: 8,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, pr: 8 }}>
+                        
+                        {/* Bestseller Badge */}
+                        <div>
+                          <span style={{
+                            background: themeForm.bestsellerBg || '#FF7D00',
+                            color: themeForm.bestsellerText || '#FFFFFF',
+                            fontSize: '9px',
+                            fontWeight: 800,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }}>
+                            ★ Bestseller
+                          </span>
+                        </div>
+
+                        {/* Dish Name */}
+                        <div style={{ 
+                          fontSize: 13, 
+                          fontWeight: 700, 
+                          color: themeForm.itemName || '#111111' 
+                        }}>
+                          Crispy Paneer Slider
+                        </div>
+
+                        {/* Dish Description */}
+                        <div style={{ 
+                          fontSize: 10, 
+                          color: themeForm.itemDesc || '#666666',
+                          lineHeight: 1.3
+                        }}>
+                          Spicy battered paneer patty with cabbage slaw and sriracha mayo.
+                        </div>
+
+                      </div>
+
+                      {/* Dish Photo Placeholder */}
+                      <div style={{ width: 68, height: 68, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                        <span style={{ fontSize: 24 }}>🍔</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: '#111111' }}>
+                        $9.99
+                      </div>
+                      
+                      {/* Add Button */}
+                      <button style={{
+                        background: themeForm.addToCartBg || '#FF7D00',
+                        color: themeForm.addToCartText || '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '4px 10px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'default',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}>
+                        Add +
+                      </button>
+
+                    </div>
+                  </div>
+
+                  {/* Help note */}
+                  <div style={{ display: 'flex', gap: 6, mt: 'auto', background: 'rgba(255, 125, 0, 0.05)', borderRadius: 8, padding: 8, border: '1px solid rgba(255, 125, 0, 0.1)' }}>
+                    <HelpCircle size={14} style={{ color: 'var(--brand)', flexShrink: 0, marginTop: 1 }} />
+                    <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      Colors entered above will apply to the public customer menu instantly upon saving. Use HEX color codes or pick via selector.
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', pt: 16, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={handleResetThemeColors}
+                className="btn btn-secondary"
+                style={{ color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)', fontSize: 12 }}
+              >
+                Reset to System Defaults
+              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowThemeModal(false)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: 12 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveThemeColors}
+                  className="btn btn-primary"
+                  style={{ fontSize: 12, fontWeight: 700 }}
+                >
+                  Save Theme Colors
+                </button>
+              </div>
+            </div>
 
           </div>
         </div>

@@ -2030,8 +2030,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     
     if (theme.bestsellerBg) {
       document.documentElement.style.setProperty('--customer-bestseller-bg', theme.bestsellerBg);
+      document.documentElement.style.setProperty('--customer-bestseller-border', theme.bestsellerBg);
     } else {
       document.documentElement.style.removeProperty('--customer-bestseller-bg');
+      document.documentElement.style.removeProperty('--customer-bestseller-border');
     }
 
     if (theme.bestsellerText) {
