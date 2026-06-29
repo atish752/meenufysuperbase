@@ -931,7 +931,7 @@ export default function CustomerMore() {
         }}>
           <Wifi size={12} color="var(--brand)" />
           <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
-            Powered by <span style={{ color: 'var(--brand)' }}>Meenufy</span> — Your restro's digital staff
+            Powered by <span style={{ color: 'var(--brand)' }}>Meenufy</span> — A hassle-free way
           </span>
         </div>
       </div>

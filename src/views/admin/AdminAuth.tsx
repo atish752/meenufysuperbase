@@ -346,7 +346,7 @@ export default function AdminAuth() {
             <img src="/meenufy_logo_dark.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
-            Your restro's digital staff
+            A hassle-free way
           </p>
         </div>
 

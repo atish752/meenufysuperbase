@@ -1,7 +1,7 @@
-﻿{
+{
   "name": "Meenufy",
   "short_name": "Meenufy",
-  "description": "Your restro digital staff — QR-based ordering system",
+  "description": "A hassle-free way — QR-based ordering system",
   "id": "/",
   "start_url": "/",
   "scope": "/",
