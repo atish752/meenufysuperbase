@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import type { Order, OrderStatus, Coupon, OrderItem, MenuItem, MenuItemVariant } from '../../context/RealtimeStore';
-import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, HelpCircle, Edit2 } from 'lucide-react';
+import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, Edit2 } from 'lucide-react';
 import { triggerNotification } from '../../utils/notifications';
 import { printThermalReceipt } from '../../utils/printReceipt';
 
@@ -179,8 +179,6 @@ export default function AdminHome() {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [historyStartDate, setHistoryStartDate] = useState('');
   const [historyEndDate, setHistoryEndDate] = useState('');
-
-  const [showLoginTooltip, setShowLoginTooltip] = useState(false);
 
   // Coupon & Offer Management States
   const [showCouponsModal, setShowCouponsModal] = useState(false);

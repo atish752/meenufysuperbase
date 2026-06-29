@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import type { MenuItem, MealSchedule, NutritionInfo, MenuCategory } from '../../context/RealtimeStore';
-import { Plus, Pencil, Trash2, Search, Tag, X, Sparkles, Camera, UploadCloud, Loader2, Check, CalendarClock, FlaskConical, Palette } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Tag, X, Sparkles, Camera, UploadCloud, Loader2, Check, CalendarClock, FlaskConical } from 'lucide-react';
 import { hasFirebaseConfig, db } from '../../utils/firebase';
 import { ref, update } from 'firebase/database';
 

@@ -2109,6 +2109,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  const targetRestaurantId = getActiveRestaurantId(state);
+
   // Real-time Firebase Realtime Database sync listeners
   useEffect(() => {
     if (!hasFirebaseConfig || !db) return;
@@ -2118,7 +2120,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Connection state changes are handled silently
     });
 
-    const targetRestaurantId = getActiveRestaurantId(state);
     const isCustomer = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'customer';
 
     if (!targetRestaurantId) return;
