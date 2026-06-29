@@ -213,6 +213,8 @@ export default function AdminMenu() {
   const [newItem, setNewItem] = useState<Omit<MenuItem, 'id'>>(EMPTY_ITEM);
   const [showCatModal, setShowCatModal] = useState(false);
   const [showOthersMenu, setShowOthersMenu] = useState(false);
+  const [bulkAiLoading, setBulkAiLoading] = useState(false);
+  const [bulkAiProgress, setBulkAiProgress] = useState({ current: 0, total: 0 });
   const [newCat, setNewCat] = useState({ name: '', icon: '🍽️' });
   const [managingCatMeals, setManagingCatMeals] = useState<MenuCategory | null>(null);
   const [catMealsSearch, setCatMealsSearch] = useState('');
@@ -838,6 +840,77 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     }
   };
 
+  const handleBulkAiDescriptions = async () => {
+    let itemsToProcess = adminMenuItems.filter(item => !item.description || !item.description.trim());
+    let overwriteAll = false;
+    
+    if (itemsToProcess.length === 0) {
+      if (adminMenuItems.length === 0) {
+        addToast('error', 'No menu items found to generate descriptions for.');
+        return;
+      }
+      if (window.confirm('All menu items already have descriptions. Would you like to RE-GENERATE descriptions for all items?')) {
+        itemsToProcess = [...adminMenuItems];
+        overwriteAll = true;
+      } else {
+        return;
+      }
+    }
+
+    const validUserKeys = state.geminiApiKeys && state.geminiApiKeys.length > 0
+      ? state.geminiApiKeys.filter(k => !k.includes('FakeGeminiKey'))
+      : [];
+    if (validUserKeys.length === 0) {
+      addToast('error', '❌ AI features require a valid Gemini API Key. Super Admin must configure a key first.');
+      return;
+    }
+
+    if (!window.confirm(`Generate AI descriptions for ${itemsToProcess.length} items? This will take a moment.`)) {
+      return;
+    }
+
+    setBulkAiLoading(true);
+    setBulkAiProgress({ current: 0, total: itemsToProcess.length });
+
+    let successCount = 0;
+    for (let i = 0; i < itemsToProcess.length; i++) {
+      const item = itemsToProcess[i];
+      setBulkAiProgress({ current: i + 1, total: itemsToProcess.length });
+      
+      try {
+        const prompt = `Write a short, enticing 1-2 sentence menu description for a dish called "${item.name}". Be concise, mouth-watering and factual. No quotes, no labels, just the description text.`;
+        
+        const text = await executeGeminiCall(async (key, model) => {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+          });
+          if (!res.ok) {
+            const errObj = await res.json().catch(() => ({}));
+            throw new Error(errObj?.error?.message || `HTTP error! Status: ${res.status}`);
+          }
+          const data = await res.json();
+          const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (!responseText) throw new Error('Empty response from model');
+          return responseText;
+        }, `AI generation failed for ${item.name}`);
+
+        dispatch({
+          type: 'UPDATE_MENU_ITEM',
+          payload: { ...item, description: text }
+        });
+        successCount++;
+        await new Promise(r => setTimeout(r, 600));
+      } catch (e: any) {
+        console.error(`AI description failed for ${item.name}:`, e);
+      }
+    }
+
+    setBulkAiLoading(false);
+    addToast('success', `✨ Finished! Generated descriptions for ${successCount} of ${itemsToProcess.length} items.`);
+  };
+
   // ── Schedule Helpers ──────────────────────────────────────────────────────
   const handleSaveSchedule = () => {
     if (!scheduleForm.name.trim()) { addToast('error', 'Enter a schedule name.'); return; }
@@ -899,27 +972,27 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           <button
             onClick={() => setShowScheduleModal(true)}
             className="btn btn-secondary"
-            style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 12, fontSize: 12 }}
+            style={{ height: 32, display: 'flex', alignItems: 'center', gap: 5, borderRadius: 10, fontSize: 11, padding: '0 10px' }}
           >
-            <CalendarClock size={14} /> Schedule Menu
+            <CalendarClock size={13} /> Schedule Menu
           </button>
 
           {/* AI Menu Extractor Button */}
           <button
             onClick={openExtractor}
             className="btn btn-secondary"
-            style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 12, fontSize: 12 }}
+            style={{ height: 32, display: 'flex', alignItems: 'center', gap: 5, borderRadius: 10, fontSize: 11, padding: '0 10px' }}
           >
-            <Sparkles size={14} /> AI Menu Extractor
+            <Sparkles size={13} /> AI Menu Extractor
           </button>
 
           {/* Manage Categories Button */}
           <button
             onClick={() => setShowCatModal(true)}
             className="btn btn-secondary"
-            style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 12, fontSize: 12 }}
+            style={{ height: 32, display: 'flex', alignItems: 'center', gap: 5, borderRadius: 10, fontSize: 11, padding: '0 10px' }}
           >
-            <Tag size={14} /> Manage Categories
+            <Tag size={13} /> Manage Categories
           </button>
 
           {/* Others Button with Dropdown */}
@@ -927,7 +1000,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             <button
               onClick={() => setShowOthersMenu(v => !v)}
               className="btn btn-secondary"
-              style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 12, fontSize: 12 }}
+              style={{ height: 32, display: 'flex', alignItems: 'center', gap: 5, borderRadius: 10, fontSize: 11, padding: '0 10px' }}
             >
               ⚙️ Others
             </button>
@@ -941,7 +1014,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                 {/* Dropdown Panel */}
                 <div style={{
                   position: 'absolute',
-                  top: 44,
+                  top: 38,
                   right: 0,
                   zIndex: 100,
                   background: 'var(--bg-glass)',
@@ -1024,6 +1097,25 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                     onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                   >
                     🚫 Mark All as Unavailable
+                  </button>
+                  {/* Bulk AI Descriptions */}
+                  <button
+                    onClick={() => {
+                      setShowOthersMenu(false);
+                      handleBulkAiDescriptions();
+                    }}
+                    style={{
+                      width: '100%', textAlign: 'left',
+                      padding: '9px 14px',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 600,
+                      color: 'var(--brand)',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    ✨ Add AI Descriptions
                   </button>
                   {/* Divider */}
                   <div style={{ height: 1, background: 'var(--border)', margin: '4px 14px' }} />
@@ -2363,6 +2455,33 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             <button onClick={handleSaveRanks} className="btn btn-primary btn-full" style={{ background: 'var(--brand)', color: '#000', fontWeight: 800, height: 38 }}>
               Save Sequence Rankings
             </button>
+          </div>
+        </div>
+      )}
+
+      {bulkAiLoading && (
+        <div className="modal-backdrop" style={{ zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content" style={{ maxWidth: 400, padding: 24, textAlign: 'center', background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', borderRadius: 16 }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>✨</div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>Generating AI Descriptions</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>
+              Please keep this page open. Generating menu descriptions using Gemini AI...
+            </p>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--brand)', marginBottom: 8 }}>
+              {bulkAiProgress.current} of {bulkAiProgress.total} items
+            </div>
+            {/* Progress bar */}
+            <div style={{ width: '100%', height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden', marginBottom: 20 }}>
+              <div style={{
+                height: '100%',
+                background: 'var(--brand)',
+                width: `${(bulkAiProgress.current / bulkAiProgress.total) * 100}%`,
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <div style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--text-muted)' }}>
+              Self-healing key rotation active. Respecting API rate limits...
+            </div>
           </div>
         </div>
       )}

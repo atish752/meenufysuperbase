@@ -461,31 +461,6 @@ export default function AdminAnalysis() {
                 </button>
               ))}
             </div>
-
-            {/* Theme Toggle Button */}
-            <button
-              onClick={() => {
-                dispatch({ type: 'TOGGLE_ADMIN_THEME' });
-                addToast('success', `Theme switched to ${state.adminTheme === 'light' ? 'Dark' : 'Light'}!`);
-              }}
-              style={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: '50%',
-                width: 38,
-                height: 38,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--text-primary)',
-                fontSize: 16,
-                boxShadow: 'var(--shadow-sm)',
-              }}
-              title="Toggle Light/Dark Theme"
-            >
-              {state.adminTheme === 'light' ? '🌙' : '☀️'}
-            </button>
           </div>
         </div>
       </div>

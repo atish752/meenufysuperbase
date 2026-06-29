@@ -517,7 +517,25 @@ export function getActiveRestaurantInfo(state: AppState, restaurantId: string): 
   if (state.admin && state.admin.restaurantId === restaurantId) {
     return state.restaurant;
   }
-  return MOCK_RESTAURANT_INFOS[restaurantId] || MOCK_RESTAURANT_INFOS['admin-1'];
+  if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeId = urlParams.get('restaurant') || localStorage.getItem('meenufy_active_restaurant_id') || 'admin-1';
+    if (activeId === restaurantId && state.restaurant) {
+      return state.restaurant;
+    }
+  }
+  const mockInfo = MOCK_RESTAURANT_INFOS[restaurantId];
+  if (mockInfo) return mockInfo;
+
+  const matchedOrder = state.orders.find(o => o.restaurantId === restaurantId);
+  if (matchedOrder && matchedOrder.restaurantName) {
+    return {
+      ...DEFAULT_RESTAURANT,
+      name: matchedOrder.restaurantName,
+      id: restaurantId,
+    };
+  }
+  return state.restaurant || MOCK_RESTAURANT_INFOS['admin-1'];
 }
 
 const DEFAULT_CATEGORIES: MenuCategory[] = [
