@@ -355,60 +355,6 @@ export default function AdminMenu() {
     setShowSupportModal(false);
   };
 
-  // Customer Menu Theme States
-  const [showThemeModal, setShowThemeModal] = useState(false);
-  const [themeForm, setThemeForm] = useState({
-    primaryBg: '',
-    itemName: '',
-    itemDesc: '',
-    addToCartBg: '',
-    addToCartText: '',
-    bestsellerBg: '',
-    bestsellerText: '',
-  });
-
-  const openThemeModal = () => {
-    setThemeForm({
-      primaryBg: state.customerMenuTheme?.primaryBg || '',
-      itemName: state.customerMenuTheme?.itemName || '',
-      itemDesc: state.customerMenuTheme?.itemDesc || '',
-      addToCartBg: state.customerMenuTheme?.addToCartBg || '',
-      addToCartText: state.customerMenuTheme?.addToCartText || '',
-      bestsellerBg: state.customerMenuTheme?.bestsellerBg || '',
-      bestsellerText: state.customerMenuTheme?.bestsellerText || '',
-    });
-    setShowThemeModal(true);
-  };
-
-  const handleSaveThemeColors = () => {
-    dispatch({
-      type: 'UPDATE_CUSTOMER_THEME_COLORS',
-      payload: themeForm
-    });
-    addToast('success', 'Customer menu theme colors updated! 🎨');
-    setShowThemeModal(false);
-  };
-
-  const handleResetThemeColors = () => {
-    if (window.confirm('Reset all custom colors to system defaults?')) {
-      const cleared = {
-        primaryBg: '',
-        itemName: '',
-        itemDesc: '',
-        addToCartBg: '',
-        addToCartText: '',
-        bestsellerBg: '',
-        bestsellerText: '',
-      };
-      setThemeForm(cleared);
-      dispatch({
-        type: 'UPDATE_CUSTOMER_THEME_COLORS',
-        payload: cleared
-      });
-      addToast('info', 'Customer menu theme reset to system defaults.');
-      setShowThemeModal(false);
-    }
-  };
 
   const executeGeminiCall = async <T,>(
     apiCallFn: (key: string, model: string) => Promise<T>,
@@ -947,14 +893,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           alignItems: 'center',
         }}>
 
-          {/* Menu Theme Color Button */}
-          <button
-            onClick={openThemeModal}
-            className="btn btn-secondary"
-            style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 12, fontSize: 12 }}
-          >
-            <Palette size={14} /> Menu Theme
-          </button>
+
 
           {/* Schedule Menu Button */}
           <button
@@ -1279,7 +1218,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
                   {/* Meal Photo (Right Bottom) */}
                   <div style={{
-                    width: 44, height: 44, borderRadius: 6,
+                    width: 60, height: 60, borderRadius: 6,
                     border: '1px solid var(--border)',
                     overflow: 'hidden', background: 'var(--bg-elevated)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -2427,202 +2366,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           </div>
         </div>
       )}
-
-      {/* Menu Theme Customization Modal */}
-      {showThemeModal && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowThemeModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Palette size={20} color="var(--brand)" />
-                <h2 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Customer Menu Theme</h2>
-              </div>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowThemeModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
-              Customize the colors of the digital menu displayed to your customers when they scan the QR code. Leave blank to use system defaults.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
-              {/* 1. Website Background Color */}
-              <div className="input-group">
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Website Background Color</span>
-                  {themeForm.primaryBg && <span style={{ fontSize: 10, color: 'var(--brand)', cursor: 'pointer' }} onClick={() => setThemeForm(p => ({...p, primaryBg: ''}))}>Reset</span>}
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={themeForm.primaryBg || '#0d0d0d'}
-                    onChange={e => setThemeForm({ ...themeForm, primaryBg: e.target.value })}
-                    style={{ width: 44, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-elevated)', cursor: 'pointer' }}
-                  />
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Default (#0d0d0d)"
-                    value={themeForm.primaryBg}
-                    onChange={e => setThemeForm({ ...themeForm, primaryBg: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </div>
-
-              {/* 2. Item Name Color */}
-              <div className="input-group">
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Item Name Color</span>
-                  {themeForm.itemName && <span style={{ fontSize: 10, color: 'var(--brand)', cursor: 'pointer' }} onClick={() => setThemeForm(p => ({...p, itemName: ''}))}>Reset</span>}
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={themeForm.itemName || '#FF7D00'}
-                    onChange={e => setThemeForm({ ...themeForm, itemName: e.target.value })}
-                    style={{ width: 44, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-elevated)', cursor: 'pointer' }}
-                  />
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Default (#FF7D00)"
-                    value={themeForm.itemName}
-                    onChange={e => setThemeForm({ ...themeForm, itemName: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </div>
-
-              {/* 3. Item Description Color */}
-              <div className="input-group">
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Item Description Color</span>
-                  {themeForm.itemDesc && <span style={{ fontSize: 10, color: 'var(--brand)', cursor: 'pointer' }} onClick={() => setThemeForm(p => ({...p, itemDesc: ''}))}>Reset</span>}
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={themeForm.itemDesc || '#A3A3A3'}
-                    onChange={e => setThemeForm({ ...themeForm, itemDesc: e.target.value })}
-                    style={{ width: 44, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-elevated)', cursor: 'pointer' }}
-                  />
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Default (#A3A3A3)"
-                    value={themeForm.itemDesc}
-                    onChange={e => setThemeForm({ ...themeForm, itemDesc: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </div>
-
-              {/* 4. Add to Cart Button Background */}
-              <div className="input-group">
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Add to Cart Button Background</span>
-                  {themeForm.addToCartBg && <span style={{ fontSize: 10, color: 'var(--brand)', cursor: 'pointer' }} onClick={() => setThemeForm(p => ({...p, addToCartBg: ''}))}>Reset</span>}
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={themeForm.addToCartBg || '#ffffff'}
-                    onChange={e => setThemeForm({ ...themeForm, addToCartBg: e.target.value })}
-                    style={{ width: 44, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-elevated)', cursor: 'pointer' }}
-                  />
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Default (#ffffff)"
-                    value={themeForm.addToCartBg}
-                    onChange={e => setThemeForm({ ...themeForm, addToCartBg: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </div>
-
-              {/* 5. Add to Cart Button Text */}
-              <div className="input-group">
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Add to Cart Button Text</span>
-                  {themeForm.addToCartText && <span style={{ fontSize: 10, color: 'var(--brand)', cursor: 'pointer' }} onClick={() => setThemeForm(p => ({...p, addToCartText: ''}))}>Reset</span>}
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={themeForm.addToCartText || '#000000'}
-                    onChange={e => setThemeForm({ ...themeForm, addToCartText: e.target.value })}
-                    style={{ width: 44, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-elevated)', cursor: 'pointer' }}
-                  />
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Default (#000000)"
-                    value={themeForm.addToCartText}
-                    onChange={e => setThemeForm({ ...themeForm, addToCartText: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </div>
-
-              {/* 6. Bestseller Badge Background */}
-              <div className="input-group">
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Bestseller Badge Background</span>
-                  {themeForm.bestsellerBg && <span style={{ fontSize: 10, color: 'var(--brand)', cursor: 'pointer' }} onClick={() => setThemeForm(p => ({...p, bestsellerBg: ''}))}>Reset</span>}
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={themeForm.bestsellerBg || '#FF7D00'}
-                    onChange={e => setThemeForm({ ...themeForm, bestsellerBg: e.target.value })}
-                    style={{ width: 44, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-elevated)', cursor: 'pointer' }}
-                  />
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Default (Orange Alpha)"
-                    value={themeForm.bestsellerBg}
-                    onChange={e => setThemeForm({ ...themeForm, bestsellerBg: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </div>
-
-              {/* 7. Bestseller Badge Text */}
-              <div className="input-group">
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Bestseller Badge Text</span>
-                  {themeForm.bestsellerText && <span style={{ fontSize: 10, color: 'var(--brand)', cursor: 'pointer' }} onClick={() => setThemeForm(p => ({...p, bestsellerText: ''}))}>Reset</span>}
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={themeForm.bestsellerText || '#FF7D00'}
-                    onChange={e => setThemeForm({ ...themeForm, bestsellerText: e.target.value })}
-                    style={{ width: 44, height: 38, padding: 2, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-elevated)', cursor: 'pointer' }}
-                  />
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Default (#FF7D00)"
-                    value={themeForm.bestsellerText}
-                    onChange={e => setThemeForm({ ...themeForm, bestsellerText: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-secondary btn-full" onClick={handleResetThemeColors}>Reset to Defaults</button>
-              <button className="btn btn-primary btn-full" onClick={handleSaveThemeColors}>Save Theme</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+

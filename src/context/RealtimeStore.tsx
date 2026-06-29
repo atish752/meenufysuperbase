@@ -2,7 +2,7 @@
 // MEENUFY REALTIME STORE
 // Cross-tab state sync via BroadcastChannel + localStorage
 // ============================================================
-import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useState } from 'react';
 import { db, hasFirebaseConfig } from '../utils/firebase';
 import { 
   ref, 
@@ -1950,6 +1950,25 @@ function saveState(state: AppState) {
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const savedState = loadState();
+  const [urlSearch, setUrlSearch] = useState(typeof window !== 'undefined' ? window.location.search : '');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleUrlChange = () => {
+      if (window.location.search !== urlSearch) {
+        setUrlSearch(window.location.search);
+      }
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    const interval = setInterval(handleUrlChange, 500);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+      clearInterval(interval);
+    };
+  }, [urlSearch]);
+
   let initialAdminTab: 'home' | 'menu' | 'customers' | 'analysis' | 'more' = 'home';
   if (savedState && savedState.admin?.isStaff && savedState.admin.permissions) {
     const perms = savedState.admin.permissions;
@@ -2328,7 +2347,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeSupport();
       unsubscribeStaff();
     };
-  }, [state.admin?.restaurantId, state.currentView]);
+  }, [state.admin?.restaurantId, state.currentView, targetRestaurantId, urlSearch]);
 
   // Broadcast state changes to other tabs
   const wrappedDispatch = useCallback((action: Action) => {

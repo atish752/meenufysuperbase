@@ -657,7 +657,7 @@ export default function AdminHome() {
             Manage your daily restaurant flow
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, width: '100%', justifyContent: 'flex-start' }}>
           {/* Open / Close Restaurant Toggle */}
           <button
             onClick={() => {
@@ -670,25 +670,24 @@ export default function AdminHome() {
               addToast(newClosed ? 'warning' : 'success', newClosed ? '🔴 Restaurant marked CLOSED — customers can no longer place orders.' : '🟢 Restaurant is now OPEN — customers can place orders!');
             }}
             style={{
-              height: 38,
-              borderRadius: 12,
-              fontSize: 12,
-              fontWeight: 800,
+              height: 32,
+              borderRadius: 8,
+              fontSize: 11,
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 4,
               background: state.restaurant.isManualClosed ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)',
-              border: state.restaurant.isManualClosed ? '2px solid #ef4444' : '2px solid #22c55e',
+              border: state.restaurant.isManualClosed ? '1.5px solid #ef4444' : '1.5px solid #22c55e',
               color: state.restaurant.isManualClosed ? '#ef4444' : '#22c55e',
               cursor: 'pointer',
-              padding: '0 14px',
+              padding: '0 8px',
               transition: 'all 0.2s ease',
-              boxShadow: state.restaurant.isManualClosed ? '0 0 12px rgba(239,68,68,0.25)' : '0 0 12px rgba(34,197,94,0.2)',
             }}
             title={state.restaurant.isManualClosed ? 'Click to Open Restaurant' : 'Click to Close Restaurant'}
           >
-            <span style={{ fontSize: 10, width: 8, height: 8, borderRadius: '50%', background: state.restaurant.isManualClosed ? '#ef4444' : '#22c55e', display: 'inline-block', boxShadow: state.restaurant.isManualClosed ? '0 0 6px #ef4444' : '0 0 6px #22c55e', flexShrink: 0 }} />
-            {state.restaurant.isManualClosed ? '🔴 CLOSED' : '🟢 OPEN'}
+            <span style={{ fontSize: 8, width: 6, height: 6, borderRadius: '50%', background: state.restaurant.isManualClosed ? '#ef4444' : '#22c55e', display: 'inline-block', flexShrink: 0 }} />
+            {state.restaurant.isManualClosed ? 'CLOSED' : 'OPEN'}
           </button>
 
           {/* Place Manual Order Button */}
@@ -696,19 +695,18 @@ export default function AdminHome() {
             onClick={() => setShowManualOrderModal(true)}
             className="btn btn-primary"
             style={{
-              height: 38,
-              borderRadius: 12,
-              fontSize: 12,
-              fontWeight: 800,
+              height: 32,
+              borderRadius: 8,
+              fontSize: 11,
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              boxShadow: '0 4px 12px rgba(255, 125, 0, 0.25)',
-              padding: '0 14px',
+              gap: 4,
+              padding: '0 8px',
               cursor: 'pointer'
             }}
           >
-            ➕ Place Order
+            ➕ Order
           </button>
 
           {/* History Toggle Button */}
@@ -716,22 +714,21 @@ export default function AdminHome() {
             onClick={() => setShowHistory(prev => !prev)}
             className="btn btn-secondary"
             style={{
-              height: 38,
-              borderRadius: 12,
-              fontSize: 12,
+              height: 32,
+              borderRadius: 8,
+              fontSize: 11,
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 4,
               background: showHistory ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-              border: showHistory ? '2px solid var(--brand)' : '1px solid var(--border)',
+              border: showHistory ? '1.5px solid var(--brand)' : '1px solid var(--border)',
               color: showHistory ? 'var(--brand)' : 'var(--text-primary)',
               cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              padding: '0 14px'
+              padding: '0 8px'
             }}
           >
-            📜 {showHistory ? 'Active Board' : 'Order History'}
+            📜 {showHistory ? 'Active' : 'History'}
           </button>
 
           {/* Tabular View Switcher Button */}
@@ -739,88 +736,22 @@ export default function AdminHome() {
             onClick={toggleTabularView}
             className="btn btn-secondary"
             style={{
-              height: 38,
-              borderRadius: 12,
-              fontSize: 12,
+              height: 32,
+              borderRadius: 8,
+              fontSize: 11,
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 4,
               background: isTabularView ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-              border: isTabularView ? '2px solid var(--brand)' : '1px solid var(--border)',
+              border: isTabularView ? '1.5px solid var(--brand)' : '1px solid var(--border)',
               color: isTabularView ? 'var(--brand)' : 'var(--text-primary)',
               cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              padding: '0 14px'
+              padding: '0 8px'
             }}
           >
-            📋 {isTabularView ? 'Kanban View' : 'Tabular View'}
+            📋 {isTabularView ? 'Kanban' : 'Tabular'}
           </button>
-
-          {/* Must login before Toggle */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 12,
-            padding: '6px 12px',
-            fontSize: 12,
-            height: 38,
-            boxShadow: 'var(--shadow-sm)',
-          }}>
-            <span style={{ fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              Customer must login
-              <div 
-                style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'help' }}
-                onMouseEnter={() => setShowLoginTooltip(true)}
-                onMouseLeave={() => setShowLoginTooltip(false)}
-              >
-                <HelpCircle size={14} style={{ color: 'var(--text-muted)' }} />
-                {showLoginTooltip && (
-                  <div style={{
-                    width: 200,
-                    backgroundColor: 'var(--bg-elevated)',
-                    color: 'var(--text-primary)',
-                    textAlign: 'left',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    position: 'absolute',
-                    zIndex: 100,
-                    bottom: '125%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    boxShadow: 'var(--shadow-lg)',
-                    border: '1px solid var(--border)',
-                    fontSize: 11,
-                    lineHeight: '1.4',
-                    fontWeight: 'normal',
-                    whiteSpace: 'normal',
-                    pointerEvents: 'none'
-                  }}>
-                    When enabled, customers must sign in before placing an order.
-                  </div>
-                )}
-              </div>
-            </span>
-            <div 
-              className={`toggle ${state.restaurant.mustLoginBeforeOrder ? 'on' : ''}`} 
-              onClick={() => {
-                if (!hasOutletSettingPermission) {
-                  addToast('error', '🔒 Access Restricted: Only the restaurant owner or staff with Outlet Settings permission can modify customer login requirements.');
-                  return;
-                }
-                dispatch({
-                  type: 'UPDATE_RESTAURANT',
-                  payload: { mustLoginBeforeOrder: !state.restaurant.mustLoginBeforeOrder }
-                });
-              }}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="toggle-thumb" />
-            </div>
-          </div>
 
           {/* Subscription Plan Display - Clickable */}
           {!state.admin?.isStaff && (
@@ -832,16 +763,15 @@ export default function AdminHome() {
               style={{
                 background: 'var(--brand)',
                 border: 'none',
-                borderRadius: 12,
-                padding: '0 14px',
-                fontSize: 12,
-                fontWeight: 800,
+                borderRadius: 8,
+                padding: '0 8px',
+                fontSize: 11,
+                fontWeight: 700,
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                height: 38,
-                boxShadow: 'var(--shadow-sm)',
+                gap: 4,
+                height: 32,
                 cursor: 'pointer',
                 transition: 'var(--transition)',
               }}
@@ -861,15 +791,14 @@ export default function AdminHome() {
             style={{
               background: 'var(--bg-elevated)',
               border: '1px solid var(--border)',
-              borderRadius: '50%',
-              width: 38,
-              height: 38,
+              borderRadius: 8,
+              width: 32,
+              height: 32,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: 16,
-              boxShadow: 'var(--shadow-sm)',
+              fontSize: 14,
               transition: 'var(--transition)',
             }}
             title="Toggle Theme"
@@ -888,21 +817,20 @@ export default function AdminHome() {
             }}
             className="btn btn-secondary"
             style={{
-              height: 38,
-              borderRadius: 12,
-              fontSize: 12,
+              height: 32,
+              borderRadius: 8,
+              fontSize: 11,
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 4,
               background: 'var(--bg-elevated)',
               border: '1px solid var(--border)',
               cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              padding: '0 14px'
+              padding: '0 8px'
             }}
           >
-            🏷️ Coupons & Offers
+            🏷️ Coupons
           </button>
         </div>
       </div>
@@ -3010,10 +2938,10 @@ function TabularOrderRow({
       {/* Status Dropdown — replaces horizontal touch-bar to avoid accidental scroll triggers */}
       {(() => {
         const STATUS_OPTIONS = [
-          { key: 'pending',   label: '🟡 New',         color: '#ffc078', textColor: '#000000' },
-          { key: 'preparing', label: '🟠 Preparing',   color: '#ffa94d', textColor: '#ffffff' },
-          { key: 'ready',     label: '🔥 Ready',       color: '#fd7e14', textColor: '#ffffff' },
-          { key: 'bill_pay',  label: '💳 Bill & Pay',  color: '#e8590c', textColor: '#ffffff' },
+          { key: 'pending',   label: '🟡 New',         color: STATUS_CONFIG.pending.color, textColor: '#000000' },
+          { key: 'preparing', label: '🟠 Preparing',   color: STATUS_CONFIG.preparing.color, textColor: '#ffffff' },
+          { key: 'ready',     label: '🔥 Ready',       color: STATUS_CONFIG.ready.color, textColor: '#ffffff' },
+          { key: 'bill_pay',  label: '💳 Bill & Pay',  color: STATUS_CONFIG.bill_pay.color, textColor: '#ffffff' },
         ] as const;
         const current = STATUS_OPTIONS.find(s => s.key === order.status) || STATUS_OPTIONS[0];
         return (

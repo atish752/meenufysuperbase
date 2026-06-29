@@ -161,6 +161,7 @@ export default function AdminMore() {
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
+  const [activeInfo, setActiveInfo] = useState<string | null>(null);
 
   // Customer Menu Theme States
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -1033,66 +1034,211 @@ export default function AdminMore() {
           {/* Box 1: Additional Customization */}
           <div className="card" style={{ padding: '16px' }}>
             <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>Additional Customization</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              
-              {/* Menu Theme Switcher */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Customer Menu Theme</h4>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Customize colors for your customer digital menu.</p>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '16px',
+            }}>
+              {/* 1. Menu Theme Switcher */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: 14,
+                gap: 8,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Menu Theme</h4>
+                    <button
+                      type="button"
+                      onClick={() => setActiveInfo(prev => prev === 'theme' ? null : 'theme')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        color: activeInfo === 'theme' ? 'var(--brand)' : 'var(--text-muted)',
+                      }}
+                      title="Learn more"
+                    >
+                      <HelpCircle size={15} />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openThemeModal}
+                    className="btn btn-secondary btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, height: 32, borderRadius: 8 }}
+                  >
+                    🎨 Customize
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={openThemeModal}
-                  className="btn btn-secondary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, height: 32, borderRadius: 8 }}
-                >
-                  🎨 Customize Theme
-                </button>
+                {activeInfo === 'theme' && (
+                  <p style={{
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                    background: 'rgba(255, 125, 0, 0.05)',
+                    borderLeft: '2.5px solid var(--brand)',
+                    padding: '6px 8px',
+                    margin: '4px 0 0 0',
+                    borderRadius: '0 4px 4px 0',
+                    lineHeight: '1.4',
+                    animation: 'fadeIn 0.2s ease',
+                  }}>
+                    Allows you to customize colors (website background, items, buttons) for the digital menu viewed by customers.
+                  </p>
+                )}
               </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-
-              {/* Customer Must Login Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Customer Must Login</h4>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Force customers to sign in before placing an order.</p>
+              {/* 2. Customer Must Login Toggle */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: 14,
+                gap: 8,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Customer Must Login</h4>
+                    <button
+                      type="button"
+                      onClick={() => setActiveInfo(prev => prev === 'login' ? null : 'login')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        color: activeInfo === 'login' ? 'var(--brand)' : 'var(--text-muted)',
+                      }}
+                      title="Learn more"
+                    >
+                      <HelpCircle size={15} />
+                    </button>
+                  </div>
+                  <div 
+                    className={`toggle ${restaurantForm.mustLoginBeforeOrder ? 'on' : ''}`}
+                    onClick={() => setRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="toggle-thumb" />
+                  </div>
                 </div>
-                <div 
-                  className={`toggle ${restaurantForm.mustLoginBeforeOrder ? 'on' : ''}`}
-                  onClick={() => setRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="toggle-thumb" />
-                </div>
+                {activeInfo === 'login' && (
+                  <p style={{
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                    background: 'rgba(255, 125, 0, 0.05)',
+                    borderLeft: '2.5px solid var(--brand)',
+                    padding: '6px 8px',
+                    margin: '4px 0 0 0',
+                    borderRadius: '0 4px 4px 0',
+                    lineHeight: '1.4',
+                    animation: 'fadeIn 0.2s ease',
+                  }}>
+                    Forces customers to sign in (via Google or Phone) before they can add items to cart and place their order.
+                  </p>
+                )}
               </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-
-              {/* Overlay Logo on Meals Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Overlay Logo on Meals</h4>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Overlay restaurant logo on dish photos on the customer menu.</p>
+              {/* 3. Overlay Logo on Meals Toggle */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: 14,
+                gap: 8,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Overlay Logo on Meals</h4>
+                    <button
+                      type="button"
+                      onClick={() => setActiveInfo(prev => prev === 'logo' ? null : 'logo')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        color: activeInfo === 'logo' ? 'var(--brand)' : 'var(--text-muted)',
+                      }}
+                      title="Learn more"
+                    >
+                      <HelpCircle size={15} />
+                    </button>
+                  </div>
+                  <div 
+                    className={`toggle ${restaurantForm.overlayLogoOnMeals ? 'on' : ''}`}
+                    onClick={() => setRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="toggle-thumb" />
+                  </div>
                 </div>
-                <div 
-                  className={`toggle ${restaurantForm.overlayLogoOnMeals ? 'on' : ''}`}
-                  onClick={() => setRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="toggle-thumb" />
-                </div>
+                {activeInfo === 'logo' && (
+                  <p style={{
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                    background: 'rgba(255, 125, 0, 0.05)',
+                    borderLeft: '2.5px solid var(--brand)',
+                    padding: '6px 8px',
+                    margin: '4px 0 0 0',
+                    borderRadius: '0 4px 4px 0',
+                    lineHeight: '1.4',
+                    animation: 'fadeIn 0.2s ease',
+                  }}>
+                    Displays the restaurant's logo as a watermark overlay on top of all food and meal images in the customer menu.
+                  </p>
+                )}
               </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-
-              {/* Live Location Ordering Settings */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Live Location Order Enforcement</h4>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Restricts ordering to customers inside or near the restaurant.</p>
+              {/* 4. Live Location Ordering Settings */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: 14,
+                gap: 8,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Live Location Verification</h4>
+                    <button
+                      type="button"
+                      onClick={() => setActiveInfo(prev => prev === 'location' ? null : 'location')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        color: activeInfo === 'location' ? 'var(--brand)' : 'var(--text-muted)',
+                      }}
+                      title="Learn more"
+                    >
+                      <HelpCircle size={15} />
+                    </button>
                   </div>
                   <div 
                     className={`toggle ${restaurantForm.locationVerificationEnabled ? 'on' : ''}`}
@@ -1102,6 +1248,21 @@ export default function AdminMore() {
                     <div className="toggle-thumb" />
                   </div>
                 </div>
+                {activeInfo === 'location' && (
+                  <p style={{
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                    background: 'rgba(255, 125, 0, 0.05)',
+                    borderLeft: '2.5px solid var(--brand)',
+                    padding: '6px 8px',
+                    margin: '4px 0 0 0',
+                    borderRadius: '0 4px 4px 0',
+                    lineHeight: '1.4',
+                    animation: 'fadeIn 0.2s ease',
+                  }}>
+                    Ensures that only customers physically inside or near your restaurant's GPS coordinates can place orders.
+                  </p>
+                )}
 
                 {restaurantForm.locationVerificationEnabled && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12, animation: 'fadeIn 0.2s ease', borderLeft: '3px solid var(--brand)', paddingLeft: 12 }}>
@@ -1181,7 +1342,6 @@ export default function AdminMore() {
                   </div>
                 )}
               </div>
-
             </div>
           </div>
 

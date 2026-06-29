@@ -108,16 +108,16 @@ export default function AdminCustomers() {
   };
 
   return (
-    <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
+    <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease', maxWidth: '100%', overflowX: 'hidden' }}>
       {/* Header */}
-      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Customers CRM</h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             {adminCustomers.length} unique customers · {state.restaurant.currency}{totalRevenue.toLocaleString('en-IN')} LTV
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             onClick={handleOpenLoyaltyModal}
             className="btn btn-secondary"
@@ -188,7 +188,7 @@ export default function AdminCustomers() {
       </div>
 
       {/* Summary Stats */}
-      <div className="stat-grid" style={{ marginBottom: 20 }}>
+      <div className="stat-grid" style={{ marginBottom: 20, gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))' }}>
         <div className="stat-card">
           <div className="stat-icon"><User size={18} /></div>
           <div className="stat-value">{adminCustomers.length}</div>
@@ -320,6 +320,7 @@ export default function AdminCustomers() {
                 <div style={{
                   marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  flexWrap: 'wrap', gap: 6
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)' }}>
                     <Calendar size={11} />

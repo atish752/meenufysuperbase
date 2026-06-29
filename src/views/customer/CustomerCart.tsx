@@ -659,49 +659,180 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
 
               {/* Customer details / Sign-In Status */}
               {googleUser ? (
-                <div style={{
-                  background: 'rgba(34, 197, 94, 0.08)',
-                  border: '1px solid rgba(34, 197, 94, 0.2)',
-                  borderRadius: 12,
-                  padding: '10px 14px',
-                  marginBottom: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  animation: 'fadeIn 0.2s ease',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%',
-                      background: 'var(--brand)', color: '#000',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 800, fontSize: 14
-                    }}>
-                      {googleUser.name.charAt(0).toUpperCase()}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                  {/* Signed In Header */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    animation: 'fadeIn 0.2s ease',
+                    background: 'rgba(34, 197, 94, 0.08)',
+                    border: '1px solid rgba(34, 197, 94, 0.2)',
+                    borderRadius: 12,
+                    padding: '10px 14px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: '50%',
+                        background: 'var(--brand)', color: '#000',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 800, fontSize: 14
+                      }}>
+                        {googleUser.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Signed In</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{googleUser.name} ({googleUser.phone})</div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Signed In</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{googleUser.name} ({googleUser.phone})</div>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem('meenufy_customer_google_user');
+                        localStorage.removeItem('meenufy_customer_logged_in_user');
+                        localStorage.removeItem('meenufy_customer_user_logged_in');
+                        setGoogleUser(null);
+                        setCustomerName('');
+                        setCustomerPhone('');
+                        setCustomerEmail('');
+                        addToast('info', 'Signed out successfully');
+                      }}
+                      style={{
+                        background: 'none', border: 'none', color: 'var(--error)',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer'
+                      }}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+
+                  {/* Logged in custom options */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 12,
+                  }}>
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label" style={{ fontSize: 11 }}>No. of People (optional)</label>
+                      <input
+                        className="input"
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="99"
+                        placeholder="e.g. 2"
+                        value={numberOfGuests}
+                        onChange={e => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setNumberOfGuests(val);
+                        }}
+                        onKeyDown={e => {
+                          if (['.', '-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
+                        }}
+                        style={{ appearance: 'textfield', height: 38, fontSize: 12 }}
+                      />
+                    </div>
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label" style={{ fontSize: 11 }}>Special Notes (optional)</label>
+                      <textarea className="input" rows={1} placeholder="Less spicy, no onions..."
+                        value={specialNote} onChange={e => setSpecialNote(e.target.value)}
+                        style={{ resize: 'none', height: 38, fontSize: 12, padding: '8px 10px' }} />
+                    </div>
+
+                    <div className="input-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                      <label className="input-label" style={{ fontSize: 11 }}>Promo Code</label>
+                      {appliedCoupon ? (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: 'var(--brand-dim)',
+                          border: '1px solid var(--border-brand)',
+                          borderRadius: 8,
+                          padding: '4px 8px',
+                          height: 38,
+                          boxSizing: 'border-box'
+                        }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--brand)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                            {appliedCoupon.code}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedCoupon(null);
+                              setCouponCode('');
+                              setCouponError('');
+                              addToast('info', 'Promo code removed.');
+                            }}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              color: 'var(--error)',
+                              border: 'none',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="Code"
+                            value={couponCode}
+                            onChange={e => {
+                              setCouponCode(e.target.value.toUpperCase());
+                              setCouponError('');
+                            }}
+                            style={{
+                              flex: 1,
+                              textTransform: 'uppercase',
+                              height: 38,
+                              padding: '0 8px',
+                              fontSize: 12,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleApplyCouponCode}
+                            className="btn btn-primary"
+                            style={{
+                              height: 38,
+                              padding: '0 8px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              borderRadius: 10,
+                              background: 'var(--brand)',
+                              color: '#000',
+                              border: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem('meenufy_customer_google_user');
-                      localStorage.removeItem('meenufy_customer_logged_in_user');
-                      localStorage.removeItem('meenufy_customer_user_logged_in');
-                      setGoogleUser(null);
-                      setCustomerName('');
-                      setCustomerPhone('');
-                      setCustomerEmail('');
-                      addToast('info', 'Signed out successfully');
-                    }}
-                    style={{
-                      background: 'none', border: 'none', color: 'var(--error)',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer'
-                    }}
-                  >
-                    Sign Out
-                  </button>
+
+                  {couponError && (
+                    <div style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600, marginTop: -4 }}>
+                      ⚠️ {couponError}
+                    </div>
+                  )}
+
+                  {appliedCoupon && (
+                    <div style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600, marginTop: -4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span>🎉 Coupon {appliedCoupon.code} applied: {appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}% Off` : `₹${appliedCoupon.value} Off`}</span>
+                      {appliedCoupon.label && (
+                        <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontStyle: 'italic', fontWeight: 'normal' }}>ℹ️ {appliedCoupon.label}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : restaurant.mustLoginBeforeOrder ? (
                 <div style={{
