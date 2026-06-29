@@ -15,7 +15,7 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
 }
 
 export default function AdminAnalysis() {
-  const { state, dispatch, addToast } = useStore();
+  const { state } = useStore();
   const [showHealthModal, setShowHealthModal] = useState(false);
   const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month' | 'lifetime'>('lifetime');
   const [viewBestItems, setViewBestItems] = useState(true);

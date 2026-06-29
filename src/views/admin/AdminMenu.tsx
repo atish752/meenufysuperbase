@@ -842,7 +842,6 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
   const handleBulkAiDescriptions = async () => {
     let itemsToProcess = adminMenuItems.filter(item => !item.description || !item.description.trim());
-    let overwriteAll = false;
     
     if (itemsToProcess.length === 0) {
       if (adminMenuItems.length === 0) {
@@ -851,7 +850,6 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
       }
       if (window.confirm('All menu items already have descriptions. Would you like to RE-GENERATE descriptions for all items?')) {
         itemsToProcess = [...adminMenuItems];
-        overwriteAll = true;
       } else {
         return;
       }

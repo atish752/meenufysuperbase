@@ -140,6 +140,7 @@ export type TableInfo = {
 };
 
 export type RestaurantInfo = {
+  id?: string;
   name: string;
   tagline: string;
   description: string;
