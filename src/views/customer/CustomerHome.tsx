@@ -152,7 +152,7 @@ export default function CustomerHome({ table }: Props) {
           </span>
         </div>
 
-        {/* Top right buttons */}
+        {/* Top right: Theme + Table badge */}
         <div style={{
           position: 'absolute',
           top: 16,
@@ -160,108 +160,11 @@ export default function CustomerHome({ table }: Props) {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-end',
-          gap: 8,
+          gap: 6,
           zIndex: 10
         }}>
-          {/* Row 1: Switchers & Table Badge */}
+          {/* Row 1: Theme Switcher + Table Badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {/* Language Switcher */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowLangDropdown(prev => !prev)}
-                style={{
-                  background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)',
-                  color: '#000000',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  padding: '6px 12px',
-                  borderRadius: 99,
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  boxShadow: '0 4px 12px rgba(255, 125, 0, 0.35)',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                }}
-                onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
-                onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                🌐 {
-                  state.language === 'en' ? 'EN' :
-                  state.language === 'hi' ? 'हिन्दी' :
-                  state.language === 'bn' ? 'বাংলা' :
-                  state.language === 'te' ? 'తెలుగు' :
-                  state.language === 'mr' ? 'मराठी' :
-                  state.language === 'ta' ? 'தமிழ்' : '🌐'
-                }
-              </button>
-
-              {showLangDropdown && (
-                <>
-                  <div 
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
-                    onClick={() => setShowLangDropdown(false)}
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: '120%',
-                    right: 0,
-                    background: 'var(--bg-elevated)',
-                    backdropFilter: 'blur(12px)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 12,
-                    boxShadow: 'var(--shadow-lg)',
-                    padding: '6px 0',
-                    minWidth: 160,
-                    zIndex: 1000,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
-                    animation: 'fadeIn 0.2s ease',
-                  }}>
-                    {[
-                      { code: 'en', label: '🇺🇸 English' },
-                      { code: 'hi', label: '🇮🇳 हिन्दी (Hindi)' },
-                      { code: 'bn', label: '🇮🇳 বাংলা (Bengali)' },
-                      { code: 'te', label: '🇮🇳 తెలుగు (Telugu)' },
-                      { code: 'mr', label: '🇮🇳 मराठी (Marathi)' },
-                      { code: 'ta', label: '🇮🇳 தமிழ் (Tamil)' }
-                    ].map((lang) => {
-                      const isSelected = state.language === lang.code;
-                      return (
-                        <button
-                          key={lang.code}
-                          onClick={() => {
-                            dispatch({ type: 'SET_STATE', payload: { language: lang.code } });
-                            addToast('success', `Language switched to ${lang.label.split(' ')[1]}`);
-                            setShowLangDropdown(false);
-                          }}
-                          style={{
-                            background: isSelected ? 'var(--brand-dim)' : 'transparent',
-                            color: isSelected ? 'var(--brand)' : 'var(--text-primary)',
-                            padding: '10px 16px',
-                            fontSize: 12,
-                            fontWeight: isSelected ? 700 : 500,
-                            textAlign: 'left',
-                            border: 'none',
-                            width: '100%',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            transition: 'background 0.2s',
-                          }}
-                        >
-                          {lang.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-
             {/* Theme Switcher */}
             <button
               onClick={() => {
@@ -306,49 +209,101 @@ export default function CustomerHome({ table }: Props) {
             )}
           </div>
 
-          {/* Row 2: Call Waiter Button */}
-          <button
-            onClick={() => {
-              const urlParams = new URLSearchParams(window.location.search);
-              const tableId = table?.id || urlParams.get('table') || 'table-1';
-              const tableInfo = state.tables.find(t => t.id === tableId);
-              dispatch({
-                type: 'CALL_WAITER',
-                payload: {
-                  id: `waiter-${Date.now()}`,
-                  tableNumber: tableInfo?.number || 0,
-                  tableId,
-                  createdAt: Date.now(),
-                  resolved: false,
-                  restaurantId,
-                }
-              });
-              addToast('success', 'Waiter has been notified! 🔔');
-              try {
-                const audio = new Audio('/chime.mp3');
-                audio.play().catch(() => {});
-              } catch (e) {}
-            }}
-            style={{
-              background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)',
-              color: '#000000',
-              fontSize: 11,
-              fontWeight: 800,
-              padding: '6px 14px',
-              borderRadius: 99,
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              boxShadow: '0 4px 12px rgba(255, 125, 0, 0.35)',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-            }}
-            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
-            onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-          >
-            <Bell size={12} /> Call Waiter
-          </button>
+          {/* Row 2: Language Switcher — just below table badge */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowLangDropdown(prev => !prev)}
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,125,0,0.15) 0%, rgba(255,125,0,0.05) 100%)',
+                color: 'var(--brand)',
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '4px 10px',
+                borderRadius: 99,
+                border: '1px solid rgba(255,125,0,0.3)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                transition: 'transform 0.2s',
+              }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              🌐 {
+                state.language === 'en' ? 'EN' :
+                state.language === 'hi' ? 'हिन्दी' :
+                state.language === 'bn' ? 'বাংলা' :
+                state.language === 'te' ? 'తెలుగు' :
+                state.language === 'mr' ? 'मराठी' :
+                state.language === 'ta' ? 'தமிழ்' : '🌐'
+              }
+            </button>
+
+            {showLangDropdown && (
+              <>
+                <div
+                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                  onClick={() => setShowLangDropdown(false)}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '120%',
+                  right: 0,
+                  background: 'var(--bg-elevated)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  boxShadow: 'var(--shadow-lg)',
+                  padding: '6px 0',
+                  minWidth: 160,
+                  zIndex: 1000,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  animation: 'fadeIn 0.2s ease',
+                }}>
+                  {[
+                    { code: 'en', label: '🇺🇸 English' },
+                    { code: 'hi', label: '🇮🇳 हिन्दी (Hindi)' },
+                    { code: 'bn', label: '🇮🇳 বাংলা (Bengali)' },
+                    { code: 'te', label: '🇮🇳 తెలుగు (Telugu)' },
+                    { code: 'mr', label: '🇮🇳 मराठी (Marathi)' },
+                    { code: 'ta', label: '🇮🇳 தமிழ் (Tamil)' }
+                  ].map((lang) => {
+                    const isSelected = state.language === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        onClick={() => {
+                          dispatch({ type: 'SET_STATE', payload: { language: lang.code } });
+                          addToast('success', `Language switched to ${lang.label.split(' ')[1]}`);
+                          setShowLangDropdown(false);
+                        }}
+                        style={{
+                          background: isSelected ? 'var(--brand-dim)' : 'transparent',
+                          color: isSelected ? 'var(--brand)' : 'var(--text-primary)',
+                          padding: '10px 16px',
+                          fontSize: 12,
+                          fontWeight: isSelected ? 700 : 500,
+                          textAlign: 'left',
+                          border: 'none',
+                          width: '100%',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          transition: 'background 0.2s',
+                        }}
+                      >
+                        {lang.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Logo / Icon */}
@@ -448,14 +403,62 @@ export default function CustomerHome({ table }: Props) {
           })()
         )}
 
-        {/* CTA */}
-        <button
-          className="btn btn-primary btn-lg"
-          style={{ marginTop: 20 }}
-          onClick={() => dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' })}
-        >
-          <Utensils size={18} /> {t('view_full_menu')}
-        </button>
+        {/* CTA — View Menu + Call Waiter side by side */}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-primary btn-lg"
+            style={{ flex: '0 1 auto', minWidth: 140 }}
+            onClick={() => dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' })}
+          >
+            <Utensils size={16} /> {t('view_full_menu')}
+          </button>
+
+          <button
+            onClick={() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              const tableId = table?.id || urlParams.get('table') || 'table-1';
+              const tableInfo = state.tables.find(t => t.id === tableId);
+              dispatch({
+                type: 'CALL_WAITER',
+                payload: {
+                  id: `waiter-${Date.now()}`,
+                  tableNumber: tableInfo?.number || 0,
+                  tableId,
+                  createdAt: Date.now(),
+                  resolved: false,
+                  restaurantId,
+                }
+              });
+              addToast('success', 'Waiter has been notified! 🔔');
+              try {
+                const audio = new Audio('/chime.mp3');
+                audio.play().catch(() => {});
+              } catch (e) {}
+            }}
+            style={{
+              flex: '0 1 auto',
+              minWidth: 130,
+              background: 'linear-gradient(135deg, rgba(255,125,0,0.15) 0%, rgba(255,125,0,0.05) 100%)',
+              color: 'var(--brand)',
+              fontSize: 14,
+              fontWeight: 700,
+              padding: '10px 20px',
+              borderRadius: 'var(--radius-full)',
+              border: '1.5px solid var(--brand)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              boxShadow: '0 4px 12px rgba(255, 125, 0, 0.2)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+            onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            <Bell size={16} /> {t('call_waiter') || 'Call Waiter'}
+          </button>
+        </div>
 
         {/* Poster Section */}
         {restaurant.posterImage && (
@@ -826,7 +829,7 @@ export default function CustomerHome({ table }: Props) {
                         }}>
                           {coupon.code}
                         </span>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginTop: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 8 }}>
                           {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `₹${coupon.value} OFF`}
                         </div>
                       </div>

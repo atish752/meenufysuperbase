@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore, useTranslation, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import type { MenuItem } from '../../context/RealtimeStore';
 import { Search, X } from 'lucide-react';
@@ -249,6 +249,10 @@ export default function CustomerMenu() {
   const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
   const [variantQty, setVariantQty] = useState(1);
+  // Tracks which category section is visible while scrolling in "all" mode
+  const [scrollActiveCat, setScrollActiveCat] = useState<string>('');
+  const mealsScrollRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const handleOpenVariantModal = (item: MenuItem) => {
     setVariantModalItem(item);
@@ -386,6 +390,55 @@ export default function CustomerMenu() {
     ...(hasFeaturedItems ? [{ id: 'featured', name: 'Featured', isSpecial: true }] : []),
     ...restaurantCategories.map(c => ({ ...c, isSpecial: false })),
   ];
+
+  // IntersectionObserver: auto-highlight sidebar when scrolling through "all" view
+  const setupObserver = useCallback(() => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (selectedCat !== 'all' || !mealsScrollRef.current) return;
+
+    const sections = mealsScrollRef.current.querySelectorAll('[data-catid]');
+    if (!sections.length) return;
+
+    const visibleMap = new Map<string, number>();
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          const catId = (entry.target as HTMLElement).dataset.catid || '';
+          if (entry.isIntersecting) {
+            visibleMap.set(catId, entry.boundingClientRect.top);
+          } else {
+            visibleMap.delete(catId);
+          }
+        });
+        if (visibleMap.size > 0) {
+          // Pick the section with top closest to the container top
+          const topCat = [...visibleMap.entries()].sort((a, b) => a[1] - b[1])[0][0];
+          setScrollActiveCat(topCat);
+        }
+      },
+      {
+        root: mealsScrollRef.current,
+        rootMargin: '0px 0px -55% 0px',
+        threshold: 0,
+      }
+    );
+
+    sections.forEach(sec => observerRef.current!.observe(sec));
+  }, [selectedCat]);
+
+  useEffect(() => {
+    const id = setTimeout(setupObserver, 100);
+    return () => {
+      clearTimeout(id);
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [setupObserver, sortedItems.length]);
+
+  // When switching away from "all", reset scrollActiveCat
+  useEffect(() => {
+    if (selectedCat !== 'all') setScrollActiveCat('');
+  }, [selectedCat]);
 
   // Shared card props for MealCard component
   const cardProps = {
@@ -593,7 +646,10 @@ export default function CustomerMenu() {
             boxSizing: 'border-box'
           }}>
             {sidebarCategories.map(cat => {
-              const isSelected = selectedCat === cat.id;
+              // In "all" mode: highlight whichever category section is currently scrolled to
+              const isSelected = selectedCat === 'all'
+                ? (scrollActiveCat ? cat.id === scrollActiveCat : cat.id === 'all')
+                : selectedCat === cat.id;
               const isSpecial = (cat as any).isSpecial;
 
               // Determine highlight color
@@ -645,7 +701,9 @@ export default function CustomerMenu() {
         </div>
 
         {/* Right Column: Meals List — scrollable independently */}
-        <div style={{
+        <div
+          ref={mealsScrollRef}
+          style={{
           flex: 1,
           minWidth: 0,
           height: '100%',
@@ -708,7 +766,7 @@ export default function CustomerMenu() {
                 const catItems = sortedItems.filter(i => i && (i.category === cat.id || (i.categories && Array.isArray(i.categories) && i.categories.includes(cat.id))));
                 if (catItems.length === 0) return null;
                 return (
-                  <div key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div key={cat.id} data-catid={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {/* Category Header */}
                     <div style={{
                       display: 'flex',
