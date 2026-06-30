@@ -65,15 +65,15 @@ export default function CustomerMenu() {
   const isHardLimitReached = usage >= limit + 100;
 
   const restaurantCategories = state.categories
-    .filter(c => c.restaurantId === restaurantId)
-    .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    .filter(c => c && c.restaurantId === restaurantId)
+    .sort((a, b) => ((a?.rank || 0) - (b?.rank || 0)));
   const allCategoriesList = [{ id: 'all', name: 'All', icon: '🍽️' }, ...restaurantCategories];
   const midpoint = Math.ceil(allCategoriesList.length / 2);
   const row1 = allCategoriesList.slice(0, midpoint);
   const row2 = allCategoriesList.slice(midpoint);
 
   const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
-  const hasActiveOrders = state.orders.some(o => !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier);
+  const hasActiveOrders = state.orders.some(o => o && !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier);
 
   // Schedule enforcement helper
   const nowMinutes = (() => {
@@ -81,31 +81,34 @@ export default function CustomerMenu() {
     return d.getHours() * 60 + d.getMinutes();
   })();
   const toMinutes = (t: string) => {
+    if (!t) return 0;
     const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
+    return (h || 0) * 60 + (m || 0);
   };
   const isWithinSchedule = (sch: { fromTime: string; toTime: string }) => {
+    if (!sch) return false;
     const from = toMinutes(sch.fromTime);
     const to = toMinutes(sch.toTime);
     return from <= to ? nowMinutes >= from && nowMinutes <= to : nowMinutes >= from || nowMinutes <= to;
   };
 
   const filteredItems = state.menuItems.filter(item => {
+    if (!item) return false;
     if (item.restaurantId !== restaurantId) return false;
     if (!item.isAvailable) return false;
     if (vegOnly && !item.isVeg) return false;
     if (nonVegOnly && item.isVeg) return false;
     if (selectedCat !== 'all' && item.category !== selectedCat) return false;
-    if (search && !item.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && (!item.name || !item.name.toLowerCase().includes(search.toLowerCase()))) return false;
 
     // Schedule enforcement — check if this item is in a schedule that is currently inactive
-    const itemSchedules = state.schedules.filter(s => s.targets.some(t => t.type === 'item' && t.id === item.id));
+    const itemSchedules = state.schedules.filter(s => s && s.targets && Array.isArray(s.targets) && s.targets.some(t => t && t.type === 'item' && t.id === item.id));
     if (itemSchedules.length > 0) {
       // At least one item-level schedule must be active
       if (!itemSchedules.some(isWithinSchedule)) return false;
     } else {
       // Fall back to category-level schedule check
-      const catSchedules = state.schedules.filter(s => s.targets.some(t => t.type === 'category' && t.id === item.category));
+      const catSchedules = state.schedules.filter(s => s && s.targets && Array.isArray(s.targets) && s.targets.some(t => t && t.type === 'category' && t.id === item.category));
       if (catSchedules.length > 0 && !catSchedules.some(isWithinSchedule)) return false;
     }
 
@@ -113,6 +116,7 @@ export default function CustomerMenu() {
   });
 
   const sortedItems = [...filteredItems].sort((a, b) => {
+    if (!a || !b) return 0;
     if (sortBy === 'low-high') return a.price - b.price;
     if (sortBy === 'high-low') return b.price - a.price;
     if (a.isFeatured && !b.isFeatured) return -1;
@@ -387,8 +391,9 @@ export default function CustomerMenu() {
           </div>
         ) : (
           <>
-            {(selectedCat === 'all' ? restaurantCategories : restaurantCategories.filter(c => c.id === selectedCat)).map(cat => {
-              const catItems = sortedItems.filter(i => i.category === cat.id || (i.categories && i.categories.includes(cat.id)));
+            {(selectedCat === 'all' ? restaurantCategories : restaurantCategories.filter(c => c && c.id === selectedCat)).map(cat => {
+              if (!cat) return null;
+              const catItems = sortedItems.filter(i => i && (i.category === cat.id || (i.categories && Array.isArray(i.categories) && i.categories.includes(cat.id))));
               if (catItems.length === 0) return null;
               return (
                 <div key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -463,7 +468,7 @@ export default function CustomerMenu() {
                             {item.image ? (
                               <>
                                 <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                {state.restaurant.overlayLogoOnMeals && state.restaurant.logo && (
+                                {restaurant.overlayLogoOnMeals && restaurant.logo && (
                                   <div style={{
                                     position: 'absolute',
                                     bottom: 6,
@@ -480,7 +485,7 @@ export default function CustomerMenu() {
                                     justifyContent: 'center',
                                     zIndex: 10
                                   }}>
-                                    <img src={state.restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    <img src={restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                   </div>
                                 )}
                               </>
@@ -692,11 +697,12 @@ export default function CustomerMenu() {
               );
             })}
             {/* Fallback: show items whose category doesn't match any known category */}
-            {(() => {
-              const knownCatIds = new Set(restaurantCategories.map(c => c.id));
+             {(() => {
+              const knownCatIds = new Set(restaurantCategories.filter(c => c && c.id).map(c => c.id));
               const uncategorized = sortedItems.filter(i => 
+                i &&
                 !knownCatIds.has(i.category) && 
-                (!i.categories || i.categories.every(cId => !knownCatIds.has(cId)))
+                (!i.categories || !Array.isArray(i.categories) || i.categories.every(cId => !knownCatIds.has(cId)))
               );
               if (uncategorized.length === 0) return null;
               return (
@@ -748,7 +754,7 @@ export default function CustomerMenu() {
                             {item.image ? (
                               <>
                                 <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                {state.restaurant.overlayLogoOnMeals && state.restaurant.logo && (
+                                {restaurant.overlayLogoOnMeals && restaurant.logo && (
                                   <div style={{
                                     position: 'absolute',
                                     bottom: 6,
@@ -765,7 +771,7 @@ export default function CustomerMenu() {
                                     justifyContent: 'center',
                                     zIndex: 10
                                   }}>
-                                    <img src={state.restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    <img src={restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                   </div>
                                 )}
                               </>
@@ -953,7 +959,7 @@ export default function CustomerMenu() {
               {variantModalItem.image ? (
                 <>
                   <img src={variantModalItem.image} alt={variantModalItem.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  {state.restaurant.overlayLogoOnMeals && state.restaurant.logo && (
+                  {restaurant.overlayLogoOnMeals && restaurant.logo && (
                     <div style={{
                       position: 'absolute',
                       bottom: 8,
@@ -970,7 +976,7 @@ export default function CustomerMenu() {
                       justifyContent: 'center',
                       zIndex: 10
                     }}>
-                      <img src={state.restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                   )}
                 </>

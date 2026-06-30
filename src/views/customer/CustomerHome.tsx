@@ -58,12 +58,12 @@ export default function CustomerHome({ table }: Props) {
   };
 
   const featuredItems = state.menuItems
-    .filter(i => i.restaurantId === restaurantId && i.isFeatured && i.isAvailable)
-    .sort((a, b) => (a.rank || 0) - (b.rank || 0))
+    .filter(i => i && i.restaurantId === restaurantId && i.isFeatured && i.isAvailable)
+    .sort((a, b) => ((a?.rank || 0) - (b?.rank || 0)))
     .slice(0, 6);
 
   const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
-  const hasActiveOrders = state.orders.some(o => !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier);
+  const hasActiveOrders = state.orders.some(o => o && !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier);
 
   const getRatingDetails = (itemId: string) => {
     const sum = itemId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -599,7 +599,7 @@ export default function CustomerHome({ table }: Props) {
               {variantModalItem.image ? (
                 <>
                   <img src={variantModalItem.image} alt={variantModalItem.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  {state.restaurant.overlayLogoOnMeals && state.restaurant.logo && (
+                  {restaurant.overlayLogoOnMeals && restaurant.logo && (
                     <div style={{
                       position: 'absolute',
                       bottom: 8,
@@ -616,7 +616,7 @@ export default function CustomerHome({ table }: Props) {
                       justifyContent: 'center',
                       zIndex: 10
                     }}>
-                      <img src={state.restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                   )}
                 </>
@@ -934,7 +934,7 @@ function FeaturedCard({
         {item.image ? (
           <>
             <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            {state.restaurant.overlayLogoOnMeals && state.restaurant.logo && (
+            {restaurant.overlayLogoOnMeals && restaurant.logo && (
               <div style={{
                 position: 'absolute',
                 bottom: 6,
@@ -951,7 +951,7 @@ function FeaturedCard({
                 justifyContent: 'center',
                 zIndex: 10
               }}>
-                <img src={state.restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
           </>

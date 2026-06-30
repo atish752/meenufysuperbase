@@ -2189,7 +2189,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 3. Listen to menuItems
     const unsubscribeMenu = onValue(ref(db, `menuItems/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
-      const items: MenuItem[] = data ? Object.values(data) as MenuItem[] : [];
+      const items: MenuItem[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuItem[] : [];
       const itemsWithId = items.map(item => ({
         ...item,
         restaurantId: item.restaurantId || targetRestaurantId
@@ -2205,7 +2205,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const data = snapshot.val();
       if (data) {
         // DB has categories - sync them to state
-        const cats: MenuCategory[] = Object.values(data) as MenuCategory[];
+        const cats: MenuCategory[] = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuCategory[];
         const catsWithId = cats.map(c => ({
           ...c,
           restaurantId: c.restaurantId || targetRestaurantId
@@ -2216,10 +2216,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
       } else if (!isCustomer) {
         // Admin tab + DB has no categories → seed the current state categories to DB
-        const localCats = stateRef.current.categories.filter(c => c.restaurantId === targetRestaurantId);
+        const localCats = stateRef.current.categories.filter(c => c && c.restaurantId === targetRestaurantId);
         if (localCats.length > 0) {
           const catsObj: Record<string, any> = {};
-          localCats.forEach(cat => { catsObj[cat.id] = cat; });
+          localCats.forEach(cat => { if (cat) catsObj[cat.id] = cat; });
           set(ref(db!, `categories/${targetRestaurantId}`), catsObj);
         }
       }
@@ -2230,7 +2230,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 5. Listen to orders
     const unsubscribeOrder = onValue(ref(db, `orders/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
-      const ords: Order[] = data ? Object.values(data) as Order[] : [];
+      const ords: Order[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Order[] : [];
       const ordsWithId = ords.map(o => ({
         ...o,
         restaurantId: o.restaurantId || targetRestaurantId
@@ -2244,7 +2244,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 6. Listen to waiterRequests
     const unsubscribeWaiter = onValue(ref(db, `waiterRequests/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
-      const reqs: WaiterRequest[] = data ? Object.values(data) as WaiterRequest[] : [];
+      const reqs: WaiterRequest[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as WaiterRequest[] : [];
       const reqsWithId = reqs.map(r => ({
         ...r,
         restaurantId: r.restaurantId || targetRestaurantId
@@ -2259,7 +2259,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeTables = onValue(ref(db, `tables/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const tbls = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)) as TableInfo[];
+        const tbls = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as TableInfo[];
         dispatch({
           type: 'SET_STATE',
           payload: { tables: tbls }
@@ -2274,7 +2274,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeSchedules = onValue(ref(db, `schedules/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const schs = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)) as MealSchedule[];
+        const schs = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MealSchedule[];
         dispatch({
           type: 'SET_STATE',
           payload: { schedules: schs }
@@ -2286,7 +2286,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)) as string[];
+        const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as string[];
         dispatch({
           type: 'SET_STATE',
           payload: { geminiApiKeys: keys }
@@ -2297,7 +2297,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 10. Listen to customers
     const unsubscribeCustomers = onValue(ref(db, `customers/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
-      const custs: CustomerRecord[] = data ? Object.values(data) as CustomerRecord[] : [];
+      const custs: CustomerRecord[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as CustomerRecord[] : [];
       dispatch({
         type: 'SYNC_CUSTOMERS',
         payload: { restaurantId: targetRestaurantId, customers: custs }
@@ -2307,14 +2307,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 11. Listen to coupons
     const unsubscribeCoupons = onValue(ref(db, `coupons/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
-      const items: Coupon[] = data ? Object.values(data) as Coupon[] : [];
+      const items: Coupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Coupon[] : [];
       dispatch({ type: 'SYNC_COUPONS', payload: items });
     });
 
     // 11b. Listen to subscription coupons (global)
     const unsubscribeSubscriptionCoupons = onValue(ref(db, 'subscriptionCoupons'), (snapshot) => {
       const data = snapshot.val();
-      const items: SubscriptionCoupon[] = data ? Object.values(data) as SubscriptionCoupon[] : [];
+      const items: SubscriptionCoupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as SubscriptionCoupon[] : [];
       dispatch({ type: 'SYNC_SUBSCRIPTION_COUPONS', payload: items });
     });
 
