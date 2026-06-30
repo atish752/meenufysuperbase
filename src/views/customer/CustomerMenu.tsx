@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStore, useTranslation, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import type { MenuItem } from '../../context/RealtimeStore';
 import { Search, X } from 'lucide-react';
@@ -252,7 +252,6 @@ export default function CustomerMenu() {
   // Tracks which category section is visible while scrolling in "all" mode
   const [scrollActiveCat, setScrollActiveCat] = useState<string>('');
   const mealsScrollRef = useRef<HTMLDivElement>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const handleOpenVariantModal = (item: MenuItem) => {
     setVariantModalItem(item);
@@ -270,8 +269,23 @@ export default function CustomerMenu() {
   const isLimitExceeded = usage >= limit + 100 || (usage >= limit && !allowNegative);
   const isHardLimitReached = usage >= limit + 100;
 
+  // Get counts of active/available items in each category to filter out empty ones
+  const categoryItemCounts = state.menuItems.reduce((acc, item) => {
+    if (item && item.restaurantId === restaurantId && item.isAvailable) {
+      if (item.category) {
+        acc[item.category] = (acc[item.category] || 0) + 1;
+      }
+      if (item.categories && Array.isArray(item.categories)) {
+        item.categories.forEach(cId => {
+          if (cId) acc[cId] = (acc[cId] || 0) + 1;
+        });
+      }
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
   const restaurantCategories = state.categories
-    .filter(c => c && c.restaurantId === restaurantId)
+    .filter(c => c && c.restaurantId === restaurantId && (categoryItemCounts[c.id] || 0) > 0)
     .sort((a, b) => ((a?.rank || 0) - (b?.rank || 0)));
 
   const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
@@ -391,53 +405,43 @@ export default function CustomerMenu() {
     ...restaurantCategories.map(c => ({ ...c, isSpecial: false })),
   ];
 
-  // IntersectionObserver: auto-highlight sidebar when scrolling through "all" view
-  const setupObserver = useCallback(() => {
-    if (observerRef.current) observerRef.current.disconnect();
-    if (selectedCat !== 'all' || !mealsScrollRef.current) return;
+  // Scroll handler to highlight categories as the user scrolls in "All" mode
+  const handleMealsScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (selectedCat !== 'all') return;
+    const container = e.currentTarget;
 
-    const sections = mealsScrollRef.current.querySelectorAll('[data-catid]');
-    if (!sections.length) return;
+    // If scrolled to top, highlight "All"
+    if (container.scrollTop <= 10) {
+      setScrollActiveCat('all');
+      return;
+    }
 
-    const visibleMap = new Map<string, number>();
+    const sections = container.querySelectorAll('[data-catid]');
+    let currentCat = '';
+    const containerRect = container.getBoundingClientRect();
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          const catId = (entry.target as HTMLElement).dataset.catid || '';
-          if (entry.isIntersecting) {
-            visibleMap.set(catId, entry.boundingClientRect.top);
-          } else {
-            visibleMap.delete(catId);
-          }
-        });
-        if (visibleMap.size > 0) {
-          // Pick the section with top closest to the container top
-          const topCat = [...visibleMap.entries()].sort((a, b) => a[1] - b[1])[0][0];
-          setScrollActiveCat(topCat);
-        }
-      },
-      {
-        root: mealsScrollRef.current,
-        rootMargin: '0px 0px -55% 0px',
-        threshold: 0,
+    for (let i = 0; i < sections.length; i++) {
+      const sec = sections[i] as HTMLElement;
+      const rect = sec.getBoundingClientRect();
+      const topOffset = rect.top - containerRect.top;
+      const bottomOffset = rect.bottom - containerRect.top;
+
+      if (topOffset <= 60 && bottomOffset > 10) {
+        currentCat = sec.dataset.catid || '';
       }
-    );
+    }
 
-    sections.forEach(sec => observerRef.current!.observe(sec));
-  }, [selectedCat]);
+    if (currentCat) {
+      setScrollActiveCat(currentCat);
+    }
+  };
 
   useEffect(() => {
-    const id = setTimeout(setupObserver, 100);
-    return () => {
-      clearTimeout(id);
-      if (observerRef.current) observerRef.current.disconnect();
-    };
-  }, [setupObserver, sortedItems.length]);
-
-  // When switching away from "all", reset scrollActiveCat
-  useEffect(() => {
-    if (selectedCat !== 'all') setScrollActiveCat('');
+    if (selectedCat !== 'all') {
+      setScrollActiveCat('');
+    } else {
+      setScrollActiveCat('all');
+    }
   }, [selectedCat]);
 
   // Shared card props for MealCard component
@@ -639,13 +643,12 @@ export default function CustomerMenu() {
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: sidebarCategories.length <= 15 ? 'space-evenly' : 'flex-start',
-            gap: sidebarCategories.length <= 15 ? undefined : '2px',
+            justifyContent: sidebarCategories.length <= 8 ? 'space-evenly' : 'flex-start',
             minHeight: '100%',
-            padding: '6px 0',
+            padding: '4px 0',
             boxSizing: 'border-box'
           }}>
-            {sidebarCategories.map(cat => {
+            {sidebarCategories.map((cat, idx) => {
               // In "all" mode: highlight whichever category section is currently scrolled to
               const isSelected = selectedCat === 'all'
                 ? (scrollActiveCat ? cat.id === scrollActiveCat : cat.id === 'all')
@@ -672,13 +675,24 @@ export default function CustomerMenu() {
               const specialIdleColor = isSpecial && !isSelected ? 'var(--brand)' : 'var(--text-secondary)';
               const specialIdleBorder = isSpecial && !isSelected ? '3px solid rgba(255,125,0,0.2)' : '3px solid transparent';
 
+              // Dynamic sizing to fit many categories cleanly
+              const totalCats = sidebarCategories.length;
+              const verticalPadding = totalCats > 18 ? 4 : (totalCats > 10 ? 7 : 12);
+              const fontSz = totalCats > 18 ? 10 : (totalCats > 10 ? 11 : 12.5);
+
+              // Distinct horizontal line between all categories:
+              // Dark mode: white line. Light mode: black line.
+              const isLast = idx === sidebarCategories.length - 1;
+              const separatorColor = state.customerTheme === 'dark' ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.1)';
+              const borderBottomVal = isLast ? 'none' : `1px solid ${separatorColor}`;
+
               return (
                 <div
                   key={cat.id}
                   onClick={() => setSelectedCat(cat.id)}
                   style={{
-                    padding: isSpecial ? '10px 8px 10px 12px' : '9px 8px 9px 12px',
-                    fontSize: isSpecial ? 12 : 11.5,
+                    padding: `${verticalPadding}px 6px ${verticalPadding}px 10px`,
+                    fontSize: fontSz,
                     fontWeight: isSelected ? 800 : (isSpecial ? 700 : 600),
                     color: isSelected ? activeColor : (isSpecial ? specialIdleColor : 'var(--text-secondary)'),
                     background: isSelected ? activeBg : (isSpecial ? specialIdleBg : 'transparent'),
@@ -688,9 +702,9 @@ export default function CustomerMenu() {
                     textAlign: 'left',
                     wordBreak: 'break-word',
                     lineHeight: 1.2,
-                    borderBottom: cat.id === 'featured' ? '1px solid var(--border)' : 'none',
-                    marginBottom: cat.id === 'featured' ? 4 : 0,
-                    paddingBottom: cat.id === 'featured' ? 12 : undefined,
+                    borderBottom: borderBottomVal,
+                    marginBottom: cat.id === 'featured' ? 3 : 0,
+                    marginTop: cat.id === 'featured' ? 1 : 0,
                   }}
                 >
                   {cat.name}
@@ -703,6 +717,7 @@ export default function CustomerMenu() {
         {/* Right Column: Meals List — scrollable independently */}
         <div
           ref={mealsScrollRef}
+          onScroll={handleMealsScroll}
           style={{
           flex: 1,
           minWidth: 0,
