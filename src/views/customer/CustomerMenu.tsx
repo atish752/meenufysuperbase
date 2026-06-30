@@ -58,8 +58,8 @@ function MealCard({
   handleAddToCart: (item: MenuItem) => void;
   handleIncrement: (id: string, name: string, price: number) => void;
   handleDecrement: (id: string) => void;
-  t: (key: string) => string;
-  addToast: (type: string, msg: string) => void;
+  t: (key: any) => string;
+  addToast: (type: any, msg: string) => void;
 }) {
   const { rating, reviews } = getRatingDetails(item.id);
   return (
