@@ -469,8 +469,8 @@ export default function CustomerMenu() {
                             <div 
                               onClick={() => handleOpenVariantModal(item)}
                               style={{
-                                width: 60,
-                                height: 60,
+                                width: 75,
+                                height: 75,
                                 borderRadius: 'var(--radius-md)',
                                 overflow: 'hidden',
                                 position: 'relative',
@@ -507,7 +507,7 @@ export default function CustomerMenu() {
                                   )}
                                 </>
                               ) : (
-                                <div style={{ fontSize: 32 }}>🍽️</div>
+                                <div style={{ fontSize: 36 }}>🍽️</div>
                               )}
                             </div>
 
@@ -521,7 +521,7 @@ export default function CustomerMenu() {
                                   <h3 style={{
                                     fontSize: 13,
                                     fontWeight: 700,
-                                    color: 'var(--text-primary)',
+                                    color: 'var(--brand)',
                                     margin: 0,
                                     display: '-webkit-box',
                                     WebkitLineClamp: 1,
@@ -684,8 +684,8 @@ export default function CustomerMenu() {
                             <div 
                               onClick={() => handleOpenVariantModal(item)}
                               style={{
-                                width: 60,
-                                height: 60,
+                                width: 75,
+                                height: 75,
                                 borderRadius: 'var(--radius-md)',
                                 overflow: 'hidden',
                                 position: 'relative',
@@ -722,7 +722,7 @@ export default function CustomerMenu() {
                                   )}
                                 </>
                               ) : (
-                                <div style={{ fontSize: 32 }}>🍽️</div>
+                                <div style={{ fontSize: 36 }}>🍽️</div>
                               )}
                             </div>
 
@@ -736,7 +736,7 @@ export default function CustomerMenu() {
                                   <h3 style={{
                                     fontSize: 13,
                                     fontWeight: 700,
-                                    color: 'var(--text-primary)',
+                                    color: 'var(--brand)',
                                     margin: 0,
                                     display: '-webkit-box',
                                     WebkitLineClamp: 1,
