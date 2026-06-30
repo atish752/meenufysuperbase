@@ -565,14 +565,17 @@ export default function CustomerLayout({ tableId }: Props) {
       )}
 
       {/* Page */}
-      <div style={{ 
-        flex: 1, 
-        minHeight: 0, 
-        overflowY: 'auto', 
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        // On menu tab: overflow:hidden so CustomerMenu manages its own column scroll independently
+        overflowY: state.customerTab === 'menu' ? 'hidden' : 'auto',
         overflowX: 'hidden',
         width: '100%',
         maxWidth: '100%',
-        paddingBottom: 'calc(68px + env(safe-area-inset-bottom, 0px))' 
+        paddingBottom: state.customerTab === 'menu' ? 0 : 'calc(68px + env(safe-area-inset-bottom, 0px))',
+        display: 'flex',
+        flexDirection: 'column',
       }}>
         {renderTab()}
       </div>
