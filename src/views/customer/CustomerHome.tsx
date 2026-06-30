@@ -903,6 +903,8 @@ function FeaturedCard({
 }: FeaturedCardProps) {
   const t = useTranslation();
   const { state } = useStore();
+  const restaurantId = getActiveRestaurantId(state);
+  const restaurant = getActiveRestaurantInfo(state, restaurantId);
 
   return (
     <div className="card" style={{
