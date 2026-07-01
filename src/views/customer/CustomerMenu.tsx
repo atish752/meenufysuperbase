@@ -39,7 +39,6 @@ const FoodTrolley = ({ size = 13, color = '#000' }: { size?: number; color?: str
 function MealCard({
   item,
   qty,
-  hasActiveOrders,
   restaurant,
   getRatingDetails,
   handleOpenVariantModal,
@@ -47,11 +46,9 @@ function MealCard({
   handleIncrement,
   handleDecrement,
   t,
-  addToast,
 }: {
   item: MenuItem;
   qty: number;
-  hasActiveOrders: boolean;
   restaurant: any;
   getRatingDetails: (id: string) => { rating: string; reviews: number };
   handleOpenVariantModal: (item: MenuItem) => void;
@@ -59,7 +56,6 @@ function MealCard({
   handleIncrement: (id: string, name: string, price: number) => void;
   handleDecrement: (id: string) => void;
   t: (key: any) => string;
-  addToast: (type: any, msg: string) => void;
 }) {
   const { rating, reviews } = getRatingDetails(item.id);
   return (
@@ -266,8 +262,6 @@ export default function CustomerMenu() {
     .filter(c => c && c.restaurantId === restaurantId && (categoryItemCounts[c.id] || 0) > 0)
     .sort((a, b) => ((a?.rank || 0) - (b?.rank || 0)));
 
-  const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
-  const hasActiveOrders = state.orders.some(o => o && !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier);
 
   // Schedule enforcement helper
   const nowMinutes = (() => {
@@ -424,7 +418,6 @@ export default function CustomerMenu() {
 
   // Shared card props for MealCard component
   const cardProps = {
-    hasActiveOrders,
     restaurant,
     getRatingDetails,
     handleOpenVariantModal,
@@ -432,7 +425,6 @@ export default function CustomerMenu() {
     handleIncrement,
     handleDecrement,
     t,
-    addToast,
   };
 
   return (

@@ -203,14 +203,21 @@ export type Coupon = {
   label?: string;
 };
 
+export type AddonOption = {
+  id: string;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+};
+
 export type AddonConfig = {
   id: string;
   restaurantId: string;
   name: string;
-  itemIds: string[];
-  categoryIds: string[];
-  targetItemIds: string[];
-  targetCategoryIds: string[];
+  isRequired: boolean;
+  minSelections: number;
+  maxSelections: number;
+  options: AddonOption[];
 };
 
 export type SubscriptionCoupon = {

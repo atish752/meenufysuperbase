@@ -839,7 +839,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
   const handleRemoveOption = (index: number) => {
     setAddonForm(prev => ({
       ...prev,
-      options: prev.options.filter((_, idx) => idx !== index)
+      options: prev.options.filter((_: any, idx: number) => idx !== index)
     }));
   };
 
@@ -1647,7 +1647,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                         <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Options ({addon.options.length})</span>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                            {addon.options.map(opt => (
+                            {addon.options.map((opt: any) => (
                               <div
                                 key={opt.id}
                                 style={{
@@ -2986,7 +2986,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               {/* Existing Options */}
               {addonForm.options.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', background: 'var(--bg-elevated)', padding: 10, borderRadius: 8, border: '1px solid var(--border)', marginBottom: 12 }}>
-                  {addonForm.options.map((opt, idx) => (
+                  {addonForm.options.map((opt: any, idx: number) => (
                     <div key={opt.id || idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', background: 'var(--bg-card)', borderRadius: 6, border: '1px solid var(--border)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{opt.name}</span>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, useTranslation, getActiveRestaurantInfo, getActiveRestaurantId } from '../../context/RealtimeStore';
 import type { TableInfo, MenuItem } from '../../context/RealtimeStore';
-import { MapPin, Phone, Clock, ChevronRight, Star, Utensils, X, Mail, Bell } from 'lucide-react';
+import { MapPin, Phone, Clock, ChevronRight, Star, Utensils, X, Mail } from 'lucide-react';
 
 const VegNonVegIndicator = ({ isVeg, size = 14 }: { isVeg: boolean; size?: number }) => (
   <div style={{
@@ -62,8 +62,6 @@ export default function CustomerHome({ table }: Props) {
     .sort((a, b) => ((a?.rank || 0) - (b?.rank || 0)))
     .slice(0, 6);
 
-  const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
-  const hasActiveOrders = state.orders.some(o => o && !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier);
 
   const getRatingDetails = (itemId: string) => {
     const sum = itemId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -504,7 +502,6 @@ export default function CustomerHome({ table }: Props) {
                 item={item} 
                 onOpenVariant={handleOpenVariantModal}
                 qty={getCartQty(item.id)}
-                hasActiveOrders={hasActiveOrders}
                 getRatingDetails={getRatingDetails}
                 onIncrement={handleIncrement}
                 onDecrement={handleDecrement}
@@ -885,7 +882,6 @@ interface FeaturedCardProps {
   item: any;
   onOpenVariant: (item: MenuItem) => void;
   qty: number;
-  hasActiveOrders: boolean;
   getRatingDetails: (itemId: string) => { rating: string; reviews: number };
   onIncrement: (itemId: string, name: string, price: number) => void;
   onDecrement: (itemId: string) => void;
@@ -896,7 +892,6 @@ function FeaturedCard({
   item,
   onOpenVariant,
   qty,
-  hasActiveOrders,
   getRatingDetails,
   onIncrement,
   onDecrement,
