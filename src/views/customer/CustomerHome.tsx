@@ -209,7 +209,51 @@ export default function CustomerHome({ table }: Props) {
             )}
           </div>
 
-          {/* Row 2: Language Switcher — just below table badge */}
+          {/* Row 2: Call Waiter Button */}
+          <button
+            onClick={() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              const tableId = table?.id || urlParams.get('table') || 'table-1';
+              const tableInfo = state.tables.find(t => t.id === tableId);
+              dispatch({
+                type: 'CALL_WAITER',
+                payload: {
+                  id: `waiter-${Date.now()}`,
+                  tableNumber: tableInfo?.number || 0,
+                  tableId,
+                  createdAt: Date.now(),
+                  resolved: false,
+                  restaurantId,
+                }
+              });
+              addToast('success', 'Waiter has been notified! 🔔');
+              try {
+                const audio = new Audio('/chime.mp3');
+                audio.play().catch(() => {});
+              } catch (e) {}
+            }}
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,125,0,0.2) 0%, rgba(255,125,0,0.05) 100%)',
+              color: 'var(--brand)',
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '4px 10px',
+              borderRadius: 99,
+              border: '1.5px solid var(--brand)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              boxShadow: '0 2px 8px rgba(255, 125, 0, 0.15)',
+              transition: 'transform 0.2s',
+            }}
+            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+            onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            🔔 {t('call_waiter') || 'Call Waiter'}
+          </button>
+
+          {/* Row 3: Language Switcher — just below table badge */}
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setShowLangDropdown(prev => !prev)}
@@ -403,60 +447,14 @@ export default function CustomerHome({ table }: Props) {
           })()
         )}
 
-        {/* CTA — View Menu + Call Waiter side by side */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
+        {/* CTA — View Menu */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
           <button
             className="btn btn-primary btn-lg"
-            style={{ flex: '0 1 auto', minWidth: 140 }}
+            style={{ minWidth: 200, padding: '12px 24px', fontSize: 15 }}
             onClick={() => dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' })}
           >
-            <Utensils size={16} /> {t('view_full_menu')}
-          </button>
-
-          <button
-            onClick={() => {
-              const urlParams = new URLSearchParams(window.location.search);
-              const tableId = table?.id || urlParams.get('table') || 'table-1';
-              const tableInfo = state.tables.find(t => t.id === tableId);
-              dispatch({
-                type: 'CALL_WAITER',
-                payload: {
-                  id: `waiter-${Date.now()}`,
-                  tableNumber: tableInfo?.number || 0,
-                  tableId,
-                  createdAt: Date.now(),
-                  resolved: false,
-                  restaurantId,
-                }
-              });
-              addToast('success', 'Waiter has been notified! 🔔');
-              try {
-                const audio = new Audio('/chime.mp3');
-                audio.play().catch(() => {});
-              } catch (e) {}
-            }}
-            style={{
-              flex: '0 1 auto',
-              minWidth: 130,
-              background: 'linear-gradient(135deg, rgba(255,125,0,0.15) 0%, rgba(255,125,0,0.05) 100%)',
-              color: 'var(--brand)',
-              fontSize: 14,
-              fontWeight: 700,
-              padding: '10px 20px',
-              borderRadius: 'var(--radius-full)',
-              border: '1.5px solid var(--brand)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              boxShadow: '0 4px 12px rgba(255, 125, 0, 0.2)',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-            }}
-            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
-            onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-          >
-            <Bell size={16} /> {t('call_waiter') || 'Call Waiter'}
+            <Utensils size={18} /> {t('view_full_menu')}
           </button>
         </div>
 
@@ -1044,81 +1042,43 @@ function FeaturedCard({
           {/* Cart Controls */}
           <div style={{ display: 'flex', gap: 6 }}>
             {item.variants && item.variants.length > 0 ? (
-              <>
-                {hasActiveOrders && (
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => onOpenVariant(item)}
-                    style={{
-                      padding: '5px 10px',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      height: 28,
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border)'
-                    }}
-                  >
-                    {t('add_on')} {qty > 0 ? `(${qty})` : ''}
-                  </button>
-                )}
-                <button
-                  onClick={() => onOpenVariant(item)}
-                  style={{
-                    padding: '5px 12px',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    height: 28,
-                    borderRadius: '4px',
-                    background: 'var(--customer-add-to-cart-bg, #ffffff)',
-                    color: 'var(--customer-add-to-cart-text, #000000)',
-                    border: 'none',
-                  }}
-                >
-                  {t('add')} {qty > 0 ? `(${qty})` : ''} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
-                </button>
-              </>
+              <button
+                onClick={() => onOpenVariant(item)}
+                style={{
+                  padding: '5px 12px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 28,
+                  borderRadius: '4px',
+                  background: 'var(--customer-add-to-cart-bg, #ffffff)',
+                  color: 'var(--customer-add-to-cart-text, #000000)',
+                  border: 'none',
+                }}
+              >
+                {t('add')} {qty > 0 ? `(${qty})` : ''} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
+              </button>
             ) : qty === 0 ? (
-              <>
-                {hasActiveOrders && (
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      onAddToCart(item);
-                    }}
-                    style={{
-                      padding: '5px 10px',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      height: 28,
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border)'
-                    }}
-                  >
-                    {t('add_on')}
-                  </button>
-                )}
-                <button
-                  onClick={() => onAddToCart(item)}
-                  style={{
-                    padding: '5px 12px',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    height: 28,
-                    borderRadius: '4px',
-                    background: 'var(--customer-add-to-cart-bg, #ffffff)',
-                    color: 'var(--customer-add-to-cart-text, #000000)',
-                    border: 'none',
-                  }}
-                >
-                  {t('add')} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
-                </button>
-              </>
+              <button
+                onClick={() => onAddToCart(item)}
+                style={{
+                  padding: '5px 12px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 28,
+                  borderRadius: '4px',
+                  background: 'var(--customer-add-to-cart-bg, #ffffff)',
+                  color: 'var(--customer-add-to-cart-text, #000000)',
+                  border: 'none',
+                }}
+              >
+                {t('add')} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
+              </button>
             ) : (
               <div style={{
                 display: 'flex',

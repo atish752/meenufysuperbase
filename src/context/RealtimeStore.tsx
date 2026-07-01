@@ -86,6 +86,7 @@ export type MenuItem = {
   variants?: MenuItemVariant[];
   nutrition?: NutritionInfo;
   rank?: number;
+  addons?: string[];
 };
 
 export type OrderItem = {
@@ -200,6 +201,16 @@ export type Coupon = {
   restaurantId?: string;
   appliesTo?: 'all' | string[];
   label?: string;
+};
+
+export type AddonConfig = {
+  id: string;
+  restaurantId: string;
+  name: string;
+  itemIds: string[];
+  categoryIds: string[];
+  targetItemIds: string[];
+  targetCategoryIds: string[];
 };
 
 export type SubscriptionCoupon = {
@@ -367,6 +378,7 @@ export type AppState = {
   supportRequests: SupportRequest[];
   ownerFeedbacks: OwnerFeedback[];
   staffMembers: StaffMember[];
+  addons: AddonConfig[];
   // UI
   toasts: Toast[];
   isLoading: boolean;
@@ -870,6 +882,7 @@ const DEFAULT_STATE: AppState = {
     }
   ],
   staffMembers: [],
+  addons: [],
   toasts: [],
   isLoading: false,
   newOrderAlert: null,
@@ -971,7 +984,11 @@ type Action =
   | { type: 'SYNC_STAFF_MEMBERS'; payload: StaffMember[] }
   | { type: 'ADD_STAFF_MEMBER'; payload: StaffMember }
   | { type: 'UPDATE_STAFF_MEMBER'; payload: StaffMember }
-  | { type: 'DELETE_STAFF_MEMBER'; payload: string };
+  | { type: 'DELETE_STAFF_MEMBER'; payload: string }
+  | { type: 'SYNC_ADDONS'; payload: { restaurantId: string; addons: AddonConfig[] } }
+  | { type: 'ADD_ADDON'; payload: AddonConfig }
+  | { type: 'UPDATE_ADDON'; payload: AddonConfig }
+  | { type: 'DELETE_ADDON'; payload: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -1317,6 +1334,22 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'UPDATE_CATEGORY': return { ...state, categories: state.categories.map(c => c.id === action.payload.id ? { ...c, ...action.payload } : c) };
     case 'DELETE_CATEGORY': return { ...state, categories: state.categories.filter(c => c.id !== action.payload) };
+    case 'SYNC_ADDONS': {
+      const { restaurantId, addons } = action.payload;
+      return {
+        ...state,
+        addons: [
+          ...state.addons.filter(a => a && a.restaurantId !== restaurantId),
+          ...addons
+        ]
+      };
+    }
+    case 'ADD_ADDON':
+      return { ...state, addons: [...state.addons, action.payload] };
+    case 'UPDATE_ADDON':
+      return { ...state, addons: state.addons.map(a => a.id === action.payload.id ? action.payload : a) };
+    case 'DELETE_ADDON':
+      return { ...state, addons: state.addons.filter(a => a.id !== action.payload) };
     case 'REMAP_ORPHAN_DATA': {
       const { fromId, toId } = action.payload;
       if (!fromId || fromId === toId) return state;
@@ -2349,6 +2382,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SYNC_STAFF_MEMBERS', payload: staff });
     });
 
+    // 15. Listen to addons
+    const unsubscribeAddons = onValue(ref(db, `addons/${targetRestaurantId}`), (snapshot) => {
+      const data = snapshot.val();
+      const items: AddonConfig[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as AddonConfig[] : [];
+      dispatch({ type: 'SYNC_ADDONS', payload: { restaurantId: targetRestaurantId, addons: items } });
+    });
+
     return () => {
       unsubscribeConnected();
       unsubscribeRestaurant();
@@ -2366,6 +2406,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeFeedbacks();
       unsubscribeSupport();
       unsubscribeStaff();
+      unsubscribeAddons();
     };
   }, [state.admin?.restaurantId, state.currentView, targetRestaurantId, urlSearch]);
 
@@ -2707,6 +2748,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             );
             break;
           }
+          case 'ADD_ADDON': {
+            handleDbPromise(
+              set(ref(db, `addons/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              'Failed to add addon'
+            );
+            break;
+          }
+          case 'UPDATE_ADDON': {
+            handleDbPromise(
+              update(ref(db, `addons/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              'Failed to update addon'
+            );
+            break;
+          }
+          case 'DELETE_ADDON': {
+            handleDbPromise(
+              remove(ref(db, `addons/${restId}/${action.payload}`)),
+              'Failed to delete addon'
+            );
+            break;
+          }
           case 'COMPLETE_ONBOARDING': {
             if (currentState.admin) {
               update(ref(db, `restaurantAccounts/${currentState.admin.id}`), {
@@ -2992,7 +3054,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Skip broadcasting Firebase sync actions — both tabs have their own Firebase listeners
     const FIREBASE_SYNC_ACTIONS = new Set([
       'SYNC_MENU_ITEMS', 'SYNC_CATEGORIES', 'SYNC_ORDERS', 'SYNC_WAITER_REQUESTS',
-      'SYNC_RESTAURANT_ACCOUNTS', 'SYNC_SUBSCRIPTION_COUPONS', 'SET_STATE'
+      'SYNC_RESTAURANT_ACCOUNTS', 'SYNC_SUBSCRIPTION_COUPONS', 'SYNC_ADDONS', 'SET_STATE'
     ]);
     setTimeout(() => {
       if (channelRef.current && !isBroadcasting.current && !FIREBASE_SYNC_ACTIONS.has(action.type)) {

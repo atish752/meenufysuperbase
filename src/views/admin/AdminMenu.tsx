@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
-import type { MenuItem, MealSchedule, NutritionInfo, MenuCategory } from '../../context/RealtimeStore';
+import type { MenuItem, MealSchedule, NutritionInfo, MenuCategory, AddonConfig } from '../../context/RealtimeStore';
 import { Plus, Pencil, Trash2, Search, Tag, X, Sparkles, Camera, UploadCloud, Loader2, Check, CalendarClock, FlaskConical } from 'lucide-react';
 import { hasFirebaseConfig, db } from '../../utils/firebase';
 import { ref, update } from 'firebase/database';
@@ -195,6 +195,7 @@ const autoDetermineVegNonVeg = (name: string): boolean => {
 const EMPTY_ITEM: Omit<MenuItem, 'id'> = {
   name: '', description: '', price: 0, category: '', categories: [],
   image: '', isVeg: true, isAvailable: true, isFeatured: false, tags: [],
+  addons: [],
 };
 
 export default function AdminMenu() {
@@ -202,6 +203,7 @@ export default function AdminMenu() {
   const adminId = state.admin?.restaurantId || 'admin-1';
   const adminMenuItems = state.menuItems.filter(item => (item.restaurantId || 'admin-1') === adminId);
   const adminCategories = state.categories.filter(c => (c.restaurantId || 'admin-1') === adminId);
+  const adminAddons = state.addons?.filter(a => a && (a.restaurantId || 'admin-1') === adminId) || [];
   const uncategorizedItems = adminMenuItems.filter(item => 
     !item.category || !adminCategories.some(c => c.id === item.category)
   );
@@ -210,6 +212,18 @@ export default function AdminMenu() {
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
+  const [subTab, setSubTab] = useState<'meals' | 'addons'>('meals');
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [showAddonModal, setShowAddonModal] = useState(false);
+  const [editingAddon, setEditingAddon] = useState<AddonConfig | null>(null);
+  const [addonForm, setAddonForm] = useState<Omit<AddonConfig, 'id' | 'restaurantId'>>({
+    name: '',
+    isRequired: false,
+    minSelections: 0,
+    maxSelections: 1,
+    options: []
+  });
+  const [newOption, setNewOption] = useState({ name: '', price: 0, isAvailable: true });
   const [newItem, setNewItem] = useState<Omit<MenuItem, 'id'>>(EMPTY_ITEM);
   const [showCatModal, setShowCatModal] = useState(false);
   const [showOthersMenu, setShowOthersMenu] = useState(false);
@@ -636,6 +650,30 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     }
   };
 
+  const handleDeleteEmptyCategories = () => {
+    const emptyCats = adminCategories.filter(cat => {
+      const itemsInCat = adminMenuItems.filter(item => 
+        item.category === cat.id || (item.categories && item.categories.includes(cat.id))
+      );
+      return itemsInCat.length === 0;
+    });
+
+    if (emptyCats.length === 0) {
+      addToast('info', 'No empty categories found.');
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to delete all ${emptyCats.length} empty categories?`)) {
+      emptyCats.forEach(cat => {
+        dispatch({ type: 'DELETE_CATEGORY', payload: cat.id });
+      });
+      addToast('success', `Deleted ${emptyCats.length} empty categories!`);
+      if (emptyCats.some(cat => selectedCategory === cat.id)) {
+        setSelectedCategory('all');
+      }
+    }
+  };
+
   const filteredItems = adminMenuItems.filter(item => {
     let matchCat = false;
     if (selectedCategory === 'all') {
@@ -683,6 +721,8 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
       };
     }
 
+    finalItemPayload.addons = selectedAddons;
+
     if (editingItem) {
       dispatch({ type: 'UPDATE_MENU_ITEM', payload: { ...finalItemPayload, id: editingItem.id, nutrition: hasNutrition ? { ...nutrition, enabled: true } : undefined } });
       addToast('success', 'Item updated!');
@@ -697,6 +737,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     setHasVariants(false);
     setHasNutrition(false);
     setNutrition({ calories: undefined, carbs: undefined, sugar: undefined, protein: undefined, fats: undefined, custom: [] });
+    setSelectedAddons([]);
   };
 
   const handleEditItem = (item: MenuItem) => {
@@ -706,6 +747,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     setVariants(item.variants || []);
     setHasNutrition(!!(item.nutrition?.enabled));
     setNutrition(item.nutrition ? { ...item.nutrition } : { calories: undefined, carbs: undefined, sugar: undefined, protein: undefined, fats: undefined, custom: [] });
+    setSelectedAddons(item.addons || []);
     setShowItemModal(true);
   };
 
@@ -716,6 +758,89 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
   const handleToggleAvailable = (item: MenuItem) => {
     dispatch({ type: 'UPDATE_MENU_ITEM', payload: { ...item, isAvailable: !item.isAvailable } });
+  };
+
+  const handleSaveAddon = () => {
+    if (!addonForm.name.trim()) {
+      addToast('error', 'Add-on group name is required.');
+      return;
+    }
+    if (addonForm.options.length === 0) {
+      addToast('error', 'Please add at least one option.');
+      return;
+    }
+
+    const payload: AddonConfig = {
+      ...addonForm,
+      name: addonForm.name.trim(),
+      id: editingAddon ? editingAddon.id : `addon-${Date.now()}`,
+      restaurantId: adminId,
+    };
+
+    if (editingAddon) {
+      dispatch({ type: 'UPDATE_ADDON', payload });
+      addToast('success', 'Add-on group updated!');
+    } else {
+      dispatch({ type: 'ADD_ADDON', payload });
+      addToast('success', 'Add-on group created!');
+    }
+    setShowAddonModal(false);
+    setEditingAddon(null);
+    setAddonForm({
+      name: '',
+      isRequired: false,
+      minSelections: 0,
+      maxSelections: 1,
+      options: []
+    });
+  };
+
+  const handleEditAddon = (addon: AddonConfig) => {
+    setEditingAddon(addon);
+    setAddonForm({
+      name: addon.name,
+      isRequired: addon.isRequired,
+      minSelections: addon.minSelections,
+      maxSelections: addon.maxSelections,
+      options: addon.options || []
+    });
+    setShowAddonModal(true);
+  };
+
+  const handleDeleteAddon = (id: string) => {
+    // Remove from linked menu items
+    adminMenuItems.forEach(item => {
+      if (item.addons?.includes(id)) {
+        const updatedAddons = item.addons.filter(aId => aId !== id);
+        dispatch({ type: 'UPDATE_MENU_ITEM', payload: { ...item, addons: updatedAddons } });
+      }
+    });
+    dispatch({ type: 'DELETE_ADDON', payload: id });
+    addToast('info', 'Add-on group deleted.');
+  };
+
+  const handleAddOption = () => {
+    if (!newOption.name.trim()) {
+      addToast('error', 'Option name is required.');
+      return;
+    }
+    setAddonForm(prev => ({
+      ...prev,
+      options: [...prev.options, {
+        id: `opt-${Date.now()}`,
+        name: newOption.name.trim(),
+        price: newOption.price,
+        isAvailable: newOption.isAvailable
+      }]
+    }));
+    setNewOption({ name: '', price: 0, isAvailable: true });
+  };
+
+  const handleRemoveOption = (index: number) => {
+    setAddonForm(prev => ({
+      ...prev,
+      options: prev.options.filter((_, idx) => idx !== index)
+    }));
   };
 
   const handleAddCategory = () => {
@@ -941,9 +1066,45 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Menu Manager</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{adminMenuItems.length} items across {adminCategories.length} categories</p>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            {subTab === 'meals'
+              ? `${adminMenuItems.length} items across ${adminCategories.length} categories`
+              : `${adminAddons.length} addon groups configured`
+            }
+          </p>
         </div>
       </div>
+
+      {/* Tabs Selector */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+        <button
+          onClick={() => setSubTab('meals')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 14, fontWeight: subTab === 'meals' ? 700 : 500,
+            color: subTab === 'meals' ? 'var(--brand)' : 'var(--text-primary)',
+            padding: '8px 4px',
+            borderBottom: subTab === 'meals' ? '2px solid var(--brand)' : '2px solid transparent',
+          }}
+        >
+          Meals & Categories
+        </button>
+        <button
+          onClick={() => setSubTab('addons')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 14, fontWeight: subTab === 'addons' ? 700 : 500,
+            color: subTab === 'addons' ? 'var(--brand)' : 'var(--text-primary)',
+            padding: '8px 4px',
+            borderBottom: subTab === 'addons' ? '2px solid var(--brand)' : '2px solid transparent',
+          }}
+        >
+          Add-ons ({adminAddons.length})
+        </button>
+      </div>
+
+      {subTab === 'meals' ? (
+        <>
 
       {/* Row of Settings Buttons & Categories wrapped between two horizontal lines */}
       <div style={{
@@ -1115,6 +1276,25 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                   >
                     ✨ Add AI Descriptions
                   </button>
+                  {/* Delete Empty Categories */}
+                  <button
+                    onClick={() => {
+                      setShowOthersMenu(false);
+                      handleDeleteEmptyCategories();
+                    }}
+                    style={{
+                      width: '100%', textAlign: 'left',
+                      padding: '9px 14px',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    🗑️ Delete Empty Categories
+                  </button>
                   {/* Divider */}
                   <div style={{ height: 1, background: 'var(--border)', margin: '4px 14px' }} />
                   {/* Delete All */}
@@ -1206,6 +1386,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             setHasVariants(false);
             setHasNutrition(false);
             setNutrition({ calories: undefined, carbs: undefined, sugar: undefined, protein: undefined, fats: undefined, custom: [] });
+            setSelectedAddons([]);
             setShowItemModal(true);
           }}
           style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '0 16px' }}
@@ -1327,6 +1508,207 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           );
         })}
       </div>
+      </>
+      ) : (
+        <div>
+          {/* Search & Actions Bar */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input
+                className="input"
+                type="text"
+                placeholder="Search addon groups..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ paddingLeft: 36, width: '100%' }}
+              />
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setEditingAddon(null);
+                setAddonForm({
+                  name: '',
+                  isRequired: false,
+                  minSelections: 0,
+                  maxSelections: 1,
+                  options: []
+                });
+                setShowAddonModal(true);
+              }}
+              style={{ height: 38, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '0 16px' }}
+            >
+              <Plus size={16} /> Add Add-on
+            </button>
+          </div>
+
+          {/* Add-ons List Grid */}
+          {(() => {
+            const filteredAddons = adminAddons.filter(addon => 
+              addon.name.toLowerCase().includes(search.toLowerCase())
+            );
+
+            if (filteredAddons.length === 0) {
+              return (
+                <div style={{ textAlign: 'center', padding: '40px 20px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)', marginTop: 12 }}>
+                  <div style={{ fontSize: 32, marginBottom: 12 }}>🧩</div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>No Add-on Groups Found</h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 400, margin: '0 auto 16px' }}>
+                    {search ? 'No addon groups match your search query.' : 'Create customizable options like Extra Toppings, Sauce choices, or Milk options for your drinks.'}
+                  </p>
+                  {!search && (
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        setEditingAddon(null);
+                        setAddonForm({
+                          name: '',
+                          isRequired: false,
+                          minSelections: 0,
+                          maxSelections: 1,
+                          options: []
+                        });
+                        setShowAddonModal(true);
+                      }}
+                    >
+                      Create First Add-on
+                    </button>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+                {filteredAddons.map(addon => {
+                  const linkedMeals = adminMenuItems.filter(item => item.addons?.includes(addon.id));
+                  
+                  return (
+                    <div
+                      key={addon.id}
+                      style={{
+                        background: 'var(--bg-card)',
+                        borderRadius: 12,
+                        border: '1px solid var(--border)',
+                        padding: 16,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                        transition: 'transform 0.2s, box-shadow 0.2s'
+                      }}
+                    >
+                      <div>
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                          <div>
+                            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{addon.name}</h3>
+                            <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                              {addon.isRequired ? (
+                                <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--brand-dim)', color: 'var(--brand)', borderRadius: 4, fontWeight: 700 }}>
+                                  Required
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--bg-elevated)', color: 'var(--text-muted)', borderRadius: 4, fontWeight: 600 }}>
+                                  Optional
+                                </span>
+                              )}
+                              <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--bg-elevated)', color: 'var(--text-secondary)', borderRadius: 4 }}>
+                                Select {addon.minSelections || 0} to {addon.maxSelections}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Action Buttons */}
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              className="btn btn-ghost btn-icon"
+                              onClick={() => handleEditAddon(addon)}
+                              style={{ padding: 6, color: 'var(--text-secondary)' }}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-icon"
+                              onClick={() => {
+                                if (window.confirm(`Delete addon group "${addon.name}"? This will unlink it from all meals.`)) {
+                                  handleDeleteAddon(addon.id);
+                                }
+                              }}
+                              style={{ padding: 6, color: 'var(--error)' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Options list */}
+                        <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Options ({addon.options.length})</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                            {addon.options.map(opt => (
+                              <div
+                                key={opt.id}
+                                style={{
+                                  fontSize: 12,
+                                  padding: '4px 10px',
+                                  background: opt.isAvailable ? 'var(--bg-elevated)' : 'var(--bg-dim)',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 6,
+                                  color: opt.isAvailable ? 'var(--text-primary)' : 'var(--text-muted)',
+                                  textDecoration: opt.isAvailable ? 'none' : 'line-through',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}
+                              >
+                                <span>{opt.name}</span>
+                                <span style={{ fontWeight: 600, color: opt.isAvailable ? 'var(--brand)' : 'var(--text-muted)' }}>
+                                  +{opt.price > 0 ? `₹${opt.price}` : 'Free'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Linked meals list */}
+                      <div style={{ marginTop: 16, borderTop: '1px dotted var(--border)', paddingTop: 12 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+                          Linked to {linkedMeals.length} meals:
+                        </span>
+                        {linkedMeals.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                            {linkedMeals.map(m => (
+                              <span
+                                key={m.id}
+                                style={{
+                                  fontSize: 10,
+                                  background: 'var(--brand-dim)',
+                                  color: 'var(--brand)',
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                  fontWeight: 600
+                                }}
+                              >
+                                {m.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>Not linked to any meals yet.</p>
+                        )}
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Add/Edit Item Modal */}
       {showItemModal && (
@@ -1751,6 +2133,40 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                     onClick={() => setNutrition(p => ({ ...p, custom: [...(p.custom||[]), { label: '', value: 0 }] }))}>
                     <Plus size={11} /> Add Custom Metric
                   </button>
+                </div>
+              )}
+
+              {/* Add-ons Selection Section */}
+              {adminAddons.length > 0 && (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 14 }}>
+                  <label className="input-label" style={{ fontWeight: 700, marginBottom: 8, display: 'block' }}>
+                    Link Add-on Customizations (Optional)
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 150, overflowY: 'auto', background: 'var(--bg-elevated)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                    {adminAddons.map(addon => {
+                      const isLinked = selectedAddons.includes(addon.id);
+                      return (
+                        <label key={addon.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: 'var(--text-primary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={isLinked}
+                            onChange={() => {
+                              setSelectedAddons(prev =>
+                                isLinked ? prev.filter(id => id !== addon.id) : [...prev, addon.id]
+                              );
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <span>
+                            <strong>{addon.name}</strong>{' '}
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              ({addon.options.length} options{addon.isRequired ? ', Required' : ''})
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -2479,6 +2895,173 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             </div>
             <div style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--text-muted)' }}>
               Self-healing key rotation active. Respecting API rate limits...
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Addon Modal */}
+      {showAddonModal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowAddonModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800 }}>
+                {editingAddon ? 'Edit Add-on Group' : 'New Add-on Group'}
+              </h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowAddonModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Group Name */}
+            <div className="input-group" style={{ marginBottom: 14 }}>
+              <label className="input-label">Add-on Group Name</label>
+              <input
+                className="input"
+                type="text"
+                placeholder="e.g. Extra Toppings, Choose Crust, Choice of Milk"
+                value={addonForm.name}
+                onChange={e => setAddonForm(p => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+
+            {/* Settings Checklist */}
+            <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={addonForm.isRequired}
+                  onChange={e => {
+                    const isReq = e.target.checked;
+                    setAddonForm(p => ({
+                      ...p,
+                      isRequired: isReq,
+                      minSelections: isReq ? Math.max(p.minSelections, 1) : 0
+                    }));
+                  }}
+                />
+                <span>Mandatory / Required Selection</span>
+              </label>
+            </div>
+
+            {/* Selection Limits */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+              <div className="input-group" style={{ flex: 1 }}>
+                <label className="input-label">Min Selections</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={addonForm.maxSelections}
+                  value={addonForm.minSelections}
+                  onChange={e => {
+                    const val = Math.max(0, parseInt(e.target.value) || 0);
+                    setAddonForm(p => ({ ...p, minSelections: val }));
+                  }}
+                  disabled={addonForm.isRequired} // Force min=1 or more if required
+                />
+              </div>
+              <div className="input-group" style={{ flex: 1 }}>
+                <label className="input-label">Max Selections</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={Math.max(1, addonForm.minSelections)}
+                  value={addonForm.maxSelections}
+                  onChange={e => {
+                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                    setAddonForm(p => ({ ...p, maxSelections: val }));
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Options List Builder */}
+            <div style={{ marginBottom: 16 }}>
+              <label className="input-label" style={{ fontWeight: 700, marginBottom: 6, display: 'block' }}>
+                Options / Choices in this Group
+              </label>
+              
+              {/* Existing Options */}
+              {addonForm.options.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', background: 'var(--bg-elevated)', padding: 10, borderRadius: 8, border: '1px solid var(--border)', marginBottom: 12 }}>
+                  {addonForm.options.map((opt, idx) => (
+                    <div key={opt.id || idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', background: 'var(--bg-card)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{opt.name}</span>
+                        <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 700 }}>
+                          {opt.price > 0 ? `+₹${opt.price}` : 'Free'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {/* Option Availability Toggle */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11 }}>
+                          <input
+                            type="checkbox"
+                            checked={opt.isAvailable}
+                            onChange={e => {
+                              const updatedOpts = [...addonForm.options];
+                              updatedOpts[idx] = { ...opt, isAvailable: e.target.checked };
+                              setAddonForm(p => ({ ...p, options: updatedOpts }));
+                            }}
+                          />
+                          <span>Instock</span>
+                        </label>
+                        <button
+                          className="btn btn-ghost btn-icon"
+                          onClick={() => handleRemoveOption(idx)}
+                          style={{ color: 'var(--error)', padding: 4 }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 12 }}>No choices added yet. Add at least one choice below.</p>
+              )}
+
+              {/* Add New Option row */}
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'var(--bg-elevated)', padding: 10, borderRadius: 8, border: '1px solid var(--border)' }}>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Choice Name (e.g. Extra Cheese)"
+                  value={newOption.name}
+                  onChange={e => setNewOption(p => ({ ...p, name: e.target.value }))}
+                  style={{ flex: 2, padding: '6px 10px', fontSize: 12 }}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
+                />
+                <input
+                  className="input"
+                  type="number"
+                  placeholder="Price (e.g. 30)"
+                  value={newOption.price || ''}
+                  onChange={e => setNewOption(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
+                  style={{ flex: 1, padding: '6px 10px', fontSize: 12 }}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleAddOption}
+                  style={{ padding: '6px 12px', height: 32, display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <Plus size={13} /> Add
+                </button>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <button className="btn btn-secondary btn-full" onClick={() => setShowAddonModal(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary btn-full" onClick={handleSaveAddon}>
+                Save Add-on Group
+              </button>
             </div>
           </div>
         </div>

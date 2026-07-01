@@ -181,42 +181,20 @@ function MealCard({
           {/* Cart Controls */}
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
             {item.variants && item.variants.length > 0 ? (
-              <>
-                {hasActiveOrders && (
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => handleOpenVariantModal(item)}
-                    style={{ padding: '4px 8px', fontSize: 9.5, fontWeight: 700, height: 26, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
-                  >
-                    {t('add_on')} {qty > 0 ? `(${qty})` : ''}
-                  </button>
-                )}
-                <button
-                  onClick={() => handleOpenVariantModal(item)}
-                  style={{ padding: '4px 10px', fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, height: 26, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
-                >
-                  {t('add')} {qty > 0 ? `(${qty})` : ''} <FoodTrolley size={16} color="var(--customer-add-to-cart-text, #000000)" />
-                </button>
-              </>
+              <button
+                onClick={() => handleOpenVariantModal(item)}
+                style={{ padding: '4px 10px', fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, height: 26, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
+              >
+                {t('add')} {qty > 0 ? `(${qty})` : ''} <FoodTrolley size={16} color="var(--customer-add-to-cart-text, #000000)" />
+              </button>
             ) : qty === 0 ? (
-              <>
-                {hasActiveOrders && (
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => { handleAddToCart(item); addToast('success', `${item.name} added as add-on! 🛒`); }}
-                    style={{ padding: '4px 8px', fontSize: 9.5, fontWeight: 700, height: 26, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
-                  >
-                    {t('add_on')}
-                  </button>
-                )}
-                <button
-                  className="btn btn-primary"
-                  onClick={() => handleAddToCart(item)}
-                  style={{ padding: '4px 10px', fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, height: 26, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
-                >
-                  {t('add')} <FoodTrolley size={16} color="var(--customer-add-to-cart-text, #000000)" />
-                </button>
-              </>
+              <button
+                className="btn btn-primary"
+                onClick={() => handleAddToCart(item)}
+                style={{ padding: '4px 10px', fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, height: 26, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
+              >
+                {t('add')} <FoodTrolley size={16} color="var(--customer-add-to-cart-text, #000000)" />
+              </button>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', background: 'var(--customer-add-to-cart-bg, #ffffff)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', height: 26 }}>
                 <button
