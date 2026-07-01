@@ -1137,23 +1137,21 @@ export default function CustomerMenu() {
             gap: 16
           }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                  Customize {addonModalItem.item.name}
+                <h3 style={{ fontSize: 26, fontWeight: 900, margin: 0, color: 'var(--brand)', letterSpacing: '-0.5px' }}>
+                  Add Ons
                 </h3>
-                {addonModalItem.variant && (
-                  <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 700 }}>
-                    Size/Variant: {addonModalItem.variant.name}
-                  </span>
-                )}
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2, fontWeight: 500 }}>
+                  {addonModalItem.item.name}{addonModalItem.variant ? ` · ${addonModalItem.variant.name}` : ''}
+                </div>
               </div>
               <button
                 onClick={() => setAddonModalItem(null)}
                 style={{
                   background: 'var(--bg-elevated)', border: 'none', borderRadius: '50%',
-                  width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: 'var(--text-secondary)'
+                  width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 16, flexShrink: 0, marginTop: 2
                 }}
               >
                 ✕
@@ -1170,25 +1168,25 @@ export default function CustomerMenu() {
 
                 return (
                   <div key={addon.id} style={{
-                    background: 'var(--bg-elevated)',
+                    background: 'var(--bg-card)',
                     padding: 14,
                     borderRadius: 12,
-                    border: '1px solid var(--border)'
+                    border: '1.5px solid var(--border)'
                   }}>
                     {/* Addon Group Header info */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                       <div>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
                           {addon.name}
                         </span>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {isRequired ? `Required (Choose at least ${min})` : `Optional (Choose up to ${max})`}
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>
+                          {isRequired ? `Required · Choose at least ${min}` : `Optional · Choose up to ${max}`}
                         </div>
                       </div>
                       {isRequired && (
                         <span style={{
-                          fontSize: 9, background: 'var(--brand-light)', color: 'var(--brand)',
-                          padding: '2px 6px', borderRadius: 4, fontWeight: 800, textTransform: 'uppercase'
+                          fontSize: 10, background: 'var(--brand)', color: '#fff',
+                          padding: '3px 8px', borderRadius: 6, fontWeight: 800, textTransform: 'uppercase', flexShrink: 0
                         }}>
                           Required
                         </span>
@@ -1239,29 +1237,29 @@ export default function CustomerMenu() {
                               display: 'flex',
                               justifyContent: 'space-between',
                               alignItems: 'center',
-                              padding: '10px 12px',
-                              borderRadius: 8,
-                              background: isChecked ? 'var(--brand-dim)' : 'var(--bg-card)',
-                              border: isChecked ? '2px solid var(--brand)' : '1px solid var(--border)',
+                              padding: '12px 14px',
+                              borderRadius: 10,
+                              background: isChecked ? 'rgba(255, 107, 0, 0.12)' : 'var(--bg-elevated)',
+                              border: isChecked ? '2px solid var(--brand)' : '1.5px solid var(--border)',
                               cursor: isAvailable ? 'pointer' : 'not-allowed',
                               opacity: isAvailable ? 1 : 0.5,
                               transition: 'all 0.2s ease'
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <input
                                 type={max === 1 ? "radio" : "checkbox"}
                                 name={addon.id}
                                 checked={isChecked}
                                 disabled={!isAvailable}
                                 onChange={handleSelect}
-                                style={{ margin: 0, accentColor: 'var(--brand)' }}
+                                style={{ margin: 0, accentColor: 'var(--brand)', width: 16, height: 16 }}
                               />
-                              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                                 {opt.name}
                               </span>
                             </div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand)' }}>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: isAvailable ? 'var(--brand)' : 'var(--text-muted)', flexShrink: 0, marginLeft: 8 }}>
                               {!isAvailable ? 'Out of Stock' : opt.price > 0 ? `+₹${opt.price}` : 'Free'}
                             </span>
                           </div>

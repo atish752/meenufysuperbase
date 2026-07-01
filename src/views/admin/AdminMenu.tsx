@@ -213,6 +213,7 @@ export default function AdminMenu() {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
   const [subTab, setSubTab] = useState<'meals' | 'addons'>('meals');
+  const [expandedTargetCats, setExpandedTargetCats] = useState<string[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [editingAddon, setEditingAddon] = useState<AddonConfig | null>(null);
@@ -3048,69 +3049,105 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                 </div>
               </div>
 
-              {/* Meals & Categories Checkboxes */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Target Categories</span>
-                  <div style={{ maxHeight: 100, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, border: '1px solid var(--border)', borderRadius: 6, padding: 6, background: 'var(--bg-card)' }}>
-                    {adminCategories.length === 0 ? (
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>No categories</span>
-                    ) : (
-                      adminCategories.map(cat => {
-                        const targetCategoryIds = addonForm.targetCategoryIds || [];
-                        const isChecked = targetCategoryIds.includes(cat.id);
-                        return (
-                          <label key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11 }}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                const newCats = isChecked
-                                  ? targetCategoryIds.filter(id => id !== cat.id)
-                                  : [...targetCategoryIds, cat.id];
-                                setAddonForm(p => ({ ...p, targetCategoryIds: newCats }));
-                              }}
-                            />
-                            <span className="truncate">{cat.name}</span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
+              {/* Category + Meal Accordion Targeting */}
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Target Categories &amp; Meals</span>
+                <div style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-card)', overflow: 'hidden' }}>
+                  {adminCategories.length === 0 ? (
+                    <div style={{ padding: '12px 10px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>No categories yet</div>
+                  ) : (
+                    adminCategories.map((cat, catIdx) => {
+                      const targetCategoryIds = addonForm.targetCategoryIds || [];
+                      const targetMealIds = addonForm.targetMealIds || [];
+                      const isCatChecked = targetCategoryIds.includes(cat.id);
+                      const isExpanded = expandedTargetCats.includes(cat.id);
+                      const catMeals = adminMenuItems.filter(m => m.category === cat.id);
+                      const checkedMealsInCat = catMeals.filter(m => targetMealIds.includes(m.id)).length;
 
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Target Meals</span>
-                  <div style={{ maxHeight: 100, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, border: '1px solid var(--border)', borderRadius: 6, padding: 6, background: 'var(--bg-card)' }}>
-                    {adminMenuItems.length === 0 ? (
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>No meals</span>
-                    ) : (
-                      adminMenuItems.map(item => {
-                        const targetMealIds = addonForm.targetMealIds || [];
-                        const isChecked = targetMealIds.includes(item.id);
-                        return (
-                          <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11 }}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                const newMeals = isChecked
-                                  ? targetMealIds.filter(id => id !== item.id)
-                                  : [...targetMealIds, item.id];
-                                setAddonForm(p => ({ ...p, targetMealIds: newMeals }));
-                              }}
-                            />
-                            <span className="truncate">{item.name}</span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
+                      return (
+                        <div key={cat.id} style={{ borderBottom: catIdx < adminCategories.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                          {/* Category Row */}
+                          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', gap: 8, background: isCatChecked ? 'rgba(255,107,0,0.06)' : 'transparent' }}>
+                            {/* Category checkbox */}
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                              <input
+                                type="checkbox"
+                                checked={isCatChecked}
+                                onChange={() => {
+                                  const newCats = isCatChecked
+                                    ? targetCategoryIds.filter(id => id !== cat.id)
+                                    : [...targetCategoryIds, cat.id];
+                                  setAddonForm(p => ({ ...p, targetCategoryIds: newCats }));
+                                }}
+                                style={{ accentColor: 'var(--brand)', flexShrink: 0 }}
+                              />
+                              <span style={{ fontSize: 12, fontWeight: isCatChecked ? 700 : 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {cat.name}
+                              </span>
+                              {checkedMealsInCat > 0 && (
+                                <span style={{ fontSize: 10, background: 'var(--brand)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>
+                                  {checkedMealsInCat}
+                                </span>
+                              )}
+                            </label>
+                            {/* Expand/collapse arrow */}
+                            {catMeals.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedTargetCats(prev =>
+                                  prev.includes(cat.id) ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
+                                )}
+                                style={{
+                                  background: 'none', border: 'none', cursor: 'pointer',
+                                  color: 'var(--text-secondary)', fontSize: 13, padding: '2px 4px',
+                                  lineHeight: 1, flexShrink: 0, transition: 'transform 0.2s',
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                                }}
+                                title={isExpanded ? 'Collapse meals' : 'Expand to pick individual meals'}
+                              >
+                                ▾
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Expanded Meals List */}
+                          {isExpanded && catMeals.length > 0 && (
+                            <div style={{ background: 'var(--bg-elevated)', borderTop: '1px solid var(--border)', padding: '6px 10px 8px 28px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {catMeals.map(item => {
+                                const isMealChecked = targetMealIds.includes(item.id);
+                                return (
+                                  <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '4px 0' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isMealChecked}
+                                      onChange={() => {
+                                        const newMeals = isMealChecked
+                                          ? targetMealIds.filter(id => id !== item.id)
+                                          : [...targetMealIds, item.id];
+                                        setAddonForm(p => ({ ...p, targetMealIds: newMeals }));
+                                      }}
+                                      style={{ accentColor: 'var(--brand)', flexShrink: 0 }}
+                                    />
+                                    <span style={{ fontSize: 11, fontWeight: isMealChecked ? 700 : 400, color: isMealChecked ? 'var(--brand)' : 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {item.name}
+                                    </span>
+                                    <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+                                      ₹{item.price}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
+                <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
+                  Tick a category to apply to all its meals. Use ▾ to pick specific meals within a category. Leaving all unselected applies to every meal.
+                </p>
               </div>
-              <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
-                Note: Leaving targeting unselected will apply this add-on to all meals.
-              </p>
             </div>
 
             {/* Options List Builder */}
@@ -3189,6 +3226,24 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                       <option key={m.id} value={m.id}>{m.name} (₹{m.price})</option>
                     ))}
                   </select>
+                  {/* Meal selected preview */}
+                  {newOption.linkedMealId && (() => {
+                    const sel = adminMenuItems.find(m => m.id === newOption.linkedMealId);
+                    return sel ? (
+                      <div style={{
+                        marginTop: 6, padding: '8px 10px', borderRadius: 8,
+                        background: 'rgba(255,107,0,0.08)', border: '1.5px solid var(--brand)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>✓ Meal linked</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{sel.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>Name &amp; price copied below — edit freely if needed</div>
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--brand)', flexShrink: 0, marginLeft: 12 }}>₹{sel.price}</div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* Custom Name / Price Inputs */}
