@@ -1012,7 +1012,7 @@ export default function AdminHome() {
 
                     {/* Items summary */}
                     <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                      {order.items.map(item => `${item.qty}x ${item.name}${item.variant ? ` (${item.variant.name})` : ''}`).join(', ')}
+                      {order.items.map(item => `${item.qty}x ${item.name}${item.variant ? ` (${item.variant.name})` : ''}${item.addons && item.addons.length > 0 ? ` [${item.addons.map(a => a.optionName).join(', ')}]` : ''}`).join(', ')}
                     </div>
 
                     {/* Buttons */}
@@ -2608,6 +2608,11 @@ function OrderCard({
             fontSize: 11, color: 'var(--text-secondary)', padding: '1px 0',
           }}>
             <span>{item.qty}x {item.name}{item.variant ? ` (${item.variant.name})` : ''}</span>
+            {item.addons && item.addons.length > 0 && (
+              <div style={{ paddingLeft: 12, fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
+                {item.addons.map((a, ai) => <span key={ai} style={{ marginRight: 6 }}>+ {a.optionName}{a.price > 0 ? ` (₹${a.price})` : ''}</span>)}
+              </div>
+            )}
             <span>{currency}{item.price * item.qty}</span>
           </div>
         ))}
@@ -2923,7 +2928,7 @@ function TabularOrderRow({
         
         {/* Items Summary */}
         <div style={{ color: 'var(--text-secondary)', fontSize: 11.5, lineHeight: 1.4 }}>
-          {order.items.map(item => `${item.qty}x ${item.name}${item.variant ? ` (${item.variant.name})` : ''}`).join(', ')}
+          {order.items.map(item => `${item.qty}x ${item.name}${item.variant ? ` (${item.variant.name})` : ''}${item.addons && item.addons.length > 0 ? ` [${item.addons.map(a => a.optionName).join(', ')}]` : ''}`).join(', ')}
         </div>
 
         {order.specialNote && (

@@ -227,6 +227,35 @@ export default function CustomerMenu() {
   const [scrollActiveCat, setScrollActiveCat] = useState<string>('');
   const mealsScrollRef = useRef<HTMLDivElement>(null);
 
+  const [addonModalItem, setAddonModalItem] = useState<{
+    item: MenuItem;
+    qty: number;
+    variant?: { name: string; price: number };
+  } | null>(null);
+  const [selectedAddonOptions, setSelectedAddonOptions] = useState<{
+    [addonId: string]: string[];
+  }>({});
+
+  const getApplicableAddons = (item: MenuItem) => {
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const todayName = daysOfWeek[new Date().getDay()];
+    
+    return (state.addons || []).filter(addon => {
+      const isDayActive = !addon.activeDays || addon.activeDays.length === 0 || addon.activeDays.includes(todayName);
+      if (!isDayActive) return false;
+
+      const hasMeals = Array.isArray(addon.targetMealIds) && addon.targetMealIds.length > 0;
+      const hasCats = Array.isArray(addon.targetCategoryIds) && addon.targetCategoryIds.length > 0;
+
+      if (!hasMeals && !hasCats) return true;
+
+      const mealMatch = hasMeals && addon.targetMealIds!.includes(item.id);
+      const catMatch = hasCats && addon.targetCategoryIds!.includes(item.category || '');
+
+      return mealMatch || catMatch;
+    });
+  };
+
   const handleOpenVariantModal = (item: MenuItem) => {
     setVariantModalItem(item);
     setSelectedVariant(item.variants && item.variants.length > 0 ? item.variants[0] : null);
@@ -327,6 +356,14 @@ export default function CustomerMenu() {
       handleOpenVariantModal(item);
       return;
     }
+    
+    const applicable = getApplicableAddons(item);
+    if (applicable.length > 0) {
+      setAddonModalItem({ item, qty: 1 });
+      setSelectedAddonOptions({});
+      return;
+    }
+
     dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: item.id, name: item.name, price: item.price, qty: 1 } });
     addToast('success', `${item.name} added to cart!`);
   };
@@ -344,10 +381,19 @@ export default function CustomerMenu() {
       return;
     }
     const item = state.menuItems.find(i => i.id === itemId);
-    if (item && item.variants && item.variants.length > 0) {
+    if (!item) return;
+    if (item.variants && item.variants.length > 0) {
       handleOpenVariantModal(item);
       return;
     }
+
+    const applicable = getApplicableAddons(item);
+    if (applicable.length > 0) {
+      setAddonModalItem({ item, qty: 1 });
+      setSelectedAddonOptions({});
+      return;
+    }
+
     dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: itemId, name, price, qty: 1 } });
   };
 
@@ -966,6 +1012,18 @@ export default function CustomerMenu() {
 
               <button
                 onClick={() => {
+                  const applicable = getApplicableAddons(variantModalItem);
+                  if (applicable.length > 0) {
+                    setAddonModalItem({
+                      item: variantModalItem,
+                      qty: variantQty,
+                      variant: selectedVariant || undefined
+                    });
+                    setSelectedAddonOptions({});
+                    setVariantModalItem(null);
+                    return;
+                  }
+
                   dispatch({
                     type: 'ADD_TO_CART',
                     payload: {
@@ -1047,6 +1105,247 @@ export default function CustomerMenu() {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* Add-on Selection Modal */}
+      {addonModalItem && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-end',
+          zIndex: 1000,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            width: '100%',
+            maxWidth: 480,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: '24px 20px',
+            maxHeight: '85vh',
+            overflowY: 'auto',
+            boxShadow: '0 -10px 25px rgba(0, 0, 0, 0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                  Customize {addonModalItem.item.name}
+                </h3>
+                {addonModalItem.variant && (
+                  <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 700 }}>
+                    Size/Variant: {addonModalItem.variant.name}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setAddonModalItem(null)}
+                style={{
+                  background: 'var(--bg-elevated)', border: 'none', borderRadius: '50%',
+                  width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'var(--text-secondary)'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Applicable Addon Groups */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, margin: '10px 0' }}>
+              {getApplicableAddons(addonModalItem.item).map(addon => {
+                const selections = selectedAddonOptions[addon.id] || [];
+                const max = addon.maxSelections || 1;
+                const min = addon.minSelections || 0;
+                const isRequired = addon.isRequired || min > 0;
+
+                return (
+                  <div key={addon.id} style={{
+                    background: 'var(--bg-elevated)',
+                    padding: 14,
+                    borderRadius: 12,
+                    border: '1px solid var(--border)'
+                  }}>
+                    {/* Addon Group Header info */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {addon.name}
+                        </span>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {isRequired ? `Required (Choose at least ${min})` : `Optional (Choose up to ${max})`}
+                        </div>
+                      </div>
+                      {isRequired && (
+                        <span style={{
+                          fontSize: 9, background: 'var(--brand-light)', color: 'var(--brand)',
+                          padding: '2px 6px', borderRadius: 4, fontWeight: 800, textTransform: 'uppercase'
+                        }}>
+                          Required
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Options list */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {(addon.options || []).map(opt => {
+                        const isLinkedAvailable = !opt.linkedMealId || (() => {
+                          const meal = state.menuItems.find(m => m.id === opt.linkedMealId);
+                          return meal && meal.isAvailable !== false;
+                        })();
+                        const isAvailable = opt.isAvailable !== false && isLinkedAvailable;
+                        const isChecked = selections.includes(opt.id);
+
+                        const handleSelect = () => {
+                          if (!isAvailable) return;
+                          if (max === 1) {
+                            setSelectedAddonOptions(p => ({
+                              ...p,
+                              [addon.id]: [opt.id]
+                            }));
+                          } else {
+                            if (isChecked) {
+                              setSelectedAddonOptions(p => ({
+                                ...p,
+                                [addon.id]: (p[addon.id] || []).filter(id => id !== opt.id)
+                              }));
+                            } else {
+                              if ((selections).length >= max) {
+                                addToast('warning', `You can select up to ${max} options for ${addon.name}.`);
+                                return;
+                              }
+                              setSelectedAddonOptions(p => ({
+                                ...p,
+                                [addon.id]: [...(p[addon.id] || []), opt.id]
+                              }));
+                            }
+                          }
+                        };
+
+                        return (
+                          <div
+                            key={opt.id}
+                            onClick={handleSelect}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '10px 12px',
+                              borderRadius: 8,
+                              background: isChecked ? 'var(--brand-dim)' : 'var(--bg-card)',
+                              border: isChecked ? '2px solid var(--brand)' : '1px solid var(--border)',
+                              cursor: isAvailable ? 'pointer' : 'not-allowed',
+                              opacity: isAvailable ? 1 : 0.5,
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <input
+                                type={max === 1 ? "radio" : "checkbox"}
+                                name={addon.id}
+                                checked={isChecked}
+                                disabled={!isAvailable}
+                                onChange={handleSelect}
+                                style={{ margin: 0, accentColor: 'var(--brand)' }}
+                              />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {opt.name}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand)' }}>
+                              {!isAvailable ? 'Out of Stock' : opt.price > 0 ? `+₹${opt.price}` : 'Free'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer Add Action */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setAddonModalItem(null)}
+                style={{ flex: 1, height: 44, borderRadius: 'var(--radius-full)' }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const applicable = getApplicableAddons(addonModalItem.item);
+                  for (const addon of applicable) {
+                    const min = addon.minSelections || 0;
+                    const isRequired = addon.isRequired || min > 0;
+                    const selections = selectedAddonOptions[addon.id] || [];
+                    if (isRequired && selections.length < min) {
+                      addToast('error', `Please select at least ${min} option(s) for "${addon.name}".`);
+                      return;
+                    }
+                  }
+
+                  const addonsPayload = Object.entries(selectedAddonOptions).flatMap(([addonId, optIds]) => {
+                    const addon = state.addons.find(a => a.id === addonId);
+                    if (!addon) return [];
+                    return optIds.map(optId => {
+                      const opt = addon.options.find(o => o.id === optId);
+                      if (!opt) return [];
+                      return {
+                        addonId: addon.id,
+                        addonName: addon.name,
+                        optionId: opt.id,
+                        optionName: opt.name,
+                        price: opt.price
+                      };
+                    }).flat();
+                  });
+
+                  const basePrice = addonModalItem.variant ? addonModalItem.variant.price : addonModalItem.item.price;
+                  const addonsTotalPrice = addonsPayload.reduce((sum, opt) => sum + opt.price, 0);
+
+                  dispatch({
+                    type: 'ADD_TO_CART',
+                    payload: {
+                      menuItemId: addonModalItem.item.id,
+                      name: addonModalItem.item.name,
+                      price: basePrice + addonsTotalPrice,
+                      qty: addonModalItem.qty,
+                      variant: addonModalItem.variant || undefined,
+                      addons: addonsPayload
+                    }
+                  });
+                  addToast('success', `${addonModalItem.item.name} added to cart!`);
+                  setAddonModalItem(null);
+                }}
+                style={{
+                  flex: 2, height: 44, borderRadius: 'var(--radius-full)',
+                  background: 'var(--customer-add-to-cart-bg, var(--brand))',
+                  color: 'var(--customer-add-to-cart-text, #ffffff)'
+                }}
+              >
+                Add to Cart — ₹{((addonModalItem.variant ? addonModalItem.variant.price : addonModalItem.item.price) + 
+                  Object.entries(selectedAddonOptions).reduce((sum, [addonId, optIds]) => {
+                    const addon = state.addons.find(a => a.id === addonId);
+                    if (!addon) return sum;
+                    return sum + optIds.reduce((sOpt, optId) => {
+                      const opt = addon.options.find(o => o.id === optId);
+                      return sOpt + (opt ? opt.price : 0);
+                    }, 0);
+                  }, 0)) * addonModalItem.qty}
+              </button>
+            </div>
           </div>
         </div>
       )}

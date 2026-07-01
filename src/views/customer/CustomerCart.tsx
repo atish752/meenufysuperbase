@@ -570,7 +570,8 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
               {/* Cart Items */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                 {state.cart.map(item => {
-                  const itemKey = `${item.menuItemId}-${item.variant?.name || ''}`;
+                  const addonKey = (item.addons || []).map(a => a.optionId).sort().join(',');
+                  const itemKey = `${item.menuItemId}-${item.variant?.name || ''}-${addonKey}`;
                   return (
                     <div key={itemKey} style={{
                       display: 'flex', alignItems: 'center', gap: 10,
@@ -581,7 +582,16 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }} className="truncate">
                           {item.name} {item.variant ? `(${item.variant.name})` : ''}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>₹{item.price} each</div>
+                        {item.addons && item.addons.length > 0 && (
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: '2px 6px' }}>
+                            {item.addons.map((addonOpt, idx) => (
+                              <span key={`${addonOpt.optionId}-${idx}`} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1px 5px', borderRadius: 4 }}>
+                                + {addonOpt.optionName} {addonOpt.price > 0 ? `(₹${addonOpt.price})` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>₹{item.price} each</div>
                       </div>
 
                       {/* Qty controls */}
@@ -590,7 +600,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                         background: 'var(--brand)', borderRadius: 99, overflow: 'hidden',
                       }}>
                         <button
-                          onClick={() => dispatch({ type: 'UPDATE_CART_QTY', payload: { menuItemId: item.menuItemId, qty: item.qty - 1, variantName: item.variant?.name } })}
+                          onClick={() => dispatch({ type: 'UPDATE_CART_QTY', payload: { menuItemId: item.menuItemId, qty: item.qty - 1, variantName: item.variant?.name, addonKey } })}
                           style={{ padding: '5px 11px', background: 'none', border: 'none', cursor: 'pointer', color: '#000', fontSize: 16, fontWeight: 700 }}
                         >−</button>
                         <span style={{ fontSize: 13, fontWeight: 800, color: '#000', minWidth: 18, textAlign: 'center' }}>{item.qty}</span>
@@ -606,7 +616,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
 
                       <button
                         className="btn-ghost btn-icon"
-                        onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: { menuItemId: item.menuItemId, variantName: item.variant?.name } })}
+                        onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: { menuItemId: item.menuItemId, variantName: item.variant?.name, addonKey } })}
                         style={{ color: 'var(--error)', padding: 4 }}
                       >
                         <Trash2 size={14} />

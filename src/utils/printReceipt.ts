@@ -116,6 +116,13 @@ function buildKotBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
       bytes.push(...line('  ' + nameWithVariant.substring(maxNameLen - 1)));
       bytes.push(...BOLD_OFF);
     }
+    // Print addons/modifiers
+    if (item.addons && item.addons.length > 0) {
+      for (const a of item.addons) {
+        const addonLine = `  + ${a.optionName}${a.price > 0 ? ` (+${a.price})` : ''}`;
+        bytes.push(...line(addonLine.substring(0, W)));
+      }
+    }
   }
 
   bytes.push(...dashes(W));
@@ -200,6 +207,18 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
       ? nameWithVariant.substring(0, maxName - 1) + '.'
       : padRight(nameWithVariant, maxName);
     bytes.push(...line(`${name} ${qtyStr} ${padLeft(amt, amt.length)}`));
+    // Print addons/modifiers
+    if (item.addons && item.addons.length > 0) {
+      for (const a of item.addons) {
+        const addonLabel = `  + ${a.optionName}`;
+        const addonAmt = a.price > 0 ? `${currency}${a.price}` : '';
+        if (addonAmt) {
+          bytes.push(...line(splitLine(addonLabel, addonAmt, W)));
+        } else {
+          bytes.push(...line(addonLabel.substring(0, W)));
+        }
+      }
+    }
   }
 
   bytes.push(...dashes(W));

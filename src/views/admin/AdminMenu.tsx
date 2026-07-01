@@ -221,9 +221,22 @@ export default function AdminMenu() {
     isRequired: false,
     minSelections: 0,
     maxSelections: 1,
-    options: []
+    options: [],
+    targetMealIds: [],
+    targetCategoryIds: [],
+    activeDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   });
-  const [newOption, setNewOption] = useState({ name: '', price: 0, isAvailable: true });
+  const [newOption, setNewOption] = useState<{
+    name: string;
+    price: number;
+    isAvailable: boolean;
+    linkedMealId: string;
+  }>({
+    name: '',
+    price: 0,
+    isAvailable: true,
+    linkedMealId: '',
+  });
   const [newItem, setNewItem] = useState<Omit<MenuItem, 'id'>>(EMPTY_ITEM);
   const [showCatModal, setShowCatModal] = useState(false);
   const [showOthersMenu, setShowOthersMenu] = useState(false);
@@ -791,7 +804,10 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
       isRequired: false,
       minSelections: 0,
       maxSelections: 1,
-      options: []
+      options: [],
+      targetMealIds: [],
+      targetCategoryIds: [],
+      activeDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     });
   };
 
@@ -802,7 +818,10 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
       isRequired: addon.isRequired,
       minSelections: addon.minSelections,
       maxSelections: addon.maxSelections,
-      options: addon.options || []
+      options: addon.options || [],
+      targetMealIds: addon.targetMealIds || [],
+      targetCategoryIds: addon.targetCategoryIds || [],
+      activeDays: addon.activeDays || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     });
     setShowAddonModal(true);
   };
@@ -820,20 +839,37 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
   };
 
   const handleAddOption = () => {
-    if (!newOption.name.trim()) {
-      addToast('error', 'Option name is required.');
+    if (!newOption.name.trim() && !newOption.linkedMealId) {
+      addToast('error', 'Option name or linked meal is required.');
       return;
     }
+
+    let optName = newOption.name.trim();
+    let optPrice = newOption.price;
+
+    if (newOption.linkedMealId) {
+      const meal = state.menuItems.find(m => m.id === newOption.linkedMealId);
+      if (meal) {
+        if (!optName) {
+          optName = meal.name;
+        }
+        if (optPrice === 0) {
+          optPrice = meal.price;
+        }
+      }
+    }
+
     setAddonForm(prev => ({
       ...prev,
       options: [...prev.options, {
         id: `opt-${Date.now()}`,
-        name: newOption.name.trim(),
-        price: newOption.price,
-        isAvailable: newOption.isAvailable
+        name: optName,
+        price: optPrice,
+        isAvailable: newOption.isAvailable,
+        linkedMealId: newOption.linkedMealId || undefined,
       }]
     }));
-    setNewOption({ name: '', price: 0, isAvailable: true });
+    setNewOption({ name: '', price: 0, isAvailable: true, linkedMealId: '' });
   };
 
   const handleRemoveOption = (index: number) => {
@@ -2977,6 +3013,106 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               </div>
             </div>
 
+            {/* Targeting: Categories, Meals & Active Days */}
+            <div style={{ marginBottom: 14, background: 'var(--bg-elevated)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+              <label className="input-label" style={{ fontWeight: 700, marginBottom: 8, display: 'block' }}>Targeting & Active Days</label>
+              
+              {/* Active Days */}
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Active Days of the Week</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+                    const activeDays = addonForm.activeDays || [];
+                    const isChecked = activeDays.includes(day);
+                    return (
+                      <label key={day} style={{
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        padding: '4px 8px', background: isChecked ? 'var(--brand-light)' : 'var(--bg-card)',
+                        borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 11, fontWeight: isChecked ? 700 : 500
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            const newDays = isChecked 
+                              ? activeDays.filter(d => d !== day)
+                              : [...activeDays, day];
+                            setAddonForm(p => ({ ...p, activeDays: newDays }));
+                          }}
+                          style={{ margin: 0 }}
+                        />
+                        <span>{day}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Meals & Categories Checkboxes */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Target Categories</span>
+                  <div style={{ maxHeight: 100, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, border: '1px solid var(--border)', borderRadius: 6, padding: 6, background: 'var(--bg-card)' }}>
+                    {adminCategories.length === 0 ? (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>No categories</span>
+                    ) : (
+                      adminCategories.map(cat => {
+                        const targetCategoryIds = addonForm.targetCategoryIds || [];
+                        const isChecked = targetCategoryIds.includes(cat.id);
+                        return (
+                          <label key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11 }}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                const newCats = isChecked
+                                  ? targetCategoryIds.filter(id => id !== cat.id)
+                                  : [...targetCategoryIds, cat.id];
+                                setAddonForm(p => ({ ...p, targetCategoryIds: newCats }));
+                              }}
+                            />
+                            <span className="truncate">{cat.name}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Target Meals</span>
+                  <div style={{ maxHeight: 100, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, border: '1px solid var(--border)', borderRadius: 6, padding: 6, background: 'var(--bg-card)' }}>
+                    {adminMenuItems.length === 0 ? (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>No meals</span>
+                    ) : (
+                      adminMenuItems.map(item => {
+                        const targetMealIds = addonForm.targetMealIds || [];
+                        const isChecked = targetMealIds.includes(item.id);
+                        return (
+                          <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11 }}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                const newMeals = isChecked
+                                  ? targetMealIds.filter(id => id !== item.id)
+                                  : [...targetMealIds, item.id];
+                                setAddonForm(p => ({ ...p, targetMealIds: newMeals }));
+                              }}
+                            />
+                            <span className="truncate">{item.name}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
+                Note: Leaving targeting unselected will apply this add-on to all meals.
+              </p>
+            </div>
+
             {/* Options List Builder */}
             <div style={{ marginBottom: 16 }}>
               <label className="input-label" style={{ fontWeight: 700, marginBottom: 6, display: 'block' }}>
@@ -2988,13 +3124,18 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', background: 'var(--bg-elevated)', padding: 10, borderRadius: 8, border: '1px solid var(--border)', marginBottom: 12 }}>
                   {addonForm.options.map((opt: any, idx: number) => (
                     <div key={opt.id || idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', background: 'var(--bg-card)', borderRadius: 6, border: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{opt.name}</span>
-                        <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 700 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }} className="truncate">{opt.name}</span>
+                        {opt.linkedMealId && (
+                          <span style={{ fontSize: 9, background: 'var(--brand-light)', color: 'var(--brand)', padding: '2px 4px', borderRadius: 4, fontWeight: 700, flexShrink: 0 }}>
+                            Meal Link
+                          </span>
+                        )}
+                        <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 700, flexShrink: 0 }}>
                           {opt.price > 0 ? `+₹${opt.price}` : 'Free'}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                         {/* Option Availability Toggle */}
                         <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11 }}>
                           <input
@@ -3024,33 +3165,61 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               )}
 
               {/* Add New Option row */}
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'var(--bg-elevated)', padding: 10, borderRadius: 8, border: '1px solid var(--border)' }}>
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="Choice Name (e.g. Extra Cheese)"
-                  value={newOption.name}
-                  onChange={e => setNewOption(p => ({ ...p, name: e.target.value }))}
-                  style={{ flex: 2, padding: '6px 10px', fontSize: 12 }}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
-                />
-                <input
-                  className="input"
-                  type="number"
-                  placeholder="Price (e.g. 30)"
-                  value={newOption.price || ''}
-                  onChange={e => setNewOption(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
-                  style={{ flex: 1, padding: '6px 10px', fontSize: 12 }}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
-                />
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={handleAddOption}
-                  style={{ padding: '6px 12px', height: 32, display: 'flex', alignItems: 'center', gap: 4 }}
-                >
-                  <Plus size={13} /> Add
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg-elevated)', padding: 10, borderRadius: 8, border: '1px solid var(--border)' }}>
+                {/* Optional Meal Linker dropdown */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Link to Existing Meal (Optional)</label>
+                  <select
+                    className="input"
+                    style={{ fontSize: 12, padding: '4px 8px', height: 32 }}
+                    value={newOption.linkedMealId || ''}
+                    onChange={e => {
+                      const mId = e.target.value;
+                      const meal = adminMenuItems.find(m => m.id === mId);
+                      setNewOption(p => ({
+                        ...p,
+                        linkedMealId: mId,
+                        name: meal ? meal.name : p.name,
+                        price: meal ? meal.price : p.price
+                      }));
+                    }}
+                  >
+                    <option value="">-- Choose Existing Meal (Or type custom option below) --</option>
+                    {adminMenuItems.map(m => (
+                      <option key={m.id} value={m.id}>{m.name} (₹{m.price})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Custom Name / Price Inputs */}
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Choice Name (e.g. Extra Cheese)"
+                    value={newOption.name}
+                    onChange={e => setNewOption(p => ({ ...p, name: e.target.value }))}
+                    style={{ flex: 2, padding: '6px 10px', fontSize: 12 }}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
+                  />
+                  <input
+                    className="input"
+                    type="number"
+                    placeholder="Price (e.g. 30)"
+                    value={newOption.price || ''}
+                    onChange={e => setNewOption(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
+                    style={{ flex: 1, padding: '6px 10px', fontSize: 12 }}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleAddOption}
+                    style={{ padding: '6px 12px', height: 32, display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <Plus size={13} /> Add
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -95,6 +95,13 @@ export type OrderItem = {
   price: number;
   qty: number;
   variant?: MenuItemVariant;
+  addons?: {
+    addonId: string;
+    addonName: string;
+    optionId: string;
+    optionName: string;
+    price: number;
+  }[];
 };
 
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'bill_pay' | 'served' | 'cancelled';
@@ -208,6 +215,7 @@ export type AddonOption = {
   name: string;
   price: number;
   isAvailable: boolean;
+  linkedMealId?: string;
 };
 
 export type AddonConfig = {
@@ -218,6 +226,9 @@ export type AddonConfig = {
   minSelections: number;
   maxSelections: number;
   options: AddonOption[];
+  targetMealIds?: string[];
+  targetCategoryIds?: string[];
+  activeDays?: string[];
 };
 
 export type SubscriptionCoupon = {
@@ -928,8 +939,8 @@ type Action =
   | { type: 'UPDATE_ORDER_PAYMENT'; payload: { id: string; method?: 'upi' | 'card' | 'cash'; status?: 'pending' | 'waiting_confirmation' | 'paid' } }
   | { type: 'RATE_ORDER'; payload: { id: string; ratings: Record<string, number> } }
   | { type: 'ADD_TO_CART'; payload: OrderItem }
-  | { type: 'REMOVE_FROM_CART'; payload: string | { menuItemId: string; variantName?: string } }
-  | { type: 'UPDATE_CART_QTY'; payload: { menuItemId: string; qty: number; variantName?: string } }
+  | { type: 'REMOVE_FROM_CART'; payload: string | { menuItemId: string; variantName?: string; addonKey?: string } }
+  | { type: 'UPDATE_CART_QTY'; payload: { menuItemId: string; qty: number; variantName?: string; addonKey?: string } }
   | { type: 'CLEAR_CART' }
   | { type: 'SET_CUSTOMER_TABLE'; payload: string }
   | { type: 'SET_TABLES'; payload: TableInfo[] }
@@ -1469,9 +1480,11 @@ function reducer(state: AppState, action: Action): AppState {
       } : o)
     };
     case 'ADD_TO_CART': {
+      const payloadKey = (action.payload.addons || []).map(a => a.optionId).sort().join(',');
       const existing = state.cart.findIndex(i => 
         i.menuItemId === action.payload.menuItemId && 
-        i.variant?.name === action.payload.variant?.name
+        i.variant?.name === action.payload.variant?.name &&
+        ((i.addons || []).map(a => a.optionId).sort().join(',')) === payloadKey
       );
       if (existing >= 0) {
         const cart = [...state.cart];
@@ -1483,20 +1496,32 @@ function reducer(state: AppState, action: Action): AppState {
     case 'REMOVE_FROM_CART': {
       const targetId = typeof action.payload === 'string' ? action.payload : action.payload.menuItemId;
       const targetVariantName = typeof action.payload === 'string' ? undefined : action.payload.variantName;
+      const targetAddonKey = typeof action.payload === 'string' ? undefined : action.payload.addonKey;
       return { 
         ...state, 
-        cart: state.cart.filter(i => !(i.menuItemId === targetId && i.variant?.name === targetVariantName)) 
+        cart: state.cart.filter(i => {
+          const itemAddonKey = (i.addons || []).map(a => a.optionId).sort().join(',');
+          const idMatch = i.menuItemId === targetId;
+          const variantMatch = i.variant?.name === targetVariantName;
+          const addonsMatch = targetAddonKey === undefined || itemAddonKey === targetAddonKey;
+          return !(idMatch && variantMatch && addonsMatch);
+        })
       };
     }
     case 'UPDATE_CART_QTY': {
-      const { menuItemId, qty, variantName } = action.payload;
+      const { menuItemId, qty, variantName, addonKey } = action.payload;
       return {
         ...state,
-        cart: state.cart.map(i => 
-          (i.menuItemId === menuItemId && i.variant?.name === variantName) 
-            ? { ...i, qty } 
-            : i
-        ).filter(i => i.qty > 0)
+        cart: state.cart.map(i => {
+          const itemAddonKey = (i.addons || []).map(a => a.optionId).sort().join(',');
+          const idMatch = i.menuItemId === menuItemId;
+          const variantMatch = i.variant?.name === variantName;
+          const addonsMatch = addonKey === undefined || itemAddonKey === addonKey;
+          if (idMatch && variantMatch && addonsMatch) {
+            return { ...i, qty };
+          }
+          return i;
+        }).filter(i => i.qty > 0)
       };
     }
     case 'CLEAR_CART': return { ...state, cart: [] };
