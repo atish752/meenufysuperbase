@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
   TrendingUp, ShoppingBag, Users, DollarSign, HelpCircle,
-  Award, Activity, BarChart3, UtensilsCrossed, CreditCard
+  Award, Activity, BarChart3, UtensilsCrossed, CreditCard, Clock
 } from 'lucide-react';
 
 function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
@@ -334,11 +334,12 @@ export default function AdminAnalysis() {
 
   // Chart Data Calculations (Dynamic Grouping based on Timeframe)
   const salesGrouped: Record<string, number> = {};
+  const ordersGrouped: Record<string, number> = {};
   
   if (timeFilter === 'day') {
     // 2-hour interval slots for the last 24 hours
     const slots = ['8-10 AM', '10-12 AM', '12-2 PM', '2-4 PM', '4-6 PM', '6-8 PM', '8-10 PM', '10-12 PM'];
-    slots.forEach(s => { salesGrouped[s] = 0; });
+    slots.forEach(s => { salesGrouped[s] = 0; ordersGrouped[s] = 0; });
     
     filteredServedOrders.forEach(o => {
       const hr = new Date(o.createdAt).getHours();
@@ -352,6 +353,7 @@ export default function AdminAnalysis() {
       else if (hr >= 20 && hr < 22) slot = '8-10 PM';
       
       salesGrouped[slot] = (salesGrouped[slot] || 0) + o.totalAmount;
+      ordersGrouped[slot] = (ordersGrouped[slot] || 0) + 1;
     });
   } else if (timeFilter === 'week') {
     // Days of the week
@@ -359,12 +361,14 @@ export default function AdminAnalysis() {
     for (let i = 6; i >= 0; i--) {
       const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
       salesGrouped[days[d.getDay()]] = 0;
+      ordersGrouped[days[d.getDay()]] = 0;
     }
     
     filteredServedOrders.forEach(o => {
       const d = new Date(o.createdAt);
       const dayName = days[d.getDay()];
       salesGrouped[dayName] = (salesGrouped[dayName] || 0) + o.totalAmount;
+      ordersGrouped[dayName] = (ordersGrouped[dayName] || 0) + 1;
     });
   } else if (timeFilter === 'month') {
     // Weeks of the month
@@ -372,6 +376,10 @@ export default function AdminAnalysis() {
     salesGrouped['Wk 2'] = 0;
     salesGrouped['Wk 3'] = 0;
     salesGrouped['Wk 4'] = 0;
+    ordersGrouped['Wk 1'] = 0;
+    ordersGrouped['Wk 2'] = 0;
+    ordersGrouped['Wk 3'] = 0;
+    ordersGrouped['Wk 4'] = 0;
     
     filteredServedOrders.forEach(o => {
       const elapsedDays = (Date.now() - o.createdAt) / (24 * 60 * 60 * 1000);
@@ -382,16 +390,18 @@ export default function AdminAnalysis() {
       else slot = 'Wk 4';
       
       salesGrouped[slot] = (salesGrouped[slot] || 0) + o.totalAmount;
+      ordersGrouped[slot] = (ordersGrouped[slot] || 0) + 1;
     });
   } else {
     // Lifetime: Group by month
     filteredServedOrders.forEach(o => {
       const monthStr = new Date(o.createdAt).toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
       salesGrouped[monthStr] = (salesGrouped[monthStr] || 0) + o.totalAmount;
+      ordersGrouped[monthStr] = (ordersGrouped[monthStr] || 0) + 1;
     });
     if (Object.keys(salesGrouped).length === 0) {
       const monthNames = ['Apr 26', 'May 26', 'Jun 26'];
-      monthNames.forEach(m => { salesGrouped[m] = 0; });
+      monthNames.forEach(m => { salesGrouped[m] = 0; ordersGrouped[m] = 0; });
     }
   }
 
@@ -425,6 +435,12 @@ export default function AdminAnalysis() {
   const areaPath = points.length > 1
     ? `${linePath} L ${points[points.length - 1].x} ${svgHeight - paddingY} L ${points[0].x} ${svgHeight - paddingY} Z`
     : points.length === 1 ? `M ${points[0].x - 20} ${points[0].y} L ${points[0].x + 20} ${points[0].y} L ${points[0].x + 20} ${svgHeight - paddingY} L ${points[0].x - 20} ${svgHeight - paddingY} Z` : '';
+
+  const orderPoints = Object.entries(ordersGrouped).map(([date, count]) => ({
+    date,
+    count
+  }));
+  const maxOrders = Math.max(...orderPoints.map(p => p.count)) || 10;
 
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
@@ -747,6 +763,167 @@ export default function AdminAnalysis() {
                   </text>
                 </g>
               ))}
+            </svg>
+          </div>
+        </div>
+
+        {/* Order Volume Trend */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <ShoppingBag size={18} color="var(--brand)" />
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Order Volume ({timeFilter})</span>
+          </div>
+
+          <div style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: 8, display: 'flex', justifyContent: 'center' }}>
+            <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ overflow: 'visible' }}>
+              {[0, 0.25, 0.5, 0.75, 1].map((p, idx) => {
+                const y = paddingY + p * chartHeight;
+                return (
+                  <line 
+                    key={idx} x1={paddingX} y1={y} x2={svgWidth - paddingX} y2={y} 
+                    stroke="var(--border)" strokeWidth="1" strokeDasharray="3 3" 
+                  />
+                );
+              })}
+
+              {orderPoints.map((p, idx) => {
+                const x = orderPoints.length > 1
+                  ? paddingX + (idx / (orderPoints.length - 1)) * chartWidth
+                  : paddingX + chartWidth / 2;
+                const barWidth = Math.max(12, Math.min(24, chartWidth / (orderPoints.length * 1.5)));
+                const barHeight = (p.count / maxOrders) * chartHeight;
+                const barY = svgHeight - paddingY - barHeight;
+
+                return (
+                  <g key={idx}>
+                    <rect
+                      x={x - barWidth / 2}
+                      y={barY}
+                      width={barWidth}
+                      height={barHeight}
+                      fill="var(--brand)"
+                      opacity="0.85"
+                      rx="3"
+                    />
+                    <text 
+                      x={x} y={barY - 6} textAnchor="middle" 
+                      fill="var(--text-primary)" fontSize="9" fontWeight="700"
+                    >
+                      {p.count}
+                    </text>
+                    <text 
+                      x={x} y={svgHeight - 4} textAnchor="middle" 
+                      fill="var(--text-muted)" fontSize="9" fontWeight="600"
+                    >
+                      {p.date}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Category Breakdown & Peak Hours Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 20 }}>
+        {/* Category Breakdown */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+              <span style={{ fontSize: 16 }}>📊</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Category Contribution ({timeFilter})</span>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {Object.keys(categoryRevenue).length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 20 }}>
+                  No category data for this timeframe.
+                </p>
+              ) : (
+                Object.entries(categoryRevenue)
+                  .sort((a, b) => b[1].revenue - a[1].revenue)
+                  .map(([catId, data]) => {
+                    const pct = totalFilteredServedSales > 0 ? Math.round((data.revenue / totalFilteredServedSales) * 100) : 0;
+                    return (
+                      <div key={catId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{data.name}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {state.restaurant.currency}{Math.round(data.revenue).toLocaleString('en-IN')} ({pct}%)
+                          </span>
+                        </div>
+                        <div style={{ height: 6, background: 'var(--bg-elevated)', borderRadius: 99, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: 'var(--brand)', borderRadius: 99 }} />
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Hourly Order Load */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <Clock size={18} color="var(--brand)" />
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Peak Hours (Hourly Order Volume)</span>
+          </div>
+
+          <div style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: 8, display: 'flex', justifyContent: 'center' }}>
+            <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ overflow: 'visible' }}>
+              {[0, 0.25, 0.5, 0.75, 1].map((p, idx) => {
+                const y = paddingY + p * chartHeight;
+                return (
+                  <line 
+                    key={idx} x1={paddingX} y1={y} x2={svgWidth - paddingX} y2={y} 
+                    stroke="var(--border)" strokeWidth="1" strokeDasharray="3 3" 
+                  />
+                );
+              })}
+
+              {hourlyOrderCounts.map((count, hr) => {
+                const maxHourly = Math.max(...hourlyOrderCounts) || 1;
+                const x = paddingX + (hr / 23) * chartWidth;
+                const barWidth = 8;
+                const barHeight = (count / maxHourly) * chartHeight;
+                const barY = svgHeight - paddingY - barHeight;
+
+                const showLabel = hr % 4 === 0;
+                const hrStr = hr % 12 || 12;
+                const ampm = hr >= 12 ? 'PM' : 'AM';
+
+                return (
+                  <g key={hr}>
+                    <rect
+                      x={x - barWidth / 2}
+                      y={barY}
+                      width={barWidth}
+                      height={barHeight}
+                      fill={count === maxHourly && count > 0 ? 'var(--brand)' : 'var(--border-brand)'}
+                      opacity={count === maxHourly ? '1' : '0.6'}
+                      rx="2"
+                    />
+                    {count > 0 && (
+                      <text 
+                        x={x} y={barY - 4} textAnchor="middle" 
+                        fill="var(--text-primary)" fontSize="8" fontWeight="700"
+                      >
+                        {count}
+                      </text>
+                    )}
+                    {showLabel && (
+                      <text 
+                        x={x} y={svgHeight - 4} textAnchor="middle" 
+                        fill="var(--text-muted)" fontSize="8" fontWeight="600"
+                      >
+                        {hrStr}{ampm}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
             </svg>
           </div>
         </div>
