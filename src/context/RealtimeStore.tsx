@@ -2339,7 +2339,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeSchedules = onValue(ref(db, `schedules/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const schs = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MealSchedule[];
+        const schsRaw = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean);
+        const schs = schsRaw.map((s: any) => ({
+          ...s,
+          targets: s.targets || []
+        })) as MealSchedule[];
         dispatch({
           type: 'SET_STATE',
           payload: { schedules: schs }
@@ -2417,7 +2421,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 15. Listen to addons
     const unsubscribeAddons = onValue(ref(db, `addons/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
-      const items: AddonConfig[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as AddonConfig[] : [];
+      const rawItems = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) : [];
+      const items: AddonConfig[] = rawItems.map((addon: any) => ({
+        ...addon,
+        options: addon.options || [],
+        targetCategoryIds: addon.targetCategoryIds || [],
+        targetMealIds: addon.targetMealIds || []
+      })) as AddonConfig[];
       dispatch({ type: 'SYNC_ADDONS', payload: { restaurantId: targetRestaurantId, addons: items } });
     });
 

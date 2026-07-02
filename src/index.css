@@ -15,11 +15,13 @@
   --brand-hover: #E06B00;
   --brand-dim: rgba(255, 125, 0, 0.15);
   --brand-glow: rgba(255, 125, 0, 0.35);
+  --brand-light: rgba(255, 125, 0, 0.15);
 
   /* Backgrounds */
   --bg-primary: #0D0D0D;
   --bg-secondary: #111111;
   --bg-surface: #181818;
+  --bg-card: #181818;
   --bg-elevated: #1f1f1f;
   --bg-glass: rgba(24, 24, 24, 0.7);
   --bg-glass-light: rgba(255, 255, 255, 0.04);
@@ -78,10 +80,14 @@
 }
 
 .light-mode {
+  /* Brand */
+  --brand-light: rgba(255, 125, 0, 0.08);
+
   /* Backgrounds */
   --bg-primary: #F9F9F9;
   --bg-secondary: #FFFFFF;
   --bg-surface: #F3F3F3;
+  --bg-card: #FFFFFF;
   --bg-elevated: #EBEBEB;
   --bg-glass: rgba(255, 255, 255, 0.75);
   --bg-glass-light: rgba(0, 0, 0, 0.02);

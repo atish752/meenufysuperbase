@@ -1088,12 +1088,13 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
   const toggleScheduleTarget = (type: 'category' | 'item', id: string) => {
     setScheduleForm(prev => {
-      const exists = prev.targets.some(t => t.type === type && t.id === id);
+      const targets = prev.targets || [];
+      const exists = targets.some(t => t.type === type && t.id === id);
       return {
         ...prev,
         targets: exists
-          ? prev.targets.filter(t => !(t.type === type && t.id === id))
-          : [...prev.targets, { type, id }],
+          ? targets.filter(t => !(t.type === type && t.id === id))
+          : [...targets, { type, id }],
       };
     });
   };
@@ -1682,9 +1683,9 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
                         {/* Options list */}
                         <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Options ({addon.options.length})</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Options ({(addon.options || []).length})</span>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                            {addon.options.map((opt: any) => (
+                            {(addon.options || []).map((opt: any) => (
                               <div
                                 key={opt.id}
                                 style={{
@@ -2413,11 +2414,11 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                   <div key={sch.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-elevated)', borderRadius: 8, padding: '8px 12px', border: '1px solid var(--border)' }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{sch.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sch.fromTime} – {sch.toTime} · {sch.targets.length} target(s)</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sch.fromTime} – {sch.toTime} · {(sch.targets || []).length} target(s)</div>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: 10 }}
-                        onClick={() => { setEditingSchedule(sch); setScheduleForm({ name: sch.name, fromTime: sch.fromTime, toTime: sch.toTime, targets: [...sch.targets] }); }}>
+                        onClick={() => { setEditingSchedule(sch); setScheduleForm({ name: sch.name, fromTime: sch.fromTime, toTime: sch.toTime, targets: [...(sch.targets || [])] }); }}>
                         <Pencil size={11} />
                       </button>
                       <button className="btn btn-sm" style={{ padding: '4px 8px', fontSize: 10, background: 'transparent', border: '1px solid var(--error)', color: 'var(--error)' }}
@@ -2460,7 +2461,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>Apply to Categories <span style={{ fontWeight: 400, fontSize: 10 }}>(items outside these times will be hidden)</span></div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {adminCategories.map(cat => {
-                    const sel = scheduleForm.targets.some(t => t.type === 'category' && t.id === cat.id);
+                    const sel = (scheduleForm.targets || []).some(t => t.type === 'category' && t.id === cat.id);
                     return (
                       <button key={cat.id} type="button"
                         onClick={() => toggleScheduleTarget('category', cat.id)}
@@ -2477,7 +2478,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>Apply to Specific Items <span style={{ fontWeight: 400, fontSize: 10 }}>(optional — overrides category rules)</span></div>
                 <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {adminMenuItems.map(item => {
-                    const sel = scheduleForm.targets.some(t => t.type === 'item' && t.id === item.id);
+                    const sel = (scheduleForm.targets || []).some(t => t.type === 'item' && t.id === item.id);
                     return (
                       <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '5px 8px', borderRadius: 6, background: sel ? 'rgba(255,125,0,0.08)' : 'transparent' }}>
                         <input type="checkbox" checked={sel} onChange={() => toggleScheduleTarget('item', item.id)} style={{ accentColor: 'var(--brand)' }} />
