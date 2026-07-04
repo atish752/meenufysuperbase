@@ -833,3 +833,98 @@ input, textarea, select {
   white-space: nowrap;
   box-shadow: none;
 }
+
+/* Cooking Pan Loading Animation */
+.cooking-animation {
+  position: relative;
+  width: 140px;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+.frying-pan {
+  position: relative;
+  width: 90px;
+  height: 70px;
+  transform-origin: bottom center;
+  animation: panShake 1.8s ease-in-out infinite;
+}
+.pan-bowl {
+  position: absolute;
+  bottom: 5px;
+  left: 0;
+  width: 60px;
+  height: 20px;
+  background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
+  border: 2px solid var(--brand);
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.35);
+}
+.pan-handle {
+  position: absolute;
+  bottom: 14px;
+  left: 58px;
+  width: 26px;
+  height: 6px;
+  background: linear-gradient(to right, var(--brand), #ffa857);
+  border-radius: 3px;
+  transform: rotate(-15deg);
+}
+.food-toss {
+  position: absolute;
+  bottom: 22px;
+  left: 8px;
+  width: 44px;
+  height: 70px;
+}
+.food-item {
+  position: absolute;
+  font-size: 15px;
+  opacity: 0;
+  animation: foodFly 1.8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.slice-carrot { left: 4px; animation-delay: 0.1s; }
+.slice-onion { left: 14px; animation-delay: 0.5s; }
+.slice-pepper { left: 26px; animation-delay: 0.9s; }
+.slice-tomato { left: 10px; animation-delay: 1.3s; }
+
+.cooking-fire {
+  position: absolute;
+  bottom: 5px;
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  width: 50px;
+  left: 5px;
+  z-index: -1;
+}
+.flame {
+  width: 6px;
+  height: 14px;
+  background: #ff4500;
+  border-radius: 3px 3px 0 0;
+  animation: flameRise 0.6s ease-in-out infinite alternate;
+}
+.flame-1 { height: 11px; animation-delay: 0.1s; }
+.flame-2 { height: 17px; background: var(--brand); animation-delay: 0s; }
+.flame-3 { height: 13px; animation-delay: 0.2s; }
+
+@keyframes panShake {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-6px) rotate(-5deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-6px) rotate(5deg); }
+}
+@keyframes foodFly {
+  0% { transform: translateY(10px) scale(0.5); opacity: 0; }
+  30% { opacity: 1; }
+  50% { transform: translateY(-38px) rotate(180deg) scale(1.1); opacity: 1; }
+  80% { opacity: 0; }
+  100% { transform: translateY(10px) scale(0.5); opacity: 0; }
+}
+@keyframes flameRise {
+  from { transform: scaleY(0.9); opacity: 0.8; }
+  to { transform: scaleY(1.3); opacity: 1; }
+}

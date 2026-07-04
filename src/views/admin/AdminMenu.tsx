@@ -2590,12 +2590,25 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             {/* STEP 3: Processing */}
             {extractorStep === 'processing' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 16 }}>
-                <div style={{ position: 'relative', width: 60, height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Loader2 size={44} color="var(--brand)" style={{ animation: 'spin 1s linear infinite' }} />
-                  <Sparkles size={16} color="var(--brand)" style={{ position: 'absolute' }} />
+                <div className="cooking-animation" style={{ marginBottom: 12 }}>
+                  <div className="frying-pan">
+                    <div className="pan-handle"></div>
+                    <div className="pan-bowl"></div>
+                    <div className="food-toss">
+                      <div className="food-item slice-carrot">🥕</div>
+                      <div className="food-item slice-onion">🧅</div>
+                      <div className="food-item slice-pepper">🫑</div>
+                      <div className="food-item slice-tomato">🍅</div>
+                    </div>
+                  </div>
+                  <div className="cooking-fire">
+                    <div className="flame flame-1"></div>
+                    <div className="flame flame-2"></div>
+                    <div className="flame flame-3"></div>
+                  </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 6, color: 'var(--text-primary)' }}>Processing Menu...</h3>
+                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 6, color: 'var(--text-primary)', fontWeight: 700 }}>AI Chef is Parsing Your Menu...</h3>
                   <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{processingMessage}</p>
                 </div>
               </div>
@@ -2913,8 +2926,26 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
       {bulkAiLoading && (
         <div className="modal-backdrop" style={{ zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" style={{ maxWidth: 400, padding: 24, textAlign: 'center', background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', borderRadius: 16 }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>✨</div>
+          <div className="modal-content" style={{ maxWidth: 400, padding: '28px 24px', textAlign: 'center', background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', borderRadius: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <div className="cooking-animation">
+                <div className="frying-pan">
+                  <div className="pan-handle"></div>
+                  <div className="pan-bowl"></div>
+                  <div className="food-toss">
+                    <div className="food-item slice-carrot">🥕</div>
+                    <div className="food-item slice-onion">🧅</div>
+                    <div className="food-item slice-pepper">🫑</div>
+                    <div className="food-item slice-tomato">🍅</div>
+                  </div>
+                </div>
+                <div className="cooking-fire">
+                  <div className="flame flame-1"></div>
+                  <div className="flame flame-2"></div>
+                  <div className="flame flame-3"></div>
+                </div>
+              </div>
+            </div>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>Generating AI Descriptions</h3>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>
               Please keep this page open. Generating menu descriptions using Gemini AI...

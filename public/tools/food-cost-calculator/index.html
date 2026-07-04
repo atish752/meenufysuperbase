@@ -212,6 +212,102 @@
     }
     @keyframes toastIn  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
     @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(6px); } }
+
+    /* Cooking Pan Loading Animation */
+    .cooking-animation {
+      position: relative;
+      width: 140px;
+      height: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      margin: 0 auto;
+    }
+    .frying-pan {
+      position: relative;
+      width: 90px;
+      height: 70px;
+      transform-origin: bottom center;
+      animation: panShake 1.8s ease-in-out infinite;
+    }
+    .pan-bowl {
+      position: absolute;
+      bottom: 5px;
+      left: 0;
+      width: 60px;
+      height: 20px;
+      background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
+      border: 2px solid #EA580C;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.35);
+    }
+    .pan-handle {
+      position: absolute;
+      bottom: 14px;
+      left: 58px;
+      width: 26px;
+      height: 6px;
+      background: linear-gradient(to right, #EA580C, #ffa857);
+      border-radius: 3px;
+      transform: rotate(-15deg);
+    }
+    .food-toss {
+      position: absolute;
+      bottom: 22px;
+      left: 8px;
+      width: 44px;
+      height: 70px;
+    }
+    .food-item {
+      position: absolute;
+      font-size: 15px;
+      opacity: 0;
+      animation: foodFly 1.8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+    }
+    .slice-carrot { left: 4px; animation-delay: 0.1s; }
+    .slice-onion { left: 14px; animation-delay: 0.5s; }
+    .slice-pepper { left: 26px; animation-delay: 0.9s; }
+    .slice-tomato { left: 10px; animation-delay: 1.3s; }
+
+    .cooking-fire {
+      position: absolute;
+      bottom: 5px;
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+      width: 50px;
+      left: 5px;
+      z-index: -1;
+    }
+    .flame {
+      width: 6px;
+      height: 14px;
+      background: #ff4500;
+      border-radius: 3px 3px 0 0;
+      animation: flameRise 0.6s ease-in-out infinite alternate;
+    }
+    .flame-1 { height: 11px; animation-delay: 0.1s; }
+    .flame-2 { height: 17px; background: #EA580C; animation-delay: 0s; }
+    .flame-3 { height: 13px; animation-delay: 0.2s; }
+
+    @keyframes panShake {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-6px) rotate(-5deg); }
+      50% { transform: translateY(0) rotate(0deg); }
+      75% { transform: translateY(-6px) rotate(5deg); }
+    }
+    @keyframes foodFly {
+      0% { transform: translateY(10px) scale(0.5); opacity: 0; }
+      30% { opacity: 1; }
+      50% { transform: translateY(-38px) rotate(180deg) scale(1.1); opacity: 1; }
+      80% { opacity: 0; }
+      100% { transform: translateY(10px) scale(0.5); opacity: 0; }
+    }
+    @keyframes flameRise {
+      from { transform: scaleY(0.9); opacity: 0.8; }
+      to { transform: scaleY(1.3); opacity: 1; }
+    }
   </style>
 
   <!-- JSON-LD Structured Data: WebSite -->
@@ -268,7 +364,7 @@
   <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
     <div class="max-width-container mx-auto px-4 max-w-7xl h-16 flex items-center justify-between">
       <a href="/tools/" class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg bg-brand flex items-center justify-center font-bold text-white font-display text-lg">M</div>
+        <img src="/meenufy_logo_erased.png" alt="Meenufy Logo" class="w-8 h-8 object-contain" />
         <span class="font-display font-extrabold text-xl text-gray-900 tracking-tight">Meenufy</span>
       </a>
       <div class="flex items-center gap-4">
@@ -341,7 +437,7 @@
           <div>
             <div class="flex items-center justify-between mb-2">
               <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Dish Name</label>
-              <button id="aiAutofillBtn" class="text-[10px] font-bold text-brand bg-brand-light px-2 py-0.5 rounded border border-orange-200 hover:bg-orange-100 transition flex items-center gap-1">
+              <button id="aiAutofillBtn" class="text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 px-3 py-1 rounded-lg shadow-sm hover:shadow hover:scale-105 transition flex items-center gap-1 border border-orange-400">
                 ✨ AI Auto-Fill
               </button>
             </div>
@@ -582,6 +678,9 @@
         </button>
         <button id="copyResultsBtn" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2">
           📋 Copy Results
+        </button>
+        <button id="copyExcelBtn" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2">
+          📊 Copy Excel Sheet
         </button>
         <button id="shareBtn" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-xl border border-gray-200 transition text-sm flex items-center justify-center gap-2">
           🔗 Share Calculations
@@ -1081,7 +1180,7 @@
     <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
       <div class="space-y-4">
         <div class="flex items-center gap-2">
-          <div class="w-6 h-6 rounded bg-brand flex items-center justify-center font-bold text-white font-display text-sm">M</div>
+          <img src="/meenufy_logo_erased.png" alt="Meenufy Logo" class="w-6 h-6 object-contain" />
           <span class="font-display font-extrabold text-lg text-white tracking-tight">Meenufy</span>
         </div>
         <p class="text-xs leading-relaxed text-gray-500">The complete restaurant management platform for modern restaurants worldwide.</p>
@@ -1120,7 +1219,35 @@
         <a href="#" class="hover:underline">Contact</a>
       </div>
     </div>
-  </footer>
+  <!-- AI Cooking Loader Overlay -->
+  <div id="aiLoadingOverlay" class="fixed inset-0 bg-[#0d0d0d]/95 backdrop-blur-md z-[99999] flex items-center justify-center font-sans text-white hidden">
+    <div class="text-center max-w-md p-8 bg-white/5 border border-orange-500/15 rounded-3xl shadow-2xl flex flex-col items-center gap-5">
+      <div class="cooking-animation">
+        <div class="frying-pan">
+          <div class="pan-handle"></div>
+          <div class="pan-bowl"></div>
+          <div class="food-toss">
+            <div class="food-item slice-carrot">🥕</div>
+            <div class="food-item slice-onion">🧅</div>
+            <div class="food-item slice-pepper">🫑</div>
+            <div class="food-item slice-tomato">🍅</div>
+          </div>
+        </div>
+        <div class="cooking-fire">
+          <div class="flame flame-1"></div>
+          <div class="flame flame-2"></div>
+          <div class="flame flame-3"></div>
+        </div>
+      </div>
+      <h3 class="text-xl font-bold text-white tracking-tight">AI Chef is Simmering Your Recipe...</h3>
+      <p class="text-xs text-gray-400 leading-normal max-w-[280px]">
+        Gathering fresh ingredients, estimating market prices, and calculating ideal margins in real time.
+      </p>
+      <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mt-2">
+        <div id="aiLoaderProgress" class="h-full bg-gradient-to-r from-brand to-orange-400 rounded-full w-0 transition-all duration-300"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

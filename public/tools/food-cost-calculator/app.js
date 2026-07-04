@@ -395,9 +395,22 @@ async function handleAIAutofill() {
   }
 
   const btn = document.getElementById('aiAutofillBtn');
-  const oldText = btn.innerText;
-  btn.innerText = '✨ Generating...';
   btn.disabled = true;
+
+  // Show overlay
+  const overlay = document.getElementById('aiLoadingOverlay');
+  const progressBar = document.getElementById('aiLoaderProgress');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+  }
+  if (progressBar) {
+    progressBar.style.width = '0%';
+    // Animate progress to 90%
+    setTimeout(() => {
+      progressBar.style.width = '90%';
+      progressBar.style.transition = 'width 10s cubic-bezier(0.1, 0.8, 0.25, 1)';
+    }, 50);
+  }
 
   const promptText = `Extract or estimate the standard recipe ingredients used to make a portion of the dish: "${dishName}".
 The target pricing currency is ${currentCurrency.code}.
@@ -438,7 +451,14 @@ Estimate reasonable quantities and average local market prices.`;
 
       renderIngredientRows();
       calculateAndRender();
-      showToast(`✨ Recipe ingredients for "${dishName}" generated successfully using AI!`);
+      
+      if (progressBar) {
+        progressBar.style.transition = 'width 0.2s ease-out';
+        progressBar.style.width = '100%';
+      }
+      setTimeout(() => {
+        showToast(`✨ Recipe ingredients for "${dishName}" generated successfully using AI!`);
+      }, 300);
     } else {
       throw new Error('Invalid JSON format from AI response');
     }
@@ -446,19 +466,57 @@ Estimate reasonable quantities and average local market prices.`;
     console.error(e);
     showToast('❌ AI Autofill failed. Please try again or type the details manually.');
   } finally {
-    btn.innerText = oldText;
-    btn.disabled = false;
+    setTimeout(() => {
+      if (overlay) {
+        overlay.classList.add('hidden');
+      }
+      btn.disabled = false;
+    }, 500);
   }
 }
 
+function getSafePdfCurrencySymbol(symbol) {
+  if (symbol === '₹') return 'Rs.';
+  const asciiPattern = /^[\x00-\x7F]*$/;
+  if (!asciiPattern.test(symbol)) {
+    if (symbol === '₦') return 'NGN ';
+    if (symbol === '฿') return 'THB ';
+    if (symbol === 'KD') return 'KWD ';
+    if (symbol === 'GH₵') return 'GHS ';
+    return symbol;
+  }
+  return symbol;
+}
+
+function loadLogoImage() {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = '/meenufy_logo_erased.png';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+  });
+}
+
 // PDF generation using jsPDF
-function handlePDFExport() {
+async function handlePDFExport() {
   try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
     const restName = document.getElementById('restaurantNameInput').value || 'My Restaurant';
     const sym = currentCurrency.symbol;
+    const pdfSym = getSafePdfCurrencySymbol(sym);
+
+    // Load logo
+    const logoImg = await loadLogoImage();
+    if (logoImg) {
+      doc.addImage(logoImg, 'PNG', 152, 13, 12, 12);
+      doc.setFontSize(14);
+      doc.setFont('Helvetica', 'bold');
+      doc.setTextColor('#111827');
+      doc.text('Meenufy', 167, 21);
+      doc.setFont('Helvetica', 'normal');
+    }
 
     doc.setFontSize(22);
     doc.setTextColor('#F97316');
@@ -497,24 +555,25 @@ function handlePDFExport() {
       doc.setFillColor('#FFF7ED');
       doc.rect(20, 72, 170, 32, 'F');
 
-      doc.text(`Cost per Portion: ${sym}${costPerPortion.toFixed(2)}`, 25, 80);
-      doc.text(`Actual Food Cost %: ${actualCostPct ? actualCostPct.toFixed(1) + '%' : 'N/A'}`, 105, 80);
-      doc.text(`Recommended Price: ${sym}${recPrice ? recPrice.toFixed(2) : 'N/A'}`, 25, 92);
-      doc.text(`Gross Profit: ${sym}${grossProfit ? grossProfit.toFixed(2) : 'N/A'}`, 105, 92);
+      doc.text(`Cost per Portion: ${pdfSym}${costPerPortion.toFixed(2)}`, 25, 80);
+      doc.text(`Actual Food Cost %: ${actualCostPct ? actualCostPct.toFixed(1) + '%' : 'N/A'}`, 115, 80);
+      doc.text(`Recommended Price: ${pdfSym}${recPrice ? recPrice.toFixed(2) : 'N/A'}`, 25, 92);
+      doc.text(`Gross Profit: ${pdfSym}${grossProfit ? grossProfit.toFixed(2) : 'N/A'}`, 115, 92);
 
       const tableData = ingredients.map(ing => {
+        if (!ing.name) return null;
         const cost = getIngredientCost(ing);
         const total = costPerPortion * portions;
         const pct = total > 0 ? (cost / total) * 100 : 0;
         return [
           ing.name || 'Unnamed',
-          `${ing.buyPrice} / ${ing.buyUnit}`,
+          `${pdfSym}${ing.buyPrice} / ${ing.buyUnit}`,
           `${ing.qtyUsed} ${ing.useUnit}`,
           `${ing.wastagePercent}%`,
-          `${sym}${cost.toFixed(2)}`,
+          `${pdfSym}${cost.toFixed(2)}`,
           `${pct.toFixed(1)}%`
         ];
-      });
+      }).filter(Boolean);
 
       doc.autoTable({
         startY: 112,
@@ -538,16 +597,16 @@ function handlePDFExport() {
       doc.setFillColor('#FFF7ED');
       doc.rect(20, 66, 170, 26, 'F');
 
-      doc.text(`COGS: ${sym}${cogs.toFixed(2)}`, 25, 74);
-      doc.text(`Overall Food Cost %: ${foodCostPct ? foodCostPct.toFixed(1) + '%' : 'N/A'}`, 105, 74);
-      doc.text(`Total Gross Profit: ${sym}${grossProfit.toFixed(2)}`, 25, 84);
+      doc.text(`COGS: ${pdfSym}${cogs.toFixed(2)}`, 25, 74);
+      doc.text(`Overall Food Cost %: ${foodCostPct ? foodCostPct.toFixed(1) + '%' : 'N/A'}`, 115, 74);
+      doc.text(`Total Gross Profit: ${pdfSym}${grossProfit.toFixed(2)}`, 25, 84);
 
       const tableData = [
-        ['Beginning Inventory Value', `${sym}${beg.toFixed(2)}`],
-        ['(+) Purchases', `${sym}${pur.toFixed(2)}`],
-        ['(−) Ending Inventory Value', `${sym}${end.toFixed(2)}`],
-        ['Total Cost of Goods Sold (COGS)', `${sym}${cogs.toFixed(2)}`],
-        ['Total Food Sales', `${sym}${sales.toFixed(2)}`]
+        ['Beginning Inventory Value', `${pdfSym}${beg.toFixed(2)}`],
+        ['(+) Purchases', `${pdfSym}${pur.toFixed(2)}`],
+        ['(−) Ending Inventory Value', `${pdfSym}${end.toFixed(2)}`],
+        ['Total Cost of Goods Sold (COGS)', `${pdfSym}${cogs.toFixed(2)}`],
+        ['Total Food Sales', `${pdfSym}${sales.toFixed(2)}`]
       ];
 
       doc.autoTable({
@@ -558,9 +617,23 @@ function handlePDFExport() {
       });
     }
 
+    // Highlighted Tagline Footer at the bottom
+    doc.setDrawColor('#F97316');
+    doc.line(20, 276, 190, 276);
+
+    doc.setFontSize(11);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor('#F97316');
+    doc.text('Meenufy', 20, 284);
+
+    doc.setFontSize(9);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor('#374151');
+    doc.text('— A hassle-free way to run your restaurant.', 38, 284);
+
     doc.setFontSize(8);
     doc.setTextColor('#9CA3AF');
-    doc.text('Calculated using Meenufy — meenufy.com/tools/food-cost-calculator', 20, 285);
+    doc.text('meenufy.com/tools/food-cost-calculator', 132, 284);
 
     doc.save('meenufy-food-cost-report.pdf');
     showToast('📄 PDF report generated and downloaded!');
@@ -568,6 +641,65 @@ function handlePDFExport() {
     console.error(e);
     showToast('❌ Failed to download PDF report.');
   }
+}
+
+// Copy results as Excel sheet (TSV)
+function handleCopyExcel() {
+  const sym = currentCurrency.symbol;
+  let text = "";
+
+  if (currentMode === 'recipe') {
+    const dish = document.getElementById('dishNameInput').value || 'Dish';
+    const portions = parseFloat(document.getElementById('portionsInput').value) || 1;
+    const targetPct = parseFloat(document.getElementById('targetCostInput').value) || 30;
+    const sellPrice = parseFloat(document.getElementById('sellingPriceInput').value) || 0;
+    
+    let totalCost = 0;
+    ingredients.forEach(ing => { totalCost += getIngredientCost(ing); });
+    const costPerPortion = totalCost / portions;
+    const actualCostPct = sellPrice > 0 ? (costPerPortion / sellPrice) * 100 : null;
+    const recommendedPrice = targetPct > 0 ? (costPerPortion / (targetPct / 100)) : 0;
+    const grossProfit = sellPrice - costPerPortion;
+
+    text += `Recipe Food Cost Report\n`;
+    text += `Dish Name:\t${dish}\n`;
+    text += `Portions:\t${portions}\n`;
+    text += `Target Food Cost %:\t${targetPct}%\n`;
+    text += `Cost per Portion:\t${sym}${costPerPortion.toFixed(2)}\n`;
+    text += `Actual Food Cost %:\t${actualCostPct ? actualCostPct.toFixed(1) + '%' : 'N/A'}\n`;
+    text += `Selling Price:\t${sym}${sellPrice.toFixed(2)}\n`;
+    text += `Recommended Selling Price:\t${sym}${recommendedPrice.toFixed(2)}\n`;
+    text += `Gross Profit per Portion:\t${sym}${grossProfit.toFixed(2)}\n\n`;
+
+    text += `Ingredient\tQuantity Used\tUnit Used\tBuy Price (${sym})\tBuy Unit\tWastage (%)\tTotal Cost (${sym})\t% of Total\n`;
+    
+    ingredients.forEach(ing => {
+      if (!ing.name) return;
+      const cost = getIngredientCost(ing);
+      const pct = totalCost > 0 ? (cost / totalCost) * 100 : 0;
+      text += `${ing.name}\t${ing.qtyUsed}\t${ing.useUnit}\t${ing.buyPrice}\t${ing.buyUnit}\t${ing.wastagePercent}%\t${cost.toFixed(2)}\t${pct.toFixed(1)}%\n`;
+    });
+  } else {
+    const beg = parseFloat(document.getElementById('begInventoryInput').value) || 0;
+    const pur = parseFloat(document.getElementById('purchasesInput').value) || 0;
+    const end = parseFloat(document.getElementById('endingInventoryInput').value) || 0;
+    const sales = parseFloat(document.getElementById('totalSalesInput').value) || 0;
+    const cogs = beg + pur - end;
+    const foodCostPct = sales > 0 ? (cogs / sales) * 100 : null;
+
+    text += `Inventory Overall Cost Report\n`;
+    text += `Period:\t${currentPeriod}\n`;
+    text += `Beginning Inventory:\t${sym}${beg.toFixed(2)}\n`;
+    text += `Purchases:\t${sym}${pur.toFixed(2)}\n`;
+    text += `Ending Inventory:\t${sym}${end.toFixed(2)}\n`;
+    text += `Total Sales:\t${sym}${sales.toFixed(2)}\n`;
+    text += `COGS (Cost of Goods Sold):\t${sym}${cogs.toFixed(2)}\n`;
+    text += `Overall Food Cost %:\t${foodCostPct ? foodCostPct.toFixed(1) + '%' : 'N/A'}\n`;
+  }
+
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('📊 Excel-compatible table copied to clipboard! You can now paste it directly into Excel or Google Sheets.');
+  });
 }
 
 // Copy results to clipboard
@@ -805,9 +937,9 @@ document.addEventListener('DOMContentLoaded', () => {
     whatIfBody.classList.toggle('hidden');
   });
 
-  // Action listeners
   document.getElementById('pdfExportBtn').addEventListener('click', handlePDFExport);
   document.getElementById('copyResultsBtn').addEventListener('click', handleCopyResults);
+  document.getElementById('copyExcelBtn').addEventListener('click', handleCopyExcel);
   document.getElementById('shareBtn').addEventListener('click', handleShareCalculations);
   document.getElementById('resetBtn').addEventListener('click', handleResetCalculator);
 
