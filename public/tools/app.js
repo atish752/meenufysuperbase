@@ -319,6 +319,7 @@ let searchQuery  = '';
 // RENDER A SINGLE CARD
 // =============================================
 function renderCard(tool, delay = 0) {
+  const isActive = tool.id === 'food-cost-calc';
   const badgeHtml = (() => {
     if (!tool.badge) return '';
     const map = {
@@ -331,15 +332,32 @@ function renderCard(tool, delay = 0) {
     return `<span class="card-badge ${cls}">${label}</span>`;
   })();
 
-  return `
-    <div class="tool-card" data-id="${tool.id}" data-group="${tool.group}"
-         style="animation-delay:${delay}ms"
-         onclick="onToolClick('${tool.id}', event)">
-      <div class="card-icon-wrap" style="background:${tool.iconBg}">${tool.icon}</div>
-      <div class="card-title">${tool.title}</div>
-      <div class="card-desc">${tool.desc}</div>
-      ${badgeHtml}
-    </div>`;
+  if (isActive) {
+    return `
+      <div class="tool-card" data-id="${tool.id}" data-group="${tool.group}"
+           style="animation-delay:${delay}ms"
+           onclick="onToolClick('${tool.id}', event)">
+        <div class="card-icon-wrap" style="background:${tool.iconBg}">${tool.icon}</div>
+        <div class="card-title">${tool.title}</div>
+        <div class="card-desc">${tool.desc}</div>
+        ${badgeHtml}
+      </div>`;
+  } else {
+    return `
+      <div class="tool-card inactive-tool" data-id="${tool.id}" data-group="${tool.group}"
+           style="animation-delay:${delay}ms; cursor: not-allowed; position: relative; overflow: hidden;">
+        <div class="card-blur-wrap" style="filter: blur(4.5px); opacity: 0.55; pointer-events: none; transition: filter 0.3s;">
+          <div class="card-icon-wrap" style="background:${tool.iconBg}">${tool.icon}</div>
+          <div class="card-title" style="color: #64748b;">${tool.title}</div>
+          <div class="card-desc" style="color: #94a3b8;">${tool.desc}</div>
+          ${badgeHtml}
+        </div>
+        <div class="coming-soon-overlay" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; pointer-events: none; text-align: center;">
+          <div class="card-title" style="font-weight: 700; color: #1e293b; margin-bottom: 6px; font-size: 13.5px; opacity: 0.95;">${tool.title}</div>
+          <span style="font-size: 9px; font-weight: 800; background: linear-gradient(135deg, #f97316 0%, #d97706 100%); color: white; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 3px 6px rgba(249,115,22,0.25);">Coming Soon</span>
+        </div>
+      </div>`;
+  }
 }
 
 // =============================================
