@@ -135,47 +135,43 @@
       <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-6">
         <div>
           <h3 class="text-lg font-black text-gray-900 font-display">1. Custom QR Code Generator</h3>
-          <p class="text-xs text-gray-500 mt-1">Generate a scannable QR code pointing to your digital menu link.</p>
+          <p class="text-xs text-gray-500 mt-1">Generate a printable flyer containing your menu link and custom text.</p>
         </div>
 
         <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1.5">Restaurant/Outlet Name</label>
+            <input type="text" id="qrOutletNameInput" oninput="generateCustomQr()" placeholder="Fantastic Food" value="Fantastic Food" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1.5">Call-to-Action Message</label>
+            <input type="text" id="qrMessageInput" oninput="generateCustomQr()" placeholder="Scan to View Menu" value="Scan to View Menu" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium" />
+          </div>
+
           <div>
             <label class="block text-xs font-bold text-gray-700 mb-1.5">Your Digital Menu URL</label>
             <input type="url" id="qrUrlInput" oninput="generateCustomQr()" placeholder="https://meenufy.com/view/demo-cafe" value="https://meenufy.com/view/demo-cafe" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium" />
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5">Color Theme</label>
-              <select id="qrColorSelect" onchange="generateCustomQr()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium">
-                <option value="ea580c">Meenufy Orange</option>
-                <option value="111827">Dark Charcoal</option>
-                <option value="1d4ed8">Classic Blue</option>
-                <option value="047857">Forest Green</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5">Center Icon</label>
-              <select id="qrIconSelect" onchange="toggleCenterIcon()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium">
-                <option value="logo">Meenufy Logo</option>
-                <option value="none">No Icon</option>
-              </select>
-            </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1.5">Color Theme</label>
+            <select id="qrColorSelect" onchange="generateCustomQr()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium">
+              <option value="ea580c">Meenufy Orange</option>
+              <option value="111827">Dark Charcoal</option>
+              <option value="1d4ed8">Classic Blue</option>
+              <option value="047857">Forest Green</option>
+            </select>
           </div>
         </div>
 
         <!-- QR Display Box -->
         <div class="bg-gray-50 rounded-2xl p-6 flex flex-col items-center justify-center border border-dashed border-gray-200 relative">
-          <!-- ecc=H is applied here to support scannability when overlayed with logo -->
           <div class="relative w-48 h-48 bg-white p-2.5 rounded-xl shadow-md border border-gray-100 flex items-center justify-center">
-            <img id="qrCodeImage" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&ecc=H&color=ea580c&data=https%3A%2F%2Fmeenufy.com%2Fview%2Fdemo-cafe" alt="Digital Menu QR" class="w-full h-full object-contain" />
-            <!-- Centered Overlay Logo -->
-            <div id="qrLogoOverlay" class="absolute w-10 h-10 bg-white p-1 rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
-              <img src="/meenufy_logo_transparent.png" alt="Overlay Logo" class="w-7 h-7 object-contain" />
-            </div>
+            <img id="qrCodeImage" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&ecc=M&color=ea580c&data=https%3A%2F%2Fmeenufy.com%2Fview%2Fdemo-cafe" alt="Digital Menu QR" class="w-full h-full object-contain" />
           </div>
           <button onclick="downloadQrCode()" class="mt-4 px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition active:scale-95 shadow flex items-center gap-1.5">
-            📥 Download QR Code
+            📥 Download Branded Flyer
           </button>
         </div>
       </div>
@@ -536,42 +532,94 @@
       const qrImg = document.getElementById('qrCodeImage');
       
       const encodedUrl = encodeURIComponent(url);
-      // Adding ecc=H explicitly for scannability with logo overlay
-      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&ecc=H&color=${color}&data=${encodedUrl}`;
-    }
-
-    function toggleCenterIcon() {
-      const select = document.getElementById('qrIconSelect').value;
-      const overlay = document.getElementById('qrLogoOverlay');
-      if (select === 'logo') {
-        overlay.classList.remove('hidden');
-      } else {
-        overlay.classList.add('hidden');
-      }
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&ecc=M&color=${color}&data=${encodedUrl}`;
     }
 
     async function downloadQrCode() {
       const url = document.getElementById('qrUrlInput').value.trim() || 'https://meenufy.com/view/demo-cafe';
       const color = document.getElementById('qrColorSelect').value;
+      const outletName = document.getElementById('qrOutletNameInput').value.trim() || 'My Restaurant';
+      const customMessage = document.getElementById('qrMessageInput').value.trim() || 'Scan to View Menu';
+      
       const encodedUrl = encodeURIComponent(url);
-      // Adding ecc=H explicitly for scannability with logo overlay
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&ecc=H&color=${color}&data=${encodedUrl}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&ecc=Q&color=${color}&data=${encodedUrl}`;
 
       try {
-        const response = await fetch(qrUrl);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
+        // Create offscreen canvas for flyer composition
+        const canvas = document.createElement('canvas');
+        canvas.width = 800;
+        canvas.height = 1000;
+        const ctx = canvas.getContext('2d');
+
+        // Draw clean white background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw stylish borders (outer brand border and inner double line)
+        ctx.strokeStyle = `#${color}`;
+        ctx.lineWidth = 14;
+        ctx.strokeRect(20, 20, 760, 960);
+
+        ctx.strokeStyle = '#E5E7EB';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(34, 34, 732, 932);
+
+        // Draw header separator or top band
+        ctx.fillStyle = `#${color}1A`; // 10% opacity color band
+        ctx.fillRect(35, 35, 730, 160);
+
+        // Draw Outlet Name
+        ctx.fillStyle = '#111827';
+        ctx.textAlign = 'center';
+        ctx.font = '900 46px "Outfit", "Inter", sans-serif';
+        ctx.fillText(outletName.toUpperCase(), 400, 125);
+
+        // Load and draw QR code
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // critical for canvas exporting cross-origin images
+        img.src = qrUrl;
+
+        img.onload = () => {
+          // Draw QR square in center
+          ctx.drawImage(img, 175, 255, 450, 450);
+
+          // Draw Custom Call to Action
+          ctx.fillStyle = `#${color}`;
+          ctx.font = 'bold 36px "Outfit", "Inter", sans-serif';
+          ctx.fillText(customMessage, 400, 785);
+
+          // Draw subtle footer tagline
+          ctx.fillStyle = '#9CA3AF';
+          ctx.font = '500 16px "Inter", sans-serif';
+          ctx.fillText('POWERED BY MEENUFY — WWW.MEENUFY.COM', 400, 910);
+
+          // Export as PNG blob
+          canvas.toBlob((blob) => {
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `${outletName.replace(/\s+/g, '_')}_view_menu_qr.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          }, 'image/png');
+        };
+
+        img.onerror = () => {
+          throw new Error('Failed to load QR code image for flyer rendering');
+        };
+
+      } catch (err) {
+        console.error(err);
+        // Fallback: download raw QR code directly if canvas fails
         const a = document.createElement('a');
-        a.href = blobUrl;
+        a.href = qrUrl;
         a.download = 'digital_menu_qr_code.png';
+        a.target = '_blank';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      } catch (err) {
-        console.error(err);
-        alert('Failed to download QR code. Please right-click the QR image and select "Save Image As".');
       }
     }
 

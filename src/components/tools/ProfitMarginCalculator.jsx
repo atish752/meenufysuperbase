@@ -148,6 +148,7 @@ export default function ProfitMarginCalculator() {
 
   // Collapsible sections
   const [showWhatIf, setShowWhatIf] = useState(false);
+  const [showEbitdaTooltip, setShowEbitdaTooltip] = useState(false);
 
   // Trigger calculations
   const res = useMemo(() => {
@@ -435,7 +436,9 @@ Optimise margins with QR self-ordering by Meenufy — meenufy.com
     if (res.totalRevenue === 0) return;
     const doc = new jsPDF();
     const pdfSym = currency.symbol === '₹' ? 'Rs. ' : (currency.symbol === 'د.إ' ? 'AED ' : currency.symbol);
+    const dateStr = new Date().toLocaleDateString();
     
+    // Header & branding
     doc.setFontSize(22);
     doc.setTextColor('#F97316');
     doc.text('Profit Margin Report', 20, 25);
@@ -444,36 +447,191 @@ Optimise margins with QR self-ordering by Meenufy — meenufy.com
     doc.setTextColor('#6B7280');
     doc.text(`Generated via Meenufy — meenufy.com`, 20, 32);
 
+    doc.setDrawColor('#E5E7EB');
+    doc.line(20, 36, 190, 36);
+
     doc.setFontSize(10);
     doc.setTextColor('#111827');
     doc.text(`Restaurant: ${restaurantName || 'My Restaurant'}`, 20, 44);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 50);
+    doc.text(`Date: ${dateStr}`, 20, 50);
+    doc.text(`Period: ${period.toUpperCase()}`, 20, 56);
+
+    const fRev = parseFloat(foodRevenue) || 0;
+    const bRev = parseFloat(beverageRevenue) || 0;
+    const oRev = parseFloat(otherRevenue) || 0;
+    const utilVal = parseFloat(utilities) || 0;
+    const mktVal = parseFloat(marketing) || 0;
+    const ohVal = (parseFloat(repairs) || 0) + (parseFloat(licenses) || 0);
+    const othVal = parseFloat(otherExpenses) || 0;
 
     const data = [
-      ['Total Revenue', `${pdfSym}${res.totalRevenue.toLocaleString()}`, '100%'],
-      ['COGS (Food Cost)', `${pdfSym}${res.cogsPct.toFixed(1)}%`, `${res.cogsPct.toFixed(1)}%`],
-      ['Labor Cost', `${pdfSym}${res.laborPct.toFixed(1)}%`, `${res.laborPct.toFixed(1)}%`],
-      ['Rent', `${pdfSym}${res.rentPct.toFixed(1)}%`, `${res.rentPct.toFixed(1)}%`],
+      ['Gross Food Sales', `${pdfSym}${fRev.toLocaleString()}`, '—'],
+      ['Gross Beverage Sales', `${pdfSym}${bRev.toLocaleString()}`, '—'],
+      ['Other Income', `${pdfSym}${oRev.toLocaleString()}`, '—'],
+      ['Total Operating Revenue', `${pdfSym}${res.totalRevenue.toLocaleString()}`, '100.0%'],
+      ['Food & Beverage Cost (COGS)', `${pdfSym}${res.cogs.toLocaleString()}`, `${res.cogsPct.toFixed(1)}%`],
+      ['Labor Cost (Payroll & staff)', `${pdfSym}${res.labor.toLocaleString()}`, `${res.laborPct.toFixed(1)}%`],
+      ['Rent & Lease', `${pdfSym}${res.rent.toLocaleString()}`, `${res.rentPct.toFixed(1)}%`],
+      ['Utilities', `${pdfSym}${utilVal.toLocaleString()}`, `${(utilVal / res.totalRevenue * 100).toFixed(1)}%`],
+      ['Marketing', `${pdfSym}${mktVal.toLocaleString()}`, `${(mktVal / res.totalRevenue * 100).toFixed(1)}%`],
+      ['Repairs, Licenses & Admin', `${pdfSym}${ohVal.toLocaleString()}`, `${(ohVal / res.totalRevenue * 100).toFixed(1)}%`],
+      ['Other Expenses', `${pdfSym}${othVal.toLocaleString()}`, `${(othVal / res.totalRevenue * 100).toFixed(1)}%`],
       ['Net Profit', `${pdfSym}${res.netProfit.toLocaleString()}`, `${res.netMargin.toFixed(1)}%`]
     ];
 
     doc.autoTable({
-      startY: 60,
-      head: [['Metric', 'Amount', '% of Revenue']],
+      startY: 62,
+      head: [['Expense Item / Revenue', 'Amount', '% of Revenue']],
       body: data,
-      theme: 'striped'
+      theme: 'striped',
+      headStyles: { fillColor: [249, 115, 22] },
+      margin: { left: 20, right: 20 },
+      styles: { fontSize: 8.5 }
     });
+
+    // Draw visualizations (Gauge & Waterfall)
+    const finalTableY = doc.lastAutoTable.finalY || 210;
+    if (finalTableY < 180) {
+      drawPdfChartsReact(doc, finalTableY + 5, pdfSym, res, utilVal, mktVal, ohVal, othVal);
+    } else {
+      doc.addPage();
+      doc.setFontSize(16);
+      doc.setTextColor('#F97316');
+      doc.text('Financial Visualizations', 20, 25);
+      doc.setDrawColor('#E5E7EB');
+      doc.line(20, 32, 190, 32);
+      
+      drawPdfChartsReact(doc, 32, pdfSym, res, utilVal, mktVal, ohVal, othVal);
+    }
 
     if (aiAnalysis) {
       doc.addPage();
       doc.setFontSize(16);
+      doc.setTextColor('#F97316');
       doc.text('AI Consultant Diagnostics', 20, 25);
+      doc.setDrawColor('#E5E7EB');
+      doc.line(20, 32, 190, 32);
+
       doc.setFontSize(10);
+      doc.setTextColor('#374151');
       const split = doc.splitTextToSize(aiAnalysis, 170);
-      doc.text(split, 20, 40);
+      doc.text(split, 20, 44);
     }
 
-    doc.save('Restaurant_Profit_Margin_Report.pdf');
+    doc.save(`${(restaurantName || 'Restaurant').replace(/\s+/g, '_')}_Profit_Margin_Report.pdf`);
+  };
+
+  // 📊 React inner PDF chart renderer helper
+  const drawPdfChartsReact = (doc, startY, pdfSym, res, utilVal, mktVal, ohVal, othVal) => {
+    let y = startY + 5;
+    
+    doc.setFontSize(11);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor('#111827');
+    doc.text('FINANCIAL VISUALIZATIONS & POSITIONING', 20, y);
+    
+    doc.setDrawColor('#E5E7EB');
+    doc.line(20, y + 2, 190, y + 2);
+    y += 10;
+
+    // 1. Net Margin Gauge
+    doc.setFontSize(8.5);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor('#374151');
+    doc.text('Net Margin Position Gauge:', 20, y);
+    y += 4;
+
+    doc.setFillColor('#F3F4F6');
+    doc.rect(20, y, 170, 5, 'F');
+    
+    doc.setFillColor(254, 226, 226);
+    doc.rect(20, y, 34, 5, 'F');
+    doc.setFillColor(254, 243, 199);
+    doc.rect(54, y, 20, 5, 'F');
+    doc.setFillColor(209, 250, 229);
+    doc.rect(74, y, 25, 5, 'F');
+    doc.setFillColor(167, 243, 208);
+    doc.rect(99, y, 50, 5, 'F');
+    doc.setFillColor(219, 234, 254);
+    doc.rect(149, y, 41, 5, 'F');
+
+    doc.setDrawColor('#FFFFFF');
+    doc.setLineWidth(0.5);
+    doc.line(54, y, 54, y + 5);
+    doc.line(74, y, 74, y + 5);
+    doc.line(99, y, 99, y + 5);
+    doc.line(149, y, 149, y + 5);
+
+    let netMargin = res.netMargin;
+    let markerPct = (netMargin + 5) / 25;
+    markerPct = Math.max(0, Math.min(1, markerPct));
+    const markerX = 20 + (markerPct * 170);
+
+    doc.setFillColor('#EA580C');
+    doc.rect(markerX - 1, y - 2, 2, 9, 'F');
+
+    y += 9;
+    doc.setFontSize(7.5);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor('#6B7280');
+    doc.text('Losing (<0%)', 20, y);
+    doc.text('Thin (0-3%)', 54, y);
+    doc.text('Average (3-6%)', 74, y);
+    doc.text('Good (6-15%)', 105, y);
+    doc.text('World-Class (>15%)', 153, y);
+
+    y += 5;
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor('#1F2937');
+    
+    let verdictTitle = '';
+    if (netMargin < 0) verdictTitle = 'Losing (Below 0%): Action Needed Immediately';
+    else if (netMargin <= 3) verdictTitle = 'Marginal (0-3%): Extremely Thin buffer';
+    else if (netMargin <= 6) verdictTitle = 'Average (3-6%): Standard Industry Performer';
+    else if (netMargin <= 9) verdictTitle = 'Good (6-9%): Above Average Operations';
+    else if (netMargin <= 15) verdictTitle = 'Excellent (9-15%): Top Performer';
+    else verdictTitle = 'World-Class (15%+): Exceptional Operations';
+
+    doc.text(`Your Net Margin Position: ${verdictTitle} (${netMargin.toFixed(1)}%)`, 20, y);
+    
+    y += 10;
+
+    // 2. Waterfall Chart
+    doc.setFontSize(8.5);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor('#374151');
+    doc.text('Restaurant Profit & Loss Waterfall:', 20, y);
+    y += 5;
+
+    const drawBar = (label, amount, pct, colorHex) => {
+      doc.setFillColor('#F3F4F6');
+      doc.rect(55, y - 2.5, 110, 3.5, 'F');
+      doc.setFillColor(colorHex);
+      const fillWidth = Math.max(1, (pct / 100) * 110);
+      doc.rect(55, y - 2.5, fillWidth, 3.5, 'F');
+
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor('#374151');
+      doc.text(label, 20, y);
+      
+      doc.setFont('Helvetica', 'bold');
+      doc.text(`${pdfSym}${amount.toLocaleString()} (${pct.toFixed(1)}%)`, 168, y);
+      y += 6.5;
+    };
+
+    drawBar('Total Revenue', res.totalRevenue, 100.0, '#1F2937');
+    drawBar('COGS Cost', res.cogs, res.cogsPct, '#F87171');
+    drawBar('Labor Cost', res.labor, res.laborPct, '#60A5FA');
+    drawBar('Rent Cost', res.rent, res.rentPct, '#34D399');
+    drawBar('Utilities Cost', utilVal, (utilVal / res.totalRevenue * 100), '#F59E0B');
+    drawBar('Marketing Cost', mktVal, (mktVal / res.totalRevenue * 100), '#A78BFA');
+    drawBar('Overhead Costs', ohVal, (ohVal / res.totalRevenue * 100), '#9CA3AF');
+    drawBar('Other Expenses', othVal, (othVal / res.totalRevenue * 100), '#D1D5DB');
+    
+    const netProfitColor = res.netProfit >= 0 ? '#10B981' : '#EF4444';
+    drawBar('Net Profit', Math.abs(res.netProfit), Math.abs(res.netMargin), netProfitColor);
   };
 
   return (
@@ -883,8 +1041,29 @@ Optimise margins with QR self-ordering by Meenufy — meenufy.com
             </div>
 
             {/* EBITDA */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2">
-              <h4 className="text-xs font-bold text-gray-500">EBITDA</h4>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2 relative">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-gray-500">EBITDA</h4>
+                <div className="relative inline-block">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowEbitdaTooltip(!showEbitdaTooltip);
+                    }}
+                    onBlur={() => setTimeout(() => setShowEbitdaTooltip(false), 200)}
+                    className="w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 text-[10px] text-gray-500 font-bold flex items-center justify-center transition focus:outline-none"
+                    aria-label="EBITDA explanation"
+                  >
+                    i
+                  </button>
+                  {showEbitdaTooltip && (
+                    <div className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-gray-900 text-white text-[10px] leading-relaxed rounded-xl shadow-xl z-50 font-normal">
+                      <strong>EBITDA</strong> stands for <em>Earnings Before Interest, Taxes, Depreciation, and Amortization</em>.<br/><br/>
+                      It measures your restaurant's core operational profitability by stripping away capital structure, local tax structures, and non-cash depreciation items. Target: 10-20% margin.
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-black text-gray-900">{formatVal(res.ebitda)}</span>
                 <span className="text-xs text-gray-500 font-bold">({res.ebitdaMargin.toFixed(1)}% margin)</span>

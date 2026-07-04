@@ -814,13 +814,35 @@ async function exportReportPDF() {
       styles: { fontSize: 9 }
     });
 
-    // 4. AI analysis insertion (if any)
+    // 4. Draw visualizations (Gauge & Waterfall)
+    const finalTableY = doc.lastAutoTable.finalY || 210;
+    if (finalTableY < 180) {
+      drawPdfCharts(doc, finalTableY + 5, pdfSym, calculatedResults);
+    } else {
+      doc.addPage();
+      if (logoImg) {
+        doc.addImage(logoImg, 'PNG', 152, 13, 12, 12);
+        doc.setFontSize(14);
+        doc.setFont('Helvetica', 'bold');
+        doc.setTextColor('#111827');
+        doc.text('Meenufy', 167, 21);
+      }
+      doc.setFontSize(16);
+      doc.setTextColor('#F97316');
+      doc.text('Financial Visualizations', 20, 25);
+      doc.setDrawColor('#E5E7EB');
+      doc.line(20, 32, 190, 32);
+      
+      drawPdfCharts(doc, 32, pdfSym, calculatedResults);
+    }
+
+    // 5. AI analysis insertion (if any)
     const box = document.getElementById('aiAnalysisBox');
     if (box && !box.classList.contains('hidden')) {
       const text = box.innerText.replace('🤖 AI Consultant Verdict:', '').trim();
       doc.addPage();
       
-      // Page 2 header
+      // Page header
       if (logoImg) {
         doc.addImage(logoImg, 'PNG', 152, 13, 12, 12);
         doc.setFontSize(14);
@@ -847,6 +869,126 @@ async function exportReportPDF() {
     console.error(err);
     alert('Failed to export PDF. Please verify your inputs and try again.');
   }
+}
+
+// 📊 DRAW VECTOR CHARTS & POSITION DIAGNOSTICS IN PDF
+function drawPdfCharts(doc, startY, pdfSym, calculatedResults) {
+  let y = startY + 5;
+  
+  doc.setFontSize(11);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor('#111827');
+  doc.text('FINANCIAL VISUALIZATIONS & POSITIONING', 20, y);
+  
+  doc.setDrawColor('#E5E7EB');
+  doc.line(20, y + 2, 190, y + 2);
+  y += 10;
+
+  // 1. Net Margin Gauge
+  doc.setFontSize(8.5);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor('#374151');
+  doc.text('Net Margin Position Gauge:', 20, y);
+  y += 4;
+
+  doc.setFillColor('#F3F4F6');
+  doc.rect(20, y, 170, 5, 'F');
+  
+  // Segment 1 (Rose)
+  doc.setFillColor(254, 226, 226);
+  doc.rect(20, y, 34, 5, 'F');
+  // Segment 2 (Amber)
+  doc.setFillColor(254, 243, 199);
+  doc.rect(54, y, 20, 5, 'F');
+  // Segment 3 (Emerald Light)
+  doc.setFillColor(209, 250, 229);
+  doc.rect(74, y, 25, 5, 'F');
+  // Segment 4 (Emerald Dark)
+  doc.setFillColor(167, 243, 208);
+  doc.rect(99, y, 50, 5, 'F');
+  // Segment 5 (Blue)
+  doc.setFillColor(219, 234, 254);
+  doc.rect(149, y, 41, 5, 'F');
+
+  doc.setDrawColor('#FFFFFF');
+  doc.setLineWidth(0.5);
+  doc.line(54, y, 54, y + 5);
+  doc.line(74, y, 74, y + 5);
+  doc.line(99, y, 99, y + 5);
+  doc.line(149, y, 149, y + 5);
+
+  let netMargin = calculatedResults.netMargin;
+  let markerPct = (netMargin + 5) / 25;
+  markerPct = Math.max(0, Math.min(1, markerPct));
+  const markerX = 20 + (markerPct * 170);
+
+  doc.setFillColor('#EA580C');
+  doc.rect(markerX - 1, y - 2, 2, 9, 'F');
+
+  y += 9;
+  doc.setFontSize(7.5);
+  doc.setFont('Helvetica', 'normal');
+  doc.setTextColor('#6B7280');
+  doc.text('Losing (<0%)', 20, y);
+  doc.text('Thin (0-3%)', 54, y);
+  doc.text('Average (3-6%)', 74, y);
+  doc.text('Good (6-15%)', 105, y);
+  doc.text('World-Class (>15%)', 153, y);
+
+  y += 5;
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor('#1F2937');
+  
+  let verdictTitle = '';
+  if (netMargin < 0) verdictTitle = 'Losing (Below 0%): Action Needed Immediately';
+  else if (netMargin <= 3) verdictTitle = 'Marginal (0-3%): Extremely Thin buffer';
+  else if (netMargin <= 6) verdictTitle = 'Average (3-6%): Standard Industry Performer';
+  else if (netMargin <= 9) verdictTitle = 'Good (6-9%): Above Average Operations';
+  else if (netMargin <= 15) verdictTitle = 'Excellent (9-15%): Top Industry Performer';
+  else verdictTitle = 'World-Class (15%+): Exceptional Operations';
+
+  doc.text(`Your Net Margin Position: ${verdictTitle} (${netMargin.toFixed(1)}%)`, 20, y);
+  
+  y += 10;
+
+  // 2. Waterfall Chart
+  doc.setFontSize(8.5);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor('#374151');
+  doc.text('Restaurant Profit & Loss Waterfall:', 20, y);
+  y += 5;
+
+  const drawBar = (label, amount, pct, colorHex) => {
+    doc.setFillColor('#F3F4F6');
+    doc.rect(55, y - 2.5, 110, 3.5, 'F');
+    doc.setFillColor(colorHex);
+    const fillWidth = Math.max(1, (pct / 100) * 110);
+    doc.rect(55, y - 2.5, fillWidth, 3.5, 'F');
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor('#374151');
+    doc.text(label, 20, y);
+    
+    doc.setFont('Helvetica', 'bold');
+    doc.text(`${pdfSym}${amount.toLocaleString()} (${pct.toFixed(1)}%)`, 168, y);
+    y += 6.5;
+  };
+
+  drawBar('Total Revenue', calculatedResults.totalRevenue, 100.0, '#1F2937');
+  drawBar('COGS Cost', calculatedResults.cogs, calculatedResults.cogsPct, '#F87171');
+  drawBar('Labor Cost', calculatedResults.labor, calculatedResults.laborPct, '#60A5FA');
+  drawBar('Rent Cost', calculatedResults.rent, calculatedResults.rentPct, '#34D399');
+  drawBar('Utilities Cost', calculatedResults.utilities, (calculatedResults.utilities / calculatedResults.totalRevenue * 100), '#F59E0B');
+  drawBar('Marketing Cost', calculatedResults.marketing, (calculatedResults.marketing / calculatedResults.totalRevenue * 100), '#A78BFA');
+  
+  const overhead = calculatedResults.repairs + calculatedResults.licenses;
+  drawBar('Overhead Costs', overhead, (overhead / calculatedResults.totalRevenue * 100), '#9CA3AF');
+  drawBar('Other Expenses', calculatedResults.other, (calculatedResults.other / calculatedResults.totalRevenue * 100), '#D1D5DB');
+  
+  const netProfitColor = calculatedResults.netProfit >= 0 ? '#10B981' : '#EF4444';
+  drawBar('Net Profit', Math.abs(calculatedResults.netProfit), Math.abs(calculatedResults.netMargin), netProfitColor);
 }
 
 // 📋 COPY RESULTS TO CLIPBOARD
