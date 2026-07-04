@@ -478,6 +478,46 @@ function initMobileNav() {
 }
 
 // =============================================
+// VIDEO MODAL
+// =============================================
+function initVideoModal() {
+  const watchBtn = document.getElementById('watchDemoBtn');
+  const modal = document.getElementById('videoModal');
+  if (!watchBtn || !modal) return;
+
+  const closeBtn = modal.querySelector('.video-modal-close');
+  const overlay = modal.querySelector('.video-modal-overlay');
+  const iframe = document.getElementById('promoVideo');
+  const youtubeUrl = 'https://www.youtube.com/embed/guUt96vqUcM?autoplay=1';
+
+  watchBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    iframe.src = youtubeUrl;
+    modal.style.display = 'flex';
+    setTimeout(() => {
+      modal.setAttribute('aria-hidden', 'false');
+    }, 10);
+  });
+
+  const closeModal = () => {
+    modal.setAttribute('aria-hidden', 'true');
+    setTimeout(() => {
+      modal.style.display = 'none';
+      iframe.src = '';
+    }, 300);
+  };
+
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (overlay) overlay.addEventListener('click', closeModal);
+  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
+      closeModal();
+    }
+  });
+}
+
+// =============================================
 // INIT
 // =============================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -487,6 +527,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Navbar
   initNavbarScroll();
   initMobileNav();
+  
+  // Video Modal
+  initVideoModal();
 
   // Search
   const inp = document.getElementById('searchInput');

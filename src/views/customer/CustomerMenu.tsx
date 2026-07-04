@@ -1124,6 +1124,7 @@ export default function CustomerMenu() {
         }}>
           <div style={{
             background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
             width: '100%',
             maxWidth: 480,
             borderTopLeftRadius: 24,
@@ -1168,7 +1169,7 @@ export default function CustomerMenu() {
 
                 return (
                   <div key={addon.id} style={{
-                    background: 'var(--bg-card)',
+                    background: 'var(--bg-surface)',
                     padding: 14,
                     borderRadius: 12,
                     border: '1.5px solid var(--border)'

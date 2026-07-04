@@ -583,9 +583,9 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                           {item.name} {item.variant ? `(${item.variant.name})` : ''}
                         </div>
                         {item.addons && item.addons.length > 0 && (
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: '2px 6px' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: '2px 6px' }}>
                             {item.addons.map((addonOpt, idx) => (
-                              <span key={`${addonOpt.optionId}-${idx}`} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '1px 5px', borderRadius: 4 }}>
+                              <span key={`${addonOpt.optionId}-${idx}`} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 4 }}>
                                 + {addonOpt.optionName} {addonOpt.price > 0 ? `(₹${addonOpt.price})` : ''}
                               </span>
                             ))}

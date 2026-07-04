@@ -9,7 +9,6 @@ const ALIGN_LEFT    = [ESC, 0x61, 0x00];      // Left align
 const ALIGN_CENTER  = [ESC, 0x61, 0x01];      // Center align
 const BOLD_ON       = [ESC, 0x45, 0x01];      // Bold on
 const BOLD_OFF      = [ESC, 0x45, 0x00];      // Bold off
-const DOUBLE_HEIGHT = [ESC, 0x21, 0x10];      // Double height text
 const DOUBLE_WIDTH  = [ESC, 0x21, 0x20];      // Double width text  
 const DOUBLE_SIZE   = [ESC, 0x21, 0x30];      // Double width + height
 const NORMAL_SIZE   = [ESC, 0x21, 0x00];      // Normal size
@@ -67,10 +66,6 @@ function dashes(width: number): number[] {
   return line('-'.repeat(width));
 }
 
-function stars(width: number): number[] {
-  return line('*'.repeat(width));
-}
-
 // ─── Build ESC/POS KOT Byte Array ──────────────────────────────────────────────
 function buildKotBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   const W = restaurant.printWidth === '58mm' ? 32 : 42; // chars per line
@@ -83,9 +78,7 @@ function buildKotBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   bytes.push(...line('K.O.T'));
   bytes.push(...NORMAL_SIZE);
   bytes.push(...BOLD_ON);
-  bytes.push(...DOUBLE_HEIGHT);
   bytes.push(...line(`TABLE ${order.tableNumber}`));
-  bytes.push(...NORMAL_SIZE);
   bytes.push(...BOLD_OFF);
   bytes.push(...line(`KOT #${order.id.slice(-4).toUpperCase()}`));
   if (showDateTime) {
@@ -137,7 +130,7 @@ function buildKotBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
 
   bytes.push(...ALIGN_CENTER);
   bytes.push(...line('*** KITCHEN COPY ***'));
-  bytes.push(...FEED_LINES(4));
+  bytes.push(...FEED_LINES(2));
   bytes.push(...CUT_PAPER);
 
   return new Uint8Array(bytes);
@@ -176,7 +169,7 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
     bytes.push(...line(`Tel: ${restaurant.phone}`));
   }
 
-  bytes.push(...stars(W));
+  bytes.push(...dashes(W));
   bytes.push(...ALIGN_LEFT);
 
   // Table & customer info
@@ -190,10 +183,7 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
 
   bytes.push(...dashes(W));
   bytes.push(...BOLD_ON);
-  bytes.push(...line(splitLine(padRight('Item', W - 14), padLeft('Qty', 5), W) + padLeft('Amt', 8).substring(0, 8)));
-  // Fix: just print simple aligned header
-  const header = padRight('Item', W - 10) + padLeft('Qty', 4) + padLeft('Price', 6);
-  bytes.pop(); // Remove the last newline we added
+  const header = padRight('Item', W - 12) + padLeft('Qty', 4) + padLeft('Amt', 8);
   bytes.push(...line(header));
   bytes.push(...BOLD_OFF);
   bytes.push(...dashes(W));
@@ -211,7 +201,7 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
     if (item.addons && item.addons.length > 0) {
       for (const a of item.addons) {
         const addonLabel = `  + ${a.optionName}`;
-        const addonAmt = a.price > 0 ? `${currency}${a.price}` : '';
+        const addonAmt = a.price > 0 ? `${currency}${(a.price * item.qty).toFixed(0)}` : '';
         if (addonAmt) {
           bytes.push(...line(splitLine(addonLabel, addonAmt, W)));
         } else {
@@ -224,22 +214,29 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   bytes.push(...dashes(W));
 
   bytes.push(...line(splitLine('Subtotal:', `${currency}${subtotal.toFixed(2)}`, W)));
-  bytes.push(...line(splitLine(`Tax (${taxPercent}%):`, `${currency}${taxAmount.toFixed(2)}`, W)));
+  if (taxPercent > 0) {
+    bytes.push(...line(splitLine(`Tax (${taxPercent}%):`, `${currency}${taxAmount.toFixed(2)}`, W)));
+  }
   bytes.push(...dashes(W));
   bytes.push(...BOLD_ON);
-  bytes.push(...DOUBLE_HEIGHT);
-  bytes.push(...line(splitLine('TOTAL:', `${currency}${grandTotal.toFixed(2)}`, W)));
-  bytes.push(...NORMAL_SIZE);
+  bytes.push(...line(splitLine('TOTAL AMOUNT:', `${currency}${grandTotal.toFixed(2)}`, W)));
   bytes.push(...BOLD_OFF);
   bytes.push(...dashes(W));
 
   bytes.push(...ALIGN_CENTER);
-  bytes.push(...line(headerMessage));
+  if (headerMessage) {
+    bytes.push(...line(headerMessage));
+  }
   bytes.push(...BOLD_ON);
   bytes.push(...line(footerMessage));
   bytes.push(...BOLD_OFF);
 
-  bytes.push(...FEED_LINES(4));
+  if (restaurant.upiId) {
+    bytes.push(...line('Scan to Pay via UPI'));
+    bytes.push(...line(restaurant.upiId));
+  }
+
+  bytes.push(...FEED_LINES(2));
   bytes.push(...CUT_PAPER);
 
   return new Uint8Array(bytes);

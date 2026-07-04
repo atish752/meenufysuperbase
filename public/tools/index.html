@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body id="body">
@@ -74,8 +75,8 @@
       <p class="hero-subtitle">Meenufy brings together digital QR menus, real-time order management, built-in loyalty programs, staff controls, and powerful analytics — all in one platform, starting free.</p>
 
       <div class="hero-cta-row">
+        <a href="#watch-demo-modal" class="btn-ghost-lg" id="watchDemoBtn">Watch Demo</a>
         <a href="/" class="btn-primary-lg">Try Meenufy Free</a>
-        <a href="#free-tools" class="btn-ghost-lg">Watch Demo</a>
       </div>
 
       <div class="hero-trust-row">
@@ -315,6 +316,26 @@
       </div>
     </div>
   </footer>
+
+  <!-- Video Demo Modal -->
+  <div id="videoModal" class="video-modal" aria-hidden="true">
+    <div class="video-modal-overlay"></div>
+    <div class="video-modal-container">
+      <button class="video-modal-close" aria-label="Close modal">&times;</button>
+      <div class="video-modal-body">
+        <div class="video-ratio-wrapper">
+          <iframe 
+            id="promoVideo" 
+            src="" 
+            title="Meenufy Demo Video" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowfullscreen>
+          </iframe>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

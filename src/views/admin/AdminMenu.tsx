@@ -3239,7 +3239,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                         <div>
                           <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>✓ Meal linked</div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{sel.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>Name &amp; price copied below — edit freely if needed</div>
+                          <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600, marginTop: 2 }}>👉 Now edit if needed, then click the orange "Add" button below!</div>
                         </div>
                         <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--brand)', flexShrink: 0, marginLeft: 12 }}>₹{sel.price}</div>
                       </div>
@@ -3255,7 +3255,12 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                     placeholder="Choice Name (e.g. Extra Cheese)"
                     value={newOption.name}
                     onChange={e => setNewOption(p => ({ ...p, name: e.target.value }))}
-                    style={{ flex: 2, padding: '6px 10px', fontSize: 12 }}
+                    style={{
+                      flex: 2, padding: '6px 10px', fontSize: 12,
+                      borderColor: newOption.linkedMealId ? 'var(--brand)' : undefined,
+                      boxShadow: newOption.linkedMealId ? '0 0 5px rgba(255,107,0,0.2)' : undefined,
+                      transition: 'all 0.2s'
+                    }}
                     onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
                   />
                   <input
@@ -3264,14 +3269,24 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                     placeholder="Price (e.g. 30)"
                     value={newOption.price || ''}
                     onChange={e => setNewOption(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
-                    style={{ flex: 1, padding: '6px 10px', fontSize: 12 }}
+                    style={{
+                      flex: 1, padding: '6px 10px', fontSize: 12,
+                      borderColor: newOption.linkedMealId ? 'var(--brand)' : undefined,
+                      boxShadow: newOption.linkedMealId ? '0 0 5px rgba(255,107,0,0.2)' : undefined,
+                      transition: 'all 0.2s'
+                    }}
                     onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
                   />
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm"
+                    className={`btn ${newOption.name ? 'btn-primary' : 'btn-secondary'} btn-sm`}
                     onClick={handleAddOption}
-                    style={{ padding: '6px 12px', height: 32, display: 'flex', alignItems: 'center', gap: 4 }}
+                    style={{
+                      padding: '6px 12px', height: 32, display: 'flex', alignItems: 'center', gap: 4,
+                      boxShadow: newOption.linkedMealId ? '0 0 8px rgba(255,107,0,0.4)' : undefined,
+                      border: newOption.linkedMealId ? '1px solid var(--brand)' : undefined,
+                      fontWeight: newOption.linkedMealId ? 700 : undefined
+                    }}
                   >
                     <Plus size={13} /> Add
                   </button>

@@ -1,6 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from '../../context/RealtimeStore';
+import type { OrderStatus } from '../../context/RealtimeStore';
 import { hasFirebaseConfig } from '../../utils/firebase';
+import { triggerNotification } from '../../utils/notifications';
+import { printThermalReceipt } from '../../utils/printReceipt';
 import AdminAuth from './AdminAuth';
 import AdminHome from './AdminHome';
 import AdminMenu from './AdminMenu';
@@ -14,7 +17,132 @@ import SuperAdminDashboard from './SuperAdminDashboard';
 import AdminNotificationBell from '../../components/AdminNotificationBell';
 
 export default function AdminLayout() {
-  const { state, dispatch } = useStore();
+  const { state, dispatch, addToast } = useStore();
+
+  // Notification watchers refs
+  const prevOrdersRef = useRef<Record<string, { status: OrderStatus; paymentStatus: 'pending' | 'waiting_confirmation' | 'paid' }>>({});
+  const prevWaiterRequestsRef = useRef<Record<string, boolean>>({});
+  const isOrdersMount = useRef(true);
+  const isWaiterMount = useRef(true);
+
+  // Watch orders for notifications and autoprinting
+  useEffect(() => {
+    if (!state.isAdminLoggedIn || state.admin?.isSuperAdmin) return;
+    if (state.admin?.isStaff && !state.admin.permissions?.includes('orders')) {
+      return;
+    }
+    const adminId = state.admin?.restaurantId || 'admin-1';
+    const myOrders = state.orders.filter(o => (o.restaurantId || 'admin-1') === adminId);
+
+    if (isOrdersMount.current) {
+      const initialOrders: Record<string, any> = {};
+      myOrders.forEach(o => {
+        initialOrders[o.id] = { status: o.status, paymentStatus: o.paymentStatus || 'pending' };
+      });
+      prevOrdersRef.current = initialOrders;
+      isOrdersMount.current = false;
+      return;
+    }
+
+    const prevOrders = prevOrdersRef.current;
+    const currentOrders: Record<string, any> = {};
+
+    myOrders.forEach(order => {
+      const orderId = order.id;
+      const currentStatus = order.status;
+      const currentPayStatus = order.paymentStatus || 'pending';
+      const prev = prevOrders[orderId];
+
+      currentOrders[orderId] = { status: currentStatus, paymentStatus: currentPayStatus };
+
+      if (!prev) {
+        if (currentStatus === 'pending') {
+          triggerNotification(
+            `🛒 New Order Placed! (Table ${order.tableNumber})`,
+            `${order.customerName || 'Guest'} ordered ${order.items.length} items (Total: ${state.restaurant.currency}${order.totalAmount})`
+          );
+          // Auto print KOT if enabled
+          if (state.restaurant.autoprintKotEnabled) {
+            printThermalReceipt(order, 'kot', state.restaurant).then(result => {
+              if (result.error) {
+                addToast('info', `🖨️ KOT: ${result.error}`);
+              } else {
+                addToast('success', `🖨️ KOT auto-printed for Table ${order.tableNumber}`);
+              }
+            }).catch(e => addToast('error', `Print error: ${e?.message || e}`));
+          }
+        }
+      } else {
+        const justRequestedPayment = 
+          currentStatus === 'bill_pay' &&
+          currentPayStatus === 'waiting_confirmation' &&
+          prev.paymentStatus !== 'waiting_confirmation';
+
+        if (justRequestedPayment) {
+          const methodLabel = order.paymentMethod === 'upi' ? 'UPI' : order.paymentMethod === 'cash' ? 'Cash' : 'Card';
+          const symbol = order.paymentMethod === 'upi' ? '📱' : order.paymentMethod === 'cash' ? '💵' : '💳';
+          triggerNotification(
+            `${symbol} ${methodLabel} Payment Confirmation Required (Table ${order.tableNumber})`,
+            `${order.customerName || 'Guest'} is waiting for payment confirmation of ${state.restaurant.currency}${order.totalAmount}`
+          );
+        }
+
+        // Auto print Bill if payment status transitions to 'paid'
+        const justPaid = currentPayStatus === 'paid' && prev.paymentStatus !== 'paid';
+        if (justPaid && state.restaurant.autoprintBillEnabled) {
+          printThermalReceipt(order, 'bill', state.restaurant).then(result => {
+            if (result.error) {
+              addToast('info', `🖨️ Bill: ${result.error}`);
+            } else {
+              addToast('success', `🖨️ Bill auto-printed for Table ${order.tableNumber}`);
+            }
+          }).catch(e => addToast('error', `Print error: ${e?.message || e}`));
+        }
+      }
+    });
+
+    prevOrdersRef.current = currentOrders;
+  }, [state.isAdminLoggedIn, state.orders, state.restaurant.currency, state.restaurant.autoprintKotEnabled, state.restaurant.autoprintBillEnabled, state.admin]);
+
+  // Watch waiter requests for notifications
+  useEffect(() => {
+    if (!state.isAdminLoggedIn || state.admin?.isSuperAdmin) return;
+    if (state.admin?.isStaff && !state.admin.permissions?.includes('qr_tables')) {
+      return;
+    }
+    const adminId = state.admin?.restaurantId || 'admin-1';
+    const myRequests = state.waiterRequests.filter(r => (r.restaurantId || 'admin-1') === adminId);
+
+    if (isWaiterMount.current) {
+      const initialRequests: Record<string, boolean> = {};
+      myRequests.forEach(r => {
+        initialRequests[r.id] = r.resolved;
+      });
+      prevWaiterRequestsRef.current = initialRequests;
+      isWaiterMount.current = false;
+      return;
+    }
+
+    const prevRequests = prevWaiterRequestsRef.current;
+    const currentRequests: Record<string, boolean> = {};
+
+    myRequests.forEach(req => {
+      const reqId = req.id;
+      const isResolved = req.resolved;
+      const prevResolved = prevRequests[reqId];
+
+      currentRequests[reqId] = isResolved;
+
+      if (prevResolved === undefined && !isResolved) {
+        triggerNotification(
+          `🔔 Table ${req.tableNumber} is calling!`,
+          `A customer at Table ${req.tableNumber} has called for waiter assistance.`
+        );
+      }
+    });
+
+    prevWaiterRequestsRef.current = currentRequests;
+  }, [state.isAdminLoggedIn, state.waiterRequests, state.admin]);
 
   // ── Self-healing: remap orphaned items to the correct restaurantId ──────────
   // This runs once after login to ensure menu items and categories always match

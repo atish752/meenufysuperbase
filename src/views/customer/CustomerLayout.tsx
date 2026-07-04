@@ -554,7 +554,7 @@ export default function CustomerLayout({ tableId }: Props) {
               padding: '6px 12px',
               fontSize: 11,
               background: 'var(--brand)',
-              color: '#000000',
+              color: '#ffffff',
               fontWeight: 800,
               borderRadius: 6,
             }}
@@ -877,7 +877,7 @@ export default function CustomerLayout({ tableId }: Props) {
                       </div>
                     </div>
 
-                    <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>Waiting for Confirmation</h3>
+                    <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 6, color: 'var(--text-primary)' }}>Waiting for Confirmation</h3>
                     
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: 300, margin: '0 auto 20px' }}>
                       {currentPaymentMethod === 'upi' 
@@ -905,7 +905,7 @@ export default function CustomerLayout({ tableId }: Props) {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span>Amount Due:</span>
-                        <span style={{ fontWeight: 700, color: '#fff' }}>₹{totalBillAmount}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{totalBillAmount}</span>
                       </div>
                     </div>
                   </div>
@@ -939,7 +939,7 @@ export default function CustomerLayout({ tableId }: Props) {
                         />
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>Scan with GPay, PhonePe, Paytm</div>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>UPI ID: hideoutcafe@upi</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>UPI ID: hideoutcafe@upi</div>
                       <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--brand)', marginTop: 4 }}>₹{totalBillAmount}</div>
                     </div>
 

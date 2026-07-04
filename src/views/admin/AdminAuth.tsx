@@ -336,16 +336,19 @@ export default function AdminAuth() {
 
       <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
-            width: 220, height: 80,
+            width: 80, height: 80,
             overflow: 'hidden',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 20px',
+            margin: '0 auto 12px',
           }}>
-            <img src="/meenufy_logo_dark.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src="/meenufy_logo_erased.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px 0', letterSpacing: '-0.02em', fontFamily: 'Outfit, sans-serif' }}>
+            Meenufy
+          </h1>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
             A hassle-free way
           </p>
         </div>
@@ -511,7 +514,7 @@ export default function AdminAuth() {
             )}
 
             {mode !== 'staff_login' && (
-              <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <div style={{ textAlign: 'center', marginTop: 8 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -519,12 +522,24 @@ export default function AdminAuth() {
                     setForm({ name: '', email: '', password: '', restaurantName: '' });
                   }}
                   style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--text-secondary)', fontSize: 13, textDecoration: 'underline',
-                    fontWeight: 600, transition: 'var(--transition)'
+                    background: 'rgba(255, 125, 0, 0.08)',
+                    border: '1px solid var(--brand)',
+                    borderRadius: 12,
+                    padding: '12px 16px',
+                    width: '100%',
+                    cursor: 'pointer',
+                    color: 'var(--brand)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    marginTop: 8
                   }}
                 >
-                  🔑 Are you a staff member? Staff Sign In
+                  🔑 Staff Member? Sign In Here &rarr;
                 </button>
               </div>
             )}
@@ -537,6 +552,38 @@ export default function AdminAuth() {
             🔒 <strong style={{ color: 'var(--brand)' }}>Meenufy Admin</strong> — {hasFirebaseConfig ? 'Your account details are securely managed via Google Firebase Cloud Auth.' : 'Mock Dev Mode: Credentials and data are saved locally in this browser.'}<br />
             Sign up to manage your digital restaurant menu.
           </p>
+        </div>
+
+        {/* Tutorial / Demo Video Link */}
+        <div style={{
+          marginTop: 12,
+          padding: '12px 16px',
+          borderRadius: 10,
+          background: 'rgba(255,125,0,0.1)',
+          border: '1px solid rgba(255,125,0,0.2)',
+          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8
+        }}>
+          <span style={{ fontSize: 16 }}>📺</span>
+          <a
+            href="https://youtu.be/guUt96vqUcM?si=L3aLUBWrZ0yNpvMj"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 13,
+              color: 'var(--brand)',
+              fontWeight: 700,
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            Watch Meenufy Tutorial & Demo Video &rarr;
+          </a>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text-muted)' }}>
