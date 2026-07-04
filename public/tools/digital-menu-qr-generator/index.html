@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free Digital Menu QR Code Generator | Meenufy</title>
+  <meta name="description" content="Generate a free digital menu QR code for your restaurant. Create a custom-branded QR code instantly and learn how to generate a Special View-Only Menu QR Code." />
+  <meta name="keywords" content="digital menu qr generator, restaurant qr code generator, view only menu qr code, qr menu generator, meenufy, free qr code" />
+  <link rel="canonical" href="https://meenufy.com/tools/digital-menu-qr-generator" />
+  <link rel="icon" type="image/png" href="/meenufy_logo_transparent.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Free Digital Menu QR Code Generator | Meenufy" />
+  <meta property="og:description" content="Generate a free digital menu QR code for your restaurant. Create a custom-branded QR code instantly and learn how to generate a Special View-Only Menu QR Code." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://meenufy.com/tools/digital-menu-qr-generator" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#F97316',
+              light: '#FFF7ED',
+              dark: '#EA580C',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom CSS for added animations -->
+  <style>
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .animate-float {
+      animation: float 4s ease-in-out infinite;
+    }
+    .step-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .step-card:hover {
+      transform: translateX(4px);
+      border-color: #F97316;
+    }
+  </style>
+
+  <!-- JSON-LD Structured Data: WebApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Meenufy Digital Menu QR Generator",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "description": "Free digital menu QR code generator for restaurants. Create custom-branded QR codes and set up interactive view-only menus.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "url": "https://meenufy.com/tools/digital-menu-qr-generator"
+  }
+  </script>
+
+  <!-- JSON-LD Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://meenufy.com" },
+      { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://meenufy.com/tools" },
+      { "@type": "ListItem", "position": 3, "name": "Digital Menu QR Generator", "item": "https://meenufy.com/tools/digital-menu-qr-generator" }
+    ]
+  }
+  </script>
+</head>
+<body class="bg-white text-gray-900 antialiased font-sans">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
+    <div class="max-width-container mx-auto px-4 max-w-7xl h-16 flex items-center justify-between">
+      <a href="/tools/" class="flex items-center gap-2">
+        <img src="/meenufy_logo_transparent.png" alt="Meenufy Logo" class="w-8 h-8 object-contain" />
+        <span class="font-display font-extrabold text-xl text-gray-900 tracking-tight">Meenufy</span>
+      </a>
+      <div class="flex items-center gap-4">
+        <a href="/tools/" class="text-sm font-medium text-gray-500 hover:text-gray-950 transition">Free Tools</a>
+        <a href="/" class="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg transition shadow-sm">Start Free Trial</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="py-12 bg-gray-50 border-b border-gray-100 text-center px-4">
+    <div class="max-w-4xl mx-auto">
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-light text-brand border border-orange-200 mb-4">
+        <span class="w-2 h-2 rounded-full bg-brand"></span>
+        Branded QR Codes. 100% Free.
+      </span>
+      <h1 class="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tight mb-4">
+        Free Digital Menu QR Code Generator
+      </h1>
+      <p class="text-gray-600 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-6">
+        Generate custom-branded QR codes for your digital menu link instantly, or set up a secure, interactive View-Only QR Menu for your Instagram, Google Maps, and flyers.
+      </p>
+      
+      <!-- Trust Badges -->
+      <div class="flex flex-wrap items-center justify-center gap-3 max-w-3xl mx-auto">
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Branded QR Codes</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Customizable Colors</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ View-Only Menu Mode Preview</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Step-by-Step AI Guide</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Grid Layout -->
+  <main class="max-w-6xl mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    
+    <!-- Left Column: Interactive QR Generator (5 Cols) -->
+    <div class="lg:col-span-5 space-y-6">
+      <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-6">
+        <div>
+          <h3 class="text-lg font-black text-gray-900 font-display">1. Custom QR Code Generator</h3>
+          <p class="text-xs text-gray-500 mt-1">Generate a quick QR code pointing to your digital menu link.</p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1.5">Your Digital Menu URL</label>
+            <input type="url" id="qrUrlInput" oninput="generateCustomQr()" placeholder="https://meenufy.com/view/demo-cafe" value="https://meenufy.com/view/demo-cafe" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Color Theme</label>
+              <select id="qrColorSelect" onchange="generateCustomQr()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium">
+                <option value="ea580c">Meenufy Orange</option>
+                <option value="111827">Dark Charcoal</option>
+                <option value="1d4ed8">Classic Blue</option>
+                <option value="047857">Forest Green</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Center Icon</label>
+              <select id="qrIconSelect" onchange="toggleCenterIcon()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium">
+                <option value="logo">Meenufy Logo</option>
+                <option value="none">No Icon</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- QR Display Box -->
+        <div class="bg-gray-50 rounded-2xl p-6 flex flex-col items-center justify-center border border-dashed border-gray-200 relative">
+          <div class="relative w-48 h-48 bg-white p-2.5 rounded-xl shadow-md border border-gray-100 flex items-center justify-center">
+            <img id="qrCodeImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=ea580c&data=https%3A%2F%2Fmeenufy.com%2Fview%2Fdemo-cafe" alt="Digital Menu QR" class="w-full h-full object-contain" />
+            <!-- Centered Overlay Logo -->
+            <div id="qrLogoOverlay" class="absolute w-11 h-11 bg-white p-1 rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
+              <img src="/meenufy_logo_transparent.png" alt="Overlay Logo" class="w-8 h-8 object-contain" />
+            </div>
+          </div>
+          <button onclick="downloadQrCode()" class="mt-4 px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition active:scale-95 shadow flex items-center gap-1.5">
+            📥 Download QR Code
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Mock Preview of Customer View-Only Menu -->
+      <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-4">
+        <h4 class="text-xs font-extrabold text-gray-900 uppercase tracking-wider">📱 Interactive View-Only Menu Preview</h4>
+        <p class="text-xs text-gray-500">This is what customers see when they scan your View-Only Menu QR. Ordering is disabled to prevent mock checkouts.</p>
+        <div class="border border-gray-100 rounded-2xl overflow-hidden shadow-sm animate-float">
+          <img src="menu_preview.png" alt="Customer Menu Preview" class="w-full h-auto object-cover" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Step-by-Step AI Walkthrough & Setup Guide (7 Cols) -->
+    <div class="lg:col-span-7 space-y-8">
+      
+      <!-- Special QR Guide Card -->
+      <div class="bg-brand-light/50 border border-orange-100 rounded-3xl p-8 shadow-sm space-y-6">
+        <div class="space-y-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-brand">
+            👁️ View-Only Menu Mode (Ordering Disabled)
+          </span>
+          <h2 class="text-xl md:text-2xl font-display font-black text-gray-900 tracking-tight">
+            How to Get Your "Special View-Only Menu QR Code"
+          </h2>
+          <p class="text-gray-600 text-xs md:text-sm leading-relaxed">
+            Putting your dining table QR codes online is a huge risk—anyone sitting at home could place fake orders. Meenufy solves this by generating a separate <strong>Special View-Only Menu QR Code</strong> for your marketing. 
+          </p>
+        </div>
+
+        <!-- Step-by-Step Interactive Guide -->
+        <div class="space-y-4">
+          <!-- Step 1 -->
+          <div class="step-card bg-white border border-gray-100 rounded-2xl p-4 flex gap-4">
+            <div class="w-10 h-10 rounded-full bg-brand-light text-brand flex items-center justify-center font-display font-extrabold text-sm flex-shrink-0">1</div>
+            <div class="space-y-1">
+              <h4 class="font-bold text-gray-900 text-sm">Sign Up Free on Meenufy</h4>
+              <p class="text-xs text-gray-500 leading-relaxed">Create a free account. No credit card required. Setup takes under 2 minutes.</p>
+              <a href="/" class="inline-flex items-center gap-1 text-[11px] font-bold text-brand hover:underline mt-1">Start Free Registration →</a>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="step-card bg-white border border-gray-100 rounded-2xl p-4 flex gap-4">
+            <div class="w-10 h-10 rounded-full bg-brand-light text-brand flex items-center justify-center font-display font-extrabold text-sm flex-shrink-0">2</div>
+            <div class="space-y-1">
+              <h4 class="font-bold text-gray-900 text-sm">Extract Menu via AI Menu Extractor</h4>
+              <p class="text-xs text-gray-500 leading-relaxed">Simply upload a photo or PDF of your physical paper menu. Meenufy's AI chef extracts categories, dishes, prices, and descriptions automatically.</p>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="step-card bg-white border border-gray-100 rounded-2xl p-4 flex gap-4">
+            <div class="w-10 h-10 rounded-full bg-brand-light text-brand flex items-center justify-center font-display font-extrabold text-sm flex-shrink-0">3</div>
+            <div class="space-y-1">
+              <h4 class="font-bold text-gray-900 text-sm">Add Photos &amp; Finalize Variants</h4>
+              <p class="text-xs text-gray-500 leading-relaxed">Upload beautiful food images, flag Veg/Non-Veg indicators, set bestseller tags, and define portion sizes (like Half/Full).</p>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="step-card bg-white border border-gray-100 rounded-2xl p-4 flex gap-4">
+            <div class="w-10 h-10 rounded-full bg-brand-light text-brand flex items-center justify-center font-display font-extrabold text-sm flex-shrink-0">4</div>
+            <div class="space-y-1">
+              <h4 class="font-bold text-gray-900 text-sm">Download the View-Only QR Code</h4>
+              <p class="text-xs text-gray-500 leading-relaxed">Go to your <strong>Admin Panel</strong> → <strong>More Tab</strong> → <strong>QR Menu/Table</strong>. Find the Special View-Only Menu QR block, copy the link or download the print-ready flyer.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Panel Screenshot Section -->
+      <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-4">
+        <h4 class="text-xs font-extrabold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+          ⚙️ Super Admin / Restaurant Owner Configuration Panel
+        </h4>
+        <p class="text-xs text-gray-500">Located in the "Manage QR &amp; Tables" section, this is where you download the high-resolution View-Only QR flyer for social media.</p>
+        <div class="border border-gray-100 rounded-2xl overflow-hidden shadow-sm bg-gray-50">
+          <img src="qr_preview.png" alt="Admin Panel View-Only QR Setup" class="w-full h-auto object-cover" />
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ============================== FULL SEO CONTENT BELOW THE TOOL ============================== -->
+  <section class="border-t border-gray-100 bg-white py-16 px-4">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-12">
+      
+      <!-- Sticky Sidebar Table of Contents -->
+      <aside class="hidden lg:block lg:col-span-1">
+        <div class="sticky-toc p-5 bg-gray-50 rounded-2xl border border-gray-100 space-y-4 sticky top-20">
+          <h4 class="font-display font-extrabold text-sm text-gray-900 tracking-tight uppercase">Guide Contents</h4>
+          <nav class="flex flex-col gap-3 text-sm">
+            <a href="#what-is-menu-qr" class="text-gray-500 hover:text-brand transition font-medium">What is a Menu QR?</a>
+            <a href="#view-only-security" class="text-gray-500 hover:text-brand transition font-medium">Why View-Only Mode?</a>
+            <a href="#setup-steps" class="text-gray-500 hover:text-brand transition font-medium">AI Setup Walkthrough</a>
+            <a href="#marketing-usage" class="text-gray-500 hover:text-brand transition font-medium">Marketing Placements</a>
+            <a href="#faq" class="text-gray-500 hover:text-brand transition font-medium">Frequently Asked Questions</a>
+            <a href="#other-tools" class="text-gray-500 hover:text-brand transition font-medium">Other Free Restro Tools</a>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- SEO Articles Content -->
+      <article class="lg:col-span-3 space-y-12 text-gray-700 leading-relaxed">
+        
+        <!-- EEAT Signals Header -->
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-400 border-b border-gray-100 pb-4 mb-6">
+          <span>✍️ Written by <strong>Meenufy Team</strong></span>
+          <span>📅 Last Updated: <strong>June 2026</strong></span>
+          <span>✅ Reviewed by <strong>Restaurant Marketing &amp; Tech Consultants</strong></span>
+          <span>📚 Sources: <strong>Restaurant hospitality standards, QR code usability studies</strong></span>
+        </div>
+
+        <section id="what-is-menu-qr" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            What Is a Digital Menu QR Code? (And Why PDFs Are Hurting Your Sales)
+          </h2>
+          <p>
+            When QR codes first took over restaurants, most operators did the easiest thing possible: they uploaded a PDF of their paper menu to Google Drive or Dropbox and generated a QR code pointing to that file. 
+          </p>
+          <p>
+            If your restaurant is still using PDF menu QR codes, you are actively losing customers. PDFs are static, slow to load, difficult to read on small mobile screens, and impossible to update in real time. If an ingredient goes out of stock, or you want to adjust prices, you have to re-edit, export, and re-upload the entire PDF.
+          </p>
+          <p>
+            An interactive digital menu is a mobile-responsive web page where customers can easily swipe through categories, filter by dietary requirements (like Vegetarian or Vegan), view high-resolution photos, and read descriptions. It loads instantly and increases guest satisfaction.
+          </p>
+        </section>
+
+        <section id="view-only-security" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            The Danger of Table Ordering QRs Online (And How View-Only Mode Fixes It)
+          </h2>
+          <p>
+            If you run a modern QR-based self-ordering restaurant, each table has a unique QR code mapped to that specific table number (e.g. Table 4, Table 12). When a customer scans Table 4's QR, they place orders directly to the kitchen, which prints automatically on your thermal KOT printer.
+          </p>
+          <p>
+            Many owners mistakenly take one of these table QR codes, or their general ordering page link, and post it on their Instagram bio, Google Maps listing, or print it on flyers. 
+          </p>
+          <p>
+            <strong>This is a massive operational risk.</strong> If a troll or a competitor at home scans that ordering QR, they can add items to the cart and click checkout. The order prints in your kitchen, your chefs start cooking, and no one is at the table to pay for it.
+          </p>
+          <blockquote class="border-l-4 border-brand pl-4 py-1 italic bg-orange-50/30 rounded-r-lg pr-4">
+            Meenufy solves this security concern with the <strong>Special View-Only Menu QR Code</strong>. This dedicated QR code has the "Add to Cart", "Order Now", and "Call Waiter" buttons completely hidden. Customers can browse your entire menu, see photos, tags, and variants, but cannot place mock orders.
+          </blockquote>
+        </section>
+
+        <section id="setup-steps" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Step-by-Step: Setting Up Your Free View-Only Menu Page with AI
+          </h2>
+          <p>
+            Setting up an interactive digital menu used to take days of manual data entry. With Meenufy, you can set it up in under 5 minutes using artificial intelligence.
+          </p>
+          <ol class="list-decimal pl-6 space-y-3">
+            <li>
+              <strong>Register a Free Account:</strong> Sign up on the Meenufy dashboard. No credit card is required, and your base restaurant profile is created instantly.
+            </li>
+            <li>
+              <strong>AI Menu Extractor:</strong> Go to the Menu tab in your admin dashboard. Take a photo of your paper menu or upload a PDF. Our built-in AI scans the document, parses the text, separates dishes into logical categories, reads pricing, and writes descriptions automatically.
+            </li>
+            <li>
+              <strong>Refine and Tag:</strong> Review the extracted menu. Tag items as Veg or Non-Veg, add bestseller flags, and upload appetizing food photography.
+            </li>
+            <li>
+              <strong>Download QR Code:</strong> Click on "Manage QR &amp; Tables" inside the dashboard. Select the "Special View-Only Menu QR Code" section and download the print-ready image or copy the custom sharing URL.
+            </li>
+          </ol>
+        </section>
+
+        <section id="marketing-usage" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Where to Place Your View-Only Menu QR Code
+          </h2>
+          <p>
+            Maximize your restaurant's digital presence by placing the View-Only QR code across these high-conversion touchpoints:
+          </p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li>
+              <strong>Instagram Bio:</strong> Use it as your primary link-in-bio so followers can instantly browse today's menu.
+            </li>
+            <li>
+              <strong>Google Maps Business Profile:</strong> Add the link under the "Menu Link" field on Google Maps so searchers nearby can preview your meals before visiting.
+            </li>
+            <li>
+              <strong>Flyers &amp; Delivery Bags:</strong> Staple a card with the QR code to delivery orders, inviting customer repeat business.
+            </li>
+            <li>
+              <strong>Restaurant Entrance:</strong> Put a flyer in your window or entry stand so guests waiting in line or passing by can review options.
+            </li>
+          </ul>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Digital Menu QR Code — Frequently Asked Questions
+          </h2>
+          <div class="space-y-4">
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">What is a Special View-Only Menu QR Code?</h5>
+              <p class="text-xs text-gray-500">It is a dedicated QR code generated by Meenufy specifically for marketing purposes. When scanned, it loads your interactive digital menu with browsing features enabled (categories, photos, tags) but disables ordering and checkout. This prevents remote fake orders.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">Can I link my own custom domain to the digital menu?</h5>
+              <p class="text-xs text-gray-500">Yes, Meenufy supports custom domain mapping so your digital menu can live directly on menu.yourrestaurant.com.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">How does the AI Menu Extractor work?</h5>
+              <p class="text-xs text-gray-500">It uses optical character recognition (OCR) and structured language models to read photos of physical menus, automatically identifying dishes, prices, and categories, saving you hours of typing.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">Is this digital menu builder really free?</h5>
+              <p class="text-xs text-gray-500">Yes, the basic interactive digital menu and the Special View-Only QR code generator are 100% free with no hidden subscription costs.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Other Tools Section -->
+        <section id="other-tools" class="space-y-6">
+          <h2 class="text-xl md:text-2xl font-display font-black text-gray-900 tracking-tight">
+            Other Free Restaurant Tools by Meenufy
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a href="/tools/food-cost-calculator" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                🍽️ Food Cost Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Calculate recipe cost, food cost %, and ideal menu pricing.</p>
+            </a>
+            <a href="/tools/restaurant-profit-margin-calculator" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                📊 Restaurant Profit Margin Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Calculate net profit margin across your full P&amp;L sheet.</p>
+            </a>
+          </div>
+        </section>
+
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============================== MEENUFY WARM ORANGE CTA BANNER ============================== -->
+  <section class="bg-brand-light border-t border-orange-100 py-16 px-4 text-center">
+    <div class="max-w-3xl mx-auto space-y-6">
+      <div class="w-16 h-16 rounded-2xl bg-brand flex items-center justify-center font-bold text-white font-display text-2xl mx-auto shadow-md">M</div>
+      <h2 class="text-2xl md:text-4xl font-display font-black text-gray-900 tracking-tight">
+        Build Your Digital QR Menu in Seconds
+      </h2>
+      <p class="text-gray-600 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+        Stop using ugly PDF menus that customers struggle to read. Use Meenufy's free digital menu builder to extract your physical menu, upload beautiful photos, and generate your Special View-Only QR code.
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <a href="/" class="w-full sm:w-auto bg-brand hover:bg-brand-dark text-white font-bold py-3.5 px-8 rounded-xl transition text-base shadow-sm">
+          Start Free Trial — No Credit Card
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 border-t border-gray-800 text-gray-400 py-12 px-4">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div class="space-y-4">
+        <div class="flex items-center gap-2">
+          <img src="/meenufy_logo_transparent.png" alt="Meenufy Logo" class="w-6 h-6 object-contain" />
+          <span class="font-display font-extrabold text-lg text-white tracking-tight">Meenufy</span>
+        </div>
+        <p class="text-xs leading-relaxed text-gray-500">The complete restaurant management platform for modern restaurants worldwide.</p>
+      </div>
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Free Tools</h4>
+        <div class="flex flex-col gap-2 text-xs">
+          <a href="/tools/" class="hover:text-brand">Calculators</a>
+          <a href="/tools/" class="hover:text-brand">QR Tools</a>
+          <a href="/tools/" class="hover:text-brand">Guides</a>
+        </div>
+      </div>
+    </div>
+    <div class="max-w-6xl mx-auto border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+      <span>© 2025 Meenufy. All rights reserved.</span>
+    </div>
+  </footer>
+
+  <script>
+    function generateCustomQr() {
+      const url = document.getElementById('qrUrlInput').value.trim() || 'https://meenufy.com/view/demo-cafe';
+      const color = document.getElementById('qrColorSelect').value;
+      const qrImg = document.getElementById('qrCodeImage');
+      
+      const encodedUrl = encodeURIComponent(url);
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&color=${color}&data=${encodedUrl}`;
+    }
+
+    function toggleCenterIcon() {
+      const select = document.getElementById('qrIconSelect').value;
+      const overlay = document.getElementById('qrLogoOverlay');
+      if (select === 'logo') {
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+
+    async function downloadQrCode() {
+      const url = document.getElementById('qrUrlInput').value.trim() || 'https://meenufy.com/view/demo-cafe';
+      const color = document.getElementById('qrColorSelect').value;
+      const encodedUrl = encodeURIComponent(url);
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=${color}&data=${encodedUrl}`;
+
+      try {
+        const response = await fetch(qrUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = 'digital_menu_qr_code.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to download QR code. Please right-click the QR image and select "Save Image As".');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -319,7 +319,7 @@ let searchQuery  = '';
 // RENDER A SINGLE CARD
 // =============================================
 function renderCard(tool, delay = 0) {
-  const isActive = tool.id === 'food-cost-calc' || tool.id === 'profit-margin-calc';
+  const isActive = tool.id === 'food-cost-calc' || tool.id === 'profit-margin-calc' || tool.id === 'menu-qr-gen';
   const badgeHtml = (() => {
     if (!tool.badge) return '';
     const map = {
@@ -420,6 +420,10 @@ function onToolClick(id, e) {
   }
   if (id === 'profit-margin-calc') {
     window.location.href = '/tools/restaurant-profit-margin-calculator/';
+    return;
+  }
+  if (id === 'menu-qr-gen') {
+    window.location.href = '/tools/digital-menu-qr-generator/';
     return;
   }
   const tool = TOOLS.find(t => t.id === id);
