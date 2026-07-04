@@ -58,6 +58,7 @@ function MealCard({
   t: (key: any) => string;
 }) {
   const { rating, reviews } = getRatingDetails(item.id);
+  const isViewOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('viewOnly') === 'true';
   return (
     <div className="card" style={{
       padding: 0,
@@ -175,36 +176,38 @@ function MealCard({
           </span>
 
           {/* Cart Controls */}
-          <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-            {item.variants && item.variants.length > 0 ? (
-              <button
-                onClick={() => handleOpenVariantModal(item)}
-                style={{ padding: '4px 10px', fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, height: 26, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
-              >
-                {t('add')} {qty > 0 ? `(${qty})` : ''} <FoodTrolley size={16} color="var(--customer-add-to-cart-text, #000000)" />
-              </button>
-            ) : qty === 0 ? (
-              <button
-                className="btn btn-primary"
-                onClick={() => handleAddToCart(item)}
-                style={{ padding: '4px 10px', fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, height: 26, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
-              >
-                {t('add')} <FoodTrolley size={16} color="var(--customer-add-to-cart-text, #000000)" />
-              </button>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--customer-add-to-cart-bg, #ffffff)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', height: 26 }}>
+          {!isViewOnly && (
+            <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+              {item.variants && item.variants.length > 0 ? (
                 <button
-                  onClick={() => handleDecrement(item.id)}
-                  style={{ width: 24, height: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--customer-add-to-cart-text, #000000)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >−</button>
-                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--customer-add-to-cart-text, #000000)', minWidth: 14, textAlign: 'center' }}>{qty}</span>
+                  onClick={() => handleOpenVariantModal(item)}
+                  style={{ padding: '4px 10px', fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, height: 26, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
+                >
+                  {t('add')} {qty > 0 ? `(${qty})` : ''} <FoodTrolley size={16} color="var(--customer-add-to-cart-text, #000000)" />
+                </button>
+              ) : qty === 0 ? (
                 <button
-                  onClick={() => handleIncrement(item.id, item.name, item.price)}
-                  style={{ width: 24, height: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--customer-add-to-cart-text, #000000)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >+</button>
-              </div>
-            )}
-          </div>
+                  className="btn btn-primary"
+                  onClick={() => handleAddToCart(item)}
+                  style={{ padding: '4px 10px', fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, height: 26, borderRadius: '4px', background: 'var(--customer-add-to-cart-bg, #ffffff)', color: 'var(--customer-add-to-cart-text, #000000)', border: 'none' }}
+                >
+                  {t('add')} <FoodTrolley size={16} color="var(--customer-add-to-cart-text, #000000)" />
+                </button>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', background: 'var(--customer-add-to-cart-bg, #ffffff)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', height: 26 }}>
+                  <button
+                    onClick={() => handleDecrement(item.id)}
+                    style={{ width: 24, height: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--customer-add-to-cart-text, #000000)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >−</button>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--customer-add-to-cart-text, #000000)', minWidth: 14, textAlign: 'center' }}>{qty}</span>
+                  <button
+                    onClick={() => handleIncrement(item.id, item.name, item.price)}
+                    style={{ width: 24, height: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--customer-add-to-cart-text, #000000)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >+</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -213,6 +216,7 @@ function MealCard({
 
 export default function CustomerMenu() {
   const { state, dispatch, addToast } = useStore();
+  const isViewOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('viewOnly') === 'true';
   const t = useTranslation();
   const [selectedCat, setSelectedCat] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -975,86 +979,94 @@ export default function CustomerMenu() {
 
             {/* Add to cart controls — just below name, before variants */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16, padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-full)',
-                overflow: 'hidden',
-                height: 36,
-                padding: '0 4px'
-              }}>
-                <button
-                  onClick={() => setVariantQty(Math.max(1, variantQty - 1))}
-                  style={{
-                    width: 28, height: '100%',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', color: 'var(--text-primary)',
-                    fontSize: 16, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >−</button>
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', minWidth: 20, textAlign: 'center' }}>
-                  {variantQty}
-                </span>
-                <button
-                  onClick={() => setVariantQty(variantQty + 1)}
-                  style={{
-                    width: 28, height: '100%',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', color: 'var(--text-primary)',
-                    fontSize: 16, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >+</button>
-              </div>
+              {!isViewOnly ? (
+                <>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-full)',
+                    overflow: 'hidden',
+                    height: 36,
+                    padding: '0 4px'
+                  }}>
+                    <button
+                      onClick={() => setVariantQty(Math.max(1, variantQty - 1))}
+                      style={{
+                        width: 28, height: '100%',
+                        background: 'none', border: 'none',
+                        cursor: 'pointer', color: 'var(--text-primary)',
+                        fontSize: 16, fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}
+                    >−</button>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', minWidth: 20, textAlign: 'center' }}>
+                      {variantQty}
+                    </span>
+                    <button
+                      onClick={() => setVariantQty(variantQty + 1)}
+                      style={{
+                        width: 28, height: '100%',
+                        background: 'none', border: 'none',
+                        cursor: 'pointer', color: 'var(--text-primary)',
+                        fontSize: 16, fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}
+                    >+</button>
+                  </div>
 
-              <button
-                onClick={() => {
-                  const applicable = getApplicableAddons(variantModalItem);
-                  if (applicable.length > 0) {
-                    setAddonModalItem({
-                      item: variantModalItem,
-                      qty: variantQty,
-                      variant: selectedVariant || undefined
-                    });
-                    setSelectedAddonOptions({});
-                    setVariantModalItem(null);
-                    return;
-                  }
+                  <button
+                    onClick={() => {
+                      const applicable = getApplicableAddons(variantModalItem);
+                      if (applicable.length > 0) {
+                        setAddonModalItem({
+                          item: variantModalItem,
+                          qty: variantQty,
+                          variant: selectedVariant || undefined
+                        });
+                        setSelectedAddonOptions({});
+                        setVariantModalItem(null);
+                        return;
+                      }
 
-                  dispatch({
-                    type: 'ADD_TO_CART',
-                    payload: {
-                      menuItemId: variantModalItem.id,
-                      name: variantModalItem.name,
-                      price: selectedVariant ? selectedVariant.price : variantModalItem.price,
-                      qty: variantQty,
-                      variant: selectedVariant || undefined
-                    }
-                  });
-                  addToast('success', selectedVariant ? `${variantModalItem.name} (${selectedVariant.name}) added to cart!` : `${variantModalItem.name} added to cart!`);
-                  setVariantModalItem(null);
-                }}
-                style={{
-                  flex: 1,
-                  height: 36,
-                  borderRadius: 'var(--radius-full)',
-                  fontWeight: 500,
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  background: 'var(--customer-add-to-cart-bg, #ffffff)',
-                  color: 'var(--customer-add-to-cart-text, #000000)',
-                  border: 'none',
-                  boxShadow: 'var(--shadow-sm)'
-                }}
-              >
-                {t('add')} — ₹{(selectedVariant ? selectedVariant.price : variantModalItem.price) * variantQty} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
-              </button>
+                      dispatch({
+                        type: 'ADD_TO_CART',
+                        payload: {
+                          menuItemId: variantModalItem.id,
+                          name: variantModalItem.name,
+                          price: selectedVariant ? selectedVariant.price : variantModalItem.price,
+                          qty: variantQty,
+                          variant: selectedVariant || undefined
+                        }
+                      });
+                      addToast('success', selectedVariant ? `${variantModalItem.name} (${selectedVariant.name}) added to cart!` : `${variantModalItem.name} added to cart!`);
+                      setVariantModalItem(null);
+                    }}
+                    style={{
+                      flex: 1,
+                      height: 36,
+                      borderRadius: 'var(--radius-full)',
+                      fontWeight: 500,
+                      fontSize: 13,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      background: 'var(--customer-add-to-cart-bg, #ffffff)',
+                      color: 'var(--customer-add-to-cart-text, #000000)',
+                      border: 'none',
+                      boxShadow: 'var(--shadow-sm)'
+                    }}
+                  >
+                    {t('add')} — ₹{(selectedVariant ? selectedVariant.price : variantModalItem.price) * variantQty} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
+                  </button>
+                </>
+              ) : (
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', background: 'rgba(249, 115, 22, 0.1)', color: '#ea580c', border: '1px dashed rgba(249, 115, 22, 0.3)', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                  👁️ View-Only Mode (Ordering Disabled)
+                </div>
+              )}
             </div>
 
             {/* Description — only in popup */}

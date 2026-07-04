@@ -654,6 +654,7 @@ export default function AdminMore() {
   // QR Code Manager States
   const [tableCount, setTableCount] = useState(state.restaurant.tableCount);
   const qrRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
+  const viewOnlyQRRef = useRef<HTMLCanvasElement | null>(null);
 
   // Listen for PWA install prompt
   useEffect(() => {
@@ -677,6 +678,17 @@ export default function AdminMore() {
           });
         }
       });
+
+      // Special View-Only Menu QR Code
+      const viewOnlyCanvas = viewOnlyQRRef.current;
+      if (viewOnlyCanvas) {
+        const viewOnlyUrl = `${window.location.origin}/?view=customer&viewOnly=true&restaurant=${state.admin?.restaurantId || 'admin-1'}`;
+        QRCode.toCanvas(viewOnlyCanvas, viewOnlyUrl, {
+          width: 180,
+          color: { dark: '#FFFFFF', light: '#0D0D0D' },
+          errorCorrectionLevel: 'M',
+        });
+      }
     });
   }, [activeSection, state.tables]);
 
@@ -2001,6 +2013,62 @@ export default function AdminMore() {
               <h3 style={{ fontSize: 15, fontWeight: 700 }}>Manage QR &amp; Tables</h3>
             </div>
           </div>
+
+          {/* SPECIAL VIEW-ONLY MENU QR CODE */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.06) 0%, rgba(234, 88, 12, 0.01) 100%)',
+            border: '2px dashed rgba(249, 115, 22, 0.35)',
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            gap: 12,
+            boxShadow: '0 4px 16px rgba(249,115,22,0.03)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#ea580c' }}>
+              <span style={{ fontSize: 20 }}>👁️</span>
+              <h4 style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>Special View-Only Menu QR Code</h4>
+            </div>
+            <p style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: 400, margin: 0 }}>
+              <strong>Important Use Case:</strong> Put this QR Code on your social media, website, or flyers. When customers scan it, they can <strong>only view and browse your menu</strong> (categories, dish descriptions, photos, variants, calories) but <strong>cannot place orders or call waitstaff</strong>. Do not place this on your dining tables!
+            </p>
+            
+            <div style={{ background: '#ffffff', padding: 12, borderRadius: 12, display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 6, border: '1px solid var(--border)' }}>
+              <canvas ref={viewOnlyQRRef} style={{ borderRadius: 6, display: 'block', width: 140, height: 140 }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 300, marginTop: 6 }}>
+              <a
+                href={`${window.location.origin}/?view=customer&viewOnly=true&restaurant=${state.admin?.restaurantId || 'admin-1'}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary btn-sm"
+                style={{ flex: 1, fontSize: 11, padding: '6px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+              >
+                <ExternalLink size={12} /> Live Preview
+              </a>
+              <button
+                onClick={() => {
+                  const canvas = viewOnlyQRRef.current;
+                  if (canvas) {
+                    const link = document.createElement('a');
+                    link.download = `${state.restaurant.name || 'restaurant'}_View_Only_Menu_QR.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                  }
+                }}
+                className="btn btn-primary btn-sm"
+                style={{ flex: 1, fontSize: 11, padding: '6px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, background: '#ea580c', color: '#fff', border: 'none', fontWeight: 800 }}
+              >
+                📥 Download
+              </button>
+            </div>
+          </div>
+
+          <div style={{ borderBottom: '1px solid var(--border)', marginBottom: 20 }}></div>
 
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
             <div className="input-group" style={{ flex: 1, minWidth: 100 }}>

@@ -75,12 +75,14 @@ export default function CustomerLayout({ tableId }: Props) {
     }
   };
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const isViewOnly = urlParams.get('viewOnly') === 'true';
+
   useEffect(() => {
     dispatch({ type: 'SET_CUSTOMER_TABLE', payload: tableId });
     dispatch({ type: 'SET_VIEW', payload: 'customer' });
 
     // Always derive restaurantId from URL params (most reliable - doesn't depend on admin login state)
-    const urlParams = new URLSearchParams(window.location.search);
     const rId = urlParams.get('restaurant') || getActiveRestaurantId(state);
     const prevRestaurantId = localStorage.getItem('meenufy_active_restaurant_id');
     if (prevRestaurantId && prevRestaurantId !== rId) {
@@ -88,7 +90,17 @@ export default function CustomerLayout({ tableId }: Props) {
       addToast('info', 'Switched restaurant. Cart has been reset.');
     }
     localStorage.setItem('meenufy_active_restaurant_id', rId);
-  }, [tableId]);
+
+    if (isViewOnly) {
+      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
+    }
+  }, [tableId, isViewOnly]);
+
+  useEffect(() => {
+    if (isViewOnly && state.customerTab !== 'menu') {
+      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
+    }
+  }, [isViewOnly, state.customerTab]);
 
   // Track the REAL viewport height via window.innerHeight (100dvh is unreliable on Android Chrome)
   // and expose it as --app-height CSS variable for the container to use.
@@ -510,6 +522,26 @@ export default function CustomerLayout({ tableId }: Props) {
       maxWidth: 480, margin: '0 auto', position: 'relative',
       overflow: 'hidden',
     }}>
+      {isViewOnly && (
+        <div style={{
+          background: 'linear-gradient(90deg, #f97316 0%, #ea580c 100%)',
+          color: '#ffffff',
+          padding: '10px 16px',
+          textAlign: 'center',
+          fontSize: '12px',
+          fontWeight: 700,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          flexShrink: 0,
+          boxShadow: '0 2px 10px rgba(234, 88, 12, 0.3)'
+        }}>
+          <span style={{ fontSize: 14 }}>👁️</span>
+          <span>View-Only Menu Mode (Ordering Disabled)</span>
+        </div>
+      )}
       {!hasFirebaseConfig && (
         <div style={{
           background: '#d97706',
@@ -581,10 +613,10 @@ export default function CustomerLayout({ tableId }: Props) {
       </div>
 
       {/* Cart floating button */}
-      <CustomerCart tableId={tableId} />
+      {!isViewOnly && <CustomerCart tableId={tableId} />}
 
       {/* Floating Order Status Capsule */}
-      {hasActiveOrUnrated && (
+      {!isViewOnly && hasActiveOrUnrated && (
         <div
           onClick={() => setShowStatusModal(true)}
           style={{
@@ -1226,7 +1258,7 @@ export default function CustomerLayout({ tableId }: Props) {
       )}
 
       {/* Bottom Nav */}
-      <CustomerBottomNav />
+      {!isViewOnly && <CustomerBottomNav />}
     </div>
   );
 }
