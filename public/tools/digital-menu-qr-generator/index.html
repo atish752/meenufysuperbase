@@ -120,7 +120,7 @@
       <!-- Trust Badges -->
       <div class="flex flex-wrap items-center justify-center gap-3 max-w-3xl mx-auto">
         <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Branded QR Codes</span>
-        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Customizable Colors</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Level H ECC Scannability</span>
         <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ View-Only Menu Mode Preview</span>
         <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Step-by-Step AI Guide</span>
       </div>
@@ -135,7 +135,7 @@
       <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-6">
         <div>
           <h3 class="text-lg font-black text-gray-900 font-display">1. Custom QR Code Generator</h3>
-          <p class="text-xs text-gray-500 mt-1">Generate a quick QR code pointing to your digital menu link.</p>
+          <p class="text-xs text-gray-500 mt-1">Generate a scannable QR code pointing to your digital menu link.</p>
         </div>
 
         <div class="space-y-4">
@@ -166,11 +166,12 @@
 
         <!-- QR Display Box -->
         <div class="bg-gray-50 rounded-2xl p-6 flex flex-col items-center justify-center border border-dashed border-gray-200 relative">
+          <!-- ecc=H is applied here to support scannability when overlayed with logo -->
           <div class="relative w-48 h-48 bg-white p-2.5 rounded-xl shadow-md border border-gray-100 flex items-center justify-center">
-            <img id="qrCodeImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=ea580c&data=https%3A%2F%2Fmeenufy.com%2Fview%2Fdemo-cafe" alt="Digital Menu QR" class="w-full h-full object-contain" />
+            <img id="qrCodeImage" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&ecc=H&color=ea580c&data=https%3A%2F%2Fmeenufy.com%2Fview%2Fdemo-cafe" alt="Digital Menu QR" class="w-full h-full object-contain" />
             <!-- Centered Overlay Logo -->
-            <div id="qrLogoOverlay" class="absolute w-11 h-11 bg-white p-1 rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
-              <img src="/meenufy_logo_transparent.png" alt="Overlay Logo" class="w-8 h-8 object-contain" />
+            <div id="qrLogoOverlay" class="absolute w-10 h-10 bg-white p-1 rounded-lg shadow-md border border-gray-100 flex items-center justify-center">
+              <img src="/meenufy_logo_transparent.png" alt="Overlay Logo" class="w-7 h-7 object-contain" />
             </div>
           </div>
           <button onclick="downloadQrCode()" class="mt-4 px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition active:scale-95 shadow flex items-center gap-1.5">
@@ -179,13 +180,32 @@
         </div>
       </div>
 
-      <!-- Live Mock Preview of Customer View-Only Menu -->
+      <!-- Live Mock Preview of Customer View-Only Menu (Switcher Tabs) -->
       <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-4">
-        <h4 class="text-xs font-extrabold text-gray-900 uppercase tracking-wider">📱 Interactive View-Only Menu Preview</h4>
-        <p class="text-xs text-gray-500">This is what customers see when they scan your View-Only Menu QR. Ordering is disabled to prevent mock checkouts.</p>
-        <div class="border border-gray-100 rounded-2xl overflow-hidden shadow-sm animate-float">
-          <img src="menu_preview.png" alt="Customer Menu Preview" class="w-full h-auto object-cover" />
+        <div>
+          <h4 class="text-xs font-extrabold text-gray-900 uppercase tracking-wider">📱 Interactive View-Only Menu Preview</h4>
+          <p class="text-[11px] text-gray-500 mt-0.5">Toggle tabs below to preview the menu list or the detailed single item modal view.</p>
         </div>
+        
+        <!-- Tab Switcher -->
+        <div class="bg-gray-100 p-1 rounded-xl flex gap-1 text-[11px] font-bold text-gray-600">
+          <button onclick="switchPreviewTab('menu')" id="btnTabMenu" class="flex-1 py-2 text-center rounded-lg bg-white text-gray-900 shadow-sm transition">
+            📋 Menu Categories
+          </button>
+          <button onclick="switchPreviewTab('item')" id="btnTabItem" class="flex-1 py-2 text-center rounded-lg hover:text-gray-900 transition">
+            🍔 Single Item View
+          </button>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl overflow-hidden shadow-sm relative bg-gray-50 flex justify-center items-center">
+          <img id="imgMenuPreview" src="menu_preview.png" alt="Customer Menu View" class="w-full h-auto object-cover max-h-[500px]" />
+          <img id="imgItemPreview" src="item_preview.png" alt="Customer Item View" class="w-full h-auto object-cover max-h-[500px] hidden" />
+        </div>
+
+        <!-- Live Demo Link -->
+        <a href="https://meenufy.vercel.app/?view=customer&viewOnly=true&restaurant=admin-1" target="_blank" class="w-full py-3.5 bg-brand hover:bg-brand-dark text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm">
+          ✨ Open Live Customer View-Only Menu Demo
+        </a>
       </div>
     </div>
 
@@ -241,7 +261,7 @@
             <div class="w-10 h-10 rounded-full bg-brand-light text-brand flex items-center justify-center font-display font-extrabold text-sm flex-shrink-0">4</div>
             <div class="space-y-1">
               <h4 class="font-bold text-gray-900 text-sm">Download the View-Only QR Code</h4>
-              <p class="text-xs text-gray-500 leading-relaxed">Go to your <strong>Admin Panel</strong> → <strong>More Tab</strong> → <strong>QR Menu/Table</strong>. Find the Special View-Only Menu QR block, copy the link or download the print-ready flyer.</p>
+              <p class="text-xs text-gray-500 leading-relaxed">Go to your <strong>Admin Panel</strong> → <strong>More Tab</strong> → <strong>Manage QR &amp; Tables</strong>. Download your high-resolution "Special View-Only Menu QR Code" flyer or click the Live Preview.</p>
             </div>
           </div>
         </div>
@@ -252,7 +272,7 @@
         <h4 class="text-xs font-extrabold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
           ⚙️ Super Admin / Restaurant Owner Configuration Panel
         </h4>
-        <p class="text-xs text-gray-500">Located in the "Manage QR &amp; Tables" section, this is where you download the high-resolution View-Only QR flyer for social media.</p>
+        <p class="text-xs text-gray-500">Find this inside the "Manage QR &amp; Tables" dashboard under the More navigation tab.</p>
         <div class="border border-gray-100 rounded-2xl overflow-hidden shadow-sm bg-gray-50">
           <img src="qr_preview.png" alt="Admin Panel View-Only QR Setup" class="w-full h-auto object-cover" />
         </div>
@@ -273,7 +293,9 @@
             <a href="#what-is-menu-qr" class="text-gray-500 hover:text-brand transition font-medium">What is a Menu QR?</a>
             <a href="#view-only-security" class="text-gray-500 hover:text-brand transition font-medium">Why View-Only Mode?</a>
             <a href="#setup-steps" class="text-gray-500 hover:text-brand transition font-medium">AI Setup Walkthrough</a>
+            <a href="#scannability-rules" class="text-gray-500 hover:text-brand transition font-medium">QR Scannability Rules</a>
             <a href="#marketing-usage" class="text-gray-500 hover:text-brand transition font-medium">Marketing Placements</a>
+            <a href="#menu-engineering" class="text-gray-500 hover:text-brand transition font-medium">Menu Engineering Matrix</a>
             <a href="#faq" class="text-gray-500 hover:text-brand transition font-medium">Frequently Asked Questions</a>
             <a href="#other-tools" class="text-gray-500 hover:text-brand transition font-medium">Other Free Restro Tools</a>
           </nav>
@@ -347,6 +369,29 @@
           </ol>
         </section>
 
+        <section id="scannability-rules" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            QR Code Scannability Checklist: How to Prevent Scan Failures
+          </h2>
+          <p>
+            A QR code that won't scan is a direct source of customer friction. When designing and printing QR codes with central branding overlays, keep these technical parameters in mind:
+          </p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li>
+              <strong>Error Correction Level (ECC):</strong> Always generate QR codes with **Level H** (High, ~30%) error correction when placing a custom logo in the center. High error correction allows scanner cameras to read the QR code even if up to 30% of its area is covered by branding overlays.
+            </li>
+            <li>
+              <strong>Quiet Zone Border:</strong> Keep a clear white border (typically 4 modules wide) around the outside of the QR code. Stripping the quiet zone border leads to reading errors because phone cameras cannot separate the QR from surrounding background text.
+            </li>
+            <li>
+              <strong>Sufficient Contrast:</strong> Maintain high contrast between the dark data modules and the light background. Avoid scanning light yellow or pastel-colored QR codes, especially in low-light dining rooms.
+            </li>
+            <li>
+              <strong>Logo Sizing Limit:</strong> Ensure your custom center logo overlay does not cover more than 15-20% of the total QR code grid area. Sizing a logo overlay too large leads to parsing failures, regardless of your ECC level.
+            </li>
+          </ul>
+        </section>
+
         <section id="marketing-usage" class="space-y-4">
           <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
             Where to Place Your View-Only Menu QR Code
@@ -366,6 +411,26 @@
             </li>
             <li>
               <strong>Restaurant Entrance:</strong> Put a flyer in your window or entry stand so guests waiting in line or passing by can review options.
+            </li>
+          </ul>
+        </section>
+
+        <section id="menu-engineering" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Leveraging Menu Engineering Matrix inside Your Digital Menu Layout
+          </h2>
+          <p>
+            An interactive QR menu is an active sales tool. By analyzing guest browsing behavior and configuring custom tags, you can shift your sales mix to higher-margin dishes:
+          </p>
+          <ul class="list-disc pl-6 space-y-2.5">
+            <li>
+              <strong>Star Dishes:</strong> Rarity items that are high popularity and high profitability. Tag these as **Bestseller** in Meenufy and place them at the very top of your category lists.
+            </li>
+            <li>
+              <strong>Plowhorses:</strong> Popular items with low profit margin. Consider micro-adjustments to pricing (e.g. increase by 5-10%) or use portion sizing options to increase margin.
+            </li>
+            <li>
+              <strong>Puzzles:</strong> High profit margin but low popularity. Write rich, descriptive sensory copywriting and add photos to encourage customers to try them.
             </li>
           </ul>
         </section>
@@ -471,7 +536,8 @@
       const qrImg = document.getElementById('qrCodeImage');
       
       const encodedUrl = encodeURIComponent(url);
-      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&color=${color}&data=${encodedUrl}`;
+      // Adding ecc=H explicitly for scannability with logo overlay
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&ecc=H&color=${color}&data=${encodedUrl}`;
     }
 
     function toggleCenterIcon() {
@@ -488,7 +554,8 @@
       const url = document.getElementById('qrUrlInput').value.trim() || 'https://meenufy.com/view/demo-cafe';
       const color = document.getElementById('qrColorSelect').value;
       const encodedUrl = encodeURIComponent(url);
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=${color}&data=${encodedUrl}`;
+      // Adding ecc=H explicitly for scannability with logo overlay
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&ecc=H&color=${color}&data=${encodedUrl}`;
 
       try {
         const response = await fetch(qrUrl);
@@ -505,6 +572,25 @@
       } catch (err) {
         console.error(err);
         alert('Failed to download QR code. Please right-click the QR image and select "Save Image As".');
+      }
+    }
+
+    function switchPreviewTab(tabType) {
+      const menuImg = document.getElementById('imgMenuPreview');
+      const itemImg = document.getElementById('imgItemPreview');
+      const btnMenu = document.getElementById('btnTabMenu');
+      const btnItem = document.getElementById('btnTabItem');
+
+      if (tabType === 'menu') {
+        menuImg.classList.remove('hidden');
+        itemImg.classList.add('hidden');
+        btnMenu.className = 'flex-1 py-2 text-center rounded-lg bg-white text-gray-900 shadow-sm transition';
+        btnItem.className = 'flex-1 py-2 text-center rounded-lg hover:text-gray-900 transition';
+      } else {
+        menuImg.classList.add('hidden');
+        itemImg.classList.remove('hidden');
+        btnMenu.className = 'flex-1 py-2 text-center rounded-lg hover:text-gray-900 transition';
+        btnItem.className = 'flex-1 py-2 text-center rounded-lg bg-white text-gray-900 shadow-sm transition';
       }
     }
   </script>
