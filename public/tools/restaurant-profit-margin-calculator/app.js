@@ -127,12 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check for shared URL parameters first
   decodeShareLink();
   
-  // Default to Casual Dining values if inputs are completely empty
-  if (!document.getElementById('foodRevInput').value) {
-    applyPreset('casual_dining');
-  } else {
-    recalculate();
-  }
+  recalculate();
 });
 
 // Update selected currency symbols on page
@@ -247,12 +242,17 @@ function recalculate() {
   const annualRevenue = totalRevenue * multiplier;
   const annualNetProfit = netProfit * multiplier;
 
+  const cogsPct = totalRevenue > 0 ? (cogs / totalRevenue) * 100 : 0;
+  const laborPct = totalRevenue > 0 ? (labor / totalRevenue) * 100 : 0;
+  const rentPct = totalRevenue > 0 ? (rent / totalRevenue) * 100 : 0;
+
   // Save results globally
   calculatedResults = {
     totalRevenue, totalExpenses, grossProfit, netProfit, grossMargin, netMargin,
     primeCost, primeCostPct, ebitda, ebitdaMargin, breakEven,
     annualRevenue, annualNetProfit, multiplier,
-    cogs, labor, rent, utilities, marketing, repairs, licenses, other
+    cogs, labor, rent, utilities, marketing, repairs, licenses, other,
+    cogsPct, laborPct, rentPct
   };
 
   // Update percentages of revenue dynamically next to input fields

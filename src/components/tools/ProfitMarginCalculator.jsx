@@ -117,7 +117,7 @@ export default function ProfitMarginCalculator() {
   const [restaurantType, setRestaurantType] = useState('Casual Dining');
   const [currency, setCurrency] = useState(CURRENCIES[0]);
   const [period, setPeriod] = useState('monthly');
-  const [activePreset, setActivePreset] = useState('casual_dining');
+  const [activePreset, setActivePreset] = useState(null);
 
   // Revenue State
   const [foodRevenue, setFoodRevenue] = useState('');
@@ -169,7 +169,6 @@ export default function ProfitMarginCalculator() {
     const params = new URLSearchParams(window.location.search);
     const data = params.get('d');
     if (!data) {
-      applyPresetValues('casual_dining', CURRENCIES[0].code);
       return;
     }
 

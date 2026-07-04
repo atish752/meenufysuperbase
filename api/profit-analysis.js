@@ -1,52 +1,3 @@
-import https from 'https';
-
-function httpsGet(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(body));
-        } catch (e) {
-          reject(e);
-        }
-      });
-    }).on('error', reject);
-  });
-}
-
-function httpsPost(url, payload) {
-  return new Promise((resolve, reject) => {
-    const data = JSON.stringify(payload);
-    const parsedUrl = new URL(url);
-    const options = {
-      hostname: parsedUrl.hostname,
-      port: 443,
-      path: parsedUrl.pathname + parsedUrl.search,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(data)
-      }
-    };
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        try {
-          resolve({ status: res.statusCode, body: JSON.parse(body) });
-        } catch (e) {
-          resolve({ status: res.statusCode, error: e, rawBody: body });
-        }
-      });
-    });
-    req.on('error', reject);
-    req.write(data);
-    req.end();
-  });
-}
-
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -74,14 +25,19 @@ export default async function handler(req, res) {
     ebitda, restaurantType, currency, period
   } = req.body || {};
 
-  // 1. Fetch Gemini keys from Firebase Realtime Database
+  // 1. Fetch Gemini keys from Firebase Realtime Database using built-in fetch
   let dbKeys = [];
   try {
-    const fetchedData = await httpsGet('https://meenufy-default-rtdb.firebaseio.com/geminiApiKeys.json');
-    if (Array.isArray(fetchedData)) {
-      dbKeys = fetchedData;
-    } else if (fetchedData && typeof fetchedData === 'object') {
-      dbKeys = Object.values(fetchedData);
+    const dbResponse = await fetch('https://meenufy-default-rtdb.firebaseio.com/geminiApiKeys.json');
+    if (dbResponse.ok) {
+      const fetchedData = await dbResponse.json();
+      if (Array.isArray(fetchedData)) {
+        dbKeys = fetchedData;
+      } else if (fetchedData && typeof fetchedData === 'object') {
+        dbKeys = Object.values(fetchedData);
+      }
+    } else {
+      console.error(`Firebase DB returned status ${dbResponse.status}`);
     }
   } catch (err) {
     console.error('Failed to fetch Gemini API keys from database:', err);
@@ -90,13 +46,13 @@ export default async function handler(req, res) {
   // Filter out fake or template keys
   const validKeys = dbKeys.filter(k => k && typeof k === 'string' && !k.includes('FakeGeminiKey'));
 
-  // If no database keys found, fallback to environment variable
+  // Fallback to environment variable if database has no valid keys
   if (validKeys.length === 0 && process.env.GEMINI_API_KEY) {
     validKeys.push(process.env.GEMINI_API_KEY);
   }
 
   if (validKeys.length === 0) {
-    res.status(500).json({ error: 'No valid Gemini API keys are configured in Super Admin' });
+    res.status(500).json({ error: 'No valid Gemini API keys configured in Super Admin dashboard' });
     return;
   }
 
@@ -143,7 +99,7 @@ Keep the entire response under 180 words. Be specific to their actual numbers, n
   let lastError = null;
   let successText = null;
 
-  // Shuffle keys to rotate load
+  // Shuffle keys to rotate load balancing
   const shuffledKeys = [...validKeys].sort(() => Math.random() - 0.5);
 
   // 3. Execute request with key and model rotation
@@ -152,21 +108,29 @@ Keep the entire response under 180 words. Be specific to their actual numbers, n
     for (const model of modelsToTry) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const response = await httpsPost(url, requestBody);
-        
-        if (response.status === 200 && response.body?.candidates?.[0]?.content?.parts?.[0]?.text) {
-          successText = response.body.candidates[0].content.parts[0].text;
-          break outerLoop;
+        const geminiRes = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (geminiRes.ok) {
+          const data = await geminiRes.json();
+          successText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (successText) {
+            break outerLoop;
+          }
         } else {
-          const errMsg = response.body?.error?.message || `HTTP ${response.status}`;
+          const errData = await geminiRes.json().catch(() => ({}));
+          const errMsg = errData?.error?.message || `HTTP status ${geminiRes.status}`;
           lastError = new Error(errMsg);
-          
-          // If the key itself is invalid or disabled, skip this key entirely
+
+          // If key is invalid or disabled, skip this key immediately to save attempts
           const isKeyInvalid = errMsg.toLowerCase().includes('not valid') || 
                                errMsg.toLowerCase().includes('invalid') || 
                                errMsg.toLowerCase().includes('key not');
           if (isKeyInvalid) {
-            break; // Break inner model loop, try next key
+            break; 
           }
         }
       } catch (err) {
