@@ -35,9 +35,11 @@ const PRINTER_CHAR_UUIDS = [
 
 // ─── Text Encoder ──────────────────────────────────────────────────────────────
 function textToBytes(text: string): number[] {
+  // Replace Rupee sign with Rs. and other non-ASCII currency characters for Bluetooth print compatibility
+  let cleanText = text.replace(/₹/g, 'Rs.');
   const bytes: number[] = [];
-  for (let i = 0; i < text.length; i++) {
-    const c = text.charCodeAt(i);
+  for (let i = 0; i < cleanText.length; i++) {
+    const c = cleanText.charCodeAt(i);
     bytes.push(c > 127 ? 0x3f : c); // Replace non-ASCII with '?'
   }
   return bytes;
@@ -66,7 +68,35 @@ function dashes(width: number): number[] {
   return line('-'.repeat(width));
 }
 
-// ─── Build ESC/POS KOT Byte Array ──────────────────────────────────────────────
+// Generates native ESC/POS QR code commands
+function buildEscposQrCode(data: string): number[] {
+  const bytes: number[] = [];
+  const store_len = data.length + 3;
+  const pl = store_len % 256;
+  const ph = Math.floor(store_len / 256);
+
+  // 1. Set QR code model (Model 2 is standard)
+  bytes.push(0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00);
+  
+  // 2. Set QR code size (typically 3 to 8, 5 is a balanced fit for 58mm/80mm)
+  bytes.push(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, 0x05);
+  
+  // 3. Set QR code error correction level (Level M is standard)
+  bytes.push(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x44, 0x31);
+  
+  // 4. Store QR code data
+  bytes.push(0x1d, 0x28, 0x6b, pl, ph, 0x31, 0x50, 0x30);
+  for (let i = 0; i < data.length; i++) {
+    bytes.push(data.charCodeAt(i));
+  }
+  
+  // 5. Print the QR code
+  bytes.push(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30);
+  
+  return bytes;
+}
+
+// ─── Build ESC/POS KOT Byte Array (Compact & Paper-Saving) ─────────────────────
 function buildKotBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   const W = restaurant.printWidth === '58mm' ? 32 : 42; // chars per line
   const showDateTime = restaurant.printShowDateTime !== false;
@@ -80,7 +110,10 @@ function buildKotBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   bytes.push(...BOLD_ON);
   bytes.push(...line(`TABLE ${order.tableNumber}`));
   bytes.push(...BOLD_OFF);
-  bytes.push(...line(`KOT #${order.id.slice(-4).toUpperCase()}`));
+  
+  const oType = order.orderType === 'take-away' ? 'Take Away' : 'Dine In';
+  bytes.push(...line(`KOT #${order.id.slice(-4).toUpperCase()} | ${oType}`));
+  
   if (showDateTime) {
     bytes.push(...line(new Date(order.createdAt).toLocaleString('en-IN', { hour12: true })));
   }
@@ -88,31 +121,28 @@ function buildKotBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
 
   bytes.push(...ALIGN_LEFT);
   bytes.push(...BOLD_ON);
-  bytes.push(...line(splitLine('Item', 'Qty', W)));
+  bytes.push(...line(splitLine('Item Details', 'Qty', W)));
   bytes.push(...BOLD_OFF);
   bytes.push(...dashes(W));
 
   for (const item of order.items) {
     const nameWithVariant = item.name + (item.variant ? ` (${item.variant.name})` : '');
     const qty = `x${item.qty}`;
-    // If item name is long, wrap it
     const maxNameLen = W - qty.length - 1;
+    
+    bytes.push(...BOLD_ON);
     if (nameWithVariant.length <= maxNameLen) {
-      bytes.push(...BOLD_ON);
       bytes.push(...line(splitLine(nameWithVariant, qty, W)));
-      bytes.push(...BOLD_OFF);
     } else {
-      // First line with name truncated
-      bytes.push(...BOLD_ON);
       bytes.push(...line(splitLine(nameWithVariant.substring(0, maxNameLen - 1) + '.', qty, W)));
-      // Second line with rest of name
       bytes.push(...line('  ' + nameWithVariant.substring(maxNameLen - 1)));
-      bytes.push(...BOLD_OFF);
     }
+    bytes.push(...BOLD_OFF);
+    
     // Print addons/modifiers
     if (item.addons && item.addons.length > 0) {
       for (const a of item.addons) {
-        const addonLine = `  + ${a.optionName}${a.price > 0 ? ` (+${a.price})` : ''}`;
+        const addonLine = `  + ${a.optionName}`;
         bytes.push(...line(addonLine.substring(0, W)));
       }
     }
@@ -130,13 +160,13 @@ function buildKotBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
 
   bytes.push(...ALIGN_CENTER);
   bytes.push(...line('*** KITCHEN COPY ***'));
-  bytes.push(...FEED_LINES(2));
+  bytes.push(...FEED_LINES(1)); // Reduce paper feed to 1 line
   bytes.push(...CUT_PAPER);
 
   return new Uint8Array(bytes);
 }
 
-// ─── Build ESC/POS Bill Byte Array ─────────────────────────────────────────────
+// ─── Build ESC/POS Bill Byte Array (Compact, Custom Fields & Prefilled UPI QR) ──
 function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   const W = restaurant.printWidth === '58mm' ? 32 : 42; // chars per line
   const showDateTime = restaurant.printShowDateTime !== false;
@@ -159,6 +189,7 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   bytes.push(...line((restaurant.name || 'RESTAURANT').toUpperCase()));
   bytes.push(...BOLD_OFF);
   bytes.push(...NORMAL_SIZE);
+  
   if (restaurant.tagline) {
     bytes.push(...line(restaurant.tagline));
   }
@@ -168,15 +199,21 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   if (restaurant.phone) {
     bytes.push(...line(`Tel: ${restaurant.phone}`));
   }
+  if (restaurant.fssai) {
+    bytes.push(...line(`FSSAI: ${restaurant.fssai}`));
+  }
+  if (restaurant.gst) {
+    bytes.push(...line(`GST: ${restaurant.gst}`));
+  }
 
   bytes.push(...dashes(W));
   bytes.push(...ALIGN_LEFT);
 
-  // Table & customer info
+  // Table, Customer, Type, Order info
+  const oType = order.orderType === 'take-away' ? 'Take Away' : 'Dine In';
   bytes.push(...line(splitLine(`Table: ${order.tableNumber}`, `Cust: ${order.customerName || 'Guest'}`, W)));
-  if (showOrderNumber) {
-    bytes.push(...line(`Order: #${order.id.slice(-4).toUpperCase()}`));
-  }
+  bytes.push(...line(splitLine(`Type: ${oType}`, showOrderNumber ? `Order: #${order.id.slice(-4).toUpperCase()}` : '', W)));
+  
   if (showDateTime) {
     bytes.push(...line(`Date: ${new Date(order.createdAt).toLocaleString('en-IN', { hour12: true })}`));
   }
@@ -190,18 +227,19 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
 
   for (const item of order.items) {
     const nameWithVariant = item.name + (item.variant ? ` (${item.variant.name})` : '');
-    const amt = `${currency}${(item.price * item.qty).toFixed(0)}`;
+    const amt = `${currency}${(item.price * item.qty).toFixed(2)}`;
     const qtyStr = `x${item.qty}`;
     const maxName = W - qtyStr.length - amt.length - 2;
     const name = nameWithVariant.length > maxName
       ? nameWithVariant.substring(0, maxName - 1) + '.'
       : padRight(nameWithVariant, maxName);
     bytes.push(...line(`${name} ${qtyStr} ${padLeft(amt, amt.length)}`));
+    
     // Print addons/modifiers
     if (item.addons && item.addons.length > 0) {
       for (const a of item.addons) {
         const addonLabel = `  + ${a.optionName}`;
-        const addonAmt = a.price > 0 ? `${currency}${(a.price * item.qty).toFixed(0)}` : '';
+        const addonAmt = a.price > 0 ? `${currency}${(a.price * item.qty).toFixed(2)}` : '';
         if (addonAmt) {
           bytes.push(...line(splitLine(addonLabel, addonAmt, W)));
         } else {
@@ -231,12 +269,19 @@ function buildBillBytes(order: Order, restaurant: RestaurantInfo): Uint8Array {
   bytes.push(...line(footerMessage));
   bytes.push(...BOLD_OFF);
 
+  // pre-filled UPI Payment QR code
   if (restaurant.upiId) {
+    bytes.push(...line(''));
     bytes.push(...line('Scan to Pay via UPI'));
-    bytes.push(...line(restaurant.upiId));
+    const cleanRestName = (restaurant.name || 'Merchant').replace(/[^a-zA-Z0-9]/g, '');
+    const upiUrl = `upi://pay?pa=${restaurant.upiId}&pn=${cleanRestName}&am=${grandTotal.toFixed(2)}&cu=INR`;
+    bytes.push(...buildEscposQrCode(upiUrl));
+    bytes.push(...BOLD_ON);
+    bytes.push(...line(`Rs. ${grandTotal.toFixed(2)}`));
+    bytes.push(...BOLD_OFF);
   }
 
-  bytes.push(...FEED_LINES(2));
+  bytes.push(...FEED_LINES(1)); // Reduce paper feed to 1 line
   bytes.push(...CUT_PAPER);
 
   return new Uint8Array(bytes);
@@ -255,16 +300,13 @@ export async function connectBluetoothPrinter(): Promise<{ success: boolean; nam
   _btConnecting = true;
 
   try {
-    // Disconnect any existing device
     if (_btDevice?.gatt?.connected) {
       _btDevice.gatt.disconnect();
     }
     _btDevice = null;
     _btCharacteristic = null;
 
-    // Request the device — allow any Bluetooth device that has a writable characteristic
     const device = await navigator.bluetooth.requestDevice({
-      // Accept any device (user will pick from the list)
       acceptAllDevices: true,
       optionalServices: PRINTER_SERVICE_UUIDS,
     });
@@ -277,8 +319,6 @@ export async function connectBluetoothPrinter(): Promise<{ success: boolean; nam
     });
 
     const server = await device.gatt!.connect();
-
-    // Try each service UUID until one works
     let characteristic: BluetoothRemoteGATTCharacteristic | null = null;
 
     for (const serviceUuid of PRINTER_SERVICE_UUIDS) {
@@ -294,7 +334,6 @@ export async function connectBluetoothPrinter(): Promise<{ success: boolean; nam
           } catch { /* try next */ }
         }
         if (characteristic) break;
-        // If no specific characteristic found, try to get all and use any writable one
         try {
           const allChars = await service.getCharacteristics();
           for (const ch of allChars) {
@@ -309,7 +348,7 @@ export async function connectBluetoothPrinter(): Promise<{ success: boolean; nam
     }
 
     if (!characteristic) {
-      return { success: false, error: `Connected to "${device.name}" but couldn't find a writable printer characteristic. This device may not be a supported thermal printer.` };
+      return { success: false, error: `Connected to "${device.name}" but couldn't find a writable printer characteristic.` };
     }
 
     _btCharacteristic = characteristic;
@@ -324,6 +363,59 @@ export async function connectBluetoothPrinter(): Promise<{ success: boolean; nam
       return { success: false, error: 'No printer selected. Please try again and select your thermal printer.' };
     }
     return { success: false, error: `Connection failed: ${err?.message || String(err)}` };
+  }
+}
+
+// ─── Re-establish Bluetooth connection if GATT drops ───────────────────────────
+export async function ensureBluetoothConnected(): Promise<boolean> {
+  if (!_btDevice) return false;
+
+  try {
+    if (!_btDevice.gatt?.connected) {
+      console.log('Reconnecting Bluetooth GATT server...');
+      await _btDevice.gatt!.connect();
+    }
+
+    if (!_btCharacteristic) {
+      console.log('Discovering writable characteristic...');
+      let characteristic: BluetoothRemoteGATTCharacteristic | null = null;
+
+      for (const serviceUuid of PRINTER_SERVICE_UUIDS) {
+        try {
+          const service = await _btDevice.gatt!.getPrimaryService(serviceUuid);
+          for (const charUuid of PRINTER_CHAR_UUIDS) {
+            try {
+              const ch = await service.getCharacteristic(charUuid);
+              if (ch.properties.write || ch.properties.writeWithoutResponse) {
+                characteristic = ch;
+                break;
+              }
+            } catch { /* try next */ }
+          }
+          if (characteristic) break;
+          const allChars = await service.getCharacteristics();
+          for (const ch of allChars) {
+            if (ch.properties.write || ch.properties.writeWithoutResponse) {
+              characteristic = ch;
+              break;
+            }
+          }
+          if (characteristic) break;
+        } catch { /* try next service */ }
+      }
+
+      if (characteristic) {
+        _btCharacteristic = characteristic;
+        console.log('Bluetooth characteristic re-established successfully');
+      } else {
+        return false;
+      }
+    }
+
+    return !!(_btDevice.gatt?.connected && _btCharacteristic);
+  } catch (err) {
+    console.error('Failed to auto-reconnect Bluetooth:', err);
+    return false;
   }
 }
 
@@ -345,38 +437,27 @@ export async function disconnectBluetoothPrinter(): Promise<void> {
 
 // ─── Send Raw Bytes to Bluetooth Printer ───────────────────────────────────────
 async function sendBytesToBluetooth(data: Uint8Array): Promise<{ success: boolean; error?: string }> {
-  if (!_btCharacteristic) {
-    return { success: false, error: 'Printer not connected. Please connect your Bluetooth printer first.' };
-  }
-
-  // Need to reconnect if disconnected
-  if (!_btDevice?.gatt?.connected) {
-    try {
-      await _btDevice?.gatt?.connect();
-    } catch (e: any) {
-      _btCharacteristic = null;
-      return { success: false, error: 'Printer disconnected. Please reconnect.' };
-    }
+  const isConnected = await ensureBluetoothConnected();
+  if (!isConnected) {
+    return { success: false, error: 'Printer disconnected and auto-reconnect failed. Connect again in settings.' };
   }
 
   try {
-    // Send in chunks of 512 bytes (BLE MTU limit)
     const CHUNK_SIZE = 512;
     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
       const chunk = data.slice(i, i + CHUNK_SIZE);
       try {
-        await _btCharacteristic.writeValueWithoutResponse(chunk);
+        await _btCharacteristic!.writeValueWithoutResponse(chunk);
       } catch {
-        await _btCharacteristic.writeValue(chunk);
+        await _btCharacteristic!.writeValue(chunk);
       }
-      // Small delay between chunks
       if (i + CHUNK_SIZE < data.length) {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: `Print failed: ${err?.message || String(err)}` };
+    return { success: false, error: `Print write failed: ${err?.message || String(err)}` };
   }
 }
 
@@ -391,13 +472,14 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
   const currency = restaurant.currency || '₹';
   const dateStr = showDateTime ? new Date(order.createdAt).toLocaleString('en-IN', { hour12: true }) : '';
   const bodyWidth = width === '58mm' ? '190px' : '280px';
+  const oType = order.orderType === 'take-away' ? 'Take Away' : 'Dine In';
 
   let html = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
     <style>
-      @page { size: auto; margin: 2mm; }
+      @page { size: auto; margin: 1mm; }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
         font-family: 'Courier New', Courier, monospace;
@@ -410,18 +492,19 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
       .center { text-align: center; }
       .right { text-align: right; }
       .bold { font-weight: bold; }
-      .divider { border: none; border-top: 1px dashed #000; margin: 5px 0; }
-      .stardivider { border: none; border-top: 2px solid #000; margin: 5px 0; }
+      .divider { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+      .stardivider { border: none; border-top: 1px solid #000; margin: 4px 0; }
       table { width: 100%; border-collapse: collapse; font-size: 11px; }
       td { vertical-align: top; padding: 1px 0; }
       .td-name { width: auto; word-break: break-word; }
       .td-qty { width: 28px; text-align: center; white-space: nowrap; }
-      .td-price { width: 58px; text-align: right; white-space: nowrap; }
-      .title { font-size: 18px; font-weight: bold; text-transform: uppercase; }
-      .kot-badge { font-size: 22px; font-weight: bold; border: 2px solid #000; display: inline-block; padding: 2px 8px; }
-      .table-no { font-size: 20px; font-weight: bold; }
-      .total-table td { padding: 2px 0; }
-      .grand-total td { font-size: 14px; font-weight: bold; border-top: 1px solid #000; padding-top: 4px; }
+      .td-price { width: 68px; text-align: right; white-space: nowrap; }
+      .title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 2px; }
+      .kot-badge { font-size: 18px; font-weight: bold; border: 1.5px solid #000; display: inline-block; padding: 1px 6px; }
+      .table-no { font-size: 18px; font-weight: bold; }
+      .total-table td { padding: 1px 0; }
+      .grand-total td { font-size: 13px; font-weight: bold; border-top: 1px dashed #000; padding-top: 3px; }
+      .logo-img { width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; }
     </style>
   </head>
   <body>`;
@@ -431,8 +514,8 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
     <div class="center">
       <div class="kot-badge">K.O.T</div>
       <div class="table-no">TABLE ${order.tableNumber}</div>
-      <div class="bold">KOT #${order.id.slice(-4).toUpperCase()}</div>
-      ${dateStr ? `<div style="font-size:9px;margin-top:2px;">${dateStr}</div>` : ''}
+      <div class="bold">KOT #${order.id.slice(-4).toUpperCase()} | ${oType}</div>
+      ${dateStr ? `<div style="font-size:9px;margin-top:1px;">${dateStr}</div>` : ''}
     </div>
     <hr class="divider">
     <table>
@@ -447,19 +530,21 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
     <table>
       ${order.items.map(item => `
         <tr class="bold">
-          <td class="td-name" style="font-size:12px;">${item.name}${item.variant ? ` (${item.variant.name})` : ''}</td>
-          <td class="td-qty" style="font-size:12px;">x${item.qty}</td>
+          <td class="td-name" style="font-size:11px;">
+            ${item.name}${item.variant ? ` (${item.variant.name})` : ''}
+            ${item.addons && item.addons.length > 0 ? `<div style="font-size:8px;font-weight:normal;margin-left:6px;">${item.addons.map(a => `+ ${a.optionName}`).join(', ')}</div>` : ''}
+          </td>
+          <td class="td-qty" style="font-size:11px;">x${item.qty}</td>
         </tr>
       `).join('')}
     </table>
     <hr class="divider">
     ${order.specialNote ? `
-      <div style="border:1px dashed #000;padding:3px;margin-top:4px;font-size:10px;">
+      <div style="border:1px dashed #000;padding:2px;margin-top:2px;font-size:9px;">
         <span class="bold">INSTRUCTION:</span> ${order.specialNote}
       </div>
     ` : ''}
-    <div style="margin-top:8px;" class="center bold">*** KITCHEN COPY ***</div>
-    <div style="height:24px;"></div>`;
+    <div style="margin-top:6px;" class="center bold">*** KITCHEN COPY ***</div>`;
 
   } else {
     const subtotal = order.totalAmount;
@@ -468,10 +553,13 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
 
     html += `
     <div class="center">
+      ${restaurant.logo ? `<img class="logo-img" src="${restaurant.logo}" alt="logo" />` : ''}
       <div class="title">${restaurant.name || 'Restaurant'}</div>
-      ${restaurant.tagline ? `<div style="font-size:10px;">${restaurant.tagline}</div>` : ''}
-      ${restaurant.address ? `<div style="font-size:9px;margin-top:2px;">${restaurant.address}</div>` : ''}
-      ${restaurant.phone ? `<div style="font-size:9px;">Tel: ${restaurant.phone}</div>` : ''}
+      ${restaurant.tagline ? `<div style="font-size:9px;color:#333;">${restaurant.tagline}</div>` : ''}
+      ${restaurant.address ? `<div style="font-size:8px;margin-top:1px;">${restaurant.address}</div>` : ''}
+      ${restaurant.phone ? `<div style="font-size:8px;">Tel: ${restaurant.phone}</div>` : ''}
+      ${restaurant.fssai ? `<div style="font-size:8px;">FSSAI: ${restaurant.fssai}</div>` : ''}
+      ${restaurant.gst ? `<div style="font-size:8px;">GST: ${restaurant.gst}</div>` : ''}
     </div>
     <hr class="stardivider">
     <table>
@@ -479,7 +567,10 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
         <td class="bold">Table: ${order.tableNumber}</td>
         <td class="right">Cust: ${order.customerName || 'Guest'}</td>
       </tr>
-      ${showOrderNumber ? `<tr><td colspan="2">Order: #${order.id.slice(-4).toUpperCase()}</td></tr>` : ''}
+      <tr>
+        <td>Type: ${oType}</td>
+        <td class="right">${showOrderNumber ? `Order: #${order.id.slice(-4).toUpperCase()}` : ''}</td>
+      </tr>
       ${dateStr ? `<tr><td colspan="2">Date: ${dateStr}</td></tr>` : ''}
     </table>
     <hr class="divider">
@@ -496,7 +587,10 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
     <table>
       ${order.items.map(item => `
         <tr>
-          <td class="td-name">${item.name}${item.variant ? ` (${item.variant.name})` : ''}</td>
+          <td class="td-name">
+            ${item.name}${item.variant ? ` (${item.variant.name})` : ''}
+            ${item.addons && item.addons.length > 0 ? item.addons.map(a => `<div style="font-size:8px;color:#555;margin-left:6px;">+ ${a.optionName} (+${currency}${a.price})</div>`).join('') : ''}
+          </td>
           <td class="td-qty">x${item.qty}</td>
           <td class="td-price">${currency}${(item.price * item.qty).toFixed(2)}</td>
         </tr>
@@ -508,10 +602,11 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
         <td>Subtotal:</td>
         <td class="right">${currency}${subtotal.toFixed(2)}</td>
       </tr>
+      ${taxPercent > 0 ? `
       <tr>
         <td>Tax (${taxPercent}%):</td>
         <td class="right">${currency}${taxAmount.toFixed(2)}</td>
-      </tr>
+      </tr>` : ''}
     </table>
     <table class="total-table">
       <tr class="grand-total">
@@ -520,11 +615,23 @@ function buildBrowserHtml(order: Order, type: 'kot' | 'bill', restaurant: Restau
       </tr>
     </table>
     <hr class="divider">
-    <div class="center" style="font-size:10px;margin-top:6px;">
+    <div class="center" style="font-size:9px;margin-top:4px;margin-bottom:6px;">
       <div>${headerMessage}</div>
-      <div class="bold" style="margin-top:3px;">${footerMessage}</div>
-    </div>
-    <div style="height:24px;"></div>`;
+      <div class="bold" style="margin-top:2px;">${footerMessage}</div>
+    </div>`;
+
+    if (restaurant.upiId) {
+      const cleanRestName = (restaurant.name || 'Merchant').replace(/[^a-zA-Z0-9]/g, '');
+      const upiUrl = `upi://pay?pa=${restaurant.upiId}&pn=${cleanRestName}&am=${grandTotal.toFixed(2)}&cu=INR`;
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUrl)}`;
+      html += `
+      <hr class="divider">
+      <div class="center" style="margin-top:6px;">
+        <div class="bold" style="font-size:9px;">Scan to Pay via UPI</div>
+        <img src="${qrApiUrl}" style="width:105px;height:105px;margin-top:4px;margin-bottom:2px;" alt="UPI QR" />
+        <div class="bold" style="font-size:12px;margin-top:2px;">Rs. ${grandTotal.toFixed(2)}</div>
+      </div>`;
+    }
   }
 
   html += `
@@ -573,21 +680,11 @@ export async function printThermalReceipt(
   const method = restaurant.printMethod || 'browser';
 
   if (method === 'bluetooth') {
-    if (!isBluetoothPrinterConnected()) {
-      // Auto-attempt reconnect if we have a device stored
-      if (_btDevice && !_btDevice.gatt?.connected) {
-        try {
-          await _btDevice.gatt?.connect();
-        } catch {
-          // Can't auto-reconnect, fall back to browser
-          printViaBrowser(order, type, restaurant);
-          return { success: true, error: 'Bluetooth printer disconnected. Fell back to browser print.' };
-        }
-      } else {
-        // No device paired at all — fall back to browser
-        printViaBrowser(order, type, restaurant);
-        return { success: true, error: 'No Bluetooth printer connected. Fell back to browser print. Please connect your printer in the Autoprint Settings.' };
-      }
+    const isConnected = await ensureBluetoothConnected();
+    if (!isConnected) {
+      // Fallback to browser print on pairing/connection failure
+      printViaBrowser(order, type, restaurant);
+      return { success: true, error: 'No Bluetooth printer connected. Fell back to browser print.' };
     }
 
     const bytes = type === 'kot'
@@ -596,9 +693,9 @@ export async function printThermalReceipt(
 
     const result = await sendBytesToBluetooth(bytes);
     if (!result.success) {
-      // Fall back to browser print on failure
+      // Fall back to browser print on write failure
       printViaBrowser(order, type, restaurant);
-      return { success: true, error: `Bluetooth failed (${result.error}). Fell back to browser print.` };
+      return { success: true, error: `Bluetooth write failed (${result.error}). Fell back to browser print.` };
     }
     return { success: true };
   }

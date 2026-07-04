@@ -163,6 +163,11 @@ export default function AdminMore() {
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
   const [activeInfo, setActiveInfo] = useState<string | null>(null);
 
+  useEffect(() => {
+    setRestaurantForm({ ...state.restaurant });
+    setTableCount(state.restaurant.tableCount || 0);
+  }, [state.restaurant]);
+
   // Customer Menu Theme States
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [themeForm, setThemeForm] = useState({
@@ -1408,6 +1413,30 @@ export default function AdminMore() {
                   <Mail size={15} className="input-icon" />
                   <input className="input" type="email" value={restaurantForm.email}
                     onChange={e => setRestaurantForm({ ...restaurantForm, email: e.target.value })} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label className="input-label">UPI ID for Bill QR Code</label>
+                <div className="input-icon-wrap">
+                  <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>📱</span>
+                  <input className="input" type="text" placeholder="e.g. merchant@okaxis" value={restaurantForm.upiId || ''}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, upiId: e.target.value })} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label className="input-label">FSSAI License Number</label>
+                <div className="input-icon-wrap">
+                  <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>🛡️</span>
+                  <input className="input" type="text" placeholder="14-digit FSSAI number" value={restaurantForm.fssai || ''}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, fssai: e.target.value })} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label className="input-label">GST Number</label>
+                <div className="input-icon-wrap">
+                  <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>📜</span>
+                  <input className="input" type="text" placeholder="15-digit GSTIN" value={restaurantForm.gst || ''}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, gst: e.target.value })} />
                 </div>
               </div>
 

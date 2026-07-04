@@ -2590,21 +2590,25 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             {/* STEP 3: Processing */}
             {extractorStep === 'processing' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 16 }}>
-                <div className="cooking-animation" style={{ marginBottom: 12 }}>
-                  <div className="frying-pan">
-                    <div className="pan-handle"></div>
-                    <div className="pan-bowl"></div>
-                    <div className="food-toss">
-                      <div className="food-item slice-carrot">🥕</div>
-                      <div className="food-item slice-onion">🧅</div>
-                      <div className="food-item slice-pepper">🫑</div>
-                      <div className="food-item slice-tomato">🍅</div>
-                    </div>
+                <div className="digitize-animation" style={{ marginBottom: 12 }}>
+                  <div className="paper-menu">
+                    <div className="paper-line paper-line-1"></div>
+                    <div className="paper-line paper-line-2"></div>
+                    <div className="paper-line paper-line-3"></div>
                   </div>
-                  <div className="cooking-fire">
-                    <div className="flame flame-1"></div>
-                    <div className="flame flame-2"></div>
-                    <div className="flame flame-3"></div>
+                  <div className="digitize-particles">
+                    <div className="digitize-particle particle-1">🍱</div>
+                    <div className="digitize-particle particle-2">🍲</div>
+                    <div className="digitize-particle particle-3">🥤</div>
+                    <div className="digitize-particle particle-4">🍰</div>
+                  </div>
+                  <div className="digital-device">
+                    <div className="device-notch"></div>
+                    <div className="device-screen">
+                      <div className="screen-item screen-item-1"></div>
+                      <div className="screen-item screen-item-2"></div>
+                      <div className="screen-item screen-item-3"></div>
+                    </div>
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>

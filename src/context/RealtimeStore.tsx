@@ -184,6 +184,8 @@ export type RestaurantInfo = {
   printMethod?: 'browser' | 'bluetooth';
   bluetoothPrinterName?: string;
   upiId?: string;
+  fssai?: string;
+  gst?: string;
   subscriptionPlan?: 'free' | 'base' | 'standard' | 'advance';
   ordersPlacedThisMonth?: number;
   subscriptionRenewalDate?: number;

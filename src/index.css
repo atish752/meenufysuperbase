@@ -928,3 +928,167 @@ input, textarea, select {
   from { transform: scaleY(0.9); opacity: 0.8; }
   to { transform: scaleY(1.3); opacity: 1; }
 }
+
+/* AI Menu Extractor Digitizing Animation */
+.digitize-animation {
+  position: relative;
+  width: 240px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+/* Paper Menu (Left side) */
+.paper-menu {
+  position: relative;
+  width: 50px;
+  height: 75px;
+  background: #ffffff;
+  border-radius: 4px 12px 4px 4px;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  transform: rotate(-6deg);
+  animation: paperPulse 2.5s ease-in-out infinite alternate;
+}
+.paper-line {
+  width: 80%;
+  height: 4px;
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+.paper-line-1 { width: 55%; background: var(--brand); }
+.paper-line-2 { width: 70%; }
+.paper-line-3 { width: 60%; }
+
+/* Laser scanner line */
+.paper-menu::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444, 0 0 12px #ef4444;
+  animation: laserScan 2s ease-in-out infinite alternate;
+}
+
+/* Digital Device / Mobile Phone (Right side) */
+.digital-device {
+  position: relative;
+  width: 55px;
+  height: 90px;
+  background: #1e293b;
+  border-radius: 10px;
+  border: 3px solid #64748b;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  box-sizing: border-box;
+  transform: rotate(6deg);
+  animation: devicePulse 2.5s ease-in-out infinite alternate;
+}
+.device-notch {
+  width: 20px;
+  height: 4px;
+  background: #64748b;
+  border-radius: 2px;
+  margin: 0 auto;
+}
+.device-screen {
+  flex: 1;
+  background: #0f172a;
+  border-radius: 5px;
+  margin-top: 4px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+.screen-item {
+  width: 90%;
+  height: 8px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px dashed rgba(34, 197, 94, 0.4);
+  border-radius: 2px;
+  animation: screenPop 2.2s linear infinite;
+}
+.screen-item-1 { animation-delay: 0.2s; }
+.screen-item-2 { animation-delay: 0.8s; }
+.screen-item-3 { animation-delay: 1.4s; }
+
+/* Flying Food Particles */
+.digitize-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.digitize-particle {
+  position: absolute;
+  font-size: 18px;
+  opacity: 0;
+  transform: scale(0.2);
+  animation: particleFly 2.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.particle-1 { left: 40px; top: 40px; animation-delay: 0s; }
+.particle-2 { left: 40px; top: 50px; animation-delay: 0.5s; }
+.particle-3 { left: 40px; top: 35px; animation-delay: 1.1s; }
+.particle-4 { left: 40px; top: 45px; animation-delay: 1.6s; }
+
+/* Animations Keyframes */
+@keyframes paperPulse {
+  from { transform: rotate(-6deg) scale(0.98); }
+  to { transform: rotate(-4deg) scale(1.02); }
+}
+@keyframes devicePulse {
+  from { transform: rotate(6deg) scale(0.98); }
+  to { transform: rotate(4deg) scale(1.02); }
+}
+@keyframes laserScan {
+  0% { top: 5%; }
+  100% { top: 90%; }
+}
+@keyframes particleFly {
+  0% {
+    transform: translate(0, 0) scale(0.5) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+    transform: translate(20px, -15px) scale(1.2) rotate(45deg);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translate(90px, -5px) scale(1) rotate(180deg);
+  }
+  80% {
+    opacity: 0.8;
+    transform: translate(140px, 15px) scale(0.7) rotate(320deg);
+  }
+  100% {
+    transform: translate(175px, 10px) scale(0.2) rotate(360deg);
+    opacity: 0;
+  }
+}
+@keyframes screenPop {
+  0%, 100% { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.4); }
+  40% { background: rgba(34, 197, 94, 0.6); border-color: rgba(34, 197, 94, 0.9); box-shadow: 0 0 6px rgba(34, 197, 94, 0.8); }
+  70% { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.4); }
+}
