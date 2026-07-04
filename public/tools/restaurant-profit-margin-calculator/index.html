@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free Restaurant Profit Margin Calculator | Meenufy</title>
+  <meta name="description" content="Calculate restaurant profit margin instantly. Free tool — enter revenue, food cost, labor & expenses. Get gross profit, net margin & AI analysis. No signup." />
+  <meta name="keywords" content="restaurant profit margin calculator, profit margin calculator, restaurant cogs, prime cost calculator, restaurant ebitda, meenufy, food cost" />
+  <link rel="canonical" href="https://meenufy.com/tools/restaurant-profit-margin-calculator" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Free Restaurant Profit Margin Calculator | Meenufy" />
+  <meta property="og:description" content="Calculate restaurant profit margin instantly. Free tool — enter revenue, food cost, labor & expenses. Get gross profit, net margin & AI analysis. No signup." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://meenufy.com/tools/restaurant-profit-margin-calculator" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#F97316',
+              light: '#FFF7ED',
+              dark: '#EA580C',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- jsPDF & html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- JSON-LD Structured Data: WebApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Meenufy Restaurant Profit Margin Calculator",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "description": "Free restaurant profit margin calculator. Calculate gross profit margin, net profit margin, prime cost, and EBITDA instantly. Works for restaurants, cafes, food trucks, and cloud kitchens globally.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "url": "https://meenufy.com/tools/restaurant-profit-margin-calculator",
+    "featureList": [
+      "Gross and net profit margin calculation",
+      "Prime Cost analysis",
+      "EBITDA calculation",
+      "AI-powered financial analysis",
+      "30+ currency support",
+      "PDF export",
+      "Benchmark comparison by restaurant type",
+      "What-if scenario modeling"
+    ]
+  }
+  </script>
+
+  <!-- JSON-LD Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://meenufy.com" },
+      { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://meenufy.com/tools" },
+      { "@type": "ListItem", "position": 3, "name": "Restaurant Profit Margin Calculator", "item": "https://meenufy.com/tools/restaurant-profit-margin-calculator" }
+    ]
+  }
+  </script>
+
+  <!-- JSON-LD Structured Data: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is a good profit margin for a restaurant?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A good net profit margin for a restaurant is 6–9% for most formats. Fast food and QSR concepts often achieve 6–9% on volume. Casual dining typically runs 3–8%. Fine dining, with premium pricing power, can reach 6–12%. Cloud kitchens, without the rent burden, sometimes achieve 8–15%. A margin above 10% is considered excellent; below 3% is dangerously thin."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the average restaurant profit margin globally?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The average net profit margin across the global restaurant industry is approximately 3–9%, with most operators landing between 3–6%. According to TouchBistro's State of Restaurants Report, the average restaurant industry profit margin is around 9.8% — though this includes high-performing operators that skew the average upward. The median operator is closer to 4–5%."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is prime cost and why does it matter for restaurant profit?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Prime cost is the sum of your food and beverage costs (COGS) and your total labor costs. It is the most important profitability metric for restaurant operators because it combines the two largest controllable expenses. The universal benchmark is to keep prime cost below 65% of revenue. Above 65%, there is not enough remaining revenue to cover rent, utilities, and other operating costs and still generate meaningful profit."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I increase my restaurant's net profit margin?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The most effective levers are: (1) control prime cost — keep COGS below 30–35% and labor below 28–35%, (2) implement menu engineering to promote your highest-margin dishes, (3) reduce order-taking labor with QR self-ordering, (4) negotiate with suppliers for better ingredient pricing, (5) track and reduce food waste, (6) optimize staffing schedules to match demand, and (7) capture positive reviews to reduce customer acquisition cost."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between gross profit margin and net profit margin?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Gross profit margin deducts only the cost of food and beverages (COGS) from revenue. It measures kitchen efficiency. Net profit margin deducts every cost — food, labor, rent, utilities, marketing, repairs, licenses, and all other expenses — from revenue. It measures total business profitability. Both matter: gross margin shows you whether your menu is priced correctly; net margin shows you whether the whole business is viable."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I calculate restaurant profit margin?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Net Profit Margin = (Total Revenue − All Operating Costs) ÷ Total Revenue × 100. Add up all your costs (food, labor, rent, utilities, marketing, and all other expenses) and subtract from total revenue. Divide the result by total revenue and multiply by 100 to get the percentage. This calculator does all of that automatically."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is EBITDA and do restaurants need to track it?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) is a measure of operational profit before financing and accounting adjustments. Restaurants with investors or those considering expansion or sale use EBITDA to show the underlying earning power of the business. Healthy restaurant EBITDA margins typically range from 10–20%. For most independent operators, net profit margin is more practically useful for day-to-day decisions."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use this profit margin calculator for a café or coffee shop?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. This calculator works for any food business — restaurants, cafés, coffee shops, food trucks, cloud kitchens, catering companies, bakeries, and bars. Select your local currency, choose your time period, and enter your numbers. Cafés typically run net margins of 4–10%, with beverage revenue providing higher gross margins that offset higher labor intensity."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How often should I calculate my restaurant's profit margin?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Calculate prime cost weekly — it's your fastest-moving critical metric. Calculate full net profit margin monthly, at minimum. Quarterly P&L reviews let you spot seasonal trends. Annual reviews set targets for the year ahead. Restaurants that track profit margin weekly consistently outperform those that check it quarterly."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What tools does Meenufy offer to help improve restaurant margins?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Meenufy is a complete restaurant automation platform. Its QR self-ordering system reduces waiter labor dependency by 50%+, reducing the labor component of prime cost. Its built-in analytics show your best and worst-selling dishes (supporting menu engineering). Its loyalty program increases repeat customer rate. Its smart review system improves Google ratings, reducing the need for paid customer acquisition. Together, these features directly attack the top causes of thin restaurant margins."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body class="bg-white text-gray-900 antialiased font-sans">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
+    <div class="max-width-container mx-auto px-4 max-w-7xl h-16 flex items-center justify-between">
+      <a href="/tools/" class="flex items-center gap-2">
+        <img src="/meenufy_logo_erased.png" alt="Meenufy Logo" class="w-8 h-8 object-contain" />
+        <span class="font-display font-extrabold text-xl text-gray-900 tracking-tight">Meenufy</span>
+      </a>
+      <div class="flex items-center gap-4">
+        <a href="/tools/" class="text-sm font-medium text-gray-500 hover:text-gray-950 transition">Free Tools</a>
+        <a href="/" class="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg transition shadow-sm">Start Free Trial</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="py-12 bg-gray-50 border-b border-gray-100 text-center px-4">
+    <div class="max-w-4xl mx-auto">
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-light text-brand border border-orange-200 mb-4">
+        <span class="w-2 h-2 rounded-full bg-brand"></span>
+        Instant calculations. No signup required.
+      </span>
+      <h1 class="text-3xl md:text-5xl font-display font-black text-gray-900 tracking-tight mb-4">
+        Free Restaurant Profit Margin Calculator
+      </h1>
+      <p class="text-gray-600 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-6">
+        Enter your revenue and costs to instantly see gross profit margin, net profit margin, prime cost, and EBITDA — with a plain-English AI diagnosis of your restaurant's financial health.
+      </p>
+      
+      <!-- Trust Badges -->
+      <div class="flex flex-wrap items-center justify-center gap-3 max-w-3xl mx-auto">
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ 100% Free — No signup required</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Works in 30+ currencies (₹, $, €)</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ Gross + Net + Prime Cost + EBITDA</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ AI-powered analysis</span>
+        <span class="bg-white px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-700 shadow-sm border border-gray-100">✓ PDF Report Export</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Restaurant Preset Selector -->
+  <section class="max-w-6xl mx-auto px-4 pt-8">
+    <div class="bg-white border border-orange-100 rounded-2xl p-6 shadow-sm bg-gradient-to-r from-orange-50/20 to-amber-50/20">
+      <h3 class="text-sm font-extrabold text-gray-800 uppercase tracking-wider mb-4 text-center">
+        Select a Restaurant Preset to Populate Demo Values
+      </h3>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+        <button onclick="applyPreset('fine_dining')" class="preset-btn px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-brand hover:shadow transition text-left flex flex-col gap-1">
+          <span class="text-lg">🍽️</span>
+          <span class="text-xs font-bold text-gray-900 leading-tight">Fine Dining</span>
+        </button>
+        <button onclick="applyPreset('casual_dining')" class="preset-btn px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-brand hover:shadow transition text-left flex flex-col gap-1">
+          <span class="text-lg">🍕</span>
+          <span class="text-xs font-bold text-gray-900 leading-tight">Casual Dining</span>
+        </button>
+        <button onclick="applyPreset('fast_food')" class="preset-btn px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-brand hover:shadow transition text-left flex flex-col gap-1">
+          <span class="text-lg">🍔</span>
+          <span class="text-xs font-bold text-gray-900 leading-tight">Fast Food/QSR</span>
+        </button>
+        <button onclick="applyPreset('cafe')" class="preset-btn px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-brand hover:shadow transition text-left flex flex-col gap-1">
+          <span class="text-lg">☕</span>
+          <span class="text-xs font-bold text-gray-900 leading-tight">Café</span>
+        </button>
+        <button onclick="applyPreset('food_truck')" class="preset-btn px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-brand hover:shadow transition text-left flex flex-col gap-1">
+          <span class="text-lg">🚚</span>
+          <span class="text-xs font-bold text-gray-900 leading-tight">Food Truck</span>
+        </button>
+        <button onclick="applyPreset('cloud_kitchen')" class="preset-btn px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-brand hover:shadow transition text-left flex flex-col gap-1">
+          <span class="text-lg">📦</span>
+          <span class="text-xs font-bold text-gray-900 leading-tight">Cloud Kitchen</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Calculator Grid -->
+  <main class="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- Left Column: Inputs -->
+    <div class="lg:col-span-2 space-y-6">
+      
+      <!-- Top controls Card -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Currency</label>
+            <select id="currencySelect" onchange="updateCurrency()" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+              <option value="INR" data-symbol="₹">INR (₹) Indian Rupee</option>
+              <option value="USD" data-symbol="$">USD ($) US Dollar</option>
+              <option value="EUR" data-symbol="€">EUR (€) Euro</option>
+              <option value="GBP" data-symbol="£">GBP (£) British Pound</option>
+              <option value="AED" data-symbol="د.إ">AED (د.إ) UAE Dirham</option>
+              <option value="CAD" data-symbol="CA$">CAD (CA$) Canadian Dollar</option>
+              <option value="AUD" data-symbol="A$">AUD (A$) Australian Dollar</option>
+              <option value="SGD" data-symbol="S$">SGD (S$) Singapore Dollar</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Time Period</label>
+            <select id="periodSelect" onchange="recalculate()" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly" selected>Monthly</option>
+              <option value="annually">Annually</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Restaurant Name (Optional)</label>
+            <input type="text" id="restNameInput" placeholder="e.g. Raj's Cafe" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Input Panel -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Revenue Card -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div class="space-y-4">
+            <h3 class="text-sm font-extrabold text-gray-900 uppercase tracking-wider pb-3 border-b border-gray-100 flex items-center gap-1.5">
+              💰 Revenue Inputs
+            </h3>
+            
+            <div class="space-y-3.5">
+              <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1.5">Total Food Revenue</label>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="foodRevInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1.5">Total Beverage Revenue</label>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="bevRevInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1.5">Other Income (events, delivery commissions, etc.)</label>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="otherRevInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-gray-900 font-extrabold text-sm">
+            <span>TOTAL REVENUE:</span>
+            <span id="lblTotalRevenue" class="text-brand">₹0.00</span>
+          </div>
+        </div>
+
+        <!-- Expenses Card -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div class="space-y-4">
+            <h3 class="text-sm font-extrabold text-gray-900 uppercase tracking-wider pb-3 border-b border-gray-100 flex items-center gap-1.5">
+              📦 Operating Expenses
+            </h3>
+            
+            <div class="space-y-3.5 max-h-[350px] overflow-y-auto pr-1">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-bold text-gray-500">🍽️ Food &amp; Beverage Cost (COGS)</label>
+                  <span id="pctCOGS" class="text-[10px] font-extrabold text-gray-400">0.0%</span>
+                </div>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="cogsInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-bold text-gray-500">👥 Labor Cost (total payroll, tax, benefits)</label>
+                  <span id="pctLabor" class="text-[10px] font-extrabold text-gray-400">0.0%</span>
+                </div>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="laborInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-bold text-gray-500">🏠 Rent &amp; Lease</label>
+                  <span id="pctRent" class="text-[10px] font-extrabold text-gray-400">0.0%</span>
+                </div>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="rentInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-bold text-gray-500">⚡ Utilities (water, gas, electricity)</label>
+                  <span id="pctUtils" class="text-[10px] font-extrabold text-gray-400">0.0%</span>
+                </div>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="utilsInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-bold text-gray-500">📣 Marketing &amp; Ads</label>
+                  <span id="pctMktg" class="text-[10px] font-extrabold text-gray-400">0.0%</span>
+                </div>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="mktgInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-bold text-gray-500">🔧 Repairs &amp; Maintenance</label>
+                  <span id="pctRepairs" class="text-[10px] font-extrabold text-gray-400">0.0%</span>
+                </div>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="repairsInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-bold text-gray-500">📋 Licenses, Admin, Insurance</label>
+                  <span id="pctLicenses" class="text-[10px] font-extrabold text-gray-400">0.0%</span>
+                </div>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="licensesInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-bold text-gray-500">📦 Other Operating Costs</label>
+                  <span id="pctOther" class="text-[10px] font-extrabold text-gray-400">0.0%</span>
+                </div>
+                <div class="relative">
+                  <span class="currency-symbol absolute left-3 top-2 text-sm font-semibold text-gray-400">₹</span>
+                  <input type="number" id="otherExpInput" oninput="recalculate()" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-gray-900 font-extrabold text-sm">
+            <span>TOTAL EXPENSES:</span>
+            <span id="lblTotalExpenses" class="text-brand">₹0.00</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- AI Financial Analysis Panel -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">✨</span>
+            <h3 class="text-sm font-extrabold text-gray-900 uppercase tracking-wider">
+              Get AI Financial Analysis of Your Restaurant
+            </h3>
+          </div>
+        </div>
+        <p class="text-xs text-gray-500 leading-normal">
+          Get a plain-English, actionable diagnosis of your restaurant's financial health — powered by AI.
+        </p>
+        <button id="btnAiAnalyze" onclick="triggerAiAnalysis()" class="w-full py-3 bg-brand hover:bg-brand-dark text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
+          🤖 Analyse My Restaurant's Financials
+        </button>
+        
+        <div id="aiAnalysisBox" class="p-4 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-700 leading-relaxed hidden whitespace-pre-wrap">
+          <!-- Text loads dynamically -->
+        </div>
+      </div>
+
+      <!-- SVG Charts Section -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Donut Chart -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col items-center">
+          <h4 class="text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-4 w-full">🍰 Cost Breakdown Share</h4>
+          <div id="donutChartWrapper" class="w-full flex items-center justify-center py-4">
+            <svg id="donutSvg" width="220" height="220" viewBox="0 0 220 220" class="transform -rotate-90">
+              <!-- Rendered via JS -->
+            </svg>
+          </div>
+          <div id="donutLegend" class="grid grid-cols-2 gap-2 mt-2 w-full text-[10px] text-gray-500 font-semibold">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <!-- Waterfall Chart -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col">
+          <h4 class="text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-4">📊 Profit &amp; Loss Waterfall</h4>
+          <div id="waterfallWrapper" class="space-y-3.5 flex-1 flex flex-col justify-center">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- What-if Scenarios Collapsible -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+        <button onclick="toggleCollapsible('whatIfSection')" class="w-full flex items-center justify-between text-left">
+          <h3 class="text-sm font-extrabold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+            🔮 What-If Scenarios modeling
+          </h3>
+          <span id="whatIfChevron" class="text-gray-400 font-bold transition-transform duration-300">▼</span>
+        </button>
+        <div id="whatIfSection" class="mt-6 space-y-6 hidden">
+          <div class="space-y-4">
+            <!-- Slider 1 -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-bold text-gray-700">What if I increase revenue by <span id="lblWhatIfRevenueVal" class="text-brand">0%</span>?</label>
+              </div>
+              <input type="range" id="whatIfRevenue" min="0" max="50" value="0" oninput="onWhatIfChange()" class="w-full accent-brand bg-gray-100 h-1.5 rounded-lg appearance-none cursor-pointer" />
+            </div>
+            <!-- Slider 2 -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-bold text-gray-700">What if I reduce food cost/COGS by <span id="lblWhatIfCogsVal" class="text-brand">0%</span>?</label>
+              </div>
+              <input type="range" id="whatIfCogs" min="0" max="20" value="0" oninput="onWhatIfChange()" class="w-full accent-brand bg-gray-100 h-1.5 rounded-lg appearance-none cursor-pointer" />
+            </div>
+            <!-- Slider 3 -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-bold text-gray-700">What if I reduce labor cost by <span id="lblWhatIfLaborVal" class="text-brand">0%</span>? <span class="text-[10px] font-bold text-orange-400">(Meenufy self-ordering saves 50%+)</span></label>
+              </div>
+              <input type="range" id="whatIfLabor" min="0" max="40" value="0" oninput="onWhatIfChange()" class="w-full accent-brand bg-gray-100 h-1.5 rounded-lg appearance-none cursor-pointer" />
+            </div>
+            <!-- Slider 4 -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-bold text-gray-700">What if rent drops by <span id="lblWhatIfRentVal" class="text-brand">0%</span>?</label>
+              </div>
+              <input type="range" id="whatIfRent" min="0" max="30" value="0" oninput="onWhatIfChange()" class="w-full accent-brand bg-gray-100 h-1.5 rounded-lg appearance-none cursor-pointer" />
+            </div>
+            <!-- Slider 5 -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-bold text-gray-700">What if I add online delivery revenue of <span id="lblWhatIfDeliveryVal" class="text-brand">₹0</span>?</label>
+              </div>
+              <input type="range" id="whatIfDelivery" min="0" max="100000" value="0" step="5000" oninput="onWhatIfChange()" class="w-full accent-brand bg-gray-100 h-1.5 rounded-lg appearance-none cursor-pointer" />
+            </div>
+          </div>
+
+          <div class="p-4 bg-orange-50 border border-orange-100 rounded-xl flex items-center justify-between">
+            <div>
+              <h4 class="text-xs font-extrabold text-gray-800 uppercase tracking-wider">Simulated Net Profit Margin</h4>
+              <p class="text-[10px] text-gray-500 mt-0.5">Calculated using selected scenarios above</p>
+            </div>
+            <div class="text-right">
+              <span id="lblSimulatedMargin" class="text-xl font-black text-brand">0.0%</span>
+              <p id="lblSimulatedDelta" class="text-[10px] font-bold text-emerald-600 mt-0.5">+₹0.00 more profit/month</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Results & Benchmark Gauge -->
+    <div class="space-y-6">
+      
+      <!-- Results Grid Panel -->
+      <div class="space-y-4">
+        <h3 class="text-xs font-extrabold text-gray-500 uppercase tracking-wider mb-2">Live Calculations</h3>
+        
+        <!-- Gross Profit Card -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-gray-500">Gross Profit Margin</h4>
+            <span id="badgeGross" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600">No Data</span>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="lblGrossMargin" class="text-2xl font-black text-gray-900">0.0%</span>
+          </div>
+          <div class="text-[10px] text-gray-500 font-semibold space-y-0.5">
+            <div>Gross Profit: <span id="lblGrossAmount" class="text-gray-900 font-bold">₹0.00</span></div>
+            <div>Benchmark: Industry ideal 65–75% ✓</div>
+          </div>
+        </div>
+
+        <!-- Net Profit Card -->
+        <div class="bg-brand-light border border-orange-200 rounded-2xl p-5 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-orange-600">Net Profit Margin</h4>
+            <span id="badgeNet" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-600">No Data</span>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="lblNetMargin" class="text-3xl font-black text-brand">0.0%</span>
+          </div>
+          <div class="text-[10px] text-gray-600 font-semibold space-y-0.5">
+            <div>Net Profit: <span id="lblNetAmount" class="text-gray-950 font-bold">₹0.00</span></div>
+            <div>Annualized projection: <span id="lblAnnualNetAmount" class="text-gray-950 font-bold">₹0.00</span></div>
+          </div>
+        </div>
+
+        <!-- Prime Cost Card -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-gray-500">Prime Cost</h4>
+            <span id="badgePrime" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600">No Data</span>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="lblPrimeCostPct" class="text-2xl font-black text-gray-900">0.0%</span>
+          </div>
+          <div class="text-[10px] text-gray-500 font-semibold space-y-0.5">
+            <div>Total Prime Cost: <span id="lblPrimeCostAmount" class="text-gray-900 font-bold">₹0.00</span></div>
+            <div>Target: Keep under 65% of revenue</div>
+          </div>
+        </div>
+
+        <!-- EBITDA Card -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2">
+          <h4 class="text-xs font-bold text-gray-500">EBITDA</h4>
+          <div class="flex items-baseline gap-1">
+            <span id="lblEbitdaAmount" class="text-2xl font-black text-gray-900">₹0.00</span>
+            <span id="lblEbitdaMargin" class="text-xs text-gray-500 font-bold">(0.0% margin)</span>
+          </div>
+          <div class="text-[10px] text-gray-500 font-semibold space-y-0.5">
+            <div>Target: Healthy restaurant EBITDA is 10–20%</div>
+          </div>
+        </div>
+
+        <!-- Break-Even Card -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2">
+          <h4 class="text-xs font-bold text-gray-500">Break-Even Point</h4>
+          <div class="flex items-baseline gap-1">
+            <span id="lblBreakEvenMonth" class="text-2xl font-black text-gray-900">₹0.00</span>
+            <span class="text-xs text-gray-500 font-bold">/ month</span>
+          </div>
+          <div class="text-[10px] text-gray-500 font-semibold space-y-0.5">
+            <div>Daily Target: <span id="lblBreakEvenDay" class="text-gray-900 font-bold">₹0.00</span> / day</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="exportReportPDF()" class="py-3 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow">
+          📄 Export PDF
+        </button>
+        <button onclick="copyToClipboardText()" class="py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm">
+          📋 Copy Results
+        </button>
+        <button onclick="copyToExcelTsv()" class="py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm">
+          📊 Copy Excel
+        </button>
+        <button onclick="shareLink()" class="py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm">
+          🔗 Share URL
+        </button>
+      </div>
+
+      <!-- Net Margin Gauge -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <h4 class="text-xs font-extrabold text-gray-900 uppercase tracking-wider">Your Net Margin Position</h4>
+        
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs font-bold">
+            <span>Net Margin:</span>
+            <span id="lblNetMarginPos" class="text-brand">0.0%</span>
+          </div>
+          
+          <div class="relative w-full h-4 bg-gray-100 rounded-full overflow-hidden border border-gray-200/50">
+            <!-- Marker -->
+            <div id="gaugeMarker" class="absolute top-0 bottom-0 w-1 bg-brand shadow transition-all duration-500" style="left: 0%"></div>
+            
+            <!-- Target thresholds color band overlays -->
+            <div class="absolute inset-y-0 left-0 w-[20%] bg-rose-500/10"></div>
+            <div class="absolute inset-y-0 left-[20%] w-[10%] bg-amber-500/10"></div>
+            <div class="absolute inset-y-0 left-[30%] w-[15%] bg-emerald-400/10"></div>
+            <div class="absolute inset-y-0 left-[45%] w-[30%] bg-emerald-500/10"></div>
+            <div class="absolute inset-y-0 left-[75%] w-[25%] bg-blue-500/15"></div>
+          </div>
+          <div class="flex justify-between text-[8px] text-gray-400 font-extrabold">
+            <span>-5%</span>
+            <span>0%</span>
+            <span>3%</span>
+            <span>6%</span>
+            <span>9%</span>
+            <span>15%</span>
+            <span>20%+</span>
+          </div>
+        </div>
+
+        <div id="gaugeVerdictBox" class="p-3 bg-gray-50 border border-gray-100 rounded-xl text-xs space-y-1">
+          <strong id="lblGaugeVerdict" class="text-gray-900">Enter numbers to view positioning</strong>
+          <p id="lblGaugeDesc" class="text-gray-500 text-[10px] leading-relaxed">Fill food sales, beverage sales, COGS, and labor cost to get a contextual diagnosis of your operational performance.</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ============================== FULL SEO CONTENT SECTION ============================== -->
+  <section class="border-t border-gray-100 bg-white py-16 px-4">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-12">
+      
+      <!-- Sticky Sidebar Table of Contents -->
+      <aside class="hidden lg:block lg:col-span-1">
+        <div class="sticky-toc p-5 bg-gray-50 rounded-2xl border border-gray-100 space-y-4 sticky top-20">
+          <h4 class="font-display font-extrabold text-sm text-gray-900 tracking-tight uppercase">Guide Contents</h4>
+          <nav class="flex flex-col gap-3 text-sm">
+            <a href="#what-is-profit-margin" class="text-gray-500 hover:text-brand transition font-medium">What is Profit Margin?</a>
+            <a href="#four-ratios" class="text-gray-500 hover:text-brand transition font-medium">4 Ratios to Track</a>
+            <a href="#benchmarks-section" class="text-gray-500 hover:text-brand transition font-medium">Benchmarks Table</a>
+            <a href="#why-broke-reality" class="text-gray-500 hover:text-brand transition font-medium">Accounting vs Cash Profit</a>
+            <a href="#increase-margin-strategies" class="text-gray-500 hover:text-brand transition font-medium">8 Strategies to Improve</a>
+            <a href="#common-mistakes" class="text-gray-500 hover:text-brand transition font-medium">Common Mistakes</a>
+            <a href="#faq" class="text-gray-500 hover:text-brand transition font-medium">Frequently Asked Questions</a>
+            <a href="#other-tools" class="text-gray-500 hover:text-brand transition font-medium">Other Free Restro Tools</a>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- SEO Articles Content -->
+      <article class="lg:col-span-3 space-y-12 text-gray-700 leading-relaxed">
+        
+        <!-- EEAT Signals Header -->
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-400 border-b border-gray-100 pb-4 mb-6">
+          <span>✍️ Written by <strong>Meenufy Team</strong></span>
+          <span>📅 Last Updated: <strong>June 2026</strong></span>
+          <span>✅ Reviewed by <strong>Restaurant Financial Consultants</strong></span>
+          <span>📚 Sources: <strong>National Restaurant Association standards, cost accounting guidelines</strong></span>
+        </div>
+
+        <section id="what-is-profit-margin" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            What Is Restaurant Profit Margin? (The Number That Determines if You're Actually Building Wealth)
+          </h2>
+          <p>
+            Running a restaurant that's always busy but never profitable is one of the most painful positions in the food business. Packed tables, non-stop orders, exhausted staff — and then the month ends and there's almost nothing left. This is the profit margin problem.
+          </p>
+          <p>
+            A restaurant's profit margin is the percentage of revenue that remains as actual profit after every single expense has been paid. It is the truest measure of whether a restaurant is a real business or just an expensive job.
+          </p>
+          <p>
+            There are two profit margins every restaurant operator must know. Gross profit margin measures revenue against food and beverage costs only — it tells you how efficiently your kitchen converts ingredients into income. Net profit margin measures revenue against every cost in the business — rent, labor, utilities, marketing, repairs, everything — and tells you what actually lands in your bank account.
+          </p>
+          <p>
+            A restaurant generating ₹3,00,000 per month in revenue with a 5% net profit margin keeps ₹15,000. The same restaurant at 15% net margin keeps ₹45,000. That difference, compounded over a year, is ₹3,60,000 — the difference between a business that grows and one that barely survives.
+          </p>
+        </section>
+
+        <!-- Worked Example for AI and Humans -->
+        <section class="bg-orange-50/50 border border-orange-100 rounded-2xl p-6 my-6 space-y-4">
+          <h4 class="font-bold text-gray-900 text-sm uppercase tracking-wider flex items-center gap-1.5">
+            💡 Worked Example: Raj's Café — Monthly Financials
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-mono text-gray-600">
+            <div>
+              <h5 class="font-bold text-gray-800 mb-2 uppercase tracking-wide">Revenue:</h5>
+              <div class="space-y-1">
+                <div>Food Sales:      ₹1,80,000</div>
+                <div>Beverage Sales:  ₹ 60,000</div>
+                <div>Other:           ₹  5,000</div>
+                <div class="border-t border-gray-200 my-1 pt-1 font-bold text-gray-950">Total Revenue:   ₹2,45,000</div>
+              </div>
+            </div>
+            <div>
+              <h5 class="font-bold text-gray-800 mb-2 uppercase tracking-wide">Expenses:</h5>
+              <div class="space-y-1">
+                <div>Food/COGS:       ₹ 73,500  (30.0%) ✓</div>
+                <div>Labor:           ₹ 68,600  (28.0%) ✓</div>
+                <div>Rent:            ₹ 24,500  (10.0%)</div>
+                <div>Utilities:       ₹  7,350  ( 3.0%)</div>
+                <div>Marketing:       ₹  4,900  ( 2.0%)</div>
+                <div>Other:           ₹  9,800  ( 4.0%)</div>
+                <div class="border-t border-gray-200 my-1 pt-1 font-bold text-gray-950">Total Expenses:  ₹1,88,650  (77.0%)</div>
+              </div>
+            </div>
+          </div>
+          <div class="border-t border-orange-100 pt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold text-gray-800">
+            <div>Gross Profit: <span class="text-brand">₹1,71,500 (70.0%) ✓</span></div>
+            <div>Net Profit: <span class="text-brand">₹56,350 (23.0%) ✓</span></div>
+            <div>Prime Cost: <span class="text-brand">₹1,42,100 (58.0%) ✓</span></div>
+            <div>EBITDA: <span class="text-brand">₹56,350 (23.0%)</span></div>
+          </div>
+        </section>
+
+        <section id="four-ratios" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            The Four Numbers Every Restaurant Owner Must Calculate Monthly
+          </h2>
+          <p>
+            Most restaurant owners track revenue obsessively and expenses reluctantly. The owners who build profitable, lasting businesses track four specific ratios religiously.
+          </p>
+
+          <h3 class="text-lg font-bold text-gray-900 mt-6">1. Gross Profit Margin</h3>
+          <p class="text-sm font-mono text-gray-500">Gross Profit Margin = (Revenue − Food &amp; Beverage Cost) ÷ Revenue × 100</p>
+          <p>
+            This is the efficiency of your kitchen. A gross margin of 68% means for every ₹100 of food and drink sold, ₹68 is available to pay for labor, rent, utilities, and everything else — including your own income.
+          </p>
+          <p>
+            <strong>Industry benchmark:</strong> Most well-run restaurants maintain gross margins of 65–75%. A café or bar with high-margin beverages can reach 75–80%. Fine dining kitchens, where ingredient quality is the proposition, often run 65–70%.
+          </p>
+          <p>
+            If your gross margin falls below 60%, your food costs are out of control. Raise prices, reduce portions, or find better-value suppliers before anything else.
+          </p>
+
+          <h3 class="text-lg font-bold text-gray-900 mt-6">2. Net Profit Margin</h3>
+          <p class="text-sm font-mono text-gray-500">Net Profit Margin = (Revenue − All Costs) ÷ Revenue × 100</p>
+          <p>
+            This is the number that actually matters. After COGS, after every wage, after rent and electricity and the accountant and the delivery platform commission — what percentage remains?
+          </p>
+          <p>
+            <strong>Industry benchmarks:</strong>
+          </p>
+          <ul class="list-disc pl-6 space-y-1.5">
+            <li>Quick Service / Fast Food: 6–9%</li>
+            <li>Casual Dining: 3–8%</li>
+            <li>Fine Dining: 6–12%</li>
+            <li>Café / Coffee Shop: 4–10%</li>
+            <li>Cloud Kitchen: 8–15% (no rent advantage)</li>
+            <li>Food Truck: 5–10%</li>
+          </ul>
+          <p>
+            A net margin below 3% leaves no buffer for slow months, equipment breakdowns, or unexpected costs. A net margin above 10% signals a well-run operation with real pricing power.
+          </p>
+
+          <h3 class="text-lg font-bold text-gray-900 mt-6">3. Prime Cost (The Restaurant Operator's Most Important Ratio)</h3>
+          <p class="text-sm font-mono text-gray-500">Prime Cost = Food &amp; Beverage Cost + Total Labor Cost</p>
+          <p class="text-sm font-mono text-gray-500">Prime Cost % = Prime Cost ÷ Total Revenue × 100</p>
+          <p>
+            Prime cost is the metric professional restaurant operators watch more closely than any other. It combines the two largest and most controllable expenses — ingredients and people — into one number.
+          </p>
+          <p>
+            <strong>The universal target:</strong> Keep prime cost below 65% of revenue. Above 65% and you have almost nothing left to pay rent, utilities, marketing, and still generate profit.
+          </p>
+          <p>
+            If your prime cost is 70%, you are in trouble regardless of how busy the restaurant feels. This calculator shows your prime cost in real time.
+          </p>
+
+          <h3 class="text-lg font-bold text-gray-900 mt-6">4. EBITDA (Earnings Before Interest, Tax, Depreciation &amp; Amortization)</h3>
+          <p>
+            EBITDA gives investors and operators a clear picture of operational profitability, stripped of financing decisions and accounting adjustments. It answers: "Is the restaurant itself a good business, separate from how it's financed?"
+          </p>
+          <p>
+            For restaurant operators without investors, EBITDA is still useful because it approximates operational cash generation before large fixed obligations.
+          </p>
+          <p>
+            <strong>Industry benchmark:</strong> Healthy restaurants target EBITDA margins of 10–20%. Cloud kitchens and delivery-focused concepts with lower overhead often outperform here.
+          </p>
+        </section>
+
+        <section id="benchmarks-section" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Restaurant Profit Margin Benchmarks by Type (2025–2026 Data)
+          </h2>
+          <div class="overflow-x-auto border border-gray-100 rounded-2xl shadow-sm">
+            <table class="min-w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-gray-50 border-b border-gray-100 text-gray-500 uppercase tracking-wider font-extrabold">
+                  <th class="p-4">Restaurant Type</th>
+                  <th class="p-4">Gross Margin</th>
+                  <th class="p-4">Net Margin</th>
+                  <th class="p-4">Prime Cost</th>
+                  <th class="p-4">EBITDA Margin</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-y-gray-100 font-semibold text-gray-700">
+                <tr class="hover:bg-gray-50/50">
+                  <td class="p-4 text-gray-900 font-bold">Fine Dining</td>
+                  <td class="p-4">65–72%</td>
+                  <td class="p-4 text-emerald-600">6–12%</td>
+                  <td class="p-4">55–65%</td>
+                  <td class="p-4">12–20%</td>
+                </tr>
+                <tr class="hover:bg-gray-50/50">
+                  <td class="p-4 text-gray-900 font-bold">Casual / Full Service</td>
+                  <td class="p-4">65–72%</td>
+                  <td class="p-4 text-emerald-600">3–8%</td>
+                  <td class="p-4">60–68%</td>
+                  <td class="p-4">8–15%</td>
+                </tr>
+                <tr class="hover:bg-gray-50/50">
+                  <td class="p-4 text-gray-900 font-bold">Fast Food / QSR</td>
+                  <td class="p-4">68–75%</td>
+                  <td class="p-4 text-emerald-600">6–9%</td>
+                  <td class="p-4">50–60%</td>
+                  <td class="p-4">10–18%</td>
+                </tr>
+                <tr class="hover:bg-gray-50/50">
+                  <td class="p-4 text-gray-900 font-bold">Café / Coffee Shop</td>
+                  <td class="p-4">68–78%</td>
+                  <td class="p-4 text-emerald-600">4–10%</td>
+                  <td class="p-4">58–68%</td>
+                  <td class="p-4">8–16%</td>
+                </tr>
+                <tr class="hover:bg-gray-50/50">
+                  <td class="p-4 text-gray-900 font-bold">Food Truck</td>
+                  <td class="p-4">60–70%</td>
+                  <td class="p-4 text-emerald-600">5–10%</td>
+                  <td class="p-4">55–65%</td>
+                  <td class="p-4">8–14%</td>
+                </tr>
+                <tr class="hover:bg-gray-50/50">
+                  <td class="p-4 text-gray-900 font-bold">Cloud Kitchen</td>
+                  <td class="p-4">65–75%</td>
+                  <td class="p-4 text-emerald-600">8–15%</td>
+                  <td class="p-4">45–58%</td>
+                  <td class="p-4">12–20%</td>
+                </tr>
+                <tr class="hover:bg-gray-50/50">
+                  <td class="p-4 text-gray-900 font-bold">Bakery</td>
+                  <td class="p-4">55–65%</td>
+                  <td class="p-4 text-emerald-600">4–8%</td>
+                  <td class="p-4">58–68%</td>
+                  <td class="p-4">6–12%</td>
+                </tr>
+                <tr class="hover:bg-gray-50/50">
+                  <td class="p-4 text-gray-900 font-bold">Bar / Pub</td>
+                  <td class="p-4">70–80%</td>
+                  <td class="p-4 text-emerald-600">7–12%</td>
+                  <td class="p-4">50–62%</td>
+                  <td class="p-4">10–18%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-xs text-gray-400 italic">
+            Note on variance: These ranges reflect well-managed operations in stable markets. Restaurants in premium urban locations often run higher rent percentages (12–18% of revenue) which compresses net margins. High-delivery-volume concepts face commission costs of 15–30% on third-party platform orders, which materially impacts net margin if not managed.
+          </p>
+        </section>
+
+        <section id="why-broke-reality" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Why Most Restaurants Are Profitable on Paper but Broke in Reality
+          </h2>
+          <p>
+            There is a crucial difference between accounting profit and cash profit. A restaurant can show a positive net margin on a P&amp;L statement and still run out of cash — because profit and cash flow are not the same thing.
+          </p>
+          <h4 class="font-bold text-gray-900 text-sm uppercase">The four hidden margin killers:</h4>
+          <ol class="list-decimal pl-6 space-y-3">
+            <li>
+              <strong>Inventory spoilage you never fully account for.</strong> Food that goes bad before it's used doesn't show up as a direct loss — it shows up as higher COGS. The COGS number in your P&amp;L includes all the food you bought, not just the food you sold. If 12% of your purchased ingredients spoil before use, your food cost percentage is 12% higher than your recipe cards suggest.
+            </li>
+            <li>
+              <strong>Over-ordering from miscommunicated orders.</strong> When a waiter mishears an order and the kitchen produces the wrong dish, the cost of that dish is absorbed — the ingredients are consumed and the dish is either remade or written off. Every remade dish is 100% food cost with zero revenue. Restaurants with manual order-taking systems experience this daily.
+            </li>
+            <li>
+              <strong>Labor hours that don't match demand.</strong> A full-service restaurant typically schedules labor against forecasted covers. When a Thursday dinner is slow, labor continues to accrue. Restaurants that haven't optimized their scheduling to match real demand patterns are paying for labor they don't need.
+            </li>
+            <li>
+              <strong>Delivery platform commissions not tracked separately.</strong> Many restaurants report their gross delivery revenue without separately accounting for the 15–30% commission paid to platforms. This makes revenue look healthy but dramatically compresses effective margins on delivery orders. Track dine-in and delivery margins separately.
+            </li>
+          </ol>
+        </section>
+
+        <section id="increase-margin-strategies" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            8 Strategies to Increase Your Restaurant's Profit Margin
+          </h2>
+          
+          <div class="space-y-4">
+            <h4 class="font-bold text-gray-900 text-base">Strategy 1: Target Prime Cost First</h4>
+            <p>
+              Prime cost (food + labor) is your most powerful lever because it's the most controllable. A 5% reduction in prime cost percentage on ₹3,00,000 monthly revenue is ₹15,000 per month — ₹1,80,000 per year. Identify which element of prime cost is high and attack it systematically.
+            </p>
+
+            <h4 class="font-bold text-gray-900 text-base">Strategy 2: Use Menu Engineering to Shift Sales Mix</h4>
+            <p>
+              Not all dishes are equal. A restaurant with 40 menu items has a different profit profile depending on which items customers order most. Use menu engineering to identify your Stars (high profit + high sales) and promote them aggressively. Remove Dogs (low margin + low sales) entirely.
+            </p>
+
+            <h4 class="font-bold text-gray-900 text-base">Strategy 3: Reduce Waiter Dependency with Self-Ordering</h4>
+            <p>
+              Labor is typically 28–35% of restaurant revenue. The portion of that labor spent taking orders manually — writing tickets, running between tables and the kitchen, re-taking orders after mistakes — is time that generates zero additional revenue. Every order a customer places themselves via QR self-ordering is a waiter-minute freed up for genuine hospitality, upselling, and speed.
+            </p>
+            <blockquote class="border-l-4 border-brand pl-4 py-1 italic bg-orange-50/30 rounded-r-lg pr-4">
+              <strong>Meenufy's QR self-ordering technology</strong> eliminates order-taking friction entirely. When customers scan and order directly, restaurants typically reduce waiter workload by 50%+ — which means the same labor headcount can serve more covers, handle more tables, or allow you to reduce total staff hours. That 5–10% labor saving flows almost entirely to net profit.
+            </blockquote>
+
+            <h4 class="font-bold text-gray-900 text-base">Strategy 4: Negotiate Rent at Lease Renewal</h4>
+            <p>
+              Rent is typically the largest fixed cost — and the hardest to reduce mid-lease. But at renewal, armed with accurate financial data (which this calculator helps you build), you are in a much stronger negotiating position. Landlords prefer stable, established tenants over new unknowns. Use your revenue history to negotiate.
+            </p>
+
+            <h4 class="font-bold text-gray-950 text-base">Strategy 5: Capture All Revenue Streams in One Dashboard</h4>
+            <p>
+              Restaurants operating across dine-in, takeaway, delivery, and catering often undercount revenue and overcount costs because different channels have different economics. Track each channel's contribution margin separately. This calculator lets you input all revenue streams together — use your actual per-channel data to see which streams are most and least profitable.
+            </p>
+
+            <h4 class="font-bold text-gray-950 text-base">Strategy 6: Implement a Loyalty Program to Drive Repeat Revenue</h4>
+            <p>
+              The cost of acquiring a new customer is 5–7x higher than retaining an existing one. Increasing your repeat customer rate by 10% on a base of 500 monthly customers — 50 additional returning customers at an average spend of ₹400 — adds ₹20,000 to monthly revenue with zero acquisition cost. At a 20% net margin, that's ₹4,000 of pure incremental profit from retention alone.
+            </p>
+
+            <h4 class="font-bold text-gray-950 text-base">Strategy 7: Use Your Financial Data for Smart Staffing</h4>
+            <p>
+              Once you calculate prime cost percentage weekly, you have a tool for labor scheduling decisions. When a weekend runs at unusually high labor percentage, it signals overstaffing relative to revenue. Use the data to build forecasting-based scheduling rather than intuition-based scheduling.
+            </p>
+
+            <h4 class="font-bold text-gray-950 text-base">Strategy 8: Convert Negative Google Reviews to Private Feedback</h4>
+            <p>
+              Every negative public review suppresses your rating — which reduces new customer acquisition, which forces you to spend more on marketing to maintain covers. Restaurants using QR ordering with integrated review redirection capture negative feedback internally (to fix) and direct satisfied customers to Google Reviews (to improve public ratings). A 0.5-star improvement in Google rating correlates with a 5–9% increase in revenue in major markets.
+            </p>
+          </div>
+        </section>
+
+        <section id="common-mistakes" class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Common Profit Margin Mistakes Restaurant Owners Make
+          </h2>
+          <ul class="list-disc pl-6 space-y-3">
+            <li>
+              <strong>Mistake 1: Tracking Revenue But Not Margin</strong><br />
+              "We did ₹5 lakh this month!" means nothing without knowing the margin. A restaurant with ₹5 lakh revenue at 3% net margin keeps ₹15,000. One at 12% keeps ₹60,000. Revenue is vanity; margin is sanity.
+            </li>
+            <li>
+              <strong>Mistake 2: Not Separating Fixed and Variable Costs</strong><br />
+              Fixed costs (rent, insurance, subscriptions) don't change with sales volume. Variable costs (food, some labor, packaging) scale with revenue. Owners who don't distinguish between these can't model what happens to profit at different revenue levels — which makes planning impossible.
+            </li>
+            <li>
+              <strong>Mistake 3: Ignoring Prime Cost Until It's a Crisis</strong><br />
+              Prime cost above 70% is a crisis. But it rarely happens overnight — it creeps up 1–2% per month as ingredient prices rise, staff hours expand, and no one is watching. Calculate prime cost weekly, not quarterly.
+            </li>
+            <li>
+              <strong>Mistake 4: Counting Delivery Gross Revenue, Not Net</strong><br />
+              A ₹500 delivery order through Zomato at 25% commission nets ₹375. If your food cost on that order is ₹150, your gross margin on the delivery is 60% — not the 70% you'd see in dine-in. Model delivery separately.
+            </li>
+            <li>
+              <strong>Mistake 5: Not Having a Target Margin Before the Year Begins</strong><br />
+              The restaurants that consistently hit healthy margins set them as targets in advance, then reverse-engineer their pricing, labor scheduling, and cost controls to hit them. Profit margin by accident is rare. By design, it's achievable.
+            </li>
+          </ul>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="space-y-6">
+          <h2 class="text-2xl md:text-3xl font-display font-black text-gray-900 tracking-tight">
+            Restaurant Profit Margin Calculator — Frequently Asked Questions
+          </h2>
+          <div class="space-y-4">
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">What is a good profit margin for a restaurant?</h5>
+              <p class="text-xs text-gray-500">A good net profit margin for a restaurant is 6–9% for most formats. Fast food and QSR concepts often achieve 6–9% on volume. Casual dining typically runs 3–8%. Fine dining, with premium pricing power, can reach 6–12%. Cloud kitchens, without the rent burden, sometimes achieve 8–15%. A margin above 10% is considered excellent; below 3% is dangerously thin.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">What is the average restaurant profit margin globally?</h5>
+              <p class="text-xs text-gray-500">The average net profit margin across the global restaurant industry is approximately 3–9%, with most operators landing between 3–6%. According to industry data, the average restaurant industry profit margin is 9.8% — though this includes high-performing operators that skew the average upward. The median operator is closer to 4–5%.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">What is prime cost and why does it matter for restaurant profit?</h5>
+              <p class="text-xs text-gray-500">Prime cost is the sum of your food and beverage costs (COGS) and your total labor costs. It is the most important profitability metric for restaurant operators because it combines the two largest controllable expenses. The universal benchmark is to keep prime cost below 65% of revenue. Above 65%, there is not enough remaining revenue to cover rent, utilities, and other operating costs and still generate meaningful profit.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">How do I increase my restaurant's net profit margin?</h5>
+              <p class="text-xs text-gray-500">The most effective levers are: (1) control prime cost — keep COGS below 30–35% and labor below 28–35%, (2) implement menu engineering to promote your highest-margin dishes, (3) reduce order-taking labor with QR self-ordering, (4) negotiate with suppliers for better ingredient pricing, (5) track and reduce food waste, (6) optimize staffing schedules to match demand, and (7) capture positive reviews to reduce customer acquisition cost.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">What is the difference between gross profit margin and net profit margin?</h5>
+              <p class="text-xs text-gray-500">Gross profit margin deducts only the cost of food and beverages (COGS) from revenue. It measures kitchen efficiency. Net profit margin deducts every cost — food, labor, rent, utilities, marketing, repairs, licenses, and all other expenses — from revenue. It measures total business profitability. Both matter: gross margin shows you whether your menu is priced correctly; net margin shows you whether the whole business is viable.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">How do I calculate restaurant profit margin?</h5>
+              <p class="text-xs text-gray-500">Net Profit Margin = (Total Revenue − All Operating Costs) ÷ Total Revenue × 100. Add up all your costs (food, labor, rent, utilities, marketing, and all other expenses) and subtract from total revenue. Divide the result by total revenue and multiply by 100 to get the percentage. This calculator does all of that automatically.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">What is EBITDA and do restaurants need to track it?</h5>
+              <p class="text-xs text-gray-500">EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization) is a measure of operational profit before financing and accounting adjustments. Restaurants with investors or those considering expansion or sale use EBITDA to show the underlying earning power of the business. Healthy restaurant EBITDA margins typically range from 10–20%. For most independent operators, net profit margin is more practically useful for day-to-day decisions.</p>
+            </div>
+            <div class="border-b border-gray-100 pb-4">
+              <h5 class="font-bold text-gray-900 mb-1">Can I use this profit margin calculator for a café or coffee shop?</h5>
+              <p class="text-xs text-gray-500">Yes. This calculator works for any food business — restaurants, cafés, coffee shops, food trucks, cloud kitchens, catering companies, bakeries, and bars. Select your local currency, choose your time period, and enter your numbers. Cafés typically run net margins of 4–10%, with beverage revenue providing higher gross margins that offset higher labor intensity.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Other Tools Section -->
+        <section id="other-tools" class="space-y-6">
+          <h2 class="text-xl md:text-2xl font-display font-black text-gray-900 tracking-tight">
+            Other Free Restaurant Tools by Meenufy
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a href="/tools/food-cost-calculator" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                🍽️ Food Cost Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Calculate recipe cost, food cost %, and ideal menu pricing.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                🔁 Table Turnover Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Find out how much revenue you lose to slow table turn rates.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                ⚖️ Menu Engineering Matrix
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Plot your dishes automatically by profitability and popularity scores.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                💸 Restaurant Break-Even Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Find the exact daily and monthly sales numbers you need to cover costs.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                👥 Labor Cost Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Check if your weekly staffing hours are aligned with industry averages.</p>
+            </a>
+            <a href="/tools/" class="block bg-gray-50 border border-gray-100 hover:border-brand p-5 rounded-2xl transition group">
+              <h4 class="font-bold text-gray-950 group-hover:text-brand transition flex items-center gap-2">
+                ❤️ Loyalty Program ROI Calculator
+              </h4>
+              <p class="text-xs text-gray-500 mt-2">Project the revenue uplift of launching a repeat guest program.</p>
+            </a>
+          </div>
+        </section>
+
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============================== MEENUFY WARM ORANGE CTA BANNER ============================== -->
+  <section class="bg-brand-light border-t border-orange-100 py-16 px-4 text-center">
+    <div class="max-w-3xl mx-auto space-y-6">
+      <div class="w-16 h-16 rounded-2xl bg-brand flex items-center justify-center font-bold text-white font-display text-2xl mx-auto shadow-md">M</div>
+      <h2 class="text-2xl md:text-4xl font-display font-black text-gray-900 tracking-tight">
+        You know your margin. Now let's improve it.
+      </h2>
+      <p class="text-gray-600 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+        The biggest margin killer in most restaurants isn't food cost or rent. It's labor time spent on tasks that technology can handle better. Every manual order taken by a waiter costs you: their time, order mistakes, and slower table turns. Meenufy's QR self-ordering system eliminates all three, improving your net margins by 5–10%!
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl mx-auto text-left py-4 text-sm font-semibold text-gray-700">
+        <div>✓ Serve 30% more covers with the same team</div>
+        <div>✓ Reduce waiter dependency by 50%+</div>
+        <div>✓ Run loyalty programs that bring customers back</div>
+        <div>✓ Get more 5-star Google reviews automatically</div>
+        <div>✓ See real-time analytics on your best-selling items</div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <a href="/" class="w-full sm:w-auto bg-brand hover:bg-brand-dark text-white font-bold py-3.5 px-8 rounded-xl transition text-base shadow-sm">
+          Start Free Trial — No Credit Card
+        </a>
+        <a href="/" class="w-full sm:w-auto bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 font-bold py-3.5 px-8 rounded-xl transition text-base">
+          See How Meenufy Works →
+        </a>
+      </div>
+      <p class="text-xs text-gray-400 font-medium">
+        Trusted by 500+ restaurants across India. Setup in under 10 minutes.
+      </p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 border-t border-gray-800 text-gray-400 py-12 px-4">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div class="space-y-4">
+        <div class="flex items-center gap-2">
+          <img src="/meenufy_logo_erased.png" alt="Meenufy Logo" class="w-6 h-6 object-contain" />
+          <span class="font-display font-extrabold text-lg text-white tracking-tight">Meenufy</span>
+        </div>
+        <p class="text-xs leading-relaxed text-gray-500">The complete restaurant management platform for modern restaurants worldwide.</p>
+      </div>
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Free Tools</h4>
+        <div class="flex flex-col gap-2 text-xs">
+          <a href="/tools/" class="hover:text-brand">Calculators</a>
+          <a href="/tools/" class="hover:text-brand">QR Tools</a>
+          <a href="/tools/" class="hover:text-brand">Guides</a>
+        </div>
+      </div>
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Platform</h4>
+        <div class="flex flex-col gap-2 text-xs">
+          <a href="/" class="hover:text-brand">Sign In</a>
+          <a href="/" class="hover:text-brand">Get Started</a>
+          <a href="/" class="hover:text-brand">Features</a>
+          <a href="/" class="hover:text-brand">Pricing</a>
+        </div>
+      </div>
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Company</h4>
+        <div class="flex flex-col gap-2 text-xs">
+          <a href="#" class="hover:text-brand">About</a>
+          <a href="#" class="hover:text-brand">Blog</a>
+          <a href="#" class="hover:text-brand">Contact</a>
+        </div>
+      </div>
+    </div>
+    <div class="max-w-6xl mx-auto border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+      <span>© 2025 Meenufy. All rights reserved.</span>
+      <div class="flex gap-4">
+        <a href="#" class="hover:underline">Privacy</a>
+        <a href="#" class="hover:underline">Terms</a>
+        <a href="#" class="hover:underline">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- AI Cooking/Simmering Loader Popup Modal -->
+  <div id="aiLoadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center font-sans text-white hidden">
+    <div class="text-center max-w-md w-[90%] mx-auto p-10 bg-gray-900 border border-orange-500/30 rounded-3xl shadow-2xl flex flex-col items-center gap-6 transform scale-100 transition-all duration-300">
+      <!-- Loading animation -->
+      <div class="flex items-center justify-center space-x-2">
+        <div class="w-4 h-4 bg-brand rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+        <div class="w-4 h-4 bg-brand rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+        <div class="w-4 h-4 bg-brand rounded-full animate-bounce" style="animation-delay: 0.3s"></div>
+      </div>
+      <h3 class="text-xl font-bold text-white tracking-tight">AI Financial Consultant is Analyzing...</h3>
+      <p class="text-xs text-gray-400 leading-normal max-w-[280px]">
+        Reviewing P&amp;L margins, estimating EBITDA and prime costs, and building actionable growth strategies.
+      </p>
+      <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mt-2">
+        <div id="aiLoaderProgress" class="h-full bg-gradient-to-r from-brand to-orange-400 rounded-full w-0 transition-all duration-300"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

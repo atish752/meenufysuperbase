@@ -319,7 +319,7 @@ let searchQuery  = '';
 // RENDER A SINGLE CARD
 // =============================================
 function renderCard(tool, delay = 0) {
-  const isActive = tool.id === 'food-cost-calc';
+  const isActive = tool.id === 'food-cost-calc' || tool.id === 'profit-margin-calc';
   const badgeHtml = (() => {
     if (!tool.badge) return '';
     const map = {
@@ -416,6 +416,10 @@ function onToolClick(id, e) {
   e.preventDefault();
   if (id === 'food-cost-calc') {
     window.location.href = '/tools/food-cost-calculator/';
+    return;
+  }
+  if (id === 'profit-margin-calc') {
+    window.location.href = '/tools/restaurant-profit-margin-calculator/';
     return;
   }
   const tool = TOOLS.find(t => t.id === id);
