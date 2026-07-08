@@ -195,6 +195,37 @@ export default function CustomerHome() {
     );
   });
 
+  // Group matching meals by restaurant ID, returning list of restaurants with up to 2 matching meals each
+  const groupedRestaurantMeals = (() => {
+    const groups: Record<string, any[]> = {};
+    filteredMeals.forEach(meal => {
+      if (!groups[meal.restaurantId]) {
+        groups[meal.restaurantId] = [];
+      }
+      groups[meal.restaurantId].push(meal);
+    });
+
+    return Object.entries(groups).map(([restaurantId, meals]) => {
+      const restAccount = state.restaurantAccounts?.find(acc => acc.id === restaurantId);
+      const distance = processedRestaurants.find(r => r.id === restaurantId)?.distance || 0;
+      
+      // Limit to 2 meals per restaurant
+      const displayedMeals = meals.slice(0, 2);
+      
+      return {
+        restaurantId,
+        restaurantName: restAccount?.restaurantName || meals[0].restaurantName,
+        logo: restAccount?.logo || meals[0].restaurantLogo,
+        rating: restAccount?.rating || meals[0].restaurantRating,
+        tagline: restAccount?.tagline || 'Flavors you will love',
+        cuisines: restAccount?.cuisines || 'Multi-Cuisine',
+        distance,
+        meals: displayedMeals,
+        totalMatchingCount: meals.length
+      };
+    });
+  })();
+
   // Apply sorting to restaurants list
   if (sortBy === 'distance') {
     processedRestaurants.sort((a, b) => a.distance - b.distance);
@@ -461,58 +492,118 @@ export default function CustomerHome() {
                   <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No dishes match "{selectedCuisine || searchQuery}" nearby.</span>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {filteredMeals.map(meal => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {groupedRestaurantMeals.map(group => (
                     <div
-                      key={meal.id}
-                      onClick={() => handleOpenRestaurant(meal.restaurantId)}
+                      key={group.restaurantId}
                       style={{
                         background: 'var(--bg-elevated)',
                         border: '1px solid var(--border)',
-                        borderRadius: 14,
-                        padding: 12,
-                        display: 'flex',
-                        gap: 12,
-                        cursor: 'pointer',
+                        borderRadius: 16,
+                        padding: 14,
                         boxShadow: 'var(--shadow-sm)'
                       }}
                     >
-                      {/* Dish Photo */}
-                      <div style={{
-                        width: 75,
-                        height: 75,
-                        borderRadius: 10,
-                        overflow: 'hidden',
-                        background: 'var(--border-dim)',
-                        flexShrink: 0,
-                        position: 'relative'
-                      }}>
-                        <img src={meal.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&auto=format&fit=crop&q=60'} alt={meal.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <div style={{ position: 'absolute', top: 4, left: 4 }}>
-                          <VegNonVegIndicator isVeg={!!meal.isVeg} size={13} />
+                      {/* Restaurant Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          {/* Logo */}
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid var(--border)', overflow: 'hidden', background: '#ffffff', flexShrink: 0 }}>
+                            <img src={group.logo || DEFAULT_LOGO} alt={group.restaurantName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                          <div>
+                            <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)' }}>
+                              {group.restaurantName}
+                            </h4>
+                            <p style={{ fontSize: 9, color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                              {group.cuisines} · {group.distance.toFixed(1)} km away
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Rating */}
+                        <div style={{
+                          background: '#22c55e',
+                          color: '#ffffff',
+                          fontSize: 9,
+                          fontWeight: 900,
+                          padding: '2px 6px',
+                          borderRadius: 6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2
+                        }}>
+                          <span>{group.rating || 4.2}</span>
+                          <Star size={9} fill="#ffffff" stroke="none" />
                         </div>
                       </div>
 
-                      {/* Details */}
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <h4 style={{ fontSize: 13, fontWeight: 800, margin: 0 }}>{meal.name}</h4>
-                            <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--brand)' }}>₹{meal.price}</span>
+                      {/* Matching Meals list (Max 2) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {group.meals.map((meal: any) => (
+                          <div
+                            key={meal.id}
+                            style={{
+                              display: 'flex',
+                              gap: 10,
+                              padding: 8,
+                              borderRadius: 10,
+                              background: 'var(--bg-primary)',
+                              border: '1px solid var(--border-dim)'
+                            }}
+                          >
+                            {/* Dish Photo */}
+                            <div style={{
+                              width: 50,
+                              height: 50,
+                              borderRadius: 8,
+                              overflow: 'hidden',
+                              background: 'var(--border-dim)',
+                              flexShrink: 0,
+                              position: 'relative'
+                            }}>
+                              <img src={meal.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&auto=format&fit=crop&q=60'} alt={meal.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <div style={{ position: 'absolute', top: 2, left: 2 }}>
+                                <VegNonVegIndicator isVeg={!!meal.isVeg} size={10} />
+                              </div>
+                            </div>
+
+                            {/* Details */}
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)' }}>{meal.name}</span>
+                                <span style={{ fontSize: 12, fontWeight: 900, color: 'var(--brand)' }}>₹{meal.price}</span>
+                              </div>
+                              <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: '2px 0 0', display: '-webkit-box', WebkitLineClamp: '1', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {meal.description || 'Tasty and fresh'}
+                              </p>
+                            </div>
                           </div>
-                          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0', display: '-webkit-box', WebkitLineClamp: '1', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                            {meal.description || 'Tasty and fresh'}
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
-                          <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 600 }}>
-                            🏢 {meal.restaurantName}
-                          </span>
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                            📍 {meal.distance.toFixed(1)} km away
-                          </span>
-                        </div>
+                        ))}
                       </div>
+
+                      {/* Button to View Full Menu */}
+                      <button
+                        onClick={() => handleOpenRestaurant(group.restaurantId)}
+                        style={{
+                          width: '100%',
+                          marginTop: 12,
+                          padding: '8px',
+                          background: 'rgba(255, 125, 0, 0.08)',
+                          border: '1px dashed var(--brand)',
+                          borderRadius: 10,
+                          color: 'var(--brand)',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6
+                        }}
+                      >
+                        View Full Menu ({group.totalMatchingCount} items) <ArrowRight size={12} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -588,89 +679,89 @@ export default function CustomerHome() {
                         key={acc.id}
                         onClick={() => handleOpenRestaurant(acc.id)}
                         style={{
+                          display: 'flex',
                           background: 'var(--bg-elevated)',
                           border: '1px solid var(--border)',
                           borderRadius: 16,
                           overflow: 'hidden',
                           cursor: 'pointer',
-                          boxShadow: 'var(--shadow)'
+                          boxShadow: 'var(--shadow)',
+                          minHeight: 125,
+                          transition: 'transform 0.2s'
                         }}
                       >
-                        {/* Banner Photo with floating logo and rating */}
-                        <div style={{ position: 'relative', height: 160, width: '100%', background: 'var(--border-dim)' }}>
+                        {/* Left Side: Banner Photo (40% width) */}
+                        <div style={{ width: '40%', position: 'relative', background: 'var(--border-dim)' }}>
                           <img
                             src={acc.bannerImage || DEFAULT_BANNER}
                             alt={acc.restaurantName}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
-
-                          {/* Floating Logo Top Right */}
-                          <div style={{
-                            position: 'absolute',
-                            top: 12,
-                            right: 12,
-                            width: 44,
-                            height: 44,
-                            borderRadius: '50%',
-                            border: '2.5px solid #ffffff',
-                            overflow: 'hidden',
-                            background: '#ffffff',
-                            boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
-                            flexShrink: 0
-                          }}>
-                            <img
-                              src={acc.logo || DEFAULT_LOGO}
-                              alt={acc.restaurantName}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                          </div>
-
-                          {/* Floating Rating Bottom Right */}
-                          <div style={{
-                            position: 'absolute',
-                            bottom: 12,
-                            right: 12,
-                            background: '#22c55e',
-                            color: '#ffffff',
-                            fontSize: 11,
-                            fontWeight: 900,
-                            padding: '4px 8px',
-                            borderRadius: 8,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 3,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-                          }}>
-                            <span>{acc.rating || 4.2}</span>
-                            <Star size={11} fill="#ffffff" stroke="none" />
-                          </div>
                         </div>
 
-                        {/* Details section */}
-                        <div style={{ padding: 14 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h4 style={{ fontSize: 15, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)' }}>
-                              {acc.restaurantName}
-                            </h4>
-                          </div>
-
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-                            {acc.tagline || 'Flavors you will love'}
-                          </p>
-
-                          <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: '4px 0 0', fontStyle: 'italic' }}>
-                            {acc.cuisines || 'North Indian • Chinese • Fast Food'}
-                          </p>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
-                              <Clock size={12} color="var(--brand)" />
-                              <span style={{ fontWeight: 700 }}>{acc.distance.toFixed(1)} km away</span>
+                        {/* Right Side: Details (60% width) */}
+                        <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
+                          <div>
+                            {/* Header with Logo */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                              <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {acc.restaurantName}
+                              </h4>
+                              
+                              {/* Logo Image */}
+                              <div style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                border: '1px solid var(--border)',
+                                overflow: 'hidden',
+                                background: '#ffffff',
+                                flexShrink: 0
+                              }}>
+                                <img
+                                  src={acc.logo || DEFAULT_LOGO}
+                                  alt={acc.restaurantName}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
-                              <Award size={12} color="#10B981" />
-                              <span style={{ color: '#10B981', fontWeight: 800 }}>Free Delivery</span>
+                            <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: '4px 0 0', display: '-webkit-box', WebkitLineClamp: '1', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {acc.tagline || 'Flavors you will love'}
+                            </p>
+
+                            <p style={{ fontSize: 9, color: 'var(--text-muted)', margin: '2px 0 0', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: '1', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {acc.cuisines || 'North Indian • Chinese • Fast Food'}
+                            </p>
+                          </div>
+
+                          {/* Distance, Rating & Delivery */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 8, borderTop: '1px dashed var(--border)', paddingTop: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-secondary)' }}>
+                                <Clock size={11} color="var(--brand)" />
+                                <span style={{ fontWeight: 700 }}>{acc.distance.toFixed(1)} km</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#10B981' }}>
+                                <Award size={11} color="#10B981" />
+                                <span style={{ fontWeight: 800 }}>Free</span>
+                              </div>
+                            </div>
+
+                            {/* Rating Badge */}
+                            <div style={{
+                              background: '#22c55e',
+                              color: '#ffffff',
+                              fontSize: 9,
+                              fontWeight: 900,
+                              padding: '2px 6px',
+                              borderRadius: 6,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2
+                            }}>
+                              <span>{acc.rating || 4.2}</span>
+                              <Star size={9} fill="#ffffff" stroke="none" />
                             </div>
                           </div>
                         </div>
