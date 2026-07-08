@@ -180,12 +180,6 @@ export default function OnboardingFlow() {
         dispatch({ type: 'COMPLETE_ONBOARDING' });
         console.log('Onboarding data recorded:', onboardingData);
         
-        // Save restaurant name to database state
-        dispatch({
-          type: 'UPDATE_RESTAURANT',
-          payload: { name: restaurantName.trim() }
-        });
-
         // Auto-login a default admin if not already logged in
         if (!state.isAdminLoggedIn) {
           const mockAdminUser = {
@@ -199,6 +193,12 @@ export default function OnboardingFlow() {
           };
           dispatch({ type: 'LOGIN_ADMIN', payload: mockAdminUser });
         }
+
+        // Save restaurant name to database state
+        dispatch({
+          type: 'UPDATE_RESTAURANT',
+          payload: { name: restaurantName.trim() }
+        });
 
         // Redirect away
         dispatch({ type: 'SET_ADMIN_TAB', payload: 'home' });

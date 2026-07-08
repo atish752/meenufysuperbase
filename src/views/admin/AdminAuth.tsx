@@ -171,14 +171,14 @@ export default function AdminAuth() {
           ownerPhone: existingAccountForBlock?.ownerPhone || fbUser.phoneNumber || state.restaurant.phone || '+91 99999 88888',
         };
 
+        dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
+
         if (mode === 'signup') {
           dispatch({
             type: 'UPDATE_RESTAURANT',
             payload: { name: form.restaurantName || 'My Restaurant' }
           });
         }
-
-        dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
         // For new signups: mark onboarding as not yet completed so they see the onboarding flow
         if (mode === 'signup') {
           dispatch({ type: 'MARK_ONBOARDING_PENDING' });
@@ -242,14 +242,14 @@ export default function AdminAuth() {
       ownerPhone: existingAccount?.ownerPhone || state.restaurant.phone || '+91 99999 88888',
     };
 
+    dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
+
     if (mode === 'signup') {
       dispatch({
         type: 'UPDATE_RESTAURANT',
         payload: { name: form.restaurantName || 'My Restaurant' }
       });
     }
-
-    dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
     // For new signups: mark onboarding as not yet completed
     if (mode === 'signup' && !existingAccount) {
       dispatch({ type: 'MARK_ONBOARDING_PENDING' });
@@ -298,14 +298,14 @@ export default function AdminAuth() {
         ownerPhone: existingAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
       };
 
+      dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
+
       if (!existingAccount) {
         dispatch({
           type: 'UPDATE_RESTAURANT',
           payload: { name: `${adminUser.name}'s Restaurant` }
         });
       }
-
-      dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
       addToast('success', `Welcome back, ${adminUser.name}! 🎉`);
     } catch (err: any) {
       console.error(err);
