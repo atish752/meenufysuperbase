@@ -2250,13 +2250,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     let unsubscribeAccounts = () => {};
     const isAdminMode = targetRestaurantId === 'super-admin' || 
                         window.location.search.includes('view=admin') || 
-                        // Check if admin is logged in via saved state
                         (() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return !!s.isAdminLoggedIn; } catch { return false; } })();
-                        
-    if (isAdminMode) {
-      unsubscribeAccounts = onValue(ref(db, 'restaurantAccounts'), (snapshot) => {
+    // Subscribe to restaurantAccounts always so customers can browse nearby outlets
+    unsubscribeAccounts = onValue(ref(db, 'restaurantAccounts'), (snapshot) => {
         const data = snapshot.val();
-        const accounts: RestaurantAccount[] = data ? Object.values(data) as RestaurantAccount[] : [];
+        const accounts: RestaurantAccount[] = data ? Object.entries(data).map(([key, val]: [string, any]) => ({
+          ...val,
+          id: key
+        })) : [];
         if (accounts.length > 0) {
           dispatch({
             type: 'SYNC_RESTAURANT_ACCOUNTS',
@@ -2276,7 +2277,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
         }
       });
-    }
 
     // 3. Listen to menuItems
     const unsubscribeMenu = onValue(ref(db, `menuItems/${targetRestaurantId}`), (snapshot) => {
@@ -2979,7 +2979,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             );
             break;
           case 'LOGIN_ADMIN': {
-            if (!action.payload.isSuperAdmin) {
+            if (!action.payload.isSuperAdmin && !action.payload.isStaff) {
               const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === action.payload.id);
               const detectedCountry = detectBillingCountry();
 
