@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import type { Order, OrderStatus } from '../../context/RealtimeStore';
-import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, ChevronDown, ChevronUp, Calendar, Printer } from 'lucide-react';
+import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, ChevronDown, ChevronUp, Calendar, Printer, Gift, ShieldCheck } from 'lucide-react';
 import { printThermalReceipt } from '../../utils/printReceipt';
-
 
 type Props = { tableId: string };
 
@@ -20,12 +19,51 @@ const STATUS_INFO: Record<OrderStatus, { label: string; desc: string; icon: any;
 
 export default function CustomerOrders({ tableId }: Props) {
   const { state, dispatch } = useStore();
+  const [activeSubTab, setActiveSubTab] = useState<'orders' | 'loyalty'>('orders');
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all' | string>('all');
   const [customDate, setCustomDate] = useState('');
+
+  // Loyalty states
+  const [loyaltyPoints, setLoyaltyPoints] = useState<any[]>([]);
+  const [loadingLoyalty, setLoadingLoyalty] = useState(false);
 
   const savedGoogle = localStorage.getItem('meenufy_customer_google_user');
   const savedCustom = localStorage.getItem('meenufy_customer_logged_in_user');
   const isLoggedIn = !!(savedGoogle || savedCustom);
+
+  const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
+
+  // Parallel fetch loyalty points across all restaurants when sub-tab switches to loyalty
+  useEffect(() => {
+    if (activeSubTab !== 'loyalty' || !myPhoneIdentifier) return;
+    setLoadingLoyalty(true);
+
+    const cleanPhone = myPhoneIdentifier.replace(/[^a-zA-Z0-9]/g, '');
+    const promises = (state.restaurantAccounts || []).map(acc => {
+      return fetch(`https://meenufy-default-rtdb.firebaseio.com/customers/${acc.id}/${cleanPhone}.json`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && (data.points > 0 || data.visitsCount > 0)) {
+            return {
+              restaurantId: acc.id,
+              restaurantName: acc.restaurantName,
+              logo: acc.logo,
+              points: data.points || 0,
+              visitsCount: data.visitsCount || 0,
+              isVip: !!data.isVip
+            };
+          }
+          return null;
+        })
+        .catch(() => null);
+    });
+
+    Promise.all(promises).then(results => {
+      const active = results.filter(Boolean);
+      setLoyaltyPoints(active);
+      setLoadingLoyalty(false);
+    });
+  }, [activeSubTab, myPhoneIdentifier, state.restaurantAccounts]);
 
   if (!isLoggedIn) {
     return (
@@ -81,15 +119,12 @@ export default function CustomerOrders({ tableId }: Props) {
     );
   }
 
-  const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
   const myOrders = state.orders
     .filter(o => o.customerPhone === myPhoneIdentifier || o.tableId === tableId)
     .sort((a, b) => b.createdAt - a.createdAt);
 
-
-
   // Find all unique months in user's orders
-  const uniqueMonths: string[] = []; // format "YYYY-MM"
+  const uniqueMonths: string[] = [];
   myOrders.forEach(o => {
     const d = new Date(o.createdAt);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -130,37 +165,12 @@ export default function CustomerOrders({ tableId }: Props) {
         orderDate.getDate() === selected.getDate()
       );
     }
-    // Check if it matches a specific YYYY-MM
     if (timeFilter.includes('-')) {
       const [year, month] = timeFilter.split('-').map(Number);
       return orderDate.getFullYear() === year && (orderDate.getMonth() + 1) === month;
     }
-    return true; // 'all'
+    return true;
   });
-
-  if (myOrders.length === 0) {
-    return (
-      <div style={{ 
-        padding: 20, 
-        textAlign: 'center', 
-        paddingTop: 60,
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>🍽️</div>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 8 }}>No Orders Yet</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
-          Go to the menu and add items to start your order!
-        </p>
-        <button
-          className="btn btn-primary"
-          onClick={() => dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' })}
-        >
-          Browse Menu
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div style={{ 
@@ -172,127 +182,277 @@ export default function CustomerOrders({ tableId }: Props) {
       boxSizing: 'border-box',
       overflowX: 'hidden'
     }}>
-      {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>My Orders</h2>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{filteredOrders.length} order(s) shown</p>
-        </div>
+      {/* Tab Switcher */}
+      <div style={{
+        display: 'flex',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 20
+      }}>
+        <button
+          onClick={() => setActiveSubTab('orders')}
+          style={{
+            flex: 1,
+            padding: '10px 14px',
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 800,
+            background: activeSubTab === 'orders' ? 'var(--brand)' : 'transparent',
+            color: activeSubTab === 'orders' ? '#000000' : 'var(--text-secondary)',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          Order History
+        </button>
+        <button
+          onClick={() => setActiveSubTab('loyalty')}
+          style={{
+            flex: 1,
+            padding: '10px 14px',
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 800,
+            background: activeSubTab === 'loyalty' ? 'var(--brand)' : 'transparent',
+            color: activeSubTab === 'loyalty' ? '#000000' : 'var(--text-secondary)',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          Loyalty Points
+        </button>
       </div>
 
-      {/* Date & Period Filters */}
-      <div style={{
-        background: 'transparent',
-        padding: '0 0 12px',
-        marginBottom: 16,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        borderBottom: '1px solid var(--border)',
-        minWidth: 0,
-      }}>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, width: '100%', maxWidth: '100%', scrollbarWidth: 'none' }} className="hide-scrollbar">
-          {[
-            { key: 'all', label: 'All Orders' },
-            { key: 'today', label: 'Today' },
-            { key: 'week', label: 'This Week' },
-            { key: 'month', label: 'This Month' },
-            { key: 'custom', label: 'Custom Date' }
-          ].map(f => {
-            const isSelected = timeFilter === f.key;
-            return (
-              <button
-                key={f.key}
-                onClick={() => { setTimeFilter(f.key); }}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  borderRadius: 99,
-                  background: isSelected ? 'var(--brand)' : 'var(--bg-elevated)',
-                  color: isSelected ? '#000' : 'var(--text-primary)',
-                  border: isSelected ? 'none' : '1px solid var(--border)',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  transition: 'all 0.2s',
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
+      {activeSubTab === 'orders' ? (
+        <>
+          {/* Page Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, margin: 0 }}>My Orders</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>{filteredOrders.length} order(s) shown</p>
+            </div>
+          </div>
 
-        {/* Dynamic Month Selector & Custom Date Picker */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {uniqueMonths.length > 0 && (
-            <select
-              value={timeFilter.includes('-') ? timeFilter : ''}
-              onChange={e => {
-                if (e.target.value) {
-                  setTimeFilter(e.target.value);
-                } else {
-                  setTimeFilter('all');
-                }
-              }}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                fontSize: 12,
-                fontWeight: 600,
-                borderRadius: 8,
-                background: 'var(--bg-elevated)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-                cursor: 'pointer',
-                outline: 'none',
-                minWidth: 140
-              }}
-            >
-              <option value="">Choose Past Month...</option>
-              {uniqueMonths.map(m => (
-                <option key={m} value={m}>{getMonthName(m)}</option>
-              ))}
-            </select>
-          )}
+          {/* Date & Period Filters */}
+          <div style={{
+            background: 'transparent',
+            padding: '0 0 12px',
+            marginBottom: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            borderBottom: '1px solid var(--border)',
+            minWidth: 0,
+          }}>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, width: '100%', maxWidth: '100%', scrollbarWidth: 'none' }} className="hide-scrollbar">
+              {[
+                { key: 'all', label: 'All Orders' },
+                { key: 'today', label: 'Today' },
+                { key: 'week', label: 'This Week' },
+                { key: 'month', label: 'This Month' },
+                { key: 'custom', label: 'Custom Date' }
+              ].map(f => {
+                const isSelected = timeFilter === f.key;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => { setTimeFilter(f.key); }}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      borderRadius: 99,
+                      background: isSelected ? 'var(--brand)' : 'var(--bg-elevated)',
+                      color: isSelected ? '#000' : 'var(--text-primary)',
+                      border: isSelected ? 'none' : '1px solid var(--border)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
 
-          {timeFilter === 'custom' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-              <Calendar size={14} color="var(--brand)" />
-              <input
-                type="date"
-                value={customDate}
-                onChange={e => setCustomDate(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: '5px 10px',
-                  fontSize: 12,
-                  borderRadius: 8,
+            {/* Dynamic Month Selector & Custom Date Picker */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {uniqueMonths.length > 0 && (
+                <select
+                  value={timeFilter.includes('-') ? timeFilter : ''}
+                  onChange={e => {
+                    if (e.target.value) {
+                      setTimeFilter(e.target.value);
+                    } else {
+                      setTimeFilter('all');
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '6px 10px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    background: 'var(--bg-elevated)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    minWidth: 140
+                  }}
+                >
+                  <option value="">Choose Past Month...</option>
+                  {uniqueMonths.map(m => (
+                    <option key={m} value={m}>{getMonthName(m)}</option>
+                  ))}
+                </select>
+              )}
+
+              {timeFilter === 'custom' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Calendar size={14} color="var(--brand)" />
+                  <input
+                    type="date"
+                    value={customDate}
+                    onChange={e => setCustomDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '5px 10px',
+                      fontSize: 12,
+                      borderRadius: 8,
+                      background: 'var(--bg-elevated)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Orders List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filteredOrders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: 13 }}>
+                No orders found for the selected period.
+              </div>
+            ) : (
+              filteredOrders.map(order => (
+                <OrderStatusCard key={order.id} order={order} />
+              ))
+            )}
+          </div>
+        </>
+      ) : (
+        /* Loyalty Points Tab */
+        <div style={{ animation: 'fadeIn 0.2s ease-in-out' }}>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, margin: 0 }}>Loyalty Rewards</h2>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>Points earned across all Meenufy restaurants</p>
+          </div>
+
+          {loadingLoyalty ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 24, marginBottom: 8, animation: 'spin 1s linear infinite' }}>🔄</div>
+              <span>Fetching points balance...</span>
+            </div>
+          ) : loyaltyPoints.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '40px 20px',
+              background: 'var(--bg-elevated)',
+              borderRadius: 14,
+              border: '1px dashed var(--border)',
+              marginTop: 10
+            }}>
+              <Gift size={40} color="var(--text-muted)" style={{ marginBottom: 12, opacity: 0.5 }} />
+              <h3 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 6px', color: 'var(--text-primary)' }}>No Points Earned Yet</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                Order from any of our locations and link your phone number `{myPhoneIdentifier}` to earn and redeem rewards points!
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Total points summary card */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(234, 88, 12, 0.03) 100%)',
+                border: '1px solid rgba(249, 115, 22, 0.2)',
+                borderRadius: 16,
+                padding: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>Total Balance</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--brand)', fontFamily: 'var(--font-display)', marginTop: 4 }}>
+                    {loyaltyPoints.reduce((acc, p) => acc + p.points, 0)} <span style={{ fontSize: 12, fontWeight: 500 }}>pts</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: 10 }}>
+                  <ShieldCheck size={16} color="#10B981" />
+                  <span style={{ fontSize: 11, fontWeight: 800 }}>Verified Customer</span>
+                </div>
+              </div>
+
+              {/* Individual restaurant cards */}
+              {loyaltyPoints.map(p => (
+                <div key={p.restaurantId} style={{
                   background: 'var(--bg-elevated)',
-                  color: 'var(--text-primary)',
                   border: '1px solid var(--border)',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              />
+                  borderRadius: 14,
+                  padding: 14,
+                  display: 'flex',
+                  gap: 12,
+                  boxShadow: 'var(--shadow-sm)'
+                }}>
+                  {/* Restaurant Logo */}
+                  <div style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    background: 'var(--border-dim)',
+                    border: '1px solid var(--border)',
+                    flexShrink: 0
+                  }}>
+                    <img src={p.logo || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=100&auto=format&fit=crop&q=60'} alt={p.restaurantName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+
+                  {/* Program Details */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>{p.restaurantName}</h4>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.visitsCount} visit(s)</span>
+                          {p.isVip && (
+                            <span style={{ background: '#ffd700', color: '#000', fontSize: 9, fontWeight: 900, padding: '1px 5px', borderRadius: 4, transform: 'scale(0.95)' }}>VIP</span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--brand)', fontFamily: 'var(--font-display)' }}>
+                          {p.points} <span style={{ fontSize: 10, fontWeight: 500 }}>pts</span>
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Value: ₹{p.points}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Orders List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {filteredOrders.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: 13 }}>
-            No orders found for the selected period.
-          </div>
-        ) : (
-          filteredOrders.map(order => (
-            <OrderStatusCard key={order.id} order={order} />
-          ))
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -303,8 +463,6 @@ function OrderStatusCard({ order }: { order: Order }) {
   const Icon = info.icon;
   const currentStepIdx = STATUS_STEPS.indexOf(order.status);
   const isActive = !['served', 'cancelled'].includes(order.status);
-  
-  // Collapse historical orders by default to save height, keep active orders expanded
   const [expanded, setExpanded] = useState(isActive);
 
   return (
@@ -315,7 +473,6 @@ function OrderStatusCard({ order }: { order: Order }) {
       borderWidth: isActive ? 1 : undefined,
       transition: 'all 0.2s ease',
     }}>
-      {/* Order Header */}
       <div
         style={{ 
           padding: '10px 14px', 
@@ -370,7 +527,6 @@ function OrderStatusCard({ order }: { order: Order }) {
 
       {expanded && (
         <>
-          {/* Progress Steps (Only show for active tracking) */}
           {isActive && order.status !== 'cancelled' && (
             <div style={{ padding: '4px 14px 12px', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
@@ -410,7 +566,6 @@ function OrderStatusCard({ order }: { order: Order }) {
             </div>
           )}
 
-          {/* Items list */}
           <div style={{ padding: '8px 14px 10px', borderTop: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 120, overflowY: 'auto', paddingRight: 4 }}>
               {order.items.map((item, i) => (
@@ -430,7 +585,6 @@ function OrderStatusCard({ order }: { order: Order }) {
             </div>
           </div>
 
-          {/* View/Download Bill Button */}
           {['served', 'bill_pay'].includes(order.status) && (
             <div style={{ padding: '0 14px 12px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
               <button
@@ -458,7 +612,6 @@ function OrderStatusCard({ order }: { order: Order }) {
             </div>
           )}
 
-          {/* Cancel Order Button */}
           {order.status === 'pending' && (
             <div style={{ padding: '0 14px 12px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
               <button

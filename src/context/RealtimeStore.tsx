@@ -296,6 +296,7 @@ export type RestaurantAccount = {
   address?: string;
   cuisines?: string;
   rating?: number;
+  bannerImage?: string;
 };
 
 export type StaffMember = {
@@ -2965,6 +2966,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (action.payload.longitude !== undefined) accountUpdates.longitude = action.payload.longitude;
             if (action.payload.cuisines) accountUpdates.cuisines = action.payload.cuisines;
             if (action.payload.rating !== undefined) accountUpdates.rating = action.payload.rating;
+            if (action.payload.bannerImage) accountUpdates.bannerImage = action.payload.bannerImage;
             
             if (Object.keys(accountUpdates).length > 0) {
               update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)

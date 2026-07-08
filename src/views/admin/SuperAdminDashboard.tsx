@@ -72,6 +72,10 @@ export default function SuperAdminDashboard() {
               updatePayload.rating = restData.rating;
               needsUpdate = true;
             }
+            if (restData.bannerImage && restData.bannerImage !== acc.bannerImage) {
+              updatePayload.bannerImage = restData.bannerImage;
+              needsUpdate = true;
+            }
 
             if (needsUpdate) {
               console.log(`Auto-healing account ${acc.id}: ${acc.restaurantName} -> ${restData.name}`);

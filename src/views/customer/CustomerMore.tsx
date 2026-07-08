@@ -1,20 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useStore, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
-import { Download, Wifi, Gift, Crown, LogIn, LogOut, User, Lock, Sparkles } from 'lucide-react';
+import { Wifi, LogIn, LogOut, User, Lock, Sparkles, MessageSquare, PhoneCall, Send, History } from 'lucide-react';
 import { hasFirebaseConfig, auth, googleProvider } from '../../utils/firebase';
 import { signInWithPopup } from 'firebase/auth';
-import { ref, set, get, update } from 'firebase/database';
+import { ref, set, update } from 'firebase/database';
 import { db } from '../../utils/firebase';
 
-interface UserLoyaltyRecord {
-  restaurantId: string;
-  restaurantName: string;
-  points: number;
-  isVip: boolean;
-}
-
 export default function CustomerMore() {
-  const { state, dispatch, addToast } = useStore();
+  const { state, addToast } = useStore();
   const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
 
@@ -60,13 +53,16 @@ export default function CustomerMore() {
   const isLoggedIn = !!loggedInUser;
   const savedPhone = loggedInUser?.phone || '';
   const customer = state.customers.find(c => c.phone === savedPhone.trim());
-  const points = customer ? (customer.points || 0) : 0;
-  const isVip = customer ? !!customer.isVip : false;
-  const pointVal = points * (restaurant.pointValueInRupees || 1);
 
-  // Multi-restaurant loyalty state
-  const [loyaltyPrograms, setLoyaltyPrograms] = useState<UserLoyaltyRecord[]>([]);
-  const [isLoadingLoyalty, setIsLoadingLoyalty] = useState(false);
+
+  // Help & Support ticketing states
+  const [myTickets, setMyTickets] = useState<any[]>([]);
+  const [myFeedbacks, setMyFeedbacks] = useState<any[]>([]);
+  const [ticketMessageText, setTicketMessageText] = useState('');
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackType, setFeedbackType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
+  const [isSubmittingSupport, setIsSubmittingSupport] = useState(false);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   // Sync state back to local storage loggedInUser
   useEffect(() => {
@@ -80,118 +76,41 @@ export default function CustomerMore() {
     return () => window.removeEventListener('storage', checkUser);
   }, []);
 
-  // Fetch loyalty programs from all restaurants
+  // Fetch support tickets and feedback for this user
   useEffect(() => {
-    if (!isLoggedIn || !savedPhone) {
-      setLoyaltyPrograms([]);
+    if (!isLoggedIn || !savedPhone || !db) {
+      setMyTickets([]);
+      setMyFeedbacks([]);
       return;
     }
 
-    if (!hasFirebaseConfig || !db) {
-      // Mock mode
-      const mockPrograms: UserLoyaltyRecord[] = [
-        {
-          restaurantId: restaurantId,
-          restaurantName: restaurant.name || 'Current Restaurant',
-          points: points,
-          isVip: isVip
-        },
-        {
-          restaurantId: 'admin-2',
-          restaurantName: 'Cafe Delight',
-          points: 120,
-          isVip: false
-        },
-        {
-          restaurantId: 'admin-3',
-          restaurantName: 'Pizza Paradiso',
-          points: 450,
-          isVip: true
-        }
-      ];
-      setLoyaltyPrograms(mockPrograms);
-      return;
-    }
-
-    setIsLoadingLoyalty(true);
-    const accountsRef = ref(db!, 'restaurantAccounts');
-    get(accountsRef).then(async (snapshot) => {
-      if (snapshot.exists()) {
-        const accountsData = snapshot.val();
-        const accounts = Object.values(accountsData) as any[];
-        
-        const programs: UserLoyaltyRecord[] = [];
-        const cleanPhone = savedPhone.trim().replace(/[^a-zA-Z0-9]/g, '');
-
-        for (const account of accounts) {
-          const restId = account.id;
-          const restName = account.restaurantName || account.id;
-          
-          try {
-            const customerRef = ref(db!, `customers/${restId}/${cleanPhone}`);
-            const custSnap = await get(customerRef);
-            if (custSnap.exists()) {
-              const custData = custSnap.val();
-              if (custData && (custData.points > 0 || custData.isVip || restId === restaurantId)) {
-                programs.push({
-                  restaurantId: restId,
-                  restaurantName: restName,
-                  points: custData.points || 0,
-                  isVip: !!custData.isVip
-                });
-              }
-            }
-          } catch (err) {
-            console.error(`Failed to fetch loyalty for restaurant ${restId}:`, err);
+    const fetchTickets = () => {
+      import('firebase/database').then(({ ref, get }) => {
+        get(ref(db!, 'supportRequests')).then(snap => {
+          const val = snap.val();
+          if (val) {
+            const list = Object.values(val).filter((t: any) => t.ownerPhone === savedPhone);
+            list.sort((a: any, b: any) => b.createdAt - a.createdAt);
+            setMyTickets(list);
           }
-        }
-        
-        // Ensure current restaurant is at least represented if logged in, even if 0 points
-        const hasCurrent = programs.some(p => p.restaurantId === restaurantId);
-        if (!hasCurrent) {
-          programs.unshift({
-            restaurantId: restaurantId,
-            restaurantName: restaurant.name || 'Current Restaurant',
-            points: points,
-            isVip: isVip
-          });
-        }
+        }).catch(err => console.error("Error reading support requests:", err));
 
-        setLoyaltyPrograms(programs);
-      } else {
-        // Fallback to only current if no other accounts
-        setLoyaltyPrograms([{
-          restaurantId: restaurantId,
-          restaurantName: restaurant.name || 'Current Restaurant',
-          points: points,
-          isVip: isVip
-        }]);
-      }
-      setIsLoadingLoyalty(false);
-    }).catch(err => {
-      console.error("Failed to load restaurant accounts for loyalty lookup:", err);
-      // Fallback
-      setLoyaltyPrograms([{
-        restaurantId: restaurantId,
-        restaurantName: restaurant.name || 'Current Restaurant',
-        points: points,
-        isVip: isVip
-      }]);
-      setIsLoadingLoyalty(false);
-    });
-  }, [isLoggedIn, savedPhone, restaurantId, points, isVip, restaurant.name]);
+        get(ref(db!, 'ownerFeedbacks')).then(snap => {
+          const val = snap.val();
+          if (val) {
+            const list = Object.values(val).filter((f: any) => f.ownerEmail === loggedInUser.email || f.ownerPhone === savedPhone || f.ownerName?.includes(loggedInUser.name));
+            list.sort((a: any, b: any) => b.createdAt - a.createdAt);
+            setMyFeedbacks(list);
+          }
+        }).catch(err => console.error("Error reading feedbacks:", err));
+      });
+    };
 
-  const handleInstallPWA = async () => {
-    if (state.deferredPrompt) {
-      state.deferredPrompt.prompt();
-      const { outcome } = await state.deferredPrompt.userChoice;
-      console.log(`User choice for PWA install: ${outcome}`);
-      dispatch({ type: 'SET_STATE', payload: { deferredPrompt: null } });
-    } else {
-      const msg = 'To install: In Chrome, tap the 3-dot menu → "Add to Home screen" or "Install App". Enjoy the native app experience!';
-      alert(msg);
-    }
-  };
+    fetchTickets();
+    const interval = setInterval(fetchTickets, 25000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn, savedPhone, db]);
+
 
   const handleGoogleSignIn = async () => {
     if (hasFirebaseConfig && auth) {
@@ -575,247 +494,119 @@ export default function CustomerMore() {
       }
     } else {
       addToast('success', 'Google account linked (Demo mode).');
-      setLoggedInUser({
+setLoggedInUser({
         ...loggedInUser,
         googleId: 'mock-linked-google-id'
       });
     }
   };
 
+  const handleRaiseTicket = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticketMessageText.trim()) {
+      addToast('error', 'Please describe the issue you are facing.');
+      return;
+    }
+    if (!isLoggedIn || !savedPhone) {
+      addToast('error', 'Please sign in to raise a support ticket.');
+      return;
+    }
+
+    setIsSubmittingSupport(true);
+    const ticketId = `ticket-${Date.now()}`;
+    const ticketData = {
+      id: ticketId,
+      restaurantId: restaurantId || 'customer',
+      restaurantName: restaurant.name || 'Customer App User',
+      ownerName: `Customer: ${loggedInUser.name}`,
+      ownerEmail: loggedInUser.email || 'No Email',
+      ownerPhone: savedPhone,
+      message: ticketMessageText.trim(),
+      status: 'pending',
+      createdAt: Date.now()
+    };
+
+    if (hasFirebaseConfig && db) {
+      import('firebase/database').then(({ ref, set }) => {
+        set(ref(db!, `supportRequests/${ticketId}`), ticketData)
+          .then(() => {
+            addToast('success', 'Support ticket raised successfully! We will contact you soon.');
+            setTicketMessageText('');
+            setIsSubmittingSupport(false);
+            setMyTickets(prev => [ticketData, ...prev]);
+          })
+          .catch(err => {
+            console.error(err);
+            addToast('error', 'Failed to raise support ticket.');
+            setIsSubmittingSupport(false);
+          });
+      });
+    } else {
+      setTimeout(() => {
+        addToast('success', 'Support ticket raised successfully (Demo mode).');
+        setTicketMessageText('');
+        setIsSubmittingSupport(false);
+        setMyTickets(prev => [ticketData, ...prev]);
+      }, 1000);
+    }
+  };
+
+  const handleSubmitFeedback = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedbackText.trim()) {
+      addToast('error', 'Please enter your feedback or suggestion.');
+      return;
+    }
+    if (!isLoggedIn) {
+      addToast('error', 'Please sign in to submit feedback.');
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    const fbId = `fb-${Date.now()}`;
+    const fbData = {
+      id: fbId,
+      restaurantId: restaurantId || 'customer',
+      restaurantName: restaurant.name || 'Customer App User',
+      ownerName: `Customer: ${loggedInUser.name}`,
+      ownerEmail: loggedInUser.email || 'No Email',
+      message: feedbackText.trim(),
+      ticketType: feedbackType,
+      createdAt: Date.now()
+    };
+
+    if (hasFirebaseConfig && db) {
+      import('firebase/database').then(({ ref, set }) => {
+        set(ref(db!, `ownerFeedbacks/${fbId}`), fbData)
+          .then(() => {
+            addToast('success', 'Feedback submitted successfully! Thank you!');
+            setFeedbackText('');
+            setIsSubmittingFeedback(false);
+            setMyFeedbacks(prev => [fbData, ...prev]);
+          })
+          .catch(err => {
+            console.error(err);
+            addToast('error', 'Failed to submit feedback.');
+            setIsSubmittingFeedback(false);
+          });
+      });
+    } else {
+      setTimeout(() => {
+        addToast('success', 'Feedback submitted successfully (Demo mode).');
+        setFeedbackText('');
+        setIsSubmittingFeedback(false);
+        setMyFeedbacks(prev => [fbData, ...prev]);
+      }, 1000);
+    }
+  };
+
   return (
-    <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
+    <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease', paddingBottom: 80 }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
-        Info &amp; More
+        Details &amp; Support
       </h2>
 
-      {/* Loyalty Program Section - always visible */}
-      <div style={{ marginBottom: 20 }}>
-        {/* Header card - always shown */}
-        <div style={{
-          marginBottom: 12,
-          textAlign: 'center',
-          padding: '22px 20px',
-          borderRadius: 16,
-          border: restaurant.loyaltyEnabled
-            ? '1px solid rgba(255, 125, 0, 0.3)'
-            : '1px solid var(--border)',
-          background: restaurant.loyaltyEnabled
-            ? 'linear-gradient(135deg, rgba(255, 125, 0, 0.1) 0%, rgba(0,0,0,0) 100%)'
-            : 'var(--bg-elevated)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          {restaurant.loyaltyEnabled ? (
-            <>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>🎁</div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
-                Loyalty Rewards Program
-              </h3>
-              <p style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Earn · Collect · Redeem
-              </p>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 auto', maxWidth: 280 }}>
-                Every order earns you points. Redeem them for instant discounts on your next visit. Sign in to start earning!
-              </p>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: 36, marginBottom: 8, opacity: 0.5 }}>🔐</div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                Loyalty Program
-              </h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-                This restaurant hasn't enabled their loyalty program yet. Check back later!
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Points card — always rendered but locked for guests */}
-        <div style={{ position: 'relative' }}>
-          {/* Blurred content (points card) */}
-          <div style={{
-            filter: isLoggedIn ? 'none' : 'blur(6px)',
-            pointerEvents: isLoggedIn ? 'auto' : 'none',
-            transition: 'filter 0.3s ease',
-            userSelect: isLoggedIn ? 'auto' : 'none',
-          }}>
-            <div className="card" style={{
-              marginBottom: 0,
-              border: isVip ? '1px solid #ffd700' : (restaurant.loyaltyEnabled ? '1px solid var(--border)' : '1px solid var(--border)'),
-              boxShadow: isVip ? '0 0 16px rgba(255, 215, 0, 0.2)' : 'var(--shadow-sm)',
-              opacity: restaurant.loyaltyEnabled ? 1 : 0.6
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: isVip ? '#ffd700' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Gift size={16} color={isVip ? '#ffd700' : 'var(--brand)'} />
-                  My Points · {restaurant.name || 'This Restaurant'}
-                </div>
-                {isVip && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #ffd700 0%, #b8860b 100%)',
-                    color: '#000',
-                    padding: '2px 8px',
-                    borderRadius: 99,
-                    fontSize: 10,
-                    fontWeight: 800,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}>
-                    <Crown size={10} /> VIP MEMBER
-                  </span>
-                )}
-              </div>
-
-              {/* Points display */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'var(--bg-elevated)', borderRadius: 12, marginBottom: 12, border: '1px solid var(--border)' }}>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Points Balance</div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--brand)', fontFamily: 'var(--font-display)' }}>
-                    {isLoggedIn ? points : 250}
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginLeft: 4 }}>pts</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Cash Value</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
-                    ₹{isLoggedIn ? pointVal : (250 * (restaurant.pointValueInRupees || 1))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Linked info */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-                <Sparkles size={12} color="var(--brand)" />
-                {isLoggedIn
-                  ? <>Linked: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{savedPhone}</span> · Points tracked per restaurant</>
-                  : 'Points are tracked separately for each restaurant you visit.'
-                }
-              </div>
-            </div>
-          </div>
-
-          {/* Lock overlay — shown only for guests */}
-          {!isLoggedIn && (
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(0, 0, 0, 0.55)',
-              borderRadius: 12,
-              padding: 20,
-              textAlign: 'center',
-              zIndex: 10,
-              backdropFilter: 'blur(2px)',
-            }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: '50%',
-                background: 'rgba(255,125,0,0.15)',
-                border: '1px solid rgba(255,125,0,0.4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                marginBottom: 10
-              }}>
-                <Lock size={22} color="var(--brand)" />
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', marginBottom: 4 }}>Sign in to View</div>
-              <p style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.75)', marginBottom: 14, maxWidth: 200, lineHeight: 1.5 }}>
-                Your loyalty points and rewards are waiting. Sign in to see your balance!
-              </p>
-              <button
-                onClick={() => {
-                  setAuthTab('signin');
-                  setShowAuthModal(true);
-                }}
-                style={{
-                  background: 'var(--brand)',
-                  color: '#000',
-                  fontSize: 12,
-                  fontWeight: 800,
-                  padding: '10px 24px',
-                  borderRadius: 99,
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(255,125,0,0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}
-              >
-                <LogIn size={14} /> Sign In / Sign Up
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {isLoggedIn && (
-        <div style={{ marginBottom: 20 }}>
-          <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Sparkles size={14} color="var(--brand)" />
-            Your Loyalty Memberships ({loyaltyPrograms.length})
-          </h4>
-          {isLoadingLoyalty ? (
-            <div style={{ padding: '12px', textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
-              Loading programs...
-            </div>
-          ) : loyaltyPrograms.length === 0 ? (
-            <div style={{ padding: '16px', borderRadius: 12, background: 'var(--bg-elevated)', border: '1px solid var(--border)', textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
-              No loyalty memberships found yet. Order to start earning!
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {loyaltyPrograms.map((prog) => {
-                const isCurrent = prog.restaurantId === restaurantId;
-                return (
-                  <div 
-                    key={prog.restaurantId}
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: 12,
-                      background: isCurrent ? 'linear-gradient(135deg, rgba(255, 125, 0, 0.08) 0%, rgba(0,0,0,0) 100%)' : 'var(--bg-elevated)',
-                      border: isCurrent ? '1px solid rgba(255, 125, 0, 0.4)' : '1px solid var(--border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      boxShadow: isCurrent ? '0 2px 10px rgba(255,125,0,0.05)' : 'none'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        {prog.restaurantName}
-                        {isCurrent && (
-                          <span style={{ fontSize: 9, background: 'var(--brand)', color: '#000', padding: '1px 6px', borderRadius: 4, fontWeight: 800 }}>
-                            ACTIVE OUTLET
-                          </span>
-                        )}
-                        {prog.isVip && (
-                          <span style={{ color: '#ffd700', display: 'inline-flex', alignItems: 'center' }}>
-                            <Crown size={11} />
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Outlet ID: {prog.restaurantId}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 15, fontWeight: 900, color: isCurrent ? 'var(--brand)' : 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
-                        {prog.points} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-secondary)' }}>pts</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Account Login / Signout button */}
+      {/* Account Login / Signout Card */}
       <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
@@ -857,6 +648,7 @@ export default function CustomerMore() {
         )}
       </div>
 
+      {/* Profile Details Block */}
       {isLoggedIn && customer && (
         <div className="card" style={{ marginBottom: 16, padding: '16px 20px' }}>
           <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>
@@ -908,19 +700,152 @@ export default function CustomerMore() {
         </div>
       )}
 
+      {/* Help & Support Card */}
+      <div className="card" style={{ marginBottom: 16, padding: '16px 20px' }}>
+        <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <MessageSquare size={16} color="var(--brand)" />
+          Help &amp; Support
+        </h4>
 
+        {/* Contact Hotline Button */}
+        <a
+          href="tel:+919999988888"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+            padding: '12px',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            color: 'var(--brand)',
+            fontSize: 12,
+            fontWeight: 800,
+            textDecoration: 'none',
+            marginBottom: 16
+          }}
+        >
+          <PhoneCall size={14} /> Call Hotline Support (+91 99999 88888)
+        </a>
 
-      {/* Install PWA */}
-      <div className="card" style={{ marginBottom: 16, textAlign: 'center', padding: '20px 16px' }}>
-        <div style={{ fontSize: 32, marginBottom: 8 }}>📱</div>
-        <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 15, marginBottom: 6 }}>Install this App</h4>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.6 }}>
-          Add to your home screen for quick access<br />and a native app experience.
-        </p>
-        <button className="btn btn-secondary btn-full" onClick={handleInstallPWA}>
-          <Download size={14} /> Add to Home Screen
-        </button>
+        {isLoggedIn ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Raise support request ticket */}
+            <form onSubmit={handleRaiseTicket} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>Raise a Support Ticket</label>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder="Describe any issue you are facing (payment, orders, app bugs)..."
+                value={ticketMessageText}
+                onChange={e => setTicketMessageText(e.target.value)}
+                style={{ resize: 'none', fontSize: 12 }}
+              />
+              <button
+                type="submit"
+                disabled={isSubmittingSupport}
+                className="btn btn-primary btn-sm"
+                style={{ background: 'var(--brand)', color: '#000', fontWeight: 800, alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                <Send size={12} /> {isSubmittingSupport ? 'Raising...' : 'Raise Ticket'}
+              </button>
+            </form>
+
+            {/* Give feedback / suggestions */}
+            <form onSubmit={handleSubmitFeedback} style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>Send Feedback / Suggestions</label>
+              <select
+                className="input"
+                value={feedbackType}
+                onChange={e => setFeedbackType(e.target.value as any)}
+                style={{ fontSize: 12 }}
+              >
+                <option value="feedback">General Feedback</option>
+                <option value="feature">Feature Suggestion</option>
+                <option value="bug">Report an Issue</option>
+                <option value="other">Other</option>
+              </select>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder="Share your thoughts or ideas to improve Meenufy..."
+                value={feedbackText}
+                onChange={e => setFeedbackText(e.target.value)}
+                style={{ resize: 'none', fontSize: 12 }}
+              />
+              <button
+                type="submit"
+                disabled={isSubmittingFeedback}
+                className="btn btn-secondary btn-sm"
+                style={{ fontWeight: 800, alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                <Send size={12} /> {isSubmittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '16px', background: 'var(--bg-elevated)', borderRadius: 10, fontSize: 11, color: 'var(--text-muted)' }}>
+            Sign in to submit support tickets, report bugs, or share feature requests.
+          </div>
+        )}
       </div>
+
+      {/* Ticket History Section */}
+      {isLoggedIn && (myTickets.length > 0 || myFeedbacks.length > 0) && (
+        <div className="card" style={{ marginBottom: 16, padding: '16px 20px' }}>
+          <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <History size={16} color="var(--brand)" />
+            Your Ticket &amp; Feedback History
+          </h4>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto' }}>
+            {myTickets.map(t => (
+              <div key={t.id} style={{ padding: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--brand)' }}>Support Ticket</span>
+                  <span style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    background: t.status === 'resolved' ? '#22c55e20' : '#f59e0b20',
+                    color: t.status === 'resolved' ? '#22c55e' : '#f59e0b'
+                  }}>{t.status === 'resolved' ? 'RESOLVED' : 'PENDING'}</span>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>{t.message}</p>
+                {t.replyText && (
+                  <div style={{ marginTop: 8, padding: 8, background: 'var(--border-dim)', borderRadius: 8, borderLeft: '3px solid var(--brand)' }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-secondary)', marginBottom: 2 }}>Admin Reply:</div>
+                    <p style={{ fontSize: 11, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>{t.replyText}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {myFeedbacks.map(f => (
+              <div key={f.id} style={{ padding: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)' }}>
+                    {f.ticketType === 'bug' ? '🐛 Bug Report' : f.ticketType === 'feature' ? '💡 Suggestion' : '💬 Feedback'}
+                  </span>
+                  <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                    {new Date(f.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>{f.message}</p>
+                {f.replyText && (
+                  <div style={{ marginTop: 8, padding: 8, background: 'var(--border-dim)', borderRadius: 8, borderLeft: '3px solid var(--brand)' }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-secondary)', marginBottom: 2 }}>Admin Reply:</div>
+                    <p style={{ fontSize: 11, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>{f.replyText}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Powered by */}
       <div style={{ textAlign: 'center', padding: '16px 0' }}>
