@@ -193,6 +193,8 @@ export type RestaurantInfo = {
   allowNegativeOrders?: boolean;
   offersMarqueeEnabled?: boolean;
   overlayLogoOnMeals?: boolean;
+  cuisines?: string;
+  rating?: number;
   isManualClosed?: boolean;
   subscriptionId?: string | null;
 };
@@ -287,6 +289,13 @@ export type RestaurantAccount = {
   billingPeriod?: 'monthly' | 'yearly';
   hasCompletedOnboarding?: boolean;
   subscriptionId?: string | null;
+  latitude?: number;
+  longitude?: number;
+  logo?: string;
+  tagline?: string;
+  address?: string;
+  cuisines?: string;
+  rating?: number;
 };
 
 export type StaffMember = {
@@ -364,6 +373,7 @@ export type AppState = {
   adminTab: 'home' | 'menu' | 'customers' | 'analysis' | 'more';
   customerTab: 'home' | 'menu' | 'orders' | 'more';
   customerTableId: string | null;
+  activeCustomerRestaurantId: string | null;
   // Restaurant
   restaurant: RestaurantInfo;
   // Menu
@@ -789,6 +799,7 @@ const DEFAULT_STATE: AppState = {
   adminTab: 'home',
   customerTab: 'home',
   customerTableId: null,
+  activeCustomerRestaurantId: null,
   restaurant: DEFAULT_RESTAURANT,
   categories: DEFAULT_CATEGORIES,
   menuItems: DEFAULT_MENU_ITEMS,
@@ -929,6 +940,7 @@ type Action =
   | { type: 'SET_STATE'; payload: Partial<AppState> }
   | { type: 'SET_ADMIN_TAB'; payload: AppState['adminTab'] }
   | { type: 'SET_CUSTOMER_TAB'; payload: AppState['customerTab'] }
+  | { type: 'SET_ACTIVE_CUSTOMER_RESTAURANT'; payload: string | null }
   | { type: 'SET_VIEW'; payload: AppState['currentView'] }
   | { type: 'LOGIN_ADMIN'; payload: AdminUser }
   | { type: 'LOGOUT_ADMIN' }
@@ -1150,6 +1162,7 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'SET_ADMIN_TAB': return { ...state, adminTab: action.payload };
     case 'SET_CUSTOMER_TAB': return { ...state, customerTab: action.payload };
+    case 'SET_ACTIVE_CUSTOMER_RESTAURANT': return { ...state, activeCustomerRestaurantId: action.payload };
     case 'SET_VIEW': return { ...state, currentView: action.payload };
     case 'LOGIN_ADMIN': {
       const email = action.payload.email;
@@ -1938,6 +1951,7 @@ export function getActiveRestaurantId(state: AppState): string {
   if (typeof window === 'undefined') return 'admin-1';
   const urlParams = new URLSearchParams(window.location.search);
   return urlParams.get('restaurant') || 
+         state.activeCustomerRestaurantId ||
          state.admin?.restaurantId || 
          localStorage.getItem('meenufy_active_restaurant_id') || 
          'admin-1';
@@ -2939,11 +2953,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               'Failed to update restaurant info'
             );
 
-            // Dynamically propagate profile name, phone, and email to matching restaurantAccount record
+            // Dynamically propagate profile name, phone, email, location coordinates, cuisines, and logo
             const accountUpdates: any = {};
             if (action.payload.name) accountUpdates.restaurantName = action.payload.name;
             if (action.payload.phone) accountUpdates.ownerPhone = action.payload.phone;
             if (action.payload.email) accountUpdates.ownerEmail = action.payload.email;
+            if (action.payload.logo) accountUpdates.logo = action.payload.logo;
+            if (action.payload.tagline) accountUpdates.tagline = action.payload.tagline;
+            if (action.payload.address) accountUpdates.address = action.payload.address;
+            if (action.payload.latitude !== undefined) accountUpdates.latitude = action.payload.latitude;
+            if (action.payload.longitude !== undefined) accountUpdates.longitude = action.payload.longitude;
+            if (action.payload.cuisines) accountUpdates.cuisines = action.payload.cuisines;
+            if (action.payload.rating !== undefined) accountUpdates.rating = action.payload.rating;
             
             if (Object.keys(accountUpdates).length > 0) {
               update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)

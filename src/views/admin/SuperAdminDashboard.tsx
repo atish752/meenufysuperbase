@@ -44,6 +44,34 @@ export default function SuperAdminDashboard() {
               updatePayload.ownerEmail = restData.email;
               needsUpdate = true;
             }
+            if (restData.logo && restData.logo !== acc.logo) {
+              updatePayload.logo = restData.logo;
+              needsUpdate = true;
+            }
+            if (restData.tagline && restData.tagline !== acc.tagline) {
+              updatePayload.tagline = restData.tagline;
+              needsUpdate = true;
+            }
+            if (restData.address && restData.address !== acc.address) {
+              updatePayload.address = restData.address;
+              needsUpdate = true;
+            }
+            if (restData.latitude !== undefined && restData.latitude !== acc.latitude) {
+              updatePayload.latitude = restData.latitude;
+              needsUpdate = true;
+            }
+            if (restData.longitude !== undefined && restData.longitude !== acc.longitude) {
+              updatePayload.longitude = restData.longitude;
+              needsUpdate = true;
+            }
+            if (restData.cuisines && restData.cuisines !== acc.cuisines) {
+              updatePayload.cuisines = restData.cuisines;
+              needsUpdate = true;
+            }
+            if (restData.rating !== undefined && restData.rating !== acc.rating) {
+              updatePayload.rating = restData.rating;
+              needsUpdate = true;
+            }
 
             if (needsUpdate) {
               console.log(`Auto-healing account ${acc.id}: ${acc.restaurantName} -> ${restData.name}`);

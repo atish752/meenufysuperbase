@@ -1,9 +1,8 @@
 import { useStore } from '../../context/RealtimeStore';
-import { Home, UtensilsCrossed, ClipboardList, MoreHorizontal } from 'lucide-react';
+import { Home, ClipboardList, MoreHorizontal } from 'lucide-react';
 
 const NAV = [
   { key: 'home', label: 'Home', icon: Home },
-  { key: 'menu', label: 'Menu', icon: UtensilsCrossed },
   { key: 'orders', label: 'My Orders', icon: ClipboardList },
   { key: 'more', label: 'More', icon: MoreHorizontal },
 ] as const;

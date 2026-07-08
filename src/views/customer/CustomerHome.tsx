@@ -1,1413 +1,465 @@
-import { useState } from 'react';
-import { useStore, useTranslation, getActiveRestaurantInfo, getActiveRestaurantId } from '../../context/RealtimeStore';
-import type { TableInfo, MenuItem } from '../../context/RealtimeStore';
-import { MapPin, Phone, Clock, ChevronRight, Star, Utensils, X, Mail } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useStore } from '../../context/RealtimeStore';
+import { Search, MapPin, Star, Clock, Award, ArrowRight, X } from 'lucide-react';
 
-const VegNonVegIndicator = ({ isVeg, size = 14 }: { isVeg: boolean; size?: number }) => (
-  <div style={{
-    width: size,
-    height: size,
-    border: `1.5px solid ${isVeg ? '#22c55e' : '#ef4444'}`,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'transparent',
-    borderRadius: 2,
-    flexShrink: 0,
-    padding: 1,
-  }} title={isVeg ? 'Veg' : 'Non-Veg'}>
-    <div style={{
-      width: Math.max(4, size - 8),
-      height: Math.max(4, size - 8),
-      borderRadius: '50%',
-      background: isVeg ? '#22c55e' : '#ef4444',
-    }} />
-  </div>
-);
+// Haversine formula to calculate distance in km between two sets of coordinates
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
-const FoodTrolley = ({ size = 13, color = '#000' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-    <path d="M6 10h2v6h10" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M10 14h8c0-2.5-1.5-4-4-4s-4 1.5-4 4z" fill={color} />
-    <path d="M13 10c0-0.5 0.5-1 1-1s1 0.5 1 1" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-    <circle cx="10" cy="18" r="1.5" fill={color} />
-    <circle cx="16" cy="18" r="1.5" fill={color} />
-  </svg>
-);
+// Popular cuisines quick filters (circular category icons)
+const POPULAR_CUISINES = [
+  { name: 'Biryani', query: 'biryani', image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Pizza', query: 'pizza', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Burgers', query: 'burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Chinese', query: 'chinese', image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Desserts', query: 'sweet', image: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?w=150&auto=format&fit=crop&q=60' },
+  { name: 'South Indian', query: 'dosa', image: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=150&auto=format&fit=crop&q=60' },
+];
 
-type Props = { table?: TableInfo };
-
-export default function CustomerHome({ table }: Props) {
+export default function CustomerHome() {
   const { state, dispatch, addToast } = useStore();
-  const t = useTranslation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+  
+  // Geolocation states
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [addressName, setAddressName] = useState('Koramangala, Bengaluru');
 
-  const restaurantId = getActiveRestaurantId(state);
-  const restaurant = getActiveRestaurantInfo(state, restaurantId);
+  // Filters
+  const [sortBy, setSortBy] = useState<'distance' | 'rating' | 'none'>('none');
 
-  const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
-  const [variantQty, setVariantQty] = useState(1);
-  const [showLangDropdown, setShowLangDropdown] = useState(false);
-  const [showCouponsModal, setShowCouponsModal] = useState(false);
-  const [copiedCouponId, setCopiedCouponId] = useState<string | null>(null);
+  // Initialize coordinates (default to Bengaluru if geolocation is off or loading)
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCoords({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          setAddressName('Current GPS Location');
+        },
+        () => {
+          setCoords({ latitude: 12.9348, longitude: 77.6202 });
+        }
+      );
+    } else {
+      setCoords({ latitude: 12.9348, longitude: 77.6202 });
+    }
+  }, []);
 
-  const [addonModalItem, setAddonModalItem] = useState<{
-    item: MenuItem;
-    qty: number;
-    variant?: { name: string; price: number };
-  } | null>(null);
-  const [selectedAddonOptions, setSelectedAddonOptions] = useState<{
-    [addonId: string]: string[];
-  }>({});
+  const handleRequestGps = () => {
+    if (!navigator.geolocation) {
+      addToast('error', 'Geolocation is not supported by your browser.');
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setAddressName('Current GPS Location');
+        addToast('success', '📍 Geolocation enabled successfully!');
+        setGpsLoading(false);
+      },
+      (err) => {
+        console.error(err);
+        addToast('error', 'Failed to acquire location. Using default.');
+        setGpsLoading(false);
+      }
+    );
+  };
 
-  const getApplicableAddons = (item: MenuItem) => {
-    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const todayName = daysOfWeek[new Date().getDay()];
-    
-    return (state.addons || []).filter(addon => {
-      const isDayActive = !addon.activeDays || addon.activeDays.length === 0 || addon.activeDays.includes(todayName);
-      if (!isDayActive) return false;
+  const handleOpenRestaurant = (restaurantId: string) => {
+    dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: restaurantId });
+    // Update the URL query params without reloading
+    const newUrl = `${window.location.pathname}?view=customer&restaurant=${restaurantId}`;
+    window.history.pushState({}, '', newUrl);
+  };
 
-      const hasMeals = Array.isArray(addon.targetMealIds) && addon.targetMealIds.length > 0;
-      const hasCats = Array.isArray(addon.targetCategoryIds) && addon.targetCategoryIds.length > 0;
+  // Filter & calculate active restaurants nearby (within 10 km limit)
+  const allAccounts = state.restaurantAccounts || [];
+  const activeRestaurants = allAccounts.filter(acc => acc.status === 'active');
 
-      if (!hasMeals && !hasCats) return true;
+  const processedRestaurants = activeRestaurants
+    .map(acc => {
+      const rLat = acc.latitude || 12.9348;
+      const rLon = acc.longitude || 77.6202;
+      const uLat = coords?.latitude || 12.9348;
+      const uLon = coords?.longitude || 77.6202;
 
-      const mealMatch = hasMeals && addon.targetMealIds!.includes(item.id);
-      const catMatch = hasCats && addon.targetCategoryIds!.includes(item.category || '');
+      const distance = calculateDistance(uLat, uLon, rLat, rLon);
+      return {
+        ...acc,
+        distance,
+      };
+    })
+    .filter(acc => {
+      // 1. Haversine 10 Kilometer radius limit
+      if (acc.distance > 10) return false;
 
-      return mealMatch || catMatch;
+      // 2. Search query filter (matches restaurant name or cuisines)
+      const matchesSearch = searchQuery.trim() === '' || 
+        acc.restaurantName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (acc.cuisines && acc.cuisines.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (acc.tagline && acc.tagline.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      // 3. Quick Cuisine category filter
+      const matchesCuisine = !selectedCuisine || 
+        (acc.cuisines && acc.cuisines.toLowerCase().includes(selectedCuisine.toLowerCase()));
+
+      return matchesSearch && matchesCuisine;
     });
-  };
 
-  const handleOpenVariantModal = (item: MenuItem) => {
-    setVariantModalItem(item);
-    setSelectedVariant(item.variants && item.variants.length > 0 ? item.variants[0] : null);
-    setVariantQty(1);
-  };
-
-  const featuredItems = state.menuItems
-    .filter(i => i && i.restaurantId === restaurantId && i.isFeatured && i.isAvailable)
-    .sort((a, b) => ((a?.rank || 0) - (b?.rank || 0)))
-    .slice(0, 6);
-
-
-  const getRatingDetails = (itemId: string) => {
-    const sum = itemId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const rating = (4.0 + (sum % 10) / 10).toFixed(1);
-    const reviews = 50 + (sum % 450);
-    return { rating, reviews };
-  };
-
-  const getCartQty = (itemId: string) => {
-    return state.cart.filter(i => i.menuItemId === itemId).reduce((sum, i) => sum + i.qty, 0);
-  };
-
-  const handleIncrement = (itemId: string, name: string, price: number) => {
-    const item = state.menuItems.find(i => i.id === itemId);
-    if (!item) return;
-    if (item.variants && item.variants.length > 0) {
-      handleOpenVariantModal(item);
-      return;
-    }
-
-    const applicable = getApplicableAddons(item);
-    if (applicable.length > 0) {
-      setAddonModalItem({ item, qty: 1 });
-      setSelectedAddonOptions({});
-      return;
-    }
-
-    dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: itemId, name, price, qty: 1 } });
-  };
-
-  const handleDecrement = (itemId: string) => {
-    const item = state.menuItems.find(i => i.id === itemId);
-    if (item && item.variants && item.variants.length > 0) {
-      addToast('info', 'Please adjust quantities in the Cart Drawer.');
-      return;
-    }
-    const cartItem = state.cart.find(i => i.menuItemId === itemId);
-    if (!cartItem) return;
-    dispatch({ type: 'UPDATE_CART_QTY', payload: { menuItemId: itemId, qty: cartItem.qty - 1 } });
-  };
-
-  const handleAddToCart = (item: MenuItem) => {
-    if (item.variants && item.variants.length > 0) {
-      handleOpenVariantModal(item);
-      return;
-    }
-
-    const applicable = getApplicableAddons(item);
-    if (applicable.length > 0) {
-      setAddonModalItem({ item, qty: 1 });
-      setSelectedAddonOptions({});
-      return;
-    }
-
-    dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: item.id, name: item.name, price: item.price, qty: 1 } });
-    addToast('success', `${item.name} added to cart!`);
-  };
+  // Apply sorting
+  if (sortBy === 'distance') {
+    processedRestaurants.sort((a, b) => a.distance - b.distance);
+  } else if (sortBy === 'rating') {
+    processedRestaurants.sort((a, b) => (b.rating || 4.2) - (a.rating || 4.2));
+  }
 
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* Hero / Banner */}
+    <div style={{
+      background: 'var(--bg-primary)',
+      minHeight: '100vh',
+      color: 'var(--text-primary)',
+      fontFamily: 'var(--font-sans)',
+      paddingBottom: 80,
+      animation: 'fadeIn 0.2s ease-in-out'
+    }}>
+      {/* Location Header */}
       <div style={{
-        background: 'var(--bg-primary)',
-        padding: '36px 20px 28px',
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden',
+        padding: '16px 20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: 'var(--bg-elevated)',
         borderBottom: '1px solid var(--border)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 30
       }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <MapPin size={18} color="var(--brand)" />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              {addressName}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Radius: Within 10 km</div>
+          </div>
+        </div>
 
-        {/* Top left brand name & logo */}
+        <button
+          onClick={handleRequestGps}
+          disabled={gpsLoading}
+          style={{
+            background: 'rgba(249, 115, 22, 0.1)',
+            color: 'var(--brand)',
+            fontSize: 11,
+            fontWeight: 800,
+            border: '1px solid var(--brand)',
+            borderRadius: 8,
+            padding: '6px 12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          {gpsLoading ? 'Locating...' : 'Use GPS'}
+        </button>
+      </div>
+
+      {/* Offers and Promo Banner Carousel */}
+      <div style={{ padding: '16px 20px 8px' }}>
+        <h3 style={{ fontSize: 14, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 12 }}>
+          DEALS FOR YOU 🎁
+        </h3>
         <div style={{
-          position: 'absolute',
-          top: 16,
-          left: 16,
+          display: 'flex',
+          gap: 12,
+          overflowX: 'auto',
+          paddingBottom: 8,
+          scrollSnapType: 'x mandatory'
+        }}>
+          {[
+            { id: 1, title: '50% OFF UP TO ₹100', subtitle: 'On your first delivery order', bg: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)', code: 'MEENUFY50' },
+            { id: 2, title: 'FREE DELIVERY', subtitle: 'On orders above ₹199', bg: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', code: 'FREECOOK' },
+            { id: 3, title: 'FLAT ₹75 CASHBACK', subtitle: 'Using UPI payment options', bg: 'linear-gradient(135deg, #10B981 0%, #047857 100%)', code: 'UPISAVE' }
+          ].map(promo => (
+            <div
+              key={promo.id}
+              style={{
+                flex: '0 0 280px',
+                height: 120,
+                background: promo.bg,
+                borderRadius: 14,
+                padding: '16px',
+                color: '#ffffff',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                scrollSnapAlign: 'start',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 900, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>{promo.title}</div>
+                <div style={{ fontSize: 11, opacity: 0.9, marginTop: 4 }}>{promo.subtitle}</div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
+                  CODE: {promo.code}
+                </span>
+                <ArrowRight size={14} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cuisines circular list */}
+      <div style={{ padding: '16px 20px 8px' }}>
+        <h3 style={{ fontSize: 14, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 12 }}>
+          WHAT'S ON YOUR MIND? 🍕
+        </h3>
+        <div style={{
+          display: 'flex',
+          gap: 16,
+          overflowX: 'auto',
+          paddingBottom: 6
+        }}>
+          {POPULAR_CUISINES.map((cuisine) => {
+            const isSelected = selectedCuisine === cuisine.query;
+            return (
+              <button
+                key={cuisine.name}
+                onClick={() => setSelectedCuisine(isSelected ? null : cuisine.query)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                <div style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  border: isSelected ? '3px solid var(--brand)' : '1px solid var(--border)',
+                  boxShadow: isSelected ? 'var(--shadow-brand)' : 'none',
+                  transition: 'all 0.2s'
+                }}>
+                  <img src={cuisine.image} alt={cuisine.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: isSelected ? 800 : 600,
+                  color: isSelected ? 'var(--brand)' : 'var(--text-secondary)'
+                }}>{cuisine.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <div style={{ padding: '16px 20px 8px' }}>
+        <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          zIndex: 10
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          padding: '10px 14px'
         }}>
-          <div style={{
-            width: 28,
-            height: 28,
-            borderRadius: 6,
-            overflow: 'hidden',
-            border: '1px solid var(--border-brand)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#ffffff'
-          }}>
-            <img src="/meenufy_icon.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          </div>
-          <span style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 14,
-            fontWeight: 900,
-            color: 'var(--brand)',
-            letterSpacing: '-0.02em',
-            textTransform: 'uppercase'
-          }}>
-            Meenufy
-          </span>
-        </div>
-
-        {/* Top right: Theme + Table badge */}
-        <div style={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          gap: 6,
-          zIndex: 10
-        }}>
-          {/* Row 1: Theme Switcher + Table Badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {/* Theme Switcher */}
-            <button
-              onClick={() => {
-                dispatch({ type: 'TOGGLE_CUSTOMER_THEME' });
-                addToast('info', state.customerTheme === 'dark' ? 'Switched to Light Mode ☀️' : 'Switched to Dark Mode 🌙');
-              }}
-              style={{
-                background: 'linear-gradient(135deg, rgba(255,125,0,0.2) 0%, rgba(255,125,0,0.05) 100%)',
-                color: 'var(--text-primary)',
-                fontSize: 14,
-                padding: '6px',
-                borderRadius: '50%',
-                border: '1px solid var(--brand)',
-                boxShadow: '0 0 10px rgba(255,125,0,0.3)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                transition: 'all 0.2s ease',
-              }}
-              title="Toggle theme"
-            >
-              {state.customerTheme === 'light' ? '🌙' : '☀️'}
-            </button>
-
-            {/* Table Badge */}
-            {table && (
-              <div style={{
-                background: 'var(--brand)',
-                color: '#000',
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '5px 12px',
-                borderRadius: 99,
-                letterSpacing: '0.06em',
-                boxShadow: '0 4px 12px rgba(255, 125, 0, 0.2)',
-              }}>
-                📍 {table.label}
-              </div>
-            )}
-          </div>
-
-          {/* Row 2: Call Waiter Button */}
-          <button
-            onClick={() => {
-              const urlParams = new URLSearchParams(window.location.search);
-              const tableId = table?.id || urlParams.get('table') || 'table-1';
-              const tableInfo = state.tables.find(t => t.id === tableId);
-              dispatch({
-                type: 'CALL_WAITER',
-                payload: {
-                  id: `waiter-${Date.now()}`,
-                  tableNumber: tableInfo?.number || 0,
-                  tableId,
-                  createdAt: Date.now(),
-                  resolved: false,
-                  restaurantId,
-                }
-              });
-              addToast('success', 'Waiter has been notified! 🔔');
-              try {
-                const audio = new Audio('/chime.mp3');
-                audio.play().catch(() => {});
-              } catch (e) {}
-            }}
+          <Search size={18} color="var(--text-muted)" />
+          <input
+            type="text"
+            className="input"
+            placeholder="Search meals, restaurants, or cuisines..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             style={{
-              background: 'linear-gradient(135deg, rgba(255,125,0,0.2) 0%, rgba(255,125,0,0.05) 100%)',
-              color: 'var(--brand)',
-              fontSize: 10,
-              fontWeight: 700,
-              padding: '4px 10px',
-              borderRadius: 99,
-              border: '1.5px solid var(--brand)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              boxShadow: '0 2px 8px rgba(255, 125, 0, 0.15)',
-              transition: 'transform 0.2s',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              width: '100%',
+              fontSize: 13,
+              color: 'var(--text-primary)',
+              padding: 0
             }}
-            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
-            onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-          >
-            🔔 {t('call_waiter') || 'Call Waiter'}
-          </button>
-
-          {/* Row 3: Language Switcher — just below table badge */}
-          <div style={{ position: 'relative' }}>
+          />
+          {searchQuery && (
             <button
-              onClick={() => setShowLangDropdown(prev => !prev)}
-              style={{
-                background: 'linear-gradient(135deg, rgba(255,125,0,0.15) 0%, rgba(255,125,0,0.05) 100%)',
-                color: 'var(--brand)',
-                fontSize: 10,
-                fontWeight: 700,
-                padding: '4px 10px',
-                borderRadius: 99,
-                border: '1px solid rgba(255,125,0,0.3)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                transition: 'transform 0.2s',
-              }}
-              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
-              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+              onClick={() => setSearchQuery('')}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
             >
-              🌐 {
-                state.language === 'en' ? 'EN' :
-                state.language === 'hi' ? 'हिन्दी' :
-                state.language === 'bn' ? 'বাংলা' :
-                state.language === 'te' ? 'తెలుగు' :
-                state.language === 'mr' ? 'मराठी' :
-                state.language === 'ta' ? 'தமிழ்' : '🌐'
-              }
+              <X size={16} />
             </button>
-
-            {showLangDropdown && (
-              <>
-                <div
-                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
-                  onClick={() => setShowLangDropdown(false)}
-                />
-                <div style={{
-                  position: 'absolute',
-                  top: '120%',
-                  right: 0,
-                  background: 'var(--bg-elevated)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  boxShadow: 'var(--shadow-lg)',
-                  padding: '6px 0',
-                  minWidth: 160,
-                  zIndex: 1000,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  animation: 'fadeIn 0.2s ease',
-                }}>
-                  {[
-                    { code: 'en', label: '🇺🇸 English' },
-                    { code: 'hi', label: '🇮🇳 हिन्दी (Hindi)' },
-                    { code: 'bn', label: '🇮🇳 বাংলা (Bengali)' },
-                    { code: 'te', label: '🇮🇳 తెలుగు (Telugu)' },
-                    { code: 'mr', label: '🇮🇳 मराठी (Marathi)' },
-                    { code: 'ta', label: '🇮🇳 தமிழ் (Tamil)' }
-                  ].map((lang) => {
-                    const isSelected = state.language === lang.code;
-                    return (
-                      <button
-                        key={lang.code}
-                        onClick={() => {
-                          dispatch({ type: 'SET_STATE', payload: { language: lang.code } });
-                          addToast('success', `Language switched to ${lang.label.split(' ')[1]}`);
-                          setShowLangDropdown(false);
-                        }}
-                        style={{
-                          background: isSelected ? 'var(--brand-dim)' : 'transparent',
-                          color: isSelected ? 'var(--brand)' : 'var(--text-primary)',
-                          padding: '10px 16px',
-                          fontSize: 12,
-                          fontWeight: isSelected ? 700 : 500,
-                          textAlign: 'left',
-                          border: 'none',
-                          width: '100%',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          transition: 'background 0.2s',
-                        }}
-                      >
-                        {lang.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Logo / Icon */}
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          background: 'rgba(255,125,0,0.15)',
-          border: '2px solid var(--border-brand)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 16px',
-          fontSize: 32,
-          boxShadow: '0 0 30px rgba(255,125,0,0.25)',
-          overflow: 'hidden',
-        }}>
-          {restaurant.logo ? (
-            <img src={restaurant.logo} alt="Restaurant Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            '🍽️'
           )}
         </div>
-
-        <h1 style={{
-          fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 900,
-          color: 'var(--text-primary)', marginBottom: 6,
-          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))',
-        }}>
-          {restaurant.name}
-        </h1>
-
-        <p style={{
-          fontSize: 13, color: 'var(--brand)', fontWeight: 600,
-          letterSpacing: '0.06em', marginBottom: 10,
-        }}>
-          {restaurant.tagline}
-        </p>
-
-        {restaurant.description && (
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 320, margin: '0 auto 16px' }}>
-            {restaurant.description}
-          </p>
-        )}
-
-        {/* Marquee Banner */}
-        {restaurant.offersMarqueeEnabled && (state.coupons?.filter(c => c.isActive).length || 0) > 0 && (
-          (() => {
-            const activeCoupons = state.coupons.filter(c => c.isActive);
-            const marqueeText = activeCoupons.map(c =>
-              `✨ Use code ${c.code} to get ${c.type === 'percentage' ? `${c.value}%` : `₹${c.value}`} OFF${c.minOrderAmount ? ` on orders above ₹${c.minOrderAmount}` : ''}!`
-            ).join('   |   ');
-            return (
-              <div
-                onClick={() => setShowCouponsModal(true)}
-                style={{
-                  width: '100%',
-                  background: 'linear-gradient(90deg, rgba(255,125,0,0.15) 0%, rgba(255,125,0,0.05) 50%, rgba(255,125,0,0.15) 100%)',
-                  border: '1px solid rgba(255, 125, 0, 0.25)',
-                  borderRadius: 8,
-                  padding: '8px 0',
-                  marginTop: 16,
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(255,125,0,0.1)',
-                  position: 'relative'
-                }}
-              >
-                <style>{`
-                  @keyframes marqueeScroll {
-                    0%   { transform: translateX(0); }
-                    100% { transform: translateX(-50%); }
-                  }
-                  .marquee-track {
-                    display: inline-flex;
-                    white-space: nowrap;
-                    animation: marqueeScroll 22s linear infinite;
-                    will-change: transform;
-                  }
-                  .marquee-track:hover {
-                    animation-play-state: paused;
-                  }
-                  .marquee-segment {
-                    display: inline-block;
-                    padding-right: 80px;
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: var(--brand);
-                    letter-spacing: 0.4px;
-                  }
-                `}</style>
-                <div className="marquee-track">
-                  <span className="marquee-segment">{marqueeText}</span>
-                  <span className="marquee-segment">{marqueeText}</span>
-                  <span className="marquee-segment">{marqueeText}</span>
-                  <span className="marquee-segment">{marqueeText}</span>
-                </div>
-              </div>
-            );
-          })()
-        )}
-
-        {/* CTA — View Menu */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
-          <button
-            className="btn btn-primary btn-lg"
-            style={{ minWidth: 200, padding: '12px 24px', fontSize: 15 }}
-            onClick={() => dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' })}
-          >
-            <Utensils size={18} /> {t('view_full_menu')}
-          </button>
-        </div>
-
-        {/* Poster Section */}
-        {restaurant.posterImage && (
-          <div style={{
-            width: '100%',
-            maxWidth: 320,
-            margin: '24px auto 0',
-            aspectRatio: restaurant.posterRatio === '9:16' ? '9 / 16' : (restaurant.posterRatio === '3:4' ? '3 / 4' : '1 / 1'),
-            borderRadius: 12,
-            overflow: 'hidden',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            position: 'relative'
-          }}>
-            <img
-              src={restaurant.posterImage}
-              alt="Restaurant Promo"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          </div>
-        )}
       </div>
 
-      {/* Featured Items */}
-      {featuredItems.length > 0 && (
-        <div style={{ padding: '20px 20px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div className="section-title" style={{ marginBottom: 0 }}>
-              <Star size={14} color="var(--brand)" /> {t('featured')}
-            </div>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 12, color: 'var(--brand)', padding: '4px 0' }}
-              onClick={() => dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' })}
-            >
-              {t('see_all')} <ChevronRight size={14} />
-            </button>
-          </div>
+      {/* Filters bar */}
+      <div style={{
+        padding: '8px 20px',
+        display: 'flex',
+        gap: 8,
+        overflowX: 'auto'
+      }}>
+        <button
+          onClick={() => setSortBy(prev => prev === 'distance' ? 'none' : 'distance')}
+          style={{
+            background: sortBy === 'distance' ? 'var(--brand)' : 'var(--bg-elevated)',
+            color: sortBy === 'distance' ? '#ffffff' : 'var(--text-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            padding: '6px 12px',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          Sort by Distance
+        </button>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {featuredItems.map(item => (
-              <FeaturedCard 
-                key={item.id} 
-                item={item} 
-                onOpenVariant={handleOpenVariantModal}
-                qty={getCartQty(item.id)}
-                getRatingDetails={getRatingDetails}
-                onIncrement={handleIncrement}
-                onDecrement={handleDecrement}
-                onAddToCart={handleAddToCart}
-              />
+        <button
+          onClick={() => setSortBy(prev => prev === 'rating' ? 'none' : 'rating')}
+          style={{
+            background: sortBy === 'rating' ? 'var(--brand)' : 'var(--bg-elevated)',
+            color: sortBy === 'rating' ? '#ffffff' : 'var(--text-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            padding: '6px 12px',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          Sort by Rating
+        </button>
+      </div>
+
+      {/* Restaurants List */}
+      <div style={{ padding: '16px 20px' }}>
+        <h3 style={{ fontSize: 15, fontWeight: 900, fontFamily: 'var(--font-display)', marginBottom: 16 }}>
+          ALL RESTAURANTS NEARBY ({processedRestaurants.length})
+        </h3>
+
+        {processedRestaurants.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '40px 20px',
+            background: 'var(--bg-elevated)',
+            borderRadius: 12,
+            border: '1px dashed var(--border)'
+          }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+              No restaurants found within 10 km. Try clearing filters or using GPS location!
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {processedRestaurants.map(acc => (
+              <div
+                key={acc.id}
+                onClick={() => handleOpenRestaurant(acc.id)}
+                style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 14,
+                  padding: 14,
+                  display: 'flex',
+                  gap: 12,
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                  boxShadow: 'var(--shadow)'
+                }}
+              >
+                {/* Logo / Image */}
+                <div style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  background: 'var(--border-dim)',
+                  flexShrink: 0,
+                  border: '1px solid var(--border)'
+                }}>
+                  <img
+                    src={acc.logo || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&auto=format&fit=crop&q=60'}
+                    alt={acc.restaurantName}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+
+                {/* Details */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)' }}>
+                        {acc.restaurantName}
+                      </h4>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        background: '#22c55e',
+                        color: '#ffffff',
+                        fontSize: 10,
+                        fontWeight: 800,
+                        padding: '2px 6px',
+                        borderRadius: 6
+                      }}>
+                        <span>{acc.rating || 4.2}</span>
+                        <Star size={10} fill="#ffffff" stroke="none" />
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                      {acc.tagline || 'Flavors you will love'}
+                    </p>
+
+                    <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: '4px 0 0', fontStyle: 'italic' }}>
+                      {acc.cuisines || 'North Indian • Fast Food'}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
+                      <Clock size={12} color="var(--brand)" />
+                      <span>{acc.distance.toFixed(1)} km away</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
+                      <Award size={12} color="#10B981" />
+                      <span style={{ color: '#10B981', fontWeight: 700 }}>Free Delivery</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Contact section */}
-      <div style={{ padding: '20px' }}>
-        <div className="card" style={{ padding: '16px', background: 'var(--bg-glass)', border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--brand)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            📍 {t('contact_and_location') || 'Contact & Location'}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {restaurant.phone && (
-              <a href={`tel:${restaurant.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="contact-link">
-                <Phone size={14} color="var(--brand)" /> {restaurant.phone}
-              </a>
-            )}
-            {restaurant.email && (
-              <a href={`mailto:${restaurant.email}`} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="contact-link">
-                <Mail size={14} color="var(--brand)" /> {restaurant.email}
-              </a>
-            )}
-            {restaurant.address && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: 'var(--text-secondary)' }}>
-                <MapPin size={14} color="var(--brand)" style={{ flexShrink: 0, marginTop: 2 }} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span>{restaurant.address}</span>
-                  {restaurant.googleMapsUrl && (
-                    <a href={restaurant.googleMapsUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
-                      View on Google Maps →
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-            {(restaurant.openTime || restaurant.closeTime) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
-                <Clock size={14} color="var(--brand)" />
-                <span>
-                  {t('business_hours') || 'Business Hours'}: {restaurant.openTime || '00:00'} – {restaurant.closeTime || '23:59'}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {variantModalItem && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setVariantModalItem(null)}>
-          <div className="modal-content" style={{ maxWidth: 400, padding: 20, position: 'relative' }}>
-            
-            <button
-              onClick={() => setVariantModalItem(null)}
-              style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
-                background: 'rgba(0, 0, 0, 0.4)',
-                border: '1px solid var(--border)',
-                borderRadius: '50%',
-                width: 28,
-                height: 28,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--text-primary)',
-                zIndex: 10,
-                transition: 'all 0.2s'
-              }}
-            >
-              <X size={16} />
-            </button>
-
-            <div style={{
-              width: '100%',
-              aspectRatio: '1 / 1',
-              borderRadius: 'var(--radius-lg)',
-              overflow: 'hidden',
-              position: 'relative',
-              background: 'var(--bg-elevated)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 16,
-              marginTop: 10
-            }}>
-              {variantModalItem.image ? (
-                <>
-                  <img src={variantModalItem.image} alt={variantModalItem.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  {restaurant.overlayLogoOnMeals && restaurant.logo && (
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 8,
-                      right: 8,
-                      width: 24,
-                      height: 24,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      border: '0.5px solid #fff',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.35)',
-                      background: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 10
-                    }}>
-                      <img src={restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div style={{ fontSize: 64 }}>🍽️</div>
-              )}
-              <div style={{
-                position: 'absolute',
-                bottom: 8,
-                left: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 6px',
-                borderRadius: 4,
-                background: 'rgba(0,0,0,0.8)',
-              }}>
-                <VegNonVegIndicator isVeg={variantModalItem.isVeg} size={14} />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <h3 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 500, color: 'var(--brand)', textTransform: 'uppercase' }}>
-                {variantModalItem.name}
-              </h3>
-              {variantModalItem.description && (
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
-                  {variantModalItem.description}
-                </p>
-              )}
-            </div>
-
-            {variantModalItem.variants && variantModalItem.variants.length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                  {t('select_option')}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {variantModalItem.variants?.map((v, idx) => {
-                    const isSelected = selectedVariant?.name === v.name;
-                    return (
-                      <div
-                        key={idx}
-                        onClick={() => setSelectedVariant(v)}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '10px 14px',
-                          borderRadius: 'var(--radius-md)',
-                          background: isSelected ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                          border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          boxShadow: isSelected ? '0 0 10px rgba(255,125,0,0.15)' : 'none'
-                        }}
-                      >
-                        <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? 'var(--brand)' : 'var(--text-primary)' }}>
-                          {v.name}
-                        </span>
-                        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
-                          ₹{v.price}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-full)',
-                overflow: 'hidden',
-                height: 36,
-                padding: '0 4px'
-              }}>
-                <button
-                  onClick={() => setVariantQty(Math.max(1, variantQty - 1))}
-                  style={{
-                    width: 28, height: '100%',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', color: 'var(--text-primary)',
-                    fontSize: 16, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >−</button>
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', minWidth: 20, textAlign: 'center' }}>
-                  {variantQty}
-                </span>
-                <button
-                  onClick={() => setVariantQty(variantQty + 1)}
-                  style={{
-                    width: 28, height: '100%',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', color: 'var(--text-primary)',
-                    fontSize: 16, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >+</button>
-              </div>
-
-              <button
-                onClick={() => {
-                  const applicable = getApplicableAddons(variantModalItem);
-                  if (applicable.length > 0) {
-                    setAddonModalItem({
-                      item: variantModalItem,
-                      qty: variantQty,
-                      variant: selectedVariant || undefined
-                    });
-                    setSelectedAddonOptions({});
-                    setVariantModalItem(null);
-                    return;
-                  }
-
-                  dispatch({
-                    type: 'ADD_TO_CART',
-                    payload: {
-                      menuItemId: variantModalItem.id,
-                      name: variantModalItem.name,
-                      price: selectedVariant ? selectedVariant.price : variantModalItem.price,
-                      qty: variantQty,
-                      variant: selectedVariant || undefined
-                    }
-                  });
-                  addToast('success', selectedVariant ? `${variantModalItem.name} (${selectedVariant.name}) added to cart!` : `${variantModalItem.name} added to cart!`);
-                  setVariantModalItem(null);
-                }}
-                style={{
-                  flex: 1,
-                  height: 36,
-                  borderRadius: 'var(--radius-full)',
-                  fontWeight: 500,
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                   background: 'var(--customer-add-to-cart-bg, #ffffff)',
-                  color: 'var(--customer-add-to-cart-text, #000000)',
-                  border: 'none',
-                  boxShadow: '0 4px 14px rgba(255,255,255,0.15)'
-                }}
-              >
-                {t('add')} — ₹{(selectedVariant ? selectedVariant.price : variantModalItem.price) * variantQty} <FoodTrolley size={14} color="#000" />
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* Active Coupons Modal */}
-      {showCouponsModal && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowCouponsModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 420, padding: 24, position: 'relative' }}>
-            <button
-              onClick={() => setShowCouponsModal(false)}
-              style={{
-                position: 'absolute',
-                top: 16,
-                right: 16,
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid var(--border)',
-                borderRadius: '50%',
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--text-primary)',
-                zIndex: 10,
-                transition: 'all 0.2s'
-              }}
-            >
-              <X size={16} />
-            </button>
-            
-            <h3 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 600, color: 'var(--brand)', marginBottom: 6 }}>
-              🏷️ {t('active_offers') || 'Active Offers'}
-            </h3>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20 }}>
-              Use these promo codes on checkout to grab extra savings!
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '350px', overflowY: 'auto', paddingRight: 4 }}>
-              {state.coupons?.filter(c => c.isActive).map(coupon => {
-                const isCopied = copiedCouponId === coupon.id;
-                return (
-                  <div
-                    key={coupon.id}
-                    style={{
-                      background: 'var(--bg-elevated)',
-                      border: '1px dashed var(--border-brand)',
-                      borderRadius: 12,
-                      padding: 16,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                      position: 'relative'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <span style={{
-                          background: 'var(--brand-dim)',
-                          color: 'var(--brand)',
-                          padding: '4px 8px',
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 800,
-                          letterSpacing: '0.5px'
-                        }}>
-                          {coupon.code}
-                        </span>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 8 }}>
-                          {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `₹${coupon.value} OFF`}
-                        </div>
-                      </div>
-                      
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(coupon.code);
-                          setCopiedCouponId(coupon.id);
-                          setTimeout(() => setCopiedCouponId(null), 2000);
-                        }}
-                        style={{
-                          background: isCopied ? 'var(--status-success-dim)' : 'var(--brand)',
-                          color: isCopied ? 'var(--status-success)' : '#000',
-                          border: 'none',
-                          padding: '4px 10px',
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}
-                      >
-                        {isCopied ? 'Copied!' : 'Copy'}
-                      </button>
-                    </div>
-                    
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 2, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, marginTop: 4 }}>
-                      {coupon.minOrderAmount && (
-                        <span>• Valid on orders above ₹{coupon.minOrderAmount}</span>
-                      )}
-                      {coupon.isOneTime && (
-                        <span>• Single use per customer</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {(!state.coupons || state.coupons.filter(c => c.isActive).length === 0) && (
-                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 13 }}>
-                  No active offers available right now.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add-on Selection Modal */}
-      {addonModalItem && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-end',
-          zIndex: 1000,
-          animation: 'fadeIn 0.2s ease'
-        }}>
-          <div style={{
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            width: '100%',
-            maxWidth: 480,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            padding: '24px 20px',
-            maxHeight: '85vh',
-            overflowY: 'auto',
-            boxShadow: '0 -10px 25px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16
-          }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h3 style={{ fontSize: 26, fontWeight: 900, margin: 0, color: 'var(--brand)', letterSpacing: '-0.5px' }}>
-                  Add Ons
-                </h3>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2, fontWeight: 500 }}>
-                  {addonModalItem.item.name}{addonModalItem.variant ? ` · ${addonModalItem.variant.name}` : ''}
-                </div>
-              </div>
-              <button
-                onClick={() => setAddonModalItem(null)}
-                style={{
-                  background: 'var(--bg-elevated)', border: 'none', borderRadius: '50%',
-                  width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 16, flexShrink: 0, marginTop: 2
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Applicable Addon Groups */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, margin: '10px 0' }}>
-              {getApplicableAddons(addonModalItem.item).map(addon => {
-                const selections = selectedAddonOptions[addon.id] || [];
-                const max = addon.maxSelections || 1;
-                const min = addon.minSelections || 0;
-                const isRequired = addon.isRequired || min > 0;
-
-                return (
-                  <div key={addon.id} style={{
-                    background: 'var(--bg-surface)',
-                    padding: 14,
-                    borderRadius: 12,
-                    border: '1.5px solid var(--border)'
-                  }}>
-                    {/* Addon Group Header info */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <div>
-                        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
-                          {addon.name}
-                        </span>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>
-                          {isRequired ? `Required · Choose at least ${min}` : `Optional · Choose up to ${max}`}
-                        </div>
-                      </div>
-                      {isRequired && (
-                        <span style={{
-                          fontSize: 10, background: 'var(--brand)', color: '#fff',
-                          padding: '3px 8px', borderRadius: 6, fontWeight: 800, textTransform: 'uppercase', flexShrink: 0
-                        }}>
-                          Required
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Options list */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {(addon.options || []).map(opt => {
-                        const isLinkedAvailable = !opt.linkedMealId || (() => {
-                          const meal = state.menuItems.find(m => m.id === opt.linkedMealId);
-                          return meal && meal.isAvailable !== false;
-                        })();
-                        const isAvailable = opt.isAvailable !== false && isLinkedAvailable;
-                        const isChecked = selections.includes(opt.id);
-
-                        const handleSelect = () => {
-                          if (!isAvailable) return;
-                          if (max === 1) {
-                            setSelectedAddonOptions(p => ({
-                              ...p,
-                              [addon.id]: [opt.id]
-                            }));
-                          } else {
-                            if (isChecked) {
-                              setSelectedAddonOptions(p => ({
-                                ...p,
-                                [addon.id]: (p[addon.id] || []).filter(id => id !== opt.id)
-                              }));
-                            } else {
-                              if ((selections).length >= max) {
-                                addToast('warning', `You can select up to ${max} options for ${addon.name}.`);
-                                return;
-                              }
-                              setSelectedAddonOptions(p => ({
-                                ...p,
-                                [addon.id]: [...(p[addon.id] || []), opt.id]
-                              }));
-                            }
-                          }
-                        };
-
-                        return (
-                          <div
-                            key={opt.id}
-                            onClick={handleSelect}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '12px 14px',
-                              borderRadius: 10,
-                              background: isChecked ? 'rgba(255, 107, 0, 0.12)' : 'var(--bg-elevated)',
-                              border: isChecked ? '2px solid var(--brand)' : '1.5px solid var(--border)',
-                              cursor: isAvailable ? 'pointer' : 'not-allowed',
-                              opacity: isAvailable ? 1 : 0.5,
-                              transition: 'all 0.2s ease'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <input
-                                type={max === 1 ? "radio" : "checkbox"}
-                                name={addon.id}
-                                checked={isChecked}
-                                disabled={!isAvailable}
-                                onChange={handleSelect}
-                                style={{ margin: 0, accentColor: 'var(--brand)', width: 16, height: 16 }}
-                              />
-                              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {opt.name}
-                              </span>
-                            </div>
-                            <span style={{ fontSize: 13, fontWeight: 800, color: isAvailable ? 'var(--brand)' : 'var(--text-muted)', flexShrink: 0, marginLeft: 8 }}>
-                              {!isAvailable ? 'Out of Stock' : opt.price > 0 ? `+₹${opt.price}` : 'Free'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Footer Add Action */}
-            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setAddonModalItem(null)}
-                style={{ flex: 1, height: 44, borderRadius: 'var(--radius-full)' }}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  const applicable = getApplicableAddons(addonModalItem.item);
-                  for (const addon of applicable) {
-                    const min = addon.minSelections || 0;
-                    const isRequired = addon.isRequired || min > 0;
-                    const selections = selectedAddonOptions[addon.id] || [];
-                    if (isRequired && selections.length < min) {
-                      addToast('error', `Please select at least ${min} option(s) for "${addon.name}".`);
-                      return;
-                    }
-                  }
-
-                  const addonsPayload = Object.entries(selectedAddonOptions).flatMap(([addonId, optIds]) => {
-                    const addon = state.addons.find(a => a.id === addonId);
-                    if (!addon) return [];
-                    return optIds.map(optId => {
-                      const opt = addon.options.find(o => o.id === optId);
-                      if (!opt) return [];
-                      return {
-                        addonId: addon.id,
-                        addonName: addon.name,
-                        optionId: opt.id,
-                        optionName: opt.name,
-                        price: opt.price
-                      };
-                    }).flat();
-                  });
-
-                  const basePrice = addonModalItem.variant ? addonModalItem.variant.price : addonModalItem.item.price;
-                  const addonsTotalPrice = addonsPayload.reduce((sum, opt) => sum + opt.price, 0);
-
-                  dispatch({
-                    type: 'ADD_TO_CART',
-                    payload: {
-                      menuItemId: addonModalItem.item.id,
-                      name: addonModalItem.item.name,
-                      price: basePrice + addonsTotalPrice,
-                      qty: addonModalItem.qty,
-                      variant: addonModalItem.variant || undefined,
-                      addons: addonsPayload
-                    }
-                  });
-                  addToast('success', `${addonModalItem.item.name} added to cart!`);
-                  setAddonModalItem(null);
-                }}
-                style={{
-                  flex: 2, height: 44, borderRadius: 'var(--radius-full)',
-                  background: 'var(--customer-add-to-cart-bg, var(--brand))',
-                  color: 'var(--customer-add-to-cart-text, #ffffff)'
-                }}
-              >
-                Add to Cart — ₹{((addonModalItem.variant ? addonModalItem.variant.price : addonModalItem.item.price) + 
-                  Object.entries(selectedAddonOptions).reduce((sum, [addonId, optIds]) => {
-                    const addon = state.addons.find(a => a.id === addonId);
-                    if (!addon) return sum;
-                    return sum + optIds.reduce((sOpt, optId) => {
-                      const opt = addon.options.find(o => o.id === optId);
-                      return sOpt + (opt ? opt.price : 0);
-                    }, 0);
-                  }, 0)) * addonModalItem.qty}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface FeaturedCardProps {
-  item: any;
-  onOpenVariant: (item: MenuItem) => void;
-  qty: number;
-  getRatingDetails: (itemId: string) => { rating: string; reviews: number };
-  onIncrement: (itemId: string, name: string, price: number) => void;
-  onDecrement: (itemId: string) => void;
-  onAddToCart: (item: MenuItem) => void;
-}
-
-function FeaturedCard({
-  item,
-  onOpenVariant,
-  qty,
-  getRatingDetails,
-  onIncrement,
-  onDecrement,
-  onAddToCart
-}: FeaturedCardProps) {
-  const t = useTranslation();
-  const { state } = useStore();
-  const restaurantId = getActiveRestaurantId(state);
-  const restaurant = getActiveRestaurantInfo(state, restaurantId);
-
-  return (
-    <div className="card" style={{
-      padding: 12,
-      background: 'var(--bg-glass)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-lg)',
-      display: 'flex',
-      gap: 12,
-      alignItems: 'stretch'
-    }}>
-      {/* Left: Food Image */}
-      <div 
-        onClick={() => onOpenVariant(item)}
-        style={{
-          width: 100,
-          height: 100,
-          borderRadius: 'var(--radius-md)',
-          overflow: 'hidden',
-          position: 'relative',
-          background: 'var(--bg-elevated)',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer'
-        }}
-      >
-        {item.image ? (
-          <>
-            <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            {restaurant.overlayLogoOnMeals && restaurant.logo && (
-              <div style={{
-                position: 'absolute',
-                bottom: 6,
-                right: 6,
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                overflow: 'hidden',
-                border: '0.5px solid #fff',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.35)',
-                background: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10
-              }}>
-                <img src={restaurant.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-            )}
-          </>
-        ) : (
-          <div style={{ fontSize: 32 }}>🍽️</div>
         )}
-      </div>
-
-      {/* Right: Content details */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
-        <div 
-          onClick={() => onOpenVariant(item)}
-          style={{ cursor: 'pointer' }}
-        >
-          {/* Top Row: Name and Veg/Non-Veg indicator */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-            <h3 style={{
-              fontSize: 14,
-              fontFamily: 'var(--font-display)',
-              fontWeight: 500,
-              color: 'var(--customer-item-name-color, var(--brand))',
-              lineHeight: 1.2,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}>
-              {item.name}
-            </h3>
-            
-            <VegNonVegIndicator isVeg={item.isVeg} />
-          </div>
-
-          {/* Middle description */}
-          {item.description && (
-            <p style={{
-              fontSize: 11,
-              color: 'var(--customer-item-desc-color, var(--text-secondary))',
-              lineHeight: 1.35,
-              marginTop: 3,
-              marginBottom: 4,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}>
-              {item.description}
-            </p>
-          )}
-        </div>
-
-        {/* Bottom Row: Price, Rating, Cart controls */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 'auto' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-              <span className="item-price-tag" style={{ lineHeight: 1.1 }}>
-                {item.variants && item.variants.length > 0 ? `From ₹${item.price}` : `₹${item.price}`}
-              </span>
-              
-              {/* Star Rating */}
-              <span style={{ fontSize: 9.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 1, lineHeight: 1 }}>
-                <span style={{ color: '#f59e0b' }}>★</span>
-                <span>{getRatingDetails(item.id).rating} ({getRatingDetails(item.id).reviews})</span>
-              </span>
-            </div>
-            
-            {item.isFeatured && (
-              <div style={{
-                alignSelf: 'flex-start',
-                background: 'var(--customer-bestseller-bg, var(--brand-dim))',
-                color: 'var(--customer-bestseller-text, var(--brand))',
-                border: '1px solid var(--customer-bestseller-border, var(--border-brand))',
-                fontSize: 8,
-                fontWeight: 800,
-                padding: '1px 5px',
-                borderRadius: 3,
-                letterSpacing: '0.02em',
-                whiteSpace: 'nowrap',
-                textTransform: 'uppercase'
-              }}>
-                {t('bestseller')}
-              </div>
-            )}
-          </div>
-
-          {/* Cart Controls */}
-          <div style={{ display: 'flex', gap: 6 }}>
-            {item.variants && item.variants.length > 0 ? (
-              <button
-                onClick={() => onOpenVariant(item)}
-                style={{
-                  padding: '5px 12px',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  height: 28,
-                  borderRadius: '4px',
-                  background: 'var(--customer-add-to-cart-bg, #ffffff)',
-                  color: 'var(--customer-add-to-cart-text, #000000)',
-                  border: 'none',
-                }}
-              >
-                {t('add')} {qty > 0 ? `(${qty})` : ''} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
-              </button>
-            ) : qty === 0 ? (
-              <button
-                onClick={() => onAddToCart(item)}
-                style={{
-                  padding: '5px 12px',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  height: 28,
-                  borderRadius: '4px',
-                  background: 'var(--customer-add-to-cart-bg, #ffffff)',
-                  color: 'var(--customer-add-to-cart-text, #000000)',
-                  border: 'none',
-                }}
-              >
-                {t('add')} <FoodTrolley size={18} color="var(--customer-add-to-cart-text, #000000)" />
-              </button>
-            ) : (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                background: 'var(--customer-add-to-cart-bg, #ffffff)',
-                borderRadius: 'var(--radius-sm)',
-                overflow: 'hidden',
-                height: 28
-              }}>
-                <button
-                  onClick={() => onDecrement(item.id)}
-                  style={{
-                    width: 26, height: '100%',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', color: 'var(--customer-add-to-cart-text, #000000)',
-                    fontSize: 13, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >−</button>
-                <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--customer-add-to-cart-text, #000000)', minWidth: 16, textAlign: 'center' }}>
-                  {qty}
-                </span>
-                <button
-                  onClick={() => onIncrement(item.id, item.name, item.price)}
-                  style={{
-                    width: 26, height: '100%',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', color: 'var(--customer-add-to-cart-text, #000000)',
-                    fontSize: 13, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >+</button>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

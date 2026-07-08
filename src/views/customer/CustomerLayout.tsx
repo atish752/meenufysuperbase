@@ -92,13 +92,13 @@ export default function CustomerLayout({ tableId }: Props) {
     localStorage.setItem('meenufy_active_restaurant_id', rId);
 
     if (isViewOnly) {
-      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
+      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'home' });
     }
   }, [tableId, isViewOnly]);
 
   useEffect(() => {
-    if (isViewOnly && state.customerTab !== 'menu') {
-      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
+    if (isViewOnly && state.customerTab !== 'home') {
+      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'home' });
     }
   }, [isViewOnly, state.customerTab]);
 
@@ -113,7 +113,7 @@ export default function CustomerLayout({ tableId }: Props) {
     return () => window.removeEventListener('resize', setAppHeight);
   }, []);
 
-  const table = state.tables.find(t => t.id === tableId);
+
 
   // Retrieve current user's phone identifier or guest fallback ID from localStorage
   const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
@@ -450,12 +450,75 @@ export default function CustomerLayout({ tableId }: Props) {
   };
 
   const renderTab = () => {
+    const rId = urlParams.get('restaurant') || state.activeCustomerRestaurantId;
+    const hasActiveRestaurant = !!rId;
+
     switch (state.customerTab) {
-      case 'home': return <CustomerHome table={table} />;
-      case 'menu': return <CustomerMenu />;
+      case 'home':
+        if (hasActiveRestaurant) {
+          // Show the menu for the active restaurant
+          const activeRestaurantName = state.restaurantAccounts?.find(acc => acc.id === rId)?.restaurantName || state.restaurant?.name || 'Restaurant Menu';
+          const activeRestaurantTagline = state.restaurantAccounts?.find(acc => acc.id === rId)?.tagline || state.restaurant?.tagline || 'Fresh & delicious meals';
+          
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* Restaurant Name Header with Back Button */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '14px 16px',
+                background: 'var(--bg-elevated)',
+                borderBottom: '1px solid var(--border)',
+                position: 'sticky',
+                top: 0,
+                zIndex: 40
+              }}>
+                <button
+                  onClick={() => {
+                    dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: null });
+                    // Clear query params to clean URL
+                    const newUrl = window.location.pathname + '?view=customer';
+                    window.history.pushState({}, '', newUrl);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: 'var(--border)',
+                    color: 'var(--text-primary)',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)' }}>
+                    {activeRestaurantName}
+                  </h2>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, marginTop: 1 }}>
+                    {activeRestaurantTagline}
+                  </p>
+                </div>
+              </div>
+              
+              {/* The Menu Content */}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <CustomerMenu />
+              </div>
+            </div>
+          );
+        } else {
+          // Show the Swiggy/Zomato style home screen
+          return <CustomerHome />;
+        }
       case 'orders': return <CustomerOrders tableId={tableId} />;
       case 'more': return <CustomerMore />;
-      default: return <CustomerHome table={table} />;
+      default: return <CustomerHome />;
     }
   };
 
