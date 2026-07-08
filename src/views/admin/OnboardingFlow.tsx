@@ -194,6 +194,8 @@ export default function OnboardingFlow() {
             email: `owner@${restaurantName.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'rest'}.com`,
             restaurantId: 'rest-' + Date.now(),
             isLoggedIn: true,
+            restaurantName: restaurantName.trim(),
+            ownerPhone: '+91 99999 88888',
           };
           dispatch({ type: 'LOGIN_ADMIN', payload: mockAdminUser });
         }

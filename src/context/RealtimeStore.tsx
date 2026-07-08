@@ -345,6 +345,8 @@ export type AdminUser = {
   isStaff?: boolean;
   isFirebaseUser?: boolean;
   permissions?: ('orders' | 'menu' | 'customers' | 'analysis' | 'outlet_setting' | 'qr_tables')[];
+  restaurantName?: string;
+  ownerPhone?: string;
 };
 
 export type Toast = {
@@ -1156,9 +1158,17 @@ function reducer(state: AppState, action: Action): AppState {
       
       const newAccounts = state.restaurantAccounts.map(acc => {
         if (acc.ownerEmail.trim().toLowerCase() === email.trim().toLowerCase()) {
+          const updated = { ...acc };
           if (!acc.password && action.payload.password) {
-            return { ...acc, password: action.payload.password };
+            updated.password = action.payload.password;
           }
+          if (action.payload.restaurantName) {
+            updated.restaurantName = action.payload.restaurantName;
+          }
+          if (action.payload.ownerPhone) {
+            updated.ownerPhone = action.payload.ownerPhone;
+          }
+          return updated;
         }
         return acc;
       });
@@ -1175,8 +1185,8 @@ function reducer(state: AppState, action: Action): AppState {
           id: action.payload.id,
           ownerName: name,
           ownerEmail: email,
-          ownerPhone: state.restaurant.phone || '+91 99999 88888',
-          restaurantName: state.restaurant.name,
+          ownerPhone: action.payload.ownerPhone || state.restaurant.phone || '+91 99999 88888',
+          restaurantName: action.payload.restaurantName || state.restaurant.name,
           walletBalance: 300,
           status: 'active',
           createdAt: Date.now(),
@@ -2938,31 +2948,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'LOGIN_ADMIN': {
             if (!action.payload.isSuperAdmin) {
               const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === action.payload.id);
-              
-              // Geolocation detection fallback
               const detectedCountry = detectBillingCountry();
-              
-              const accountData = {
-                id: action.payload.id,
-                ownerName: action.payload.name,
-                ownerEmail: action.payload.email,
-                ownerPhone: currentState.restaurant.phone || '+91 99999 88888',
-                restaurantName: currentState.restaurant.name,
-                walletBalance: matchedAcc ? (matchedAcc.walletBalance ?? 300) : 300,
-                status: matchedAcc ? (matchedAcc.status ?? 'active') : 'active',
-                createdAt: matchedAcc ? (matchedAcc.createdAt ?? Date.now()) : Date.now(),
-                // NOTE: password is intentionally NOT written to Firebase for security
-                subscriptionPlan: matchedAcc ? (matchedAcc.subscriptionPlan ?? 'free') : 'free',
-                ordersPlacedThisMonth: matchedAcc ? (matchedAcc.ordersPlacedThisMonth ?? 0) : 0,
-                subscriptionRenewalDate: matchedAcc ? (matchedAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
-                billingCountry: matchedAcc ? (matchedAcc.billingCountry ?? detectedCountry) : detectedCountry,
-                billingPeriod: matchedAcc ? (matchedAcc.billingPeriod ?? 'monthly') : 'monthly'
-              };
-              
-              handleDbPromise(
-                update(ref(db, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData)),
-                'Failed to update restaurant account'
-              );
+
+              // Asynchronously fetch authoritative restaurant profile to self-heal restaurant name and phone
+              import('firebase/database').then(({ get, ref }) => {
+                get(ref(db!, `restaurants/${action.payload.id}`)).then((snapshot) => {
+                  const restData = snapshot.val();
+                  const realRestName = restData?.name || action.payload.restaurantName || matchedAcc?.restaurantName || 'My Restaurant';
+                  const realRestPhone = restData?.phone || action.payload.ownerPhone || matchedAcc?.ownerPhone || '+91 99999 88888';
+
+                  const accountData = {
+                    id: action.payload.id,
+                    ownerName: action.payload.name,
+                    ownerEmail: action.payload.email,
+                    ownerPhone: realRestPhone,
+                    restaurantName: realRestName,
+                    walletBalance: matchedAcc ? (matchedAcc.walletBalance ?? 300) : 300,
+                    status: matchedAcc ? (matchedAcc.status ?? 'active') : 'active',
+                    createdAt: matchedAcc ? (matchedAcc.createdAt ?? Date.now()) : Date.now(),
+                    subscriptionPlan: matchedAcc ? (matchedAcc.subscriptionPlan ?? 'free') : 'free',
+                    ordersPlacedThisMonth: matchedAcc ? (matchedAcc.ordersPlacedThisMonth ?? 0) : 0,
+                    subscriptionRenewalDate: matchedAcc ? (matchedAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
+                    billingCountry: matchedAcc ? (matchedAcc.billingCountry ?? detectedCountry) : detectedCountry,
+                    billingPeriod: matchedAcc ? (matchedAcc.billingPeriod ?? 'monthly') : 'monthly'
+                  };
+
+                  update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData))
+                    .catch(err => console.error('Failed to update self-healed restaurant account:', err));
+                }).catch((err) => {
+                  console.error('Failed to get authoritative restaurant details for self-healing:', err);
+                  // Fallback to payload or matched values if read fails
+                  const accountData = {
+                    id: action.payload.id,
+                    ownerName: action.payload.name,
+                    ownerEmail: action.payload.email,
+                    ownerPhone: action.payload.ownerPhone || matchedAcc?.ownerPhone || currentState.restaurant.phone || '+91 99999 88888',
+                    restaurantName: action.payload.restaurantName || matchedAcc?.restaurantName || currentState.restaurant.name,
+                    walletBalance: matchedAcc ? (matchedAcc.walletBalance ?? 300) : 300,
+                    status: matchedAcc ? (matchedAcc.status ?? 'active') : 'active',
+                    createdAt: matchedAcc ? (matchedAcc.createdAt ?? Date.now()) : Date.now(),
+                    subscriptionPlan: matchedAcc ? (matchedAcc.subscriptionPlan ?? 'free') : 'free',
+                    ordersPlacedThisMonth: matchedAcc ? (matchedAcc.ordersPlacedThisMonth ?? 0) : 0,
+                    subscriptionRenewalDate: matchedAcc ? (matchedAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
+                    billingCountry: matchedAcc ? (matchedAcc.billingCountry ?? detectedCountry) : detectedCountry,
+                    billingPeriod: matchedAcc ? (matchedAcc.billingPeriod ?? 'monthly') : 'monthly'
+                  };
+                  update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData)).catch(() => {});
+                });
+              });
               
               // Re-evaluate geolocation dynamically on every login/signin
               fetch('https://ipapi.co/json/')

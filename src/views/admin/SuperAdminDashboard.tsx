@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
   LogOut, Mail, Phone, Store, Calendar,
@@ -15,6 +15,41 @@ export default function SuperAdminDashboard() {
   const [manageCountry, setManageCountry] = useState<'IN' | 'global'>('global');
   const [manageBillingPeriod, setManageBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [showManageModal, setShowManageModal] = useState(false);
+
+  const accounts = state.restaurantAccounts || [];
+
+  // Auto-heal mismatches dynamically when Super Admin loads dashboard
+  useEffect(() => {
+    if (!state.admin?.isSuperAdmin || accounts.length === 0) return;
+
+    import('firebase/database').then(({ get, ref, update, getDatabase }) => {
+      const db = getDatabase();
+      accounts.forEach(acc => {
+        if (!acc.id) return;
+        get(ref(db, `restaurants/${acc.id}`)).then(snap => {
+          const restData = snap.val();
+          if (restData) {
+            let needsUpdate = false;
+            const updatePayload: any = {};
+
+            if (restData.name && restData.name !== acc.restaurantName) {
+              updatePayload.restaurantName = restData.name;
+              needsUpdate = true;
+            }
+            if (restData.phone && restData.phone !== acc.ownerPhone && (acc.ownerPhone === '+91 99999 88888' || !acc.ownerPhone)) {
+              updatePayload.ownerPhone = restData.phone;
+              needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+              console.log(`Auto-healing account ${acc.id}: ${acc.restaurantName} -> ${restData.name}`);
+              update(ref(db, `restaurantAccounts/${acc.id}`), updatePayload).catch(() => {});
+            }
+          }
+        }).catch(() => {});
+      });
+    }).catch(e => console.error("Firebase Database import failed:", e));
+  }, [accounts.length, state.admin?.isSuperAdmin]);
 
   // Tabs and replies
   const [activeTab, setActiveTab] = useState<'accounts' | 'api_keys' | 'support' | 'feedback' | 'coupons'>('accounts');
@@ -208,7 +243,6 @@ export default function SuperAdminDashboard() {
   };
 
   // Stats calculations
-  const accounts = state.restaurantAccounts || [];
   const totalOrders = accounts.reduce((sum, a) => sum + (a.ordersPlacedThisMonth || 0), 0);
   const activeCount = accounts.filter(a => a.status === 'active').length;
   const blockedCount = accounts.filter(a => a.status === 'blocked').length;

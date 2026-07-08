@@ -167,6 +167,8 @@ export default function AdminAuth() {
           restaurantId: resolvedAdminId,
           isLoggedIn: true,
           isFirebaseUser: true,
+          restaurantName: form.restaurantName || existingAccountForBlock?.restaurantName || 'My Restaurant',
+          ownerPhone: existingAccountForBlock?.ownerPhone || fbUser.phoneNumber || state.restaurant.phone || '+91 99999 88888',
         };
 
         if (mode === 'signup') {
@@ -236,6 +238,8 @@ export default function AdminAuth() {
       restaurantId: adminId,
       isLoggedIn: true,
       password: form.password,
+      restaurantName: form.restaurantName || existingAccount?.restaurantName || 'My Restaurant',
+      ownerPhone: existingAccount?.ownerPhone || state.restaurant.phone || '+91 99999 88888',
     };
 
     if (mode === 'signup') {
@@ -290,6 +294,8 @@ export default function AdminAuth() {
         restaurantId: resolvedAdminId,
         isLoggedIn: true,
         isFirebaseUser: true,
+        restaurantName: existingAccount?.restaurantName || `${fbUser.displayName || 'My'}'s Restaurant`,
+        ownerPhone: existingAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
       };
 
       if (!existingAccount) {
