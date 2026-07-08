@@ -2933,12 +2933,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             );
             break;
           }
-          case 'UPDATE_RESTAURANT':
+          case 'UPDATE_RESTAURANT': {
             handleDbPromise(
               update(ref(db, `restaurants/${restId}`), sanitizeDbData(action.payload)),
               'Failed to update restaurant info'
             );
+
+            // Dynamically propagate profile name, phone, and email to matching restaurantAccount record
+            const accountUpdates: any = {};
+            if (action.payload.name) accountUpdates.restaurantName = action.payload.name;
+            if (action.payload.phone) accountUpdates.ownerPhone = action.payload.phone;
+            if (action.payload.email) accountUpdates.ownerEmail = action.payload.email;
+            
+            if (Object.keys(accountUpdates).length > 0) {
+              update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)
+                .catch(err => console.error("Failed to sync profile changes to restaurantAccounts:", err));
+            }
             break;
+          }
           case 'SET_MANUAL_CLOSED':
             handleDbPromise(
               update(ref(db, `restaurants/${restId}`), { isManualClosed: action.payload }),

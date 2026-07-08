@@ -36,8 +36,12 @@ export default function SuperAdminDashboard() {
               updatePayload.restaurantName = restData.name;
               needsUpdate = true;
             }
-            if (restData.phone && restData.phone !== acc.ownerPhone && (acc.ownerPhone === '+91 99999 88888' || !acc.ownerPhone)) {
+            if (restData.phone && restData.phone !== acc.ownerPhone) {
               updatePayload.ownerPhone = restData.phone;
+              needsUpdate = true;
+            }
+            if (restData.email && restData.email !== acc.ownerEmail) {
+              updatePayload.ownerEmail = restData.email;
               needsUpdate = true;
             }
 
