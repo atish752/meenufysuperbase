@@ -512,6 +512,51 @@ export default function SuperAdminDashboard() {
                       <td style={{ padding: '16px 16px' }}>
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{acc.restaurantName}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 3 }}>Owner: {acc.ownerName}</div>
+
+                        {(() => {
+                          const matchedStaff = (state.staffMembers || []).filter(s => s.restaurantId === acc.id);
+                          if (matchedStaff.length === 0) return null;
+                          return (
+                            <div style={{
+                              marginTop: 10,
+                              padding: '8px 10px',
+                              background: 'var(--bg-elevated)',
+                              borderRadius: 8,
+                              border: '1px solid var(--border)',
+                              fontSize: 11
+                            }}>
+                              <div style={{
+                                fontWeight: 800,
+                                fontSize: 9,
+                                color: 'var(--brand)',
+                                textTransform: 'uppercase',
+                                marginBottom: 6,
+                                letterSpacing: '0.05em'
+                              }}>
+                                REGISTERED STAFF ({matchedStaff.length})
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {matchedStaff.map((staff, idx) => (
+                                  <div key={staff.id} style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    paddingBottom: 4,
+                                    marginBottom: idx === matchedStaff.length - 1 ? 0 : 4,
+                                    borderBottom: idx === matchedStaff.length - 1 ? 'none' : '1px dashed var(--border)'
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{staff.name}</span>
+                                      <span style={{ color: 'var(--text-secondary)', fontSize: 10 }}>({staff.username})</span>
+                                    </div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 1 }}>
+                                      ID: {staff.id} | Perms: {staff.permissions?.join(', ') || 'none'}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       <td style={{ padding: '16px 16px' }}>
