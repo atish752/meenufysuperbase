@@ -32,9 +32,14 @@ if (typeof document !== 'undefined' && !document.getElementById(BLINK_STYLE_ID))
       0%, 49% { opacity: 1; background-color: #ef4444; }
       50%, 100% { opacity: 0.15; background-color: #ef4444; }
     }
+    @keyframes deliveryBadgePulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(157,78,221,0.3); }
+      50% { box-shadow: 0 0 16px rgba(157,78,221,0.7); }
+    }
   `;
   document.head.appendChild(style);
 }
+
 
 export default function AdminHome() {
   const { state, dispatch, addToast } = useStore();
@@ -2409,9 +2414,20 @@ function OrderCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: order.orderType === 'delivery' ? '#9D4EDD' : order.orderType === 'take-away' ? '#ef4444' : 'var(--text-primary)' }}>
-              {order.orderType === 'delivery' ? '🚀 HOME DELIVERY' : order.orderType === 'take-away' ? '🛍️ Take-Away Order' : `Table ${order.tableNumber}`}
-            </span>
+            {order.orderType === 'delivery' ? (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 11, fontWeight: 900,
+                background: 'linear-gradient(135deg, rgba(157,78,221,0.2), rgba(157,78,221,0.1))',
+                color: '#C084FC',
+                border: '1px solid rgba(157,78,221,0.4)',
+                padding: '3px 10px', borderRadius: 20,
+                boxShadow: '0 0 10px rgba(157,78,221,0.2)',
+                animation: 'deliveryBadgePulse 2s ease infinite'
+              }}>
+                <span style={{ fontSize: 9 }}>●</span> 🏠 HOME DELIVERY
+              </span>
+            ) : order.orderType === 'take-away' ? '🛍️ Take-Away Order' : `Table ${order.tableNumber}`}
             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               #{order.id.slice(-4).toUpperCase()}
             </span>
@@ -2426,9 +2442,14 @@ function OrderCard({
               )}
             </span>
             {order.orderType === 'delivery' && order.deliveryAddress && (
-              <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 4, width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '6px 8px', borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <strong style={{ color: '#9D4EDD' }}>📍 Delivery Address:</strong>
-                <span style={{ fontSize: 10, color: 'var(--text-primary)', lineHeight: 1.3 }}>{order.deliveryAddress}</span>
+              <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 4, width: '100%', background: 'rgba(157,78,221,0.05)', border: '1px solid rgba(157,78,221,0.2)', padding: '8px 10px', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <strong style={{ color: '#9D4EDD', fontSize: 10 }}>📍 DELIVERY ADDRESS</strong>
+                <span style={{ fontSize: 10.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{order.deliveryAddress}</span>
+                {order.customerPhone && (
+                  <a href={`tel:${order.customerPhone}`} style={{ fontSize: 10.5, color: '#22C55E', fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    📞 {order.customerPhone}
+                  </a>
+                )}
               </div>
             )}
             {order.numberOfGuests && (
@@ -2934,9 +2955,26 @@ function TabularOrderRow({
             <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: 10, color: 'var(--text-secondary)' }}>▼</span>
           </div>
           {order.deliveryBoyId && (
-            <div style={{ fontSize: 10.5, color: '#9D4EDD', marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
-              <span>Assigned: <strong>{(state.deliveryBoys || []).find(b => b.id === order.deliveryBoyId)?.name || 'Rider'}</strong></span>
-              <span>OTP: <strong style={{ color: 'var(--success)', fontSize: 11 }}>{order.deliveryOtp || '----'}</strong></span>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              <span style={{
+                fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 20,
+                background: 'rgba(157,78,221,0.15)', color: '#C084FC',
+                border: '1px solid rgba(157,78,221,0.3)',
+                display: 'inline-flex', alignItems: 'center', gap: 5
+              }}>
+                🛵 {(state.deliveryBoys || []).find(b => b.id === order.deliveryBoyId)?.name || 'Rider'}
+                {' · '}{(state.deliveryBoys || []).find(b => b.id === order.deliveryBoyId)?.status || 'idle'}
+              </span>
+              {order.deliveryOtp && (
+                <span style={{
+                  fontSize: 10, fontWeight: 900, padding: '3px 9px', borderRadius: 20,
+                  background: 'rgba(34,197,94,0.1)', color: '#22C55E',
+                  border: '1px solid rgba(34,197,94,0.25)',
+                  letterSpacing: '0.12em'
+                }}>
+                  OTP: {order.deliveryOtp}
+                </span>
+              )}
             </div>
           )}
         </div>

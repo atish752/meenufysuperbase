@@ -15,6 +15,8 @@ export default function AdminAuth() {
   const [mode, setMode] = useState<'login' | 'signup' | 'staff_login'>('login');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showStaffPanel, setShowStaffPanel] = useState(false);
+  const [staffForm, setStaffForm] = useState({ username: '', password: '' });
 
   const [form, setForm] = useState({
     name: '', email: '', password: '', restaurantName: '',
@@ -559,14 +561,139 @@ export default function AdminAuth() {
             )}
 
             {authPortal === 'manager' && (
-              <div style={{ textAlign: 'center', marginTop: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                  style={{ background: 'none', border: 'none', color: '#FF6B35', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
-                >
-                  {mode === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                    style={{ background: 'none', border: 'none', color: '#FF6B35', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                  >
+                    {mode === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                  </button>
+                </div>
+
+                {/* Staff Member Sign In */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowStaffPanel(v => !v)}
+                    style={{
+                      width: '100%', padding: '10px 14px',
+                      background: showStaffPanel ? 'rgba(168,85,247,0.08)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${showStaffPanel ? 'rgba(168,85,247,0.3)' : 'var(--border)'}`,
+                      borderRadius: 10, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      color: showStaffPanel ? '#A855F7' : 'var(--text-secondary)',
+                      fontWeight: 700, fontSize: 12.5,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <span>👤 Staff Member? Sign in here</span>
+                    <span style={{ fontSize: 10, opacity: 0.7 }}>{showStaffPanel ? '▲' : '▼'}</span>
+                  </button>
+
+                  {showStaffPanel && (
+                    <div style={{
+                      marginTop: 10, padding: '14px',
+                      background: 'rgba(168,85,247,0.05)',
+                      border: '1px solid rgba(168,85,247,0.2)',
+                      borderRadius: 12,
+                      display: 'flex', flexDirection: 'column', gap: 12,
+                      animation: 'fadeIn 0.2s ease'
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#A855F7', letterSpacing: '0.04em' }}>
+                        🛡️ STAFF LOGIN — Use your staff ID and password provided by the restaurant owner.
+                      </div>
+                      <div className="input-group">
+                        <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6, display: 'block', letterSpacing: '0.05em' }}>STAFF USERNAME</label>
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder="e.g. john_staff"
+                          value={staffForm.username}
+                          onChange={e => setStaffForm({ ...staffForm, username: e.target.value })}
+                          style={{ borderColor: 'rgba(168,85,247,0.3)' }}
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6, display: 'block', letterSpacing: '0.05em' }}>STAFF PASSWORD</label>
+                        <input
+                          className="input"
+                          type="password"
+                          placeholder="••••••••"
+                          value={staffForm.password}
+                          onChange={e => setStaffForm({ ...staffForm, password: e.target.value })}
+                          style={{ borderColor: 'rgba(168,85,247,0.3)' }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={loading || !staffForm.username || !staffForm.password}
+                        onClick={async () => {
+                          if (!staffForm.username || !staffForm.password) return;
+                          setLoading(true);
+                          const uname = staffForm.username.trim().toLowerCase();
+                          try {
+                            let matchedStaff: any = null;
+                            if (hasFirebaseConfig && auth && db) {
+                              const { ref, get } = await import('firebase/database');
+                              const snapshot = await get(ref(db, 'staffMembers'));
+                              if (snapshot.exists()) {
+                                const data = snapshot.val();
+                                matchedStaff = Object.values(data as Record<string, any>).find(
+                                  (s: any) => s.username && s.username.trim().toLowerCase() === uname
+                                );
+                              }
+                            } else {
+                              matchedStaff = state.staffMembers?.find(
+                                s => s.username.trim().toLowerCase() === uname
+                              );
+                            }
+                            if (!matchedStaff) {
+                              addToast('error', '❌ No staff account found with this username.');
+                              setLoading(false);
+                              return;
+                            }
+                            if (matchedStaff.password !== staffForm.password) {
+                              addToast('error', '❌ Incorrect staff password.');
+                              setLoading(false);
+                              return;
+                            }
+                            dispatch({ type: 'LOGIN_ADMIN', payload: {
+                              id: matchedStaff.id,
+                              name: matchedStaff.name,
+                              email: matchedStaff.username,
+                              restaurantId: matchedStaff.restaurantId,
+                              isLoggedIn: true,
+                              isStaff: true,
+                              permissions: matchedStaff.permissions || []
+                            }});
+                            addToast('success', `Welcome, ${matchedStaff.name}! 🎉`);
+                          } catch (err: any) {
+                            addToast('error', `❌ Staff login failed: ${err.message || err}`);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        style={{
+                          height: 42, borderRadius: 10,
+                          background: 'linear-gradient(135deg, #A855F7, #7C3AED)',
+                          color: '#FFFFFF', fontWeight: 800, fontSize: 13,
+                          border: 'none', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          opacity: loading || !staffForm.username || !staffForm.password ? 0.6 : 1,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {loading ? (
+                          <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
+                        ) : (
+                          '🛡️ Sign in as Staff Member'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </form>

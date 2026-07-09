@@ -1285,69 +1285,107 @@ export default function CustomerLayout({ tableId }: Props) {
                 </div>
 
                 {activeOrder.orderType === 'delivery' && activeOrder.deliveryOtp && activeOrder.status !== 'served' && (
-                  <div style={{ marginBottom: 20, background: 'rgba(157, 78, 221, 0.08)', border: '1px dashed #9D4EDD', padding: '12px 14px', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-                    <span style={{ fontSize: 11, color: '#A855F7', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🔑 Delivery OTP Reference</span>
-                    <span style={{ fontSize: 24, fontWeight: 950, letterSpacing: '0.15em', color: '#FFFFFF', textShadow: '0 0 10px rgba(157, 78, 221, 0.4)' }}>{activeOrder.deliveryOtp}</span>
-                    <span style={{ fontSize: 10.5, color: 'var(--text-secondary)' }}>Share this secure OTP code with the rider when the food arrives to confirm delivery completion.</span>
+                  <div style={{
+                    marginBottom: 20,
+                    background: 'linear-gradient(135deg, rgba(157,78,221,0.12), rgba(157,78,221,0.06))',
+                    border: '2px dashed rgba(157,78,221,0.5)',
+                    padding: '16px 14px',
+                    borderRadius: 14,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center',
+                    textAlign: 'center', gap: 8
+                  }}>
+                    <span style={{ fontSize: 10, color: '#A855F7', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>🔑 Your Delivery OTP</span>
+                    <span style={{
+                      fontSize: 34, fontWeight: 950, letterSpacing: '0.22em',
+                      color: '#E9D5FF',
+                      textShadow: '0 0 20px rgba(168,85,247,0.6)',
+                      fontFamily: 'monospace'
+                    }}>{activeOrder.deliveryOtp}</span>
+                    {activeOrder.deliveryBoyId && (() => {
+                      const rider = state.deliveryBoys?.find(b => b.id === activeOrder.deliveryBoyId);
+                      return rider ? (
+                        <span style={{ fontSize: 11, color: '#C4B5FD', fontWeight: 700 }}>
+                          🛵 {rider.name} is on the way!
+                        </span>
+                      ) : null;
+                    })()}
+                    <span style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: 260 }}>Show this OTP to the delivery rider when your food arrives. Do not share it until delivery.</span>
                   </div>
                 )}
 
                 {/* Steps */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 4, marginBottom: 20 }}>
-                  {STEPS.map((step, idx) => {
-                    const stepIdx = ['pending', 'preparing', 'ready'].indexOf(activeOrder.status);
-                    const isCompleted = idx <= stepIdx;
-                    const isCurrent = idx === stepIdx;
-                    const StepIcon = step.icon;
-                    
-                    return (
-                      <div key={idx} style={{ display: 'flex', gap: 14, position: 'relative' }}>
-                        {/* Icon line */}
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <div style={{
-                            width: 28, height: 28, borderRadius: '50%',
-                            background: isCurrent ? 'var(--brand)' : isCompleted ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                            border: `2px solid ${isCompleted ? 'var(--brand)' : 'var(--border)'}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: isCurrent ? '#000' : isCompleted ? 'var(--brand)' : 'var(--text-muted)',
-                            boxShadow: isCurrent ? 'var(--shadow-brand)' : 'none',
-                            zIndex: 2,
-                            transition: 'var(--transition)'
-                          }}>
-                            <StepIcon size={12} />
-                          </div>
-                          
-                          {idx < STEPS.length - 1 && (
-                            <div style={{
-                              width: 2,
-                              height: 32,
-                              background: idx < stepIdx ? 'var(--brand)' : 'var(--border)',
-                              zIndex: 1,
-                              transition: 'var(--transition)'
-                            }} />
-                          )}
-                        </div>
+                  {(() => {
+                    // For delivery orders: use 4-step delivery timeline
+                    const isDelivery = activeOrder.orderType === 'delivery';
+                    const deliverySteps = [
+                      { label: 'Order Placed', desc: 'We received your order!', icon: ShoppingBag, statusMatch: 'pending' },
+                      { label: 'Being Prepared', desc: 'Our chef is cooking your food 🍳', icon: ChefHat, statusMatch: 'preparing' },
+                      { label: 'Out for Delivery', desc: activeOrder.deliveryBoyId
+                          ? (() => { const r = state.deliveryBoys?.find(b => b.id === activeOrder.deliveryBoyId); return r ? `${r.name} is on the way! 🛵` : 'Rider is on the way! 🛵'; })()
+                          : 'Getting picked up soon 🛵',
+                        icon: Truck,
+                        statusMatch: 'ready'
+                      },
+                      { label: 'Delivered', desc: 'Enjoy your meal! 🎉', icon: Truck, statusMatch: 'served' },
+                    ];
+                    const steps = isDelivery ? deliverySteps : STEPS.map(s => ({ ...s, statusMatch: s.status }));
+                    const deliveryStatusMap: Record<string, number> = { pending: 0, preparing: 1, ready: 2, served: 3 };
+                    const currentStepIdx = isDelivery
+                      ? (deliveryStatusMap[activeOrder.status] ?? 0) + (activeOrder.deliveryStatus === 'started' ? 0 : 0)
+                      : ['pending', 'preparing', 'ready'].indexOf(activeOrder.status);
+                    // If delivery started, push to step 2 (Out for Delivery)
+                    const effectiveStepIdx = isDelivery && activeOrder.deliveryStatus === 'started'
+                      ? Math.max(currentStepIdx, 2)
+                      : currentStepIdx;
 
-                        {/* Title and details */}
-                        <div style={{ paddingTop: 2, paddingBottom: 12 }}>
-                          <h4 style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: isCompleted ? 'var(--text-primary)' : 'var(--text-muted)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6
-                          }}>
-                            {step.label}
-                            {isCurrent && <span style={{ fontSize: 8, background: 'var(--brand-dim)', color: 'var(--brand)', padding: '1px 5px', borderRadius: 3, fontWeight: 800 }}>NOW</span>}
-                          </h4>
-                          <p style={{ fontSize: 10.5, color: isCompleted ? 'var(--text-secondary)' : 'var(--text-muted)', marginTop: 1 }}>
-                            {step.desc}
-                          </p>
+                    return steps.map((step, idx) => {
+                      const isCompleted = idx <= effectiveStepIdx;
+                      const isCurrent = idx === effectiveStepIdx;
+                      const StepIcon = step.icon;
+                      return (
+                        <div key={idx} style={{ display: 'flex', gap: 14, position: 'relative' }}>
+                          {/* Icon line */}
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{
+                              width: 28, height: 28, borderRadius: '50%',
+                              background: isCurrent ? (isDelivery ? '#A855F7' : 'var(--brand)') : isCompleted ? 'var(--brand-dim)' : 'var(--bg-elevated)',
+                              border: `2px solid ${isCompleted ? (isDelivery ? '#A855F7' : 'var(--brand)') : 'var(--border)'}`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: isCurrent ? '#fff' : isCompleted ? 'var(--brand)' : 'var(--text-muted)',
+                              boxShadow: isCurrent ? (isDelivery ? '0 0 12px rgba(168,85,247,0.5)' : 'var(--shadow-brand)') : 'none',
+                              zIndex: 2,
+                              transition: 'var(--transition)'
+                            }}>
+                              <StepIcon size={12} />
+                            </div>
+                            {idx < steps.length - 1 && (
+                              <div style={{
+                                width: 2, height: 32,
+                                background: idx < effectiveStepIdx ? (isDelivery ? '#A855F7' : 'var(--brand)') : 'var(--border)',
+                                zIndex: 1, transition: 'var(--transition)'
+                              }} />
+                            )}
+                          </div>
+                          {/* Title and details */}
+                          <div style={{ paddingTop: 2, paddingBottom: 12 }}>
+                            <h4 style={{
+                              fontSize: 13, fontWeight: 700,
+                              color: isCompleted ? 'var(--text-primary)' : 'var(--text-muted)',
+                              display: 'flex', alignItems: 'center', gap: 6
+                            }}>
+                              {step.label}
+                              {isCurrent && <span style={{ fontSize: 8, background: isDelivery ? 'rgba(168,85,247,0.15)' : 'var(--brand-dim)', color: isDelivery ? '#A855F7' : 'var(--brand)', padding: '1px 5px', borderRadius: 3, fontWeight: 800 }}>NOW</span>}
+                            </h4>
+                            <p style={{ fontSize: 10.5, color: isCompleted ? 'var(--text-secondary)' : 'var(--text-muted)', marginTop: 1 }}>
+                              {step.desc}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
 
                 {/* Items */}
