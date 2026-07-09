@@ -58,7 +58,8 @@ function MealCard({
   t: (key: any) => string;
 }) {
   const { rating, reviews } = getRatingDetails(item.id);
-  const isViewOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('viewOnly') === 'true';
+  const isViewOnly = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('viewOnly') === 'true' || window.location.pathname === '/home');
+  const isCartAllowed = !isViewOnly || restaurant?.deliveryEnabled;
   return (
     <div className="card" style={{
       padding: 0,
@@ -176,7 +177,7 @@ function MealCard({
           </span>
 
           {/* Cart Controls */}
-          {!isViewOnly && (
+          {isCartAllowed && (
             <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
               {item.variants && item.variants.length > 0 ? (
                 <button
@@ -216,7 +217,8 @@ function MealCard({
 
 export default function CustomerMenu() {
   const { state, dispatch, addToast } = useStore();
-  const isViewOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('viewOnly') === 'true';
+  const isViewOnly = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('viewOnly') === 'true' || window.location.pathname === '/home');
+  const isCartAllowed = !isViewOnly || state.restaurant?.deliveryEnabled;
   const t = useTranslation();
   const [selectedCat, setSelectedCat] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -979,7 +981,7 @@ export default function CustomerMenu() {
 
             {/* Add to cart controls — just below name, before variants */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16, padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-              {!isViewOnly ? (
+              {isCartAllowed ? (
                 <>
                   <div style={{
                     display: 'flex',

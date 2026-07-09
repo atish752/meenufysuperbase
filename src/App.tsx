@@ -41,8 +41,9 @@ function AppInner() {
     return <OnboardingFlow />;
   }
 
-  // Route to customer view if URL param present
-  if (viewParam === 'customer') {
+  // Route to customer view if URL param present or accessing /home
+  const isHomePath = window.location.pathname === '/home';
+  if (viewParam === 'customer' || isHomePath) {
     return <CustomerLayout tableId={tableParam || 'table-1'} />;
   }
 

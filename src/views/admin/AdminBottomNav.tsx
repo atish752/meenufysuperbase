@@ -1,10 +1,10 @@
 import { useStore } from '../../context/RealtimeStore';
-import { ShoppingBag, UtensilsCrossed, Users, BarChart3, MoreHorizontal } from 'lucide-react';
+import { ShoppingBag, UtensilsCrossed, Store, BarChart3, MoreHorizontal } from 'lucide-react';
 
 const NAV = [
   { key: 'home', label: 'Orders', icon: ShoppingBag },
   { key: 'menu', label: 'Menu', icon: UtensilsCrossed },
-  { key: 'customers', label: 'Customers', icon: Users },
+  { key: 'outlet', label: 'Outlet Settings', icon: Store },
   { key: 'analysis', label: 'Analysis', icon: BarChart3 },
   { key: 'more', label: 'More', icon: MoreHorizontal },
 ] as const;
@@ -25,7 +25,7 @@ export default function AdminBottomNav() {
           const perms = state.admin.permissions || [];
           if (itemKey === 'home') return perms.includes('orders') || perms.includes('qr_tables');
           if (itemKey === 'menu') return perms.includes('menu');
-          if (itemKey === 'customers') return perms.includes('customers');
+          if (itemKey === 'outlet') return perms.includes('outlet_setting');
           if (itemKey === 'analysis') return perms.includes('analysis');
           if (itemKey === 'more') return true;
           return false;
@@ -39,7 +39,7 @@ export default function AdminBottomNav() {
               <button
                 key={item.key}
                 className={`bottom-nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key })}
+                onClick={() => dispatch({ type: 'SET_ADMIN_TAB', payload: item.key as any })}
                 style={!allowed ? {
                   color: '#60a5fa',
                   opacity: 0.85

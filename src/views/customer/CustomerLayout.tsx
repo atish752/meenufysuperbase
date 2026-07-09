@@ -48,6 +48,10 @@ export default function CustomerLayout({ tableId }: Props) {
   // Local payment screen states (for when orders are delivered/ready)
   const [paymentOption, setPaymentOption] = useState<'none' | 'upi' | 'cash' | 'card'>('none');
   const [mealRatings, setMealRatings] = useState<Record<string, number>>({});
+  const [riderRating, setRiderRating] = useState(0);
+  const [riderReview, setRiderReview] = useState('');
+  const [foodRating, setFoodRating] = useState(0);
+  const [foodReview, setFoodReview] = useState('');
   const [ratingPopupStep, setRatingPopupStep] = useState<'success' | 'rate'>('success');
   const [dismissedFeedbacks, setDismissedFeedbacks] = useState<string[]>(() => {
     try {
@@ -76,7 +80,7 @@ export default function CustomerLayout({ tableId }: Props) {
   };
 
   const urlParams = new URLSearchParams(window.location.search);
-  const isViewOnly = urlParams.get('viewOnly') === 'true';
+  const isViewOnly = urlParams.get('viewOnly') === 'true' || window.location.pathname === '/home';
 
   useEffect(() => {
     dispatch({ type: 'SET_CUSTOMER_TABLE', payload: tableId });
@@ -91,16 +95,19 @@ export default function CustomerLayout({ tableId }: Props) {
     }
     localStorage.setItem('meenufy_active_restaurant_id', rId);
 
-    if (isViewOnly) {
+    const restaurant = getActiveRestaurantInfo(state, rId);
+    if (isViewOnly && !restaurant?.deliveryEnabled) {
       dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'home' });
     }
-  }, [tableId, isViewOnly]);
+  }, [tableId, isViewOnly, state.restaurantAccounts]);
 
   useEffect(() => {
-    if (isViewOnly && state.customerTab !== 'home') {
+    const rId = urlParams.get('restaurant') || getActiveRestaurantId(state);
+    const restaurant = getActiveRestaurantInfo(state, rId);
+    if (isViewOnly && !restaurant?.deliveryEnabled && state.customerTab !== 'home') {
       dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'home' });
     }
-  }, [isViewOnly, state.customerTab]);
+  }, [isViewOnly, state.customerTab, state.restaurantAccounts]);
 
   // Track the REAL viewport height via window.innerHeight (100dvh is unreliable on Android Chrome)
   // and expose it as --app-height CSS variable for the container to use.
@@ -566,11 +573,22 @@ export default function CustomerLayout({ tableId }: Props) {
     unratedServedOrders.forEach(o => {
       dispatch({
         type: 'RATE_ORDER',
-        payload: { id: o.id, ratings: mealRatings }
+        payload: {
+          id: o.id,
+          ratings: mealRatings,
+          deliveryBoyRating: o.orderType === 'delivery' ? riderRating : undefined,
+          deliveryBoyReview: o.orderType === 'delivery' ? riderReview : undefined,
+          foodRating: o.orderType === 'delivery' ? foodRating : undefined,
+          foodReview: o.orderType === 'delivery' ? foodReview : undefined
+        }
       });
     });
     addToast('success', 'Thank you for your rating! ❤️');
     setMealRatings({});
+    setRiderRating(0);
+    setRiderReview('');
+    setFoodRating(0);
+    setFoodReview('');
     setShowStatusModal(false);
   };
 
@@ -883,6 +901,69 @@ export default function CustomerLayout({ tableId }: Props) {
                     })()}
                   </div>
 
+                  {/* Delivery Order Specific Ratings */}
+                  {unratedServedOrders.some(o => o.orderType === 'delivery') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 16, padding: 12, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12 }}>
+                      
+                      {/* Rider Rating */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'left' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🛵 Rate Delivery Rider</div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[1, 2, 3, 4, 5].map(starNum => (
+                            <button
+                              key={starNum}
+                              type="button"
+                              onClick={() => setRiderRating(starNum)}
+                              style={{
+                                background: 'none', border: 'none', padding: 2, cursor: 'pointer',
+                                color: starNum <= riderRating ? '#fbbf24' : 'var(--text-muted)',
+                              }}
+                            >
+                              <Star size={18} fill={starNum <= riderRating ? '#fbbf24' : 'none'} />
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder="Write rider review (optional)..."
+                          value={riderReview}
+                          onChange={e => setRiderReview(e.target.value)}
+                          style={{ height: 32, fontSize: 11.5, marginTop: 4 }}
+                        />
+                      </div>
+
+                      {/* Overall Food Rating */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px dashed var(--border)', paddingTop: 10, textAlign: 'left' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🍔 Overall Food Rating</div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[1, 2, 3, 4, 5].map(starNum => (
+                            <button
+                              key={starNum}
+                              type="button"
+                              onClick={() => setFoodRating(starNum)}
+                              style={{
+                                background: 'none', border: 'none', padding: 2, cursor: 'pointer',
+                                color: starNum <= foodRating ? '#fbbf24' : 'var(--text-muted)',
+                              }}
+                            >
+                              <Star size={18} fill={starNum <= foodRating ? '#fbbf24' : 'none'} />
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder="Write overall food feedback (optional)..."
+                          value={foodReview}
+                          onChange={e => setFoodReview(e.target.value)}
+                          style={{ height: 32, fontSize: 11.5, marginTop: 4 }}
+                        />
+                      </div>
+
+                    </div>
+                  )}
+
                   {/* Conditional Google Maps review button */}
                   {Object.values(mealRatings).some(r => r === 4 || r === 5) && (
                     <div style={{ 
@@ -936,6 +1017,10 @@ export default function CustomerLayout({ tableId }: Props) {
                           }
                         });
                       });
+                      const isDelivery = unratedServedOrders.some(o => o.orderType === 'delivery');
+                      if (isDelivery) {
+                        return riderRating === 0 || foodRating === 0;
+                      }
                       return uniqueItemIds.some(id => !mealRatings[id]);
                     })()}
                   >
@@ -1198,6 +1283,14 @@ export default function CustomerLayout({ tableId }: Props) {
                     🛵 {getStatusDesc(activeOrder.status)}
                   </span>
                 </div>
+
+                {activeOrder.orderType === 'delivery' && activeOrder.deliveryOtp && activeOrder.status !== 'served' && (
+                  <div style={{ marginBottom: 20, background: 'rgba(157, 78, 221, 0.08)', border: '1px dashed #9D4EDD', padding: '12px 14px', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                    <span style={{ fontSize: 11, color: '#A855F7', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🔑 Delivery OTP Reference</span>
+                    <span style={{ fontSize: 24, fontWeight: 950, letterSpacing: '0.15em', color: '#FFFFFF', textShadow: '0 0 10px rgba(157, 78, 221, 0.4)' }}>{activeOrder.deliveryOtp}</span>
+                    <span style={{ fontSize: 10.5, color: 'var(--text-secondary)' }}>Share this secure OTP code with the rider when the food arrives to confirm delivery completion.</span>
+                  </div>
+                )}
 
                 {/* Steps */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 4, marginBottom: 20 }}>

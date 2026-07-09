@@ -405,9 +405,16 @@ export default function AdminHome() {
   };
 
   const handleConfirmUpiPayment = (orderId: string) => {
-    dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status: 'served' } });
-    dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, status: 'paid' } });
-    addToast('success', 'UPI Payment Confirmed! Order marked as completed.');
+    const o = state.orders.find(ord => ord.id === orderId);
+    if (o && o.orderType === 'delivery') {
+      dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, status: 'paid' } });
+      dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status: 'preparing' } });
+      addToast('success', 'UPI Payment Confirmed! Order moved to Preparing.');
+    } else {
+      dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status: 'served' } });
+      dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, status: 'paid' } });
+      addToast('success', 'UPI Payment Confirmed! Order marked as completed.');
+    }
   };
 
   const handleConfirmCashPayment = (orderId: string) => {
@@ -2388,13 +2395,13 @@ function OrderCard({
       className="card"
       style={{
         borderLeft: `4px solid ${cfg.color}`,
-        borderTop: order.orderType === 'take-away' ? '2.5px solid #ef4444' : undefined,
-        borderRight: order.orderType === 'take-away' ? '1px solid rgba(239, 68, 68, 0.25)' : undefined,
-        borderBottom: order.orderType === 'take-away' ? '1px solid rgba(239, 68, 68, 0.25)' : undefined,
+        borderTop: order.orderType === 'delivery' ? '2.5px solid #9D4EDD' : order.orderType === 'take-away' ? '2.5px solid #ef4444' : undefined,
+        borderRight: order.orderType === 'delivery' ? '1px solid rgba(157, 78, 221, 0.25)' : order.orderType === 'take-away' ? '1px solid rgba(239, 68, 68, 0.25)' : undefined,
+        borderBottom: order.orderType === 'delivery' ? '1px solid rgba(157, 78, 221, 0.25)' : order.orderType === 'take-away' ? '1px solid rgba(239, 68, 68, 0.25)' : undefined,
         padding: '12px 14px',
         animation: 'fadeIn 0.3s ease',
         cursor: 'grab',
-        background: order.orderType === 'take-away' ? 'rgba(239, 68, 68, 0.03)' : 'var(--bg-primary)',
+        background: order.orderType === 'delivery' ? 'rgba(157, 78, 221, 0.04)' : order.orderType === 'take-away' ? 'rgba(239, 68, 68, 0.03)' : 'var(--bg-primary)',
         transition: 'transform 0.15s ease, border-color 0.15s ease',
       }}
     >
@@ -2402,8 +2409,8 @@ function OrderCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: order.orderType === 'take-away' ? '#ef4444' : 'var(--text-primary)' }}>
-              {order.orderType === 'take-away' ? '🛍️ Take-Away Order' : `Table ${order.tableNumber}`}
+            <span style={{ fontSize: 14, fontWeight: 700, color: order.orderType === 'delivery' ? '#9D4EDD' : order.orderType === 'take-away' ? '#ef4444' : 'var(--text-primary)' }}>
+              {order.orderType === 'delivery' ? '🚀 HOME DELIVERY' : order.orderType === 'take-away' ? '🛍️ Take-Away Order' : `Table ${order.tableNumber}`}
             </span>
             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               #{order.id.slice(-4).toUpperCase()}
@@ -2418,6 +2425,12 @@ function OrderCard({
                 </span>
               )}
             </span>
+            {order.orderType === 'delivery' && order.deliveryAddress && (
+              <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 4, width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '6px 8px', borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <strong style={{ color: '#9D4EDD' }}>📍 Delivery Address:</strong>
+                <span style={{ fontSize: 10, color: 'var(--text-primary)', lineHeight: 1.3 }}>{order.deliveryAddress}</span>
+              </div>
+            )}
             {order.numberOfGuests && (
               <span style={{
                 fontSize: 9.5, fontWeight: 700,
@@ -2503,7 +2516,7 @@ function OrderCard({
       </div>
 
       {/* Payment details or live action requests */}
-      {order.status === 'bill_pay' && (
+      {(order.status === 'bill_pay' || order.paymentStatus === 'waiting_confirmation') && (
         <div style={{ marginBottom: 10, padding: 8, borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
           {order.paymentStatus === 'waiting_confirmation' ? (
             <div>
@@ -2511,6 +2524,11 @@ function OrderCard({
                 {order.paymentMethod === 'upi' ? <QrCode size={13} /> : order.paymentMethod === 'cash' ? <Coins size={13} /> : <CreditCard size={13} />}
                 {order.paymentMethod === 'upi' ? 'UPI Payment Received' : order.paymentMethod === 'cash' ? 'Requested Cash Bill' : 'Requested Card Bill'}
               </div>
+              {order.upiTxnId && (
+                <div style={{ fontSize: 10, fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '4px 6px', borderRadius: 4, marginBottom: 6, border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+                  UTR Ref: {order.upiTxnId}
+                </div>
+              )}
               {order.paymentMethod === 'upi' && (
                 <button
                   className="btn btn-full"
@@ -2661,7 +2679,7 @@ function TabularOrderRow({
   onConfirmCard: (id: string) => void;
   currency: string;
 }) {
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const customer = state.customers.find(c => c.phone === order.customerPhone);
   const isVip = customer ? !!customer.isVip : false;
 
@@ -2866,6 +2884,64 @@ function TabularOrderRow({
         );
       })()}
 
+      {order.orderType === 'delivery' && order.status !== 'served' && order.status !== 'cancelled' && (
+        <div style={{ marginTop: 8, position: 'relative', width: '100%' }}>
+          <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+            🚴 Assign Delivery Rider:
+          </label>
+          <div style={{ position: 'relative' }}>
+            <select
+              value={order.deliveryBoyId || ''}
+              onChange={(e) => {
+                const boyId = e.target.value;
+                if (!boyId) return;
+
+                // Generate a random 4-digit OTP for the customer to confirm
+                const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+                
+                dispatch({
+                  type: 'ASSIGN_DELIVERY_BOY',
+                  payload: {
+                    orderId: order.id,
+                    restaurantId: order.restaurantId || '',
+                    deliveryBoyId: boyId,
+                    deliveryOtp: otpCode
+                  }
+                });
+              }}
+              style={{
+                width: '100%',
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '6px 10px',
+                fontSize: 11.5,
+                fontWeight: 700,
+                outline: 'none',
+                cursor: 'pointer',
+                appearance: 'none',
+                WebkitAppearance: 'none'
+              }}
+            >
+              <option value="">-- Select Rider --</option>
+              {(state.deliveryBoys || []).filter(b => b.restaurantId === order.restaurantId).map(boy => (
+                <option key={boy.id} value={boy.id}>
+                  {boy.name} ({boy.status || 'idle'})
+                </option>
+              ))}
+            </select>
+            <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: 10, color: 'var(--text-secondary)' }}>▼</span>
+          </div>
+          {order.deliveryBoyId && (
+            <div style={{ fontSize: 10.5, color: '#9D4EDD', marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+              <span>Assigned: <strong>{(state.deliveryBoys || []).find(b => b.id === order.deliveryBoyId)?.name || 'Rider'}</strong></span>
+              <span>OTP: <strong style={{ color: 'var(--success)', fontSize: 11 }}>{order.deliveryOtp || '----'}</strong></span>
+            </div>
+          )}
+        </div>
+      )}
+
 
       {/* Bottom row: Total Amount & Actions */}
       <div style={{
@@ -2887,7 +2963,7 @@ function TabularOrderRow({
 
         {/* Actions Section */}
         <div style={{ display: 'flex', gap: 6 }}>
-          {order.status === 'bill_pay' ? (
+          {(order.status === 'bill_pay' || order.paymentStatus === 'waiting_confirmation') ? (
             order.paymentStatus === 'waiting_confirmation' ? (
               <div style={{ display: 'flex', gap: 6 }}>
                 {order.paymentMethod === 'upi' && (

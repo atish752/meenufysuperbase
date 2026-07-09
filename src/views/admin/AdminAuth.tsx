@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../../context/RealtimeStore';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, UserPlus, LogIn } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { hasFirebaseConfig, auth, googleProvider, db } from '../../utils/firebase';
 import { 
   signInWithEmailAndPassword, 
@@ -11,6 +11,7 @@ import {
 
 export default function AdminAuth() {
   const { state, dispatch, addToast } = useStore();
+  const [authPortal, setAuthPortal] = useState<'manager' | 'delivery'>('manager');
   const [mode, setMode] = useState<'login' | 'signup' | 'staff_login'>('login');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,7 @@ export default function AdminAuth() {
       addToast('error', 'Please fill in all required fields.');
       return;
     }
-    if (mode === 'signup' && (!form.name || !form.restaurantName)) {
+    if (authPortal === 'manager' && mode === 'signup' && (!form.name || !form.restaurantName)) {
       addToast('error', 'Please fill in all required fields.');
       return;
     }
@@ -33,16 +34,66 @@ export default function AdminAuth() {
     setLoading(true);
     const emailLower = form.email.trim().toLowerCase();
 
-    // 0. Staff Member Login Portal Check
-    if (mode === 'staff_login') {
+    // 0. Delivery Boy Login Portal Check
+    if (authPortal === 'delivery') {
+      try {
+        let matchedBoy: any = null;
+        if (hasFirebaseConfig && auth && db) {
+          const { ref, get } = await import('firebase/database');
+          const snapshot = await get(ref(db, 'deliveryBoys'));
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            const boyList = Object.values(data) as any[];
+            matchedBoy = boyList.find(
+              b => b.username && b.username.trim().toLowerCase() === emailLower
+            );
+          }
+        } else {
+          matchedBoy = state.deliveryBoys?.find(
+            b => b.username.trim().toLowerCase() === emailLower
+          );
+        }
+
+        if (!matchedBoy) {
+          addToast('error', '❌ No delivery rider found with this username.');
+          setLoading(false);
+          return;
+        }
+
+        if (matchedBoy.password !== form.password) {
+          addToast('error', '❌ Incorrect password.');
+          setLoading(false);
+          return;
+        }
+
+        const riderUser = {
+          id: matchedBoy.id,
+          name: matchedBoy.name,
+          email: matchedBoy.username,
+          restaurantId: matchedBoy.restaurantId,
+          isLoggedIn: true,
+          isDeliveryBoy: true
+        };
+
+        dispatch({ type: 'LOGIN_ADMIN', payload: riderUser });
+        addToast('success', `Welcome back, Rider ${riderUser.name}! 🛵`);
+        setLoading(false);
+        return;
+      } catch (err: any) {
+        console.error('Rider Login Error:', err);
+        addToast('error', `❌ Rider login failed: ${err.message || err}`);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // 0. Staff Member Login Portal Check (Manager portal checks for staff username first)
+    if (authPortal === 'manager') {
       try {
         let matchedStaff: any = null;
-        
         if (hasFirebaseConfig && auth && db) {
-          // Fetch the entire flat staffMembers node and find by username on client side (safe, simple, doesn't require indexOn)
           const { ref, get } = await import('firebase/database');
           const snapshot = await get(ref(db, 'staffMembers'));
-          
           if (snapshot.exists()) {
             const data = snapshot.val();
             const staffList = Object.values(data) as any[];
@@ -51,50 +102,39 @@ export default function AdminAuth() {
             );
           }
         } else {
-          // Offline/local fallback
           matchedStaff = state.staffMembers?.find(
             s => s.username.trim().toLowerCase() === emailLower
           );
         }
 
-        if (!matchedStaff) {
-          addToast('error', '❌ No staff member found with this username.');
+        if (matchedStaff) {
+          if (matchedStaff.password !== form.password) {
+            addToast('error', '❌ Incorrect staff password.');
+            setLoading(false);
+            return;
+          }
+          const ownerAcc = state.restaurantAccounts?.find(acc => acc.id === matchedStaff.restaurantId);
+          if (ownerAcc && ownerAcc.status === 'blocked') {
+            addToast('error', '❌ Your restaurant outlet account has been blocked. Please contact support@meenufy.com');
+            setLoading(false);
+            return;
+          }
+          const staffUser = {
+            id: matchedStaff.id,
+            name: matchedStaff.name,
+            email: matchedStaff.username,
+            restaurantId: matchedStaff.restaurantId,
+            isLoggedIn: true,
+            isStaff: true,
+            permissions: matchedStaff.permissions || []
+          };
+          dispatch({ type: 'LOGIN_ADMIN', payload: staffUser });
+          addToast('success', `Welcome back, Staff ${staffUser.name}! 🎉`);
           setLoading(false);
           return;
         }
-
-        if (matchedStaff.password !== form.password) {
-          addToast('error', '❌ Incorrect staff password.');
-          setLoading(false);
-          return;
-        }
-        
-        const ownerAcc = state.restaurantAccounts?.find(acc => acc.id === matchedStaff.restaurantId);
-        if (ownerAcc && ownerAcc.status === 'blocked') {
-          addToast('error', '❌ Your restaurant outlet account has been blocked. Please contact support@meenufy.com');
-          setLoading(false);
-          return;
-        }
-
-        const staffUser = {
-          id: matchedStaff.id,
-          name: matchedStaff.name,
-          email: matchedStaff.username,
-          restaurantId: matchedStaff.restaurantId,
-          isLoggedIn: true,
-          isStaff: true,
-          permissions: matchedStaff.permissions || []
-        };
-
-        dispatch({ type: 'LOGIN_ADMIN', payload: staffUser });
-        addToast('success', `Welcome back, Staff ${staffUser.name}! 🎉`);
-        setLoading(false);
-        return;
-      } catch (err: any) {
-        console.error('Staff Login Error:', err);
-        addToast('error', `❌ Staff login failed: ${err.message || err}`);
-        setLoading(false);
-        return;
+      } catch (err) {
+        console.error('Staff match check error:', err);
       }
     }
 
@@ -343,80 +383,71 @@ export default function AdminAuth() {
       <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{
-            width: 80, height: 80,
-            overflow: 'hidden',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 12px',
-          }}>
-            <img src="/meenufy_logo_erased.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          </div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px 0', letterSpacing: '-0.02em', fontFamily: 'Outfit, sans-serif' }}>
-            Meenufy
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.02em', fontFamily: 'Outfit, sans-serif' }}>
+            Hideout Access
           </h1>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
-            A hassle-free way
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500, margin: 0 }}>
+            Select portal and sign in
           </p>
         </div>
 
         {/* Card */}
-        <div className="card-glass" style={{ borderRadius: 20, padding: '32px 28px' }}>
-          {/* Tab Toggle / Back Button */}
-          {mode === 'staff_login' ? (
-            <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('login');
-                  setForm({ name: '', email: '', password: '', restaurantName: '' });
-                }}
-                style={{
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
-                  borderRadius: 12, padding: '8px 16px',
-                  fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: 6,
-                  transition: 'var(--transition)',
-                }}
-              >
-                ← Back to Owner Login
-              </button>
-            </div>
-          ) : (
-            <div style={{
-              display: 'flex', gap: 4,
-              background: 'var(--bg-elevated)', borderRadius: 12, padding: 4,
-              marginBottom: 28,
-            }}>
-              {(['login', 'signup'] as const).map(m => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setMode(m);
-                    setForm({ name: '', email: '', password: '', restaurantName: '' });
-                  }}
-                  style={{
-                    flex: 1, padding: '9px 0',
-                    borderRadius: 9,
-                    fontWeight: 600, fontSize: 14,
-                    transition: 'var(--transition)',
-                    background: mode === m ? 'var(--brand)' : 'transparent',
-                    color: mode === m ? '#000' : 'var(--text-secondary)',
-                    border: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  }}
-                >
-                  {m === 'login' ? <LogIn size={14} /> : <UserPlus size={14} />}
-                  {m === 'login' ? 'Sign In' : 'Sign Up'}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="card-glass" style={{ borderRadius: 24, padding: '32px 28px', background: '#111111', border: '1px solid var(--border)' }}>
+          
+          {/* Portal Switcher */}
+          <div style={{
+            display: 'flex', gap: 4,
+            background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 16, padding: 4,
+            marginBottom: 28,
+          }}>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthPortal('manager');
+                setMode('login');
+                setForm({ name: '', email: '', password: '', restaurantName: '' });
+              }}
+              style={{
+                flex: 1, padding: '12px 0',
+                borderRadius: 12,
+                fontWeight: 700, fontSize: 13.5,
+                transition: 'var(--transition)',
+                background: authPortal === 'manager' ? '#FF6B35' : 'transparent',
+                color: authPortal === 'manager' ? '#FFFFFF' : '#A3A3A3',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              🛡️ Manager
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthPortal('delivery');
+                setForm({ name: '', email: '', password: '', restaurantName: '' });
+              }}
+              style={{
+                flex: 1, padding: '12px 0',
+                borderRadius: 12,
+                fontWeight: 700, fontSize: 13.5,
+                transition: 'var(--transition)',
+                background: authPortal === 'delivery' ? '#9D4EDD' : 'transparent',
+                color: authPortal === 'delivery' ? '#FFFFFF' : '#A3A3A3',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              🚚 Delivery App
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {mode === 'signup' && (
+            {authPortal === 'manager' && mode === 'signup' && (
               <>
                 <div className="input-group">
-                  <label className="input-label">Your Name</label>
+                  <label className="input-label" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 6, display: 'block' }}>YOUR NAME</label>
                   <input
                     className="input"
                     type="text"
@@ -426,7 +457,7 @@ export default function AdminAuth() {
                   />
                 </div>
                 <div className="input-group">
-                  <label className="input-label">Restaurant Name</label>
+                  <label className="input-label" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 6, display: 'block' }}>RESTAURANT NAME</label>
                   <input
                     className="input"
                     type="text"
@@ -439,29 +470,25 @@ export default function AdminAuth() {
             )}
 
             <div className="input-group">
-              <label className="input-label">{mode === 'staff_login' ? 'Staff Username' : 'Email / Username'}</label>
-              <div className="input-icon-wrap">
-                <Mail size={16} className="input-icon" />
-                <input
-                  className="input"
-                  type="text"
-                  placeholder={mode === 'staff_login' ? 'e.g. staff_john' : 'owner@restaurant.com or username'}
-                  value={form.email}
-                  onChange={e => setForm({ ...form, email: e.target.value })}
-                />
-              </div>
+              <label className="input-label" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 6, display: 'block' }}>EMAIL ID</label>
+              <input
+                className="input"
+                type="text"
+                placeholder={authPortal === 'delivery' ? 'delivery@example.com' : 'admin@hideoutcafe.com'}
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+              />
             </div>
 
             <div className="input-group">
-              <label className="input-label">Password</label>
-              <div className="input-icon-wrap">
-                <Lock size={16} className="input-icon" />
+              <label className="input-label" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 6, display: 'block' }}>PASSWORD</label>
+              <div style={{ position: 'relative' }}>
                 <input
                   className="input"
                   type={showPass ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={form.password}
-                  style={{ paddingRight: 42 }}
+                  style={{ paddingRight: 42, width: '100%' }}
                   onChange={e => setForm({ ...form, password: e.target.value })}
                 />
                 <button
@@ -480,21 +507,33 @@ export default function AdminAuth() {
 
             <button
               type="submit"
-              className="btn btn-primary btn-full btn-lg"
+              className="btn btn-full"
               disabled={loading}
-              style={{ marginTop: 8, gap: 8 }}
+              style={{
+                marginTop: 12,
+                height: 48,
+                borderRadius: 24,
+                background: authPortal === 'delivery' ? '#9D4EDD' : '#FF6B35',
+                color: '#FFFFFF',
+                fontWeight: 800,
+                fontSize: 14,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                transition: 'all 0.2s'
+              }}
             >
               {loading ? (
-                <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.3)', borderTopColor: '#000', animation: 'spin 0.7s linear infinite' }} />
+                <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
               ) : (
-                <>
-                  {mode === 'staff_login' ? 'Sign In as Staff' : mode === 'login' ? 'Sign In to Dashboard' : 'Create Account'}
-                  <ArrowRight size={16} />
-                </>
+                'SIGN IN'
               )}
             </button>
 
-            {hasFirebaseConfig && mode !== 'staff_login' && (
+            {authPortal === 'manager' && hasFirebaseConfig && (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0' }}>
                   <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -519,33 +558,14 @@ export default function AdminAuth() {
               </>
             )}
 
-            {mode !== 'staff_login' && (
+            {authPortal === 'manager' && (
               <div style={{ textAlign: 'center', marginTop: 8 }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode('staff_login');
-                    setForm({ name: '', email: '', password: '', restaurantName: '' });
-                  }}
-                  style={{
-                    background: 'rgba(255, 125, 0, 0.08)',
-                    border: '1px solid var(--brand)',
-                    borderRadius: 12,
-                    padding: '12px 16px',
-                    width: '100%',
-                    cursor: 'pointer',
-                    color: 'var(--brand)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    transition: 'all 0.2s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    marginTop: 8
-                  }}
+                  onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                  style={{ background: 'none', border: 'none', color: '#FF6B35', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
                 >
-                  🔑 Staff Member? Sign In Here &rarr;
+                  {mode === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
                 </button>
               </div>
             )}

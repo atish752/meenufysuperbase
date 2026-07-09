@@ -123,7 +123,13 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState('');
-  const [orderType, setOrderType] = useState<'in-dining' | 'take-away'>('in-dining');
+  const isViewOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('viewOnly') === 'true';
+  const [orderType, setOrderType] = useState<'in-dining' | 'take-away' | 'delivery'>(
+    (isViewOnly && restaurant.deliveryEnabled) ? 'delivery' : 'in-dining'
+  );
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi'>('cash');
+  const [upiTxnId, setUpiTxnId] = useState('');
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -277,6 +283,55 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
   };
 
   const triggerOrder = () => {
+    // 1. UPI Payment verification check
+    if (paymentMethod === 'upi' && !upiTxnId.trim()) {
+      addToast('error', 'Please enter your 12-digit UPI transaction reference ID / UTR.');
+      return;
+    }
+
+    // 2. Delivery fields & radius verification
+    if (orderType === 'delivery') {
+      if (!deliveryAddress.trim()) {
+        addToast('error', 'Please enter your delivery address.');
+        return;
+      }
+      setLocationStatus('verifying');
+      if (!navigator.geolocation) {
+        addToast('error', 'Location verification failed. Geolocation is not supported by your browser.');
+        setLocationStatus('idle');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const clientLat = position.coords.latitude;
+          const clientLng = position.coords.longitude;
+          const targetLat = restaurant.latitude || 12.9348;
+          const targetLng = restaurant.longitude || 77.6202;
+          const distanceInKm = getDistanceInMeters(clientLat, clientLng, targetLat, targetLng) / 1000;
+          const maxRadius = restaurant.deliveryRadius || 10;
+
+          if (distanceInKm <= maxRadius) {
+            setLocationStatus('success');
+            setTimeout(() => {
+              handlePlaceOrder();
+              setLocationStatus('idle');
+            }, 1000);
+          } else {
+            addToast('error', `Out of range: You are ${distanceInKm.toFixed(1)} km away. Maximum delivery radius is ${maxRadius} km.`);
+            setLocationStatus('idle');
+          }
+        },
+        (error) => {
+          console.error(error);
+          addToast('error', 'Please enable GPS location to verify if your address is within delivery range.');
+          setLocationStatus('idle');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+      return;
+    }
+
+    // 3. Default In-Dining location check
     if (restaurant.locationVerificationEnabled) {
       verifyLocationAndPlaceOrder();
     } else {
@@ -425,8 +480,8 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
 
     const order: Order = {
       id: `ord-${Date.now()}`,
-      tableNumber: table?.number || 0,
-      tableId: activeTableId,
+      tableNumber: orderType === 'delivery' ? 0 : (table?.number || 0),
+      tableId: orderType === 'delivery' ? 'delivery' : activeTableId,
       restaurantId: restaurantId,
       restaurantName: restaurant.name,
       customerName: customerName.trim(),
@@ -436,7 +491,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       status: 'pending',
       totalAmount: finalAmount,
       specialNote,
-      numberOfGuests: !isNaN(parsedGuests) && parsedGuests > 0 ? parsedGuests : undefined,
+      numberOfGuests: orderType === 'delivery' ? undefined : (!isNaN(parsedGuests) && parsedGuests > 0 ? parsedGuests : undefined),
       createdAt: Date.now(),
       updatedAt: Date.now(),
       pointsEarned,
@@ -445,6 +500,10 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       couponCodeApplied: appliedCoupon ? appliedCoupon.code : undefined,
       couponDiscountApplied: couponDiscount > 0 ? couponDiscount : undefined,
       orderType: orderType,
+      deliveryAddress: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentMethod === 'upi' ? 'waiting_confirmation' : 'pending',
+      upiTxnId: paymentMethod === 'upi' ? upiTxnId.trim() : undefined,
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: order });
@@ -1043,16 +1102,119 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                 }}>
                   <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>Order Type</label>
                   <div style={{ display: 'flex', gap: 10 }}>
+                    {(() => {
+                      const opts = [];
+                      if (!isViewOnly) {
+                        opts.push({ value: 'in-dining', label: '🪑 In-Dining' });
+                        opts.push({ value: 'take-away', label: '🛍️ Take-Away' });
+                      } else {
+                        opts.push({ value: 'take-away', label: '🛍️ Pick-up' });
+                      }
+                      if (restaurant.deliveryEnabled) {
+                        opts.push({ value: 'delivery', label: '🚀 Delivery' });
+                      }
+                      return opts.map(opt => {
+                        const isSel = orderType === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setOrderType(opt.value as any);
+                              if (opt.value === 'delivery') {
+                                setPaymentMethod('upi');
+                              }
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '10px 8px',
+                              borderRadius: 10,
+                              fontSize: 12,
+                              fontWeight: 700,
+                              border: isSel ? '2px solid var(--border-brand)' : '1px solid var(--border)',
+                              background: isSel ? 'var(--brand-dim)' : 'var(--bg-primary)',
+                              color: isSel ? 'var(--brand)' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 6
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Delivery Address Input */}
+              {orderType === 'delivery' && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  marginBottom: 16,
+                  padding: '12px 14px',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 12,
+                  border: '1px solid var(--border)',
+                  animation: 'fadeIn 0.2s ease'
+                }}>
+                  <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>Delivery Address</label>
+                  <textarea
+                    className="input"
+                    rows={3}
+                    placeholder="Enter your complete home address with landmark details..."
+                    value={deliveryAddress}
+                    onChange={e => setDeliveryAddress(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: 8,
+                      background: 'var(--bg-primary)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                      fontSize: 12,
+                      resize: 'none',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Payment Method Selector */}
+              {(!restaurant.mustLoginBeforeOrder || googleUser) && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  marginBottom: 16,
+                  padding: '12px 14px',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 12,
+                  border: '1px solid var(--border)'
+                }}>
+                  <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>Payment Method</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
                     {[
-                      { value: 'in-dining', label: '🪑 In-Dining' },
-                      { value: 'take-away', label: '🛍️ Take-Away' }
-                    ].map(opt => {
-                      const isSel = orderType === opt.value;
+                      { value: 'cash', label: orderType === 'delivery' ? '💵 Cash on Delivery' : '💵 Cash / Pay Counter' },
+                      { value: 'upi', label: '📱 UPI Payment' }
+                    ].map(payOpt => {
+                      const isSel = paymentMethod === payOpt.value;
                       return (
                         <button
-                          key={opt.value}
+                          key={payOpt.value}
                           type="button"
-                          onClick={() => setOrderType(opt.value as any)}
+                          onClick={() => {
+                            setPaymentMethod(payOpt.value as any);
+                            if (payOpt.value === 'cash') {
+                              setUpiTxnId('');
+                            }
+                          }}
                           style={{
                             flex: 1,
                             padding: '10px 8px',
@@ -1070,11 +1232,91 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                             gap: 6
                           }}
                         >
-                          {opt.label}
+                          {payOpt.label}
                         </button>
                       );
                     })}
                   </div>
+
+                  {/* UPI instructions and QR details */}
+                  {paymentMethod === 'upi' && (
+                    <div style={{
+                      marginTop: 10,
+                      padding: 12,
+                      background: 'var(--bg-primary)',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 10,
+                      animation: 'fadeIn 0.2s ease'
+                    }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center', fontWeight: 600 }}>
+                        Scan the QR or copy UPI ID below to pay <strong style={{ color: 'var(--text-primary)' }}>₹{finalAmount}</strong>
+                      </div>
+
+                      {restaurant.upiQrCode ? (
+                        <div style={{ width: 140, height: 140, background: '#ffffff', padding: 6, borderRadius: 8, border: '1px solid var(--border)' }}>
+                          <img src={restaurant.upiQrCode} alt="UPI QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          QR Code not uploaded by outlet. Use UPI ID below.
+                        </div>
+                      )}
+
+                      {restaurant.upiId && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          background: 'var(--bg-elevated)',
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          border: '1px solid var(--border)',
+                          fontSize: 11
+                        }}>
+                          <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)', wordBreak: 'break-all' }}>{restaurant.upiId}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(restaurant.upiId || '');
+                              addToast('success', 'UPI ID copied to clipboard!');
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--brand)',
+                              fontSize: 10,
+                              fontWeight: 800,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      )}
+
+                      <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                        <label className="input-label" style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+                          UPI Transaction ID / Ref Number (UTR) <span style={{ color: 'red' }}>*</span>
+                        </label>
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder="Enter 12-digit transaction Ref ID"
+                          value={upiTxnId}
+                          onChange={e => setUpiTxnId(e.target.value)}
+                          style={{ width: '100%', fontSize: 12, padding: '8px 10px' }}
+                        />
+                        <div style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 4 }}>
+                          Order placement requires confirmation from restaurant after verification.
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

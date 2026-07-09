@@ -4,6 +4,7 @@ import {
   TrendingUp, ShoppingBag, Users, DollarSign, HelpCircle,
   Award, Activity, BarChart3, UtensilsCrossed, CreditCard, Clock
 } from 'lucide-react';
+import AdminCustomers from './AdminCustomers';
 
 function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
@@ -20,6 +21,7 @@ export default function AdminAnalysis() {
   const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month' | 'lifetime'>('lifetime');
   const [viewBestItems, setViewBestItems] = useState(true);
   const [showDeepMealAnalysis, setShowDeepMealAnalysis] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'kpis' | 'customers'>('kpis');
 
   const adminRestaurantId = state.admin?.restaurantId;
   const orders = state.orders.filter(o => o.restaurantId === adminRestaurantId);
@@ -445,8 +447,57 @@ export default function AdminAnalysis() {
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
       
-      {/* Header and Time Filters */}
-      <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Sub-tab Switcher: KPI Analysis vs. Customer Database */}
+      <div style={{
+        display: 'flex',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 20
+      }}>
+        <button
+          onClick={() => setActiveSubTab('kpis')}
+          style={{
+            flex: 1,
+            padding: '10px 14px',
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 800,
+            background: activeSubTab === 'kpis' ? 'var(--brand)' : 'transparent',
+            color: activeSubTab === 'kpis' ? '#000000' : 'var(--text-secondary)',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          KPI Analysis Dashboard
+        </button>
+        <button
+          onClick={() => setActiveSubTab('customers')}
+          style={{
+            flex: 1,
+            padding: '10px 14px',
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 800,
+            background: activeSubTab === 'customers' ? 'var(--brand)' : 'transparent',
+            color: activeSubTab === 'customers' ? '#000000' : 'var(--text-secondary)',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          Customer Database
+        </button>
+      </div>
+
+      {activeSubTab === 'customers' ? (
+        <AdminCustomers />
+      ) : (
+        <>
+          {/* Header and Time Filters */}
+          <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Analysis</h1>
@@ -1474,6 +1525,8 @@ export default function AdminAnalysis() {
             </button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

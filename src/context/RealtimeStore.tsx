@@ -130,7 +130,16 @@ export type Order = {
   pointsDiscountApplied?: number;
   couponDiscountApplied?: number;
   couponCodeApplied?: string;
-  orderType?: 'in-dining' | 'take-away';
+  orderType?: 'in-dining' | 'take-away' | 'delivery';
+  deliveryAddress?: string;
+  upiTxnId?: string;
+  deliveryBoyId?: string;
+  deliveryStatus?: 'assigned' | 'started' | 'delivered';
+  deliveryOtp?: string;
+  deliveryBoyRating?: number;
+  deliveryBoyReview?: string;
+  foodRating?: number;
+  foodReview?: string;
 };
 
 export type TableInfo = {
@@ -197,6 +206,9 @@ export type RestaurantInfo = {
   rating?: number;
   isManualClosed?: boolean;
   subscriptionId?: string | null;
+  deliveryEnabled?: boolean;
+  deliveryRadius?: 5 | 10 | 15;
+  upiQrCode?: string;
 };
 
 export type Coupon = {
@@ -309,6 +321,19 @@ export type StaffMember = {
   createdAt: number;
 };
 
+export type DeliveryBoy = {
+  id: string;
+  name: string;
+  username: string;
+  password?: string;
+  restaurantId: string;
+  status: 'idle' | 'delivering';
+  totalDeliveries: number;
+  totalEarnings: number;
+  assignedOrderId?: string | null;
+  createdAt: number;
+};
+
 export type SupportRequest = {
   id: string;
   restaurantId: string;
@@ -353,6 +378,7 @@ export type AdminUser = {
   isSuperAdmin?: boolean;
   password?: string;
   isStaff?: boolean;
+  isDeliveryBoy?: boolean;
   isFirebaseUser?: boolean;
   permissions?: ('orders' | 'menu' | 'customers' | 'analysis' | 'outlet_setting' | 'qr_tables')[];
   restaurantName?: string;
@@ -371,7 +397,7 @@ export type AppState = {
   isAdminLoggedIn: boolean;
   // View
   currentView: 'admin' | 'customer';
-  adminTab: 'home' | 'menu' | 'customers' | 'analysis' | 'more';
+  adminTab: 'home' | 'menu' | 'customers' | 'analysis' | 'more' | 'outlet';
   customerTab: 'home' | 'menu' | 'orders' | 'more';
   customerTableId: string | null;
   activeCustomerRestaurantId: string | null;
@@ -412,6 +438,7 @@ export type AppState = {
   supportRequests: SupportRequest[];
   ownerFeedbacks: OwnerFeedback[];
   staffMembers: StaffMember[];
+  deliveryBoys: DeliveryBoy[];
   addons: AddonConfig[];
   // UI
   toasts: Toast[];
@@ -917,6 +944,7 @@ const DEFAULT_STATE: AppState = {
     }
   ],
   staffMembers: [],
+  deliveryBoys: [],
   addons: [],
   toasts: [],
   isLoading: false,
@@ -955,7 +983,7 @@ type Action =
   | { type: 'PLACE_ORDER'; payload: Order }
   | { type: 'UPDATE_ORDER_STATUS'; payload: { id: string; status: OrderStatus } }
   | { type: 'UPDATE_ORDER_PAYMENT'; payload: { id: string; method?: 'upi' | 'card' | 'cash'; status?: 'pending' | 'waiting_confirmation' | 'paid' } }
-  | { type: 'RATE_ORDER'; payload: { id: string; ratings: Record<string, number> } }
+  | { type: 'RATE_ORDER'; payload: { id: string; ratings: Record<string, number>; deliveryBoyRating?: number; deliveryBoyReview?: string; foodRating?: number; foodReview?: string; } }
   | { type: 'ADD_TO_CART'; payload: OrderItem }
   | { type: 'REMOVE_FROM_CART'; payload: string | { menuItemId: string; variantName?: string; addonKey?: string } }
   | { type: 'UPDATE_CART_QTY'; payload: { menuItemId: string; qty: number; variantName?: string; addonKey?: string } }
@@ -1021,6 +1049,11 @@ type Action =
   | { type: 'ADD_STAFF_MEMBER'; payload: StaffMember }
   | { type: 'UPDATE_STAFF_MEMBER'; payload: StaffMember }
   | { type: 'DELETE_STAFF_MEMBER'; payload: string }
+  | { type: 'SYNC_DELIVERY_BOYS'; payload: DeliveryBoy[] }
+  | { type: 'ADD_DELIVERY_BOY'; payload: DeliveryBoy }
+  | { type: 'UPDATE_DELIVERY_BOY'; payload: DeliveryBoy }
+  | { type: 'DELETE_DELIVERY_BOY'; payload: string }
+  | { type: 'ASSIGN_DELIVERY_BOY'; payload: { orderId: string; restaurantId: string; deliveryBoyId: string; deliveryOtp: string } }
   | { type: 'SYNC_ADDONS'; payload: { restaurantId: string; addons: AddonConfig[] } }
   | { type: 'ADD_ADDON'; payload: AddonConfig }
   | { type: 'UPDATE_ADDON'; payload: AddonConfig }
@@ -1338,6 +1371,38 @@ function reducer(state: AppState, action: Action): AppState {
         staffMembers: state.staffMembers.filter(s => s.id !== action.payload)
       };
     }
+    case 'SYNC_DELIVERY_BOYS': {
+      return {
+        ...state,
+        deliveryBoys: action.payload
+      };
+    }
+    case 'ADD_DELIVERY_BOY': {
+      return {
+        ...state,
+        deliveryBoys: [...state.deliveryBoys.filter(d => d.id !== action.payload.id), action.payload]
+      };
+    }
+    case 'UPDATE_DELIVERY_BOY': {
+      return {
+        ...state,
+        deliveryBoys: state.deliveryBoys.map(d => d.id === action.payload.id ? action.payload : d)
+      };
+    }
+    case 'DELETE_DELIVERY_BOY': {
+      return {
+        ...state,
+        deliveryBoys: state.deliveryBoys.filter(d => d.id !== action.payload)
+      };
+    }
+    case 'ASSIGN_DELIVERY_BOY': {
+      const { orderId, deliveryBoyId, deliveryOtp } = action.payload;
+      return {
+        ...state,
+        orders: state.orders.map(o => o.id === orderId ? { ...o, deliveryBoyId, deliveryStatus: 'assigned', deliveryOtp } : o),
+        deliveryBoys: state.deliveryBoys.map(b => b.id === deliveryBoyId ? { ...b, status: 'delivering', assignedOrderId: orderId } : b)
+      };
+    }
     case 'LOGOUT_ADMIN': return { 
       ...state, 
       admin: null, 
@@ -1503,6 +1568,10 @@ function reducer(state: AppState, action: Action): AppState {
       orders: state.orders.map(o => o.id === action.payload.id ? {
         ...o,
         ratings: action.payload.ratings,
+        deliveryBoyRating: action.payload.deliveryBoyRating,
+        deliveryBoyReview: action.payload.deliveryBoyReview,
+        foodRating: action.payload.foodRating,
+        foodReview: action.payload.foodReview,
         updatedAt: Date.now()
       } : o)
     };
@@ -2446,6 +2515,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SYNC_STAFF_MEMBERS', payload: staff });
     });
 
+    const unsubscribeDeliveryBoys = onValue(ref(db, 'deliveryBoys'), (snapshot) => {
+      const data = snapshot.val();
+      const boys: DeliveryBoy[] = data ? Object.values(data) as DeliveryBoy[] : [];
+      dispatch({ type: 'SYNC_DELIVERY_BOYS', payload: boys });
+    });
+
     // 15. Listen to addons
     const unsubscribeAddons = onValue(ref(db, `addons/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
@@ -2476,6 +2551,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeFeedbacks();
       unsubscribeSupport();
       unsubscribeStaff();
+      unsubscribeDeliveryBoys();
       unsubscribeAddons();
     };
   }, [state.admin?.restaurantId, state.currentView, targetRestaurantId, urlSearch]);
@@ -2643,11 +2719,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'RATE_ORDER': {
             const orderRestId = currentState.orders.find(o => o.id === action.payload.id)?.restaurantId || restId;
+            const updatePayload: any = {
+              ratings: action.payload.ratings || {},
+              updatedAt: Date.now()
+            };
+            if (action.payload.deliveryBoyRating !== undefined) {
+              updatePayload.deliveryBoyRating = action.payload.deliveryBoyRating;
+            }
+            if (action.payload.deliveryBoyReview !== undefined) {
+              updatePayload.deliveryBoyReview = action.payload.deliveryBoyReview;
+            }
+            if (action.payload.foodRating !== undefined) {
+              updatePayload.foodRating = action.payload.foodRating;
+            }
+            if (action.payload.foodReview !== undefined) {
+              updatePayload.foodReview = action.payload.foodReview;
+            }
             handleDbPromise(
-              update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({
-                ratings: action.payload.ratings,
-                updatedAt: Date.now()
-              })),
+              update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData(updatePayload)),
               'Failed to submit ratings'
             );
             break;
@@ -2873,6 +2962,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             handleDbPromise(
               remove(ref(db, `staffMembers/${action.payload}`)),
               'Failed to delete staff member'
+            );
+            break;
+          }
+          case 'ADD_DELIVERY_BOY': {
+            handleDbPromise(
+              set(ref(db, `deliveryBoys/${action.payload.id}`), sanitizeDbData(action.payload, new Set())),
+              'Failed to add delivery boy'
+            );
+            break;
+          }
+          case 'UPDATE_DELIVERY_BOY': {
+            handleDbPromise(
+              update(ref(db, `deliveryBoys/${action.payload.id}`), sanitizeDbData(action.payload, new Set())),
+              'Failed to update delivery boy'
+            );
+            break;
+          }
+          case 'DELETE_DELIVERY_BOY': {
+            handleDbPromise(
+              remove(ref(db, `deliveryBoys/${action.payload}`)),
+              'Failed to delete delivery boy'
+            );
+            break;
+          }
+          case 'ASSIGN_DELIVERY_BOY': {
+            const { orderId, restaurantId, deliveryBoyId, deliveryOtp } = action.payload;
+            handleDbPromise(
+              update(ref(db, `orders/${restaurantId}/${orderId}`), {
+                deliveryBoyId,
+                deliveryStatus: 'assigned',
+                deliveryOtp
+              }),
+              'Failed to assign rider to order'
+            );
+            handleDbPromise(
+              update(ref(db, `deliveryBoys/${deliveryBoyId}`), {
+                status: 'delivering',
+                assignedOrderId: orderId
+              }),
+              'Failed to update rider status'
             );
             break;
           }

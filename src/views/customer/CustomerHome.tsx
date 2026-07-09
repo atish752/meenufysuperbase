@@ -50,6 +50,14 @@ const POPULAR_CUISINES = [
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&auto=format&fit=crop&q=60';
 const DEFAULT_LOGO = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100&auto=format&fit=crop&q=60';
 
+const CITIES = [
+  { name: 'Mumbai', lat: 19.0760, lon: 72.8777 },
+  { name: 'Bangalore', lat: 12.9716, lon: 77.5946 },
+  { name: 'Patna', lat: 25.5941, lon: 85.1376 },
+  { name: 'Delhi', lat: 28.7041, lon: 77.1025 },
+  { name: 'Siwan', lat: 26.2196, lon: 84.3567 },
+];
+
 export default function CustomerHome() {
   const { state, dispatch, addToast } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,6 +67,20 @@ export default function CustomerHome() {
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [addressName, setAddressName] = useState('Location Disabled');
+  const [selectedCity, setSelectedCity] = useState<string>('gps');
+
+  const [customerTheme, setCustomerTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('meenufy_customer_theme') as 'light' | 'dark') || 'dark';
+  });
+
+  useEffect(() => {
+    if (customerTheme === 'light') {
+      document.documentElement.classList.add('light-mode');
+    } else {
+      document.documentElement.classList.remove('light-mode');
+    }
+    localStorage.setItem('meenufy_customer_theme', customerTheme);
+  }, [customerTheme]);
 
   // Filters
   const [sortBy, setSortBy] = useState<'distance' | 'rating' | 'none'>('none');
@@ -69,7 +91,7 @@ export default function CustomerHome() {
 
   // Enforce GPS authorization on mount
   useEffect(() => {
-    if (navigator.geolocation) {
+    if (selectedCity === 'gps' && navigator.geolocation) {
       setGpsLoading(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -82,11 +104,45 @@ export default function CustomerHome() {
         },
         () => {
           setGpsLoading(false);
-          addToast('info', 'Please enable location services to browse restaurants nearby.');
+          addToast('info', 'Please enable location services or choose a city to browse restaurants.');
         }
       );
     }
   }, []);
+
+  const handleCityChange = (cityVal: string) => {
+    setSelectedCity(cityVal);
+    if (cityVal === 'gps') {
+      if (navigator.geolocation) {
+        setGpsLoading(true);
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setCoords({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+            setAddressName('Current GPS Location');
+            setGpsLoading(false);
+          },
+          () => {
+            setGpsLoading(false);
+            setCoords(null);
+            setAddressName('Location Disabled');
+          }
+        );
+      }
+    } else if (cityVal === 'all') {
+      // Mock coordinates to central position, but distance checking is bypassed in filter
+      setCoords({ latitude: 12.9348, longitude: 77.6202 });
+      setAddressName('Global Browsing');
+    } else {
+      const cityObj = CITIES.find(c => c.name === cityVal);
+      if (cityObj) {
+        setCoords({ latitude: cityObj.lat, longitude: cityObj.lon });
+        setAddressName(`City: ${cityObj.name}`);
+      }
+    }
+  };
 
   const handleRequestGps = () => {
     if (!navigator.geolocation) {
@@ -136,7 +192,15 @@ export default function CustomerHome() {
       };
     })
     .filter(acc => {
-      // 1. Haversine 15 Kilometer radius limit (only applicable if coords allowed)
+      // 1. If Global mode is selected, we bypass the 15km distance check!
+      if (selectedCity === 'all') {
+        const matchesSearch = searchQuery.trim() === '' || 
+          acc.restaurantName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          (acc.cuisines && acc.cuisines.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesSearch;
+      }
+
+      // 2. Haversine 15 Kilometer radius limit (if coords allowed/active)
       if (!coords) return false;
       if (acc.distance > 15) return false;
 
@@ -260,27 +324,79 @@ export default function CustomerHome() {
             <div style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: 4 }}>
               {addressName}
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Radius limit: Within 15 km</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+              {selectedCity === 'all'
+                ? 'Radius limit: Worldwide'
+                : selectedCity === 'gps'
+                ? 'Radius limit: Within 15 km'
+                : `Radius limit: 15 km from ${selectedCity}`}
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={handleRequestGps}
-          disabled={gpsLoading}
-          style={{
-            background: 'rgba(249, 115, 22, 0.1)',
-            color: 'var(--brand)',
-            fontSize: 11,
-            fontWeight: 800,
-            border: '1px solid var(--brand)',
-            borderRadius: 8,
-            padding: '6px 12px',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          {gpsLoading ? 'Locating...' : 'Use GPS'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <select
+            value={selectedCity}
+            onChange={e => handleCityChange(e.target.value)}
+            style={{
+              padding: '6px 10px',
+              fontSize: 11,
+              fontWeight: 700,
+              borderRadius: 8,
+              background: 'var(--bg-primary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+              cursor: 'pointer',
+              outline: 'none',
+              maxWidth: 130
+            }}
+          >
+            <option value="gps">📍 GPS Location</option>
+            <option value="all">🌍 Global (All)</option>
+            {CITIES.map(c => (
+              <option key={c.name} value={c.name}>🌆 {c.name}</option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => setCustomerTheme(prev => prev === 'light' ? 'dark' : 'light')}
+            style={{
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: '6px 10px',
+              cursor: 'pointer',
+              fontSize: 12,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 29
+            }}
+            title="Toggle Light/Dark Theme"
+          >
+            {customerTheme === 'light' ? '🌙' : '☀️'}
+          </button>
+
+          {selectedCity === 'gps' && (
+            <button
+              onClick={handleRequestGps}
+              disabled={gpsLoading}
+              style={{
+                background: 'rgba(249, 115, 22, 0.1)',
+                color: 'var(--brand)',
+                fontSize: 11,
+                fontWeight: 800,
+                border: '1px solid var(--brand)',
+                borderRadius: 8,
+                padding: '6px 12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {gpsLoading ? 'Locating...' : 'Refresh'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Geolocation Gate Card */}

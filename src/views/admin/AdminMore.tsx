@@ -87,7 +87,7 @@ function cropImageSource(base64Src: string, ratio: '1:1' | '3:4' | '9:16', maxDi
   });
 }
 
-export default function AdminMore() {
+export default function AdminMore({ forceSection }: { forceSection?: string } = {}) {
   const { state, dispatch, addToast } = useStore();
   const [googleLinking, setGoogleLinking] = useState(false);
 
@@ -123,6 +123,7 @@ export default function AdminMore() {
   const permissions = state.admin?.permissions || [];
   const currentRestaurantId = state.admin?.restaurantId || 'admin-1';
   const myStaff = state.staffMembers ? state.staffMembers.filter(s => s.restaurantId === currentRestaurantId) : [];
+  const myDeliveryBoys = state.deliveryBoys ? state.deliveryBoys.filter(d => d.restaurantId === currentRestaurantId) : [];
 
   const getStaffLimit = (plan: string) => {
     switch (plan) {
@@ -135,6 +136,18 @@ export default function AdminMore() {
     }
   };
   const staffLimit = getStaffLimit(state.subscriptionPlan || 'free');
+
+  const getDeliveryBoyLimit = (plan: string) => {
+    switch (plan) {
+      case 'base': return 5;
+      case 'standard': return 10;
+      case 'advance': return Infinity;
+      case 'free':
+      default:
+        return 2;
+    }
+  };
+  const deliveryBoyLimit = getDeliveryBoyLimit(state.subscriptionPlan || 'free');
 
   const rawSections = [
     { id: 'outlet', label: 'Outlet Settings', icon: Store, permission: 'outlet_setting' },
@@ -157,7 +170,7 @@ export default function AdminMore() {
   const [restaurantForm, setRestaurantForm] = useState({ ...state.restaurant });
   const [feedbackText, setFeedbackText] = useState('');
   const [ticketType, setTicketType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
-  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<string | null>(forceSection || null);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
@@ -234,6 +247,22 @@ export default function AdminMore() {
     setStaffUsername('');
     setStaffPassword('');
     setStaffPermissions([]);
+  };
+
+  // Staff sub-tab state
+  const [activeStaffSubTab, setActiveStaffSubTab] = useState<'manager' | 'delivery'>('manager');
+
+  // Delivery Boy state hooks
+  const [dboyName, setDboyName] = useState('');
+  const [dboyUsername, setDboyUsername] = useState('');
+  const [dboyPassword, setDboyPassword] = useState('');
+  const [editingDboyId, setEditingDboyId] = useState<string | null>(null);
+
+  const resetDboyForm = () => {
+    setEditingDboyId(null);
+    setDboyName('');
+    setDboyUsername('');
+    setDboyPassword('');
   };
 
   // Deep-link redirect & fallback initialization
@@ -893,6 +922,85 @@ export default function AdminMore() {
       addToast('success', 'Staff member deleted successfully.');
       if (editingStaffId === id) {
         resetStaffForm();
+      }
+    }
+  };
+
+  const handleSaveDboy = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dboyName.trim()) {
+      addToast('error', 'Name is required.');
+      return;
+    }
+    if (!dboyUsername.trim()) {
+      addToast('error', 'Username/Email is required.');
+      return;
+    }
+
+    const usernameConflict = (state.deliveryBoys || []).some(
+      d => d.username === dboyUsername.trim().toLowerCase() && d.id !== editingDboyId
+    ) || (state.staffMembers || []).some(
+      s => s.username === dboyUsername.trim().toLowerCase()
+    );
+    if (usernameConflict) {
+      addToast('error', 'Username already taken by another account.');
+      return;
+    }
+
+    if (!editingDboyId) {
+      if (myDeliveryBoys.length >= deliveryBoyLimit) {
+        addToast('error', `Upgrade to add more than ${deliveryBoyLimit} delivery boys.`);
+        return;
+      }
+      if (dboyPassword.length < 4) {
+        addToast('error', 'Password must be at least 4 characters long.');
+        return;
+      }
+
+      const newDboy = {
+        id: `dboy-${Date.now()}`,
+        name: dboyName.trim(),
+        username: dboyUsername.trim().toLowerCase(),
+        password: dboyPassword,
+        restaurantId: currentRestaurantId,
+        status: 'idle' as const,
+        totalDeliveries: 0,
+        totalEarnings: 0,
+        createdAt: Date.now()
+      };
+
+      dispatch({ type: 'ADD_DELIVERY_BOY', payload: newDboy });
+      addToast('success', `Delivery Boy ${newDboy.name} created successfully! 🚀`);
+    } else {
+      const existing = state.deliveryBoys.find(d => d.id === editingDboyId);
+      if (!existing) return;
+
+      const updatedDboy = {
+        ...existing,
+        name: dboyName.trim(),
+        password: dboyPassword.trim() ? dboyPassword : existing.password
+      };
+
+      dispatch({ type: 'UPDATE_DELIVERY_BOY', payload: updatedDboy });
+      addToast('success', `Delivery Boy ${updatedDboy.name} updated!`);
+    }
+
+    resetDboyForm();
+  };
+
+  const handleEditDboyClick = (dboy: any) => {
+    setEditingDboyId(dboy.id);
+    setDboyName(dboy.name);
+    setDboyUsername(dboy.username);
+    setDboyPassword(dboy.password || '');
+  };
+
+  const handleDeleteDboyClick = (id: string) => {
+    if (confirm('Are you sure you want to delete this delivery boy?')) {
+      dispatch({ type: 'DELETE_DELIVERY_BOY', payload: id });
+      addToast('success', 'Delivery boy deleted successfully.');
+      if (editingDboyId === id) {
+        resetDboyForm();
       }
     }
   };
@@ -2648,8 +2756,58 @@ export default function AdminMore() {
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <Users size={18} color="var(--brand)" />
-            <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>Manage Staff Accounts</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>Manage Staff & Delivery Boys</h3>
           </div>
+
+          {/* Sub-tab Switcher */}
+          <div style={{
+            display: 'flex',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            padding: 3,
+            marginBottom: 16
+          }}>
+            <button
+              type="button"
+              onClick={() => setActiveStaffSubTab('manager')}
+              style={{
+                flex: 1,
+                padding: '8px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 800,
+                background: activeStaffSubTab === 'manager' ? 'var(--brand)' : 'transparent',
+                color: activeStaffSubTab === 'manager' ? '#000000' : 'var(--text-secondary)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              💼 Manager Staff
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveStaffSubTab('delivery')}
+              style={{
+                flex: 1,
+                padding: '8px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 800,
+                background: activeStaffSubTab === 'delivery' ? 'var(--brand)' : 'transparent',
+                color: activeStaffSubTab === 'delivery' ? '#000000' : 'var(--text-secondary)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              🛵 Delivery Boys
+            </button>
+          </div>
+
+          {activeStaffSubTab === 'manager' ? (
+            <>
           
           {/* Subscription Limit Warning/Info */}
           <div style={{
@@ -2886,8 +3044,162 @@ export default function AdminMore() {
               )}
             </div>
           </div>
-        </div>
+        </>
+      ) : (
+        <>
+          {/* Delivery Boy Limit Header */}
+          <div style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: 14,
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 10
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Subscription Plan: <strong style={{ color: '#9D4EDD', textTransform: 'uppercase' }}>{state.subscriptionPlan || 'free'} Plan</strong>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Delivery Boy Limit: {myDeliveryBoys.length} / {deliveryBoyLimit === Infinity ? 'Unlimited' : deliveryBoyLimit} active riders
+              </div>
+            </div>
+            {myDeliveryBoys.length >= deliveryBoyLimit && (
+              <button
+                onClick={() => setActiveSection('subscription')}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: 11, padding: '6px 12px', height: 'auto', background: '#9D4EDD', border: '1px solid #9D4EDD', color: '#fff' }}
+              >
+                🚀 Upgrade Plan
+              </button>
+            )}
+          </div>
+
+          {/* Form to Add/Edit Delivery Boy */}
+          <form onSubmit={handleSaveDboy} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--border)' }}>
+            <h4 style={{ fontSize: 13, fontWeight: 700, color: '#9D4EDD' }}>
+              {editingDboyId ? '✏️ Edit Delivery Rider' : '➕ Create Delivery Rider'}
+            </h4>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="input-group">
+                <label className="input-label">Rider Name</label>
+                <input className="input" type="text" placeholder="e.g. David Miller" value={dboyName} onChange={e => setDboyName(e.target.value)} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Rider Username / Email (lowercase)</label>
+                <input className="input" type="text" placeholder="e.g. david_rider" value={dboyUsername} onChange={e => setDboyUsername(e.target.value)} disabled={!!editingDboyId} />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Rider Password {editingDboyId && '(leave blank to keep unchanged)'}</label>
+              <input className="input" type="text" placeholder="Enter rider sign in password" value={dboyPassword} onChange={e => setDboyPassword(e.target.value)} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={!editingDboyId && myDeliveryBoys.length >= deliveryBoyLimit}
+                style={{ flex: 1, background: '#9D4EDD', color: '#fff', fontWeight: 800, border: 'none' }}
+              >
+                {editingDboyId ? 'Save Changes' : 'Create Delivery Rider'}
+              </button>
+              {editingDboyId && (
+                <button
+                  type="button"
+                  onClick={resetDboyForm}
+                  className="btn btn-secondary"
+                  style={{ height: 38 }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* List of Active Delivery Boys */}
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+              Active Riders ({myDeliveryBoys.length})
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {myDeliveryBoys.map(dboy => (
+                <div
+                  key={dboy.id}
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {dboy.name}
+                        </span>
+                        <span style={{
+                          fontSize: 9.5, fontWeight: 800,
+                          background: dboy.status === 'delivering' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                          color: dboy.status === 'delivering' ? '#a855f7' : '#22c55e',
+                          padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase'
+                        }}>
+                          {dboy.status || 'idle'}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'block' }}>
+                        Username: @{dboy.username}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => handleEditDboyClick(dboy)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px', fontSize: 10.5, height: 'auto' }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDboyClick(dboy.id)}
+                        className="btn btn-danger btn-sm"
+                        style={{ padding: '4px 8px', fontSize: 10.5, height: 'auto', background: 'transparent', border: '1px solid var(--error)', color: 'var(--error)' }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 16, marginTop: 4, borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                      Deliveries: <strong style={{ color: 'var(--text-primary)' }}>{dboy.totalDeliveries || 0}</strong>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                      Earnings: <strong style={{ color: 'var(--success)' }}>₹{dboy.totalEarnings || 0}</strong>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {myDeliveryBoys.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 12 }}>
+                  No delivery riders created yet.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
+    </div>
+  )}
 
       {/* Logout */}
       <button

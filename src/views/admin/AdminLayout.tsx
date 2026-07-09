@@ -7,13 +7,13 @@ import { printThermalReceipt } from '../../utils/printReceipt';
 import AdminAuth from './AdminAuth';
 import AdminHome from './AdminHome';
 import AdminMenu from './AdminMenu';
-import AdminCustomers from './AdminCustomers';
 import AdminAnalysis from './AdminAnalysis';
 import AdminMore from './AdminMore';
 import AdminSidebar from './AdminSidebar';
 import AdminBottomNav from './AdminBottomNav';
 import NewOrderAlert from './NewOrderAlert';
 import SuperAdminDashboard from './SuperAdminDashboard';
+import DeliveryDashboard from './DeliveryDashboard';
 import AdminNotificationBell from '../../components/AdminNotificationBell';
 
 export default function AdminLayout() {
@@ -180,6 +180,10 @@ export default function AdminLayout() {
     return <AdminAuth />;
   }
 
+  if (state.admin?.isDeliveryBoy) {
+    return <DeliveryDashboard />;
+  }
+
   if (state.admin?.isSuperAdmin) {
     return <SuperAdminDashboard />;
   }
@@ -190,7 +194,7 @@ export default function AdminLayout() {
 
     const isHomeAllowed = !isStaff || perms.includes('orders') || perms.includes('qr_tables');
     const isMenuAllowed = !isStaff || perms.includes('menu');
-    const isCustomersAllowed = !isStaff || perms.includes('customers');
+    const isOutletAllowed = !isStaff || perms.includes('outlet_setting');
     const isAnalysisAllowed = !isStaff || perms.includes('analysis');
 
     switch (state.adminTab) {
@@ -198,8 +202,8 @@ export default function AdminLayout() {
         return isHomeAllowed ? <AdminHome /> : <LockedScreen tabName="Orders Board & Table Map" />;
       case 'menu': 
         return isMenuAllowed ? <AdminMenu /> : <LockedScreen tabName="Menu Management" />;
-      case 'customers': 
-        return isCustomersAllowed ? <AdminCustomers /> : <LockedScreen tabName="Customer Database" />;
+      case 'outlet': 
+        return isOutletAllowed ? <AdminMore forceSection="outlet" /> : <LockedScreen tabName="Outlet Settings" />;
       case 'analysis': 
         return isAnalysisAllowed ? <AdminAnalysis /> : <LockedScreen tabName="Sales Analysis" />;
       case 'more': 
