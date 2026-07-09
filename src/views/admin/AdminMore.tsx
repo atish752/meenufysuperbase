@@ -150,7 +150,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const deliveryBoyLimit = getDeliveryBoyLimit(state.subscriptionPlan || 'free');
 
   const rawSections = [
-    { id: 'outlet', label: 'Outlet Settings', icon: Store, permission: 'outlet_setting' },
     { id: 'qr', label: 'Manage QR & Tables', icon: QrCode, permission: 'qr_tables' },
     { id: 'autoprint', label: 'Autoprint KOT/Bill', icon: Printer, permission: 'outlet_setting' },
     { id: 'staff', label: 'Manage Staff', icon: Users, permission: 'owner_only' },
@@ -271,7 +270,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     if (targetSection && sections.some(s => s.id === targetSection)) {
       localStorage.removeItem('meenufy_admin_more_section');
       setActiveSection(targetSection);
-    } else if (!activeSection && sections.length > 0) {
+    } else if (!activeSection && forceSection !== 'outlet' && sections.length > 0) {
       setActiveSection(sections[0].id);
     }
   }, [sections, activeSection]);
@@ -1005,155 +1004,166 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     }
   };
 
+  const isOnlyOutlet = forceSection === 'outlet';
+
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 800 }}>More</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Settings, preferences & more</p>
-      </div>
+      {!isOnlyOutlet ? (
+        <>
+          <div style={{ marginBottom: 24 }}>
+            <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 800 }}>More</h1>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Settings, preferences & more</p>
+          </div>
 
-      {/* Profile Card */}
-      <div className="card-brand" style={{ marginBottom: canConnectGoogle ? 8 : 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{
-          width: 52, height: 52, borderRadius: '50%',
-          background: 'var(--brand-dim)', border: '2px solid var(--brand)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: 'var(--brand)',
-          flexShrink: 0,
-        }}>
-          {state.admin?.name?.charAt(0).toUpperCase()}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{state.admin?.name}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{state.admin?.email}</div>
-          <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600, marginTop: 2 }}>
-            {state.restaurant.name}
-          </div>
-        </div>
-        {canConnectGoogle && (
-          <button
-            onClick={handleConnectGoogle}
-            disabled={googleLinking}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: '#4285F4',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '7px 12px',
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: googleLinking ? 'not-allowed' : 'pointer',
-              opacity: googleLinking ? 0.7 : 1,
+          {/* Profile Card */}
+          <div className="card-brand" style={{ marginBottom: canConnectGoogle ? 8 : 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: '50%',
+              background: 'var(--brand-dim)', border: '2px solid var(--brand)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: 'var(--brand)',
               flexShrink: 0,
-              boxShadow: '0 2px 8px rgba(66,133,244,0.35)',
-              transition: 'all 0.2s ease',
-            }}
-            title="Connect your Google Account for cloud data sync"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#ffffff"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#ffffff"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#ffffff"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#ffffff"/>
-            </svg>
-            {googleLinking ? 'Linking...' : 'Connect Google'}
-          </button>
-        )}
-      </div>
-      {canConnectGoogle && (
-        <div style={{
-          background: 'rgba(245, 158, 11, 0.1)',
-          border: '1px solid rgba(245, 158, 11, 0.35)',
-          borderRadius: 10,
-          padding: '10px 14px',
-          marginBottom: 16,
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 10,
-          fontSize: 12,
-        }}>
-          <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-          <div>
-            <div style={{ fontWeight: 700, color: '#b45309', marginBottom: 2 }}>Data not synced to cloud</div>
-            <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Your account is not connected to Google. Categories, menu items & orders may not save to the cloud. Click <strong>Connect Google</strong> above to enable cloud sync and prevent data loss.
+            }}>
+              {state.admin?.name?.charAt(0).toUpperCase()}
             </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{state.admin?.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{state.admin?.email}</div>
+              <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600, marginTop: 2 }}>
+                {state.restaurant.name}
+              </div>
+            </div>
+            {canConnectGoogle && (
+              <button
+                onClick={handleConnectGoogle}
+                disabled={googleLinking}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: '#4285F4',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '7px 12px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: googleLinking ? 'not-allowed' : 'pointer',
+                  opacity: googleLinking ? 0.7 : 1,
+                  flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(66,133,244,0.35)',
+                  transition: 'all 0.2s ease',
+                }}
+                title="Connect your Google Account for cloud data sync"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#ffffff"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#ffffff"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#ffffff"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#ffffff"/>
+                </svg>
+                {googleLinking ? 'Linking...' : 'Connect Google'}
+              </button>
+            )}
           </div>
+          {canConnectGoogle && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              borderRadius: 10,
+              padding: '10px 14px',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              fontSize: 12,
+            }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+              <div>
+                <div style={{ fontWeight: 700, color: '#b45309', marginBottom: 2 }}>Data not synced to cloud</div>
+                <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  Your account is not connected to Google. Categories, menu items & orders may not save to the cloud. Click <strong>Connect Google</strong> above to enable cloud sync and prevent data loss.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Nav Buttons - Horizontal Grid for Easy Access */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+            gap: 10,
+            marginBottom: 20
+          }}>
+            {sections.map(section => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '12px 8px',
+                    gap: 8,
+                    background: isActive ? 'var(--brand-dim)' : 'var(--bg-elevated)',
+                    border: isActive ? '2px solid var(--brand)' : '1px solid var(--border)',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    transition: 'var(--transition)',
+                    color: isActive ? 'var(--brand)' : 'var(--text-secondary)',
+                    boxShadow: isActive ? 'var(--shadow-brand)' : 'none',
+                  }}
+                >
+                  <Icon size={20} />
+                  <span style={{ fontSize: 11, fontWeight: 700, textAlign: 'center', lineHeight: 1.2 }}>{section.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Theme Selection Card */}
+          <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 18 }}>{state.adminTheme === 'light' ? '☀️' : '🌙'}</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Interface Theme</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Switch between Light and Dark interface colors</div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                dispatch({ type: 'TOGGLE_ADMIN_THEME' });
+                addToast('success', `Theme switched to ${state.adminTheme === 'light' ? 'Dark' : 'Light'}!`);
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{
+                borderColor: 'var(--border)',
+                color: 'var(--text-secondary)',
+                fontWeight: 700,
+                padding: '6px 12px',
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              {state.adminTheme === 'light' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Outlet Settings</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Configure details and services for your restaurant outlet</p>
         </div>
       )}
 
-      {/* Nav Buttons - Horizontal Grid for Easy Access */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-        gap: 10,
-        marginBottom: 20
-      }}>
-        {sections.map(section => {
-          const Icon = section.icon;
-          const isActive = activeSection === section.id;
-          return (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '12px 8px',
-                gap: 8,
-                background: isActive ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                border: isActive ? '2px solid var(--brand)' : '1px solid var(--border)',
-                borderRadius: 12,
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-                color: isActive ? 'var(--brand)' : 'var(--text-secondary)',
-                boxShadow: isActive ? 'var(--shadow-brand)' : 'none',
-              }}
-            >
-              <Icon size={20} />
-              <span style={{ fontSize: 11, fontWeight: 700, textAlign: 'center', lineHeight: 1.2 }}>{section.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Theme Selection Card */}
-      <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 18 }}>{state.adminTheme === 'light' ? '☀️' : '🌙'}</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Interface Theme</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Switch between Light and Dark interface colors</div>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            dispatch({ type: 'TOGGLE_ADMIN_THEME' });
-            addToast('success', `Theme switched to ${state.adminTheme === 'light' ? 'Dark' : 'Light'}!`);
-          }}
-          className="btn btn-secondary btn-sm"
-          style={{
-            borderColor: 'var(--border)',
-            color: 'var(--text-secondary)',
-            fontWeight: 700,
-            padding: '6px 12px',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6
-          }}
-        >
-          {state.adminTheme === 'light' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}
-        </button>
-      </div>
-
       {/* Outlet Settings */}
-      {activeSection === 'outlet' && (
+      {(isOnlyOutlet || activeSection === 'outlet') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           
           {/* Box 1: Additional Customization */}
@@ -1758,7 +1768,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       )}
 
       {/* Autoprint KOT/Bill Settings */}
-      {activeSection === 'autoprint' && (
+      {!isOnlyOutlet && activeSection === 'autoprint' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Printer size={18} color="var(--brand)" />
@@ -2111,9 +2121,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         </div>
       )}
 
-      {/* QR Code Manager */}
-
-      {activeSection === 'qr' && (
+      {/* Manage Tables & QR Codes */}
+      {!isOnlyOutlet && activeSection === 'qr' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2264,8 +2273,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         </div>
       )}
 
-      {/* Subscription & Wallet */}
-      {activeSection === 'subscription' && (
+      {/* Pricing & Subscription Plans */}
+      {!isOnlyOutlet && activeSection === 'subscription' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <CreditCard size={18} color="var(--brand)" />
@@ -2630,8 +2639,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
 
 
-      {/* PWA Install */}
-      {activeSection === 'pwa' && (
+      {/* Progressive Web App (PWA) Onboarding */}
+      {!isOnlyOutlet && activeSection === 'pwa' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           <div style={{ textAlign: 'center', padding: '16px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📱</div>
@@ -2650,8 +2659,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         </div>
       )}
 
-      {/* Feedback & Tickets */}
-      {activeSection === 'feedback' && (
+      {/* Help, Feedback & Support Tickets */}
+      {!isOnlyOutlet && activeSection === 'feedback' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, marginBottom: 4 }}>
             Feedback & Tickets
@@ -2751,8 +2760,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         </div>
       )}
 
-      {/* Staff Management Section */}
-      {activeSection === 'staff' && (
+      {/* Staff Management Panel */}
+      {!isOnlyOutlet && activeSection === 'staff' && (
         <div className="card" style={{ marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <Users size={18} color="var(--brand)" />
