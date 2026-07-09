@@ -124,12 +124,15 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState('');
   const isViewOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('viewOnly') === 'true';
-  const [orderType, setOrderType] = useState<'in-dining' | 'take-away' | 'delivery'>(
-    (isViewOnly && restaurant.deliveryEnabled) ? 'delivery' : 'in-dining'
-  );
+  const [orderType, setOrderType] = useState<'in-dining' | 'take-away' | 'delivery'>(() => {
+    // Smart default: QR scan = in-dining, viewOnly/no-table = delivery (if enabled), else take-away
+    const hasTable = !!new URLSearchParams(window.location.search).get('table');
+    if (hasTable) return 'in-dining';
+    if ((isViewOnly && restaurant.deliveryEnabled) || restaurant.deliveryEnabled) return 'delivery';
+    return 'take-away';
+  });
+  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'confirm' | 'upi_payment'>('cart');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi'>('cash');
-  const [upiTxnId, setUpiTxnId] = useState('');
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -283,13 +286,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
   };
 
   const triggerOrder = () => {
-    // 1. UPI Payment verification check
-    if (paymentMethod === 'upi' && !upiTxnId.trim()) {
-      addToast('error', 'Please enter your 12-digit UPI transaction reference ID / UTR.');
-      return;
-    }
-
-    // 2. Delivery fields & radius verification
+    // Delivery fields & radius verification
     if (orderType === 'delivery') {
       if (!deliveryAddress.trim()) {
         addToast('error', 'Please enter your delivery address.');
@@ -311,11 +308,8 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
           const maxRadius = restaurant.deliveryRadius || 10;
 
           if (distanceInKm <= maxRadius) {
-            setLocationStatus('success');
-            setTimeout(() => {
-              handlePlaceOrder();
-              setLocationStatus('idle');
-            }, 1000);
+            setLocationStatus('idle');
+            handlePlaceOrder();
           } else {
             addToast('error', `Out of range: You are ${distanceInKm.toFixed(1)} km away. Maximum delivery radius is ${maxRadius} km.`);
             setLocationStatus('idle');
@@ -331,7 +325,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       return;
     }
 
-    // 3. Default In-Dining location check
+    // Default In-Dining location check
     if (restaurant.locationVerificationEnabled) {
       verifyLocationAndPlaceOrder();
     } else {
@@ -501,9 +495,8 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       couponDiscountApplied: couponDiscount > 0 ? couponDiscount : undefined,
       orderType: orderType,
       deliveryAddress: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
-      paymentMethod: paymentMethod,
-      paymentStatus: paymentMethod === 'upi' ? 'waiting_confirmation' : 'pending',
-      upiTxnId: paymentMethod === 'upi' ? upiTxnId.trim() : undefined,
+      paymentMethod: orderType === 'delivery' ? 'upi' : 'cash',
+      paymentStatus: orderType === 'delivery' ? 'waiting_confirmation' : 'pending',
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: order });
@@ -518,8 +511,9 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       }});
     }
 
-    addToast('success', '🎉 Order placed! Track it in My Orders.');
+    addToast('success', orderType === 'delivery' ? '🎉 Order placed! Your payment confirmation has been sent to the restaurant.' : '🎉 Order placed! Track it in My Orders.');
     setOpen(false);
+    setCheckoutStep('cart');
     setSpecialNote('');
     setNumberOfGuests('');
     setRedeemPointsChecked(false);
@@ -1121,9 +1115,6 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                             type="button"
                             onClick={() => {
                               setOrderType(opt.value as any);
-                              if (opt.value === 'delivery') {
-                                setPaymentMethod('upi');
-                              }
                             }}
                             style={{
                               flex: 1,
@@ -1171,152 +1162,8 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                     placeholder="Enter your complete home address with landmark details..."
                     value={deliveryAddress}
                     onChange={e => setDeliveryAddress(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      borderRadius: 8,
-                      background: 'var(--bg-primary)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border)',
-                      fontSize: 12,
-                      resize: 'none',
-                      outline: 'none'
-                    }}
+                    style={{ width: '100%', padding: '10px', borderRadius: 8, fontSize: 12, resize: 'none', outline: 'none' }}
                   />
-                </div>
-              )}
-
-              {/* Payment Method Selector */}
-              {(!restaurant.mustLoginBeforeOrder || googleUser) && (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  marginBottom: 16,
-                  padding: '12px 14px',
-                  background: 'var(--bg-elevated)',
-                  borderRadius: 12,
-                  border: '1px solid var(--border)'
-                }}>
-                  <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>Payment Method</label>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    {[
-                      { value: 'cash', label: orderType === 'delivery' ? '💵 Cash on Delivery' : '💵 Cash / Pay Counter' },
-                      { value: 'upi', label: '📱 UPI Payment' }
-                    ].map(payOpt => {
-                      const isSel = paymentMethod === payOpt.value;
-                      return (
-                        <button
-                          key={payOpt.value}
-                          type="button"
-                          onClick={() => {
-                            setPaymentMethod(payOpt.value as any);
-                            if (payOpt.value === 'cash') {
-                              setUpiTxnId('');
-                            }
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: '10px 8px',
-                            borderRadius: 10,
-                            fontSize: 12,
-                            fontWeight: 700,
-                            border: isSel ? '2px solid var(--border-brand)' : '1px solid var(--border)',
-                            background: isSel ? 'var(--brand-dim)' : 'var(--bg-primary)',
-                            color: isSel ? 'var(--brand)' : 'var(--text-primary)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 6
-                          }}
-                        >
-                          {payOpt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* UPI instructions and QR details */}
-                  {paymentMethod === 'upi' && (
-                    <div style={{
-                      marginTop: 10,
-                      padding: 12,
-                      background: 'var(--bg-primary)',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 10,
-                      animation: 'fadeIn 0.2s ease'
-                    }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center', fontWeight: 600 }}>
-                        Scan the QR or copy UPI ID below to pay <strong style={{ color: 'var(--text-primary)' }}>₹{finalAmount}</strong>
-                      </div>
-
-                      {restaurant.upiQrCode ? (
-                        <div style={{ width: 140, height: 140, background: '#ffffff', padding: 6, borderRadius: 8, border: '1px solid var(--border)' }}>
-                          <img src={restaurant.upiQrCode} alt="UPI QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                          QR Code not uploaded by outlet. Use UPI ID below.
-                        </div>
-                      )}
-
-                      {restaurant.upiId && (
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          width: '100%',
-                          background: 'var(--bg-elevated)',
-                          padding: '8px 10px',
-                          borderRadius: 8,
-                          border: '1px solid var(--border)',
-                          fontSize: 11
-                        }}>
-                          <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)', wordBreak: 'break-all' }}>{restaurant.upiId}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(restaurant.upiId || '');
-                              addToast('success', 'UPI ID copied to clipboard!');
-                            }}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--brand)',
-                              fontSize: 10,
-                              fontWeight: 800,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Copy
-                          </button>
-                        </div>
-                      )}
-
-                      <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                        <label className="input-label" style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
-                          UPI Transaction ID / Ref Number (UTR) <span style={{ color: 'red' }}>*</span>
-                        </label>
-                        <input
-                          className="input"
-                          type="text"
-                          placeholder="Enter 12-digit transaction Ref ID"
-                          value={upiTxnId}
-                          onChange={e => setUpiTxnId(e.target.value)}
-                          style={{ width: '100%', fontSize: 12, padding: '8px 10px' }}
-                        />
-                        <div style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 4 }}>
-                          Order placement requires confirmation from restaurant after verification.
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1474,14 +1321,27 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
               ) : (
                 <button
                   className="btn btn-primary btn-full btn-lg"
-                  onClick={triggerOrder}
+                  onClick={() => {
+                    // Validate before showing confirm screen
+                    const isLoginRequired = restaurant.mustLoginBeforeOrder;
+                    if (isLoginRequired && !googleUser) {
+                      addToast('error', 'You must sign in with Google to place an order.');
+                      return;
+                    }
+                    if (!isLoginRequired && (!customerName.trim() || !customerPhone.trim())) {
+                      addToast('error', 'Name and Phone number are required.');
+                      return;
+                    }
+                    if (orderType === 'delivery' && !deliveryAddress.trim()) {
+                      addToast('error', 'Please enter your delivery address.');
+                      return;
+                    }
+                    setCheckoutStep('confirm');
+                  }}
                   disabled={placing}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                 >
-                  {placing ? (
-                    <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.3)', borderTopColor: '#000', animation: 'spin 0.7s linear infinite' }} />
-                  ) : (
-                    <>Place Order <ArrowRight size={17} /></>
-                  )}
+                  Review & Confirm <ArrowRight size={17} />
                 </button>
               )}
             </div>
@@ -1620,7 +1480,244 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
         </div>
       )}
 
-      {/* Simulated Google Sign-In Consent Modal */}
+      {/* ── STEP 2: Confirm Order Overlay ── */}
+      {checkoutStep === 'confirm' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 500,
+          background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: '24px 24px 0 0',
+            border: '1px solid var(--border-elevated)',
+            width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto',
+            animation: 'slideInUp 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+            padding: '24px 20px 36px',
+          }}>
+            {/* Handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border-elevated)' }} />
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🛒</div>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 4 }}>Confirm Your Order</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Please review the details below before placing your order.</p>
+            </div>
+
+            {/* Order type display */}
+            <div style={{
+              display: 'flex', gap: 8, marginBottom: 16,
+              padding: '12px 14px', background: 'var(--bg-elevated)',
+              borderRadius: 12, border: '1px solid var(--border)'
+            }}>
+              {[
+                { value: 'in-dining', label: '🪑 In-Dining', show: !isViewOnly || !!new URLSearchParams(window.location.search).get('table') },
+                { value: 'take-away', label: '🛍️ Take-Away', show: true },
+                { value: 'delivery', label: '🏠 Delivery', show: !!restaurant.deliveryEnabled },
+              ].filter(o => o.show).map(opt => {
+                const isSel = orderType === opt.value;
+                return (
+                  <button key={opt.value} type="button" onClick={() => setOrderType(opt.value as any)}
+                    style={{
+                      flex: 1, padding: '10px 6px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      border: isSel ? '2px solid var(--border-brand)' : '1px solid var(--border)',
+                      background: isSel ? 'var(--brand-dim)' : 'var(--bg-primary)',
+                      color: isSel ? 'var(--brand)' : 'var(--text-secondary)', transition: 'all 0.2s'
+                    }}
+                  >{opt.label}</button>
+                );
+              })}
+            </div>
+
+            {/* Delivery address if delivery */}
+            {orderType === 'delivery' && (
+              <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.04em' }}>📍 DELIVERING TO</div>
+                <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>{deliveryAddress}</div>
+              </div>
+            )}
+
+            {/* Items summary */}
+            <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 10, letterSpacing: '0.04em' }}>YOUR ORDER — {cartCount} ITEMS</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {state.cart.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-primary)' }}>{item.name} {item.variant ? `(${item.variant.name})` : ''} <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>×{item.qty}</span></span>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{item.price * item.qty}</span>
+                  </div>
+                ))}
+              </div>
+              {(couponDiscount > 0 || discountApplied > 0) && (
+                <div style={{ borderTop: '1px solid var(--border)', marginTop: 10, paddingTop: 10 }}>
+                  {couponDiscount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--brand)' }}><span>Coupon Discount</span><span>-₹{couponDiscount}</span></div>}
+                  {discountApplied > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--success)' }}><span>Loyalty Discount</span><span>-₹{discountApplied}</span></div>}
+                </div>
+              )}
+            </div>
+
+            {/* Total amount */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              marginBottom: 24, padding: '16px 18px',
+              background: 'linear-gradient(135deg, rgba(255,125,0,0.12), rgba(255,125,0,0.04))',
+              border: '1px solid rgba(255,125,0,0.25)', borderRadius: 14,
+            }}>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.04em' }}>TOTAL TO PAY</div>
+                {orderType === 'delivery' && <div style={{ fontSize: 10, color: '#A855F7', marginTop: 2, fontWeight: 600 }}>📱 Via UPI after confirmation</div>}
+                {orderType !== 'delivery' && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Pay at counter / table</div>}
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--brand)' }}>₹{finalAmount}</div>
+            </div>
+
+            {/* CTAs */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                className="btn btn-primary btn-full btn-lg"
+                disabled={placing}
+                onClick={() => {
+                  if (orderType === 'delivery') {
+                    // For delivery: go to UPI payment screen
+                    setCheckoutStep('upi_payment');
+                  } else {
+                    // In-dining / take-away: place immediately (no payment upfront)
+                    triggerOrder();
+                  }
+                }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                {placing ? (
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.3)', borderTopColor: '#000', animation: 'spin 0.7s linear infinite' }} />
+                ) : orderType === 'delivery' ? (
+                  <>Proceed to Pay ₹{finalAmount} <ArrowRight size={17} /></>
+                ) : (
+                  <>✅ Place Order — ₹{finalAmount}</>
+                )}
+              </button>
+              <button
+                className="btn btn-secondary btn-full"
+                onClick={() => setCheckoutStep('cart')}
+                style={{ fontSize: 13, fontWeight: 700 }}
+              >
+                ← Go Back to Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 3: UPI Payment Overlay (delivery only) ── */}
+      {checkoutStep === 'upi_payment' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 600,
+          background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: '24px 24px 0 0',
+            border: '1px solid var(--border-elevated)',
+            width: '100%', maxWidth: 480, maxHeight: '92vh', overflowY: 'auto',
+            animation: 'slideInUp 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+            padding: '24px 20px 36px',
+          }}>
+            {/* Handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border-elevated)' }} />
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📱</div>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 4 }}>Pay via UPI</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>Scan the QR or copy the UPI ID to pay. Once done, tap the button below.</p>
+            </div>
+
+            {/* Amount badge */}
+            <div style={{
+              textAlign: 'center', marginBottom: 20, padding: '14px',
+              background: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(168,85,247,0.05))',
+              border: '1px solid rgba(168,85,247,0.3)', borderRadius: 14,
+            }}>
+              <div style={{ fontSize: 11, color: '#A855F7', fontWeight: 800, letterSpacing: '0.06em', marginBottom: 4 }}>AMOUNT TO PAY</div>
+              <div style={{ fontSize: 36, fontWeight: 900, color: '#E9D5FF', letterSpacing: '0.02em' }}>₹{finalAmount}</div>
+            </div>
+
+            {/* UPI QR */}
+            {restaurant.upiQrCode ? (
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <div style={{ width: 180, height: 180, background: '#ffffff', padding: 10, borderRadius: 16, border: '3px solid rgba(168,85,247,0.3)', boxShadow: '0 0 30px rgba(168,85,247,0.2)' }}>
+                  <img src={restaurant.upiQrCode} alt="UPI QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                QR Code not uploaded. Use the UPI ID below.
+              </div>
+            )}
+
+            {/* UPI ID copy row */}
+            {restaurant.upiId && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '12px 14px', marginBottom: 16,
+                background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12,
+              }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 2 }}>UPI ID</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{restaurant.upiId}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard.writeText(restaurant.upiId || ''); addToast('success', 'UPI ID copied! 📋'); }}
+                  style={{
+                    background: 'var(--brand-dim)', border: '1px solid var(--border-brand)',
+                    color: 'var(--brand)', fontWeight: 800, fontSize: 12,
+                    padding: '6px 14px', borderRadius: 8, cursor: 'pointer'
+                  }}
+                >Copy</button>
+              </div>
+            )}
+
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginBottom: 20, lineHeight: 1.6, padding: '0 8px' }}>
+              After paying, tap the button below. The restaurant will verify your payment and start preparing your order. ✅
+            </div>
+
+            {/* CTAs */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                className="btn btn-full btn-lg"
+                disabled={placing}
+                onClick={triggerOrder}
+                style={{
+                  background: 'linear-gradient(135deg, #A855F7, #7C3AED)',
+                  color: '#FFFFFF', fontWeight: 900, fontSize: 14,
+                  border: 'none', borderRadius: 14, cursor: placing ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '16px', boxShadow: '0 0 20px rgba(168,85,247,0.4)', opacity: placing ? 0.7 : 1
+                }}
+              >
+                {placing ? (
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
+                ) : (
+                  '✅ I\'ve Paid — Send Payment Confirmation'
+                )}
+              </button>
+              <button
+                className="btn btn-secondary btn-full"
+                onClick={() => setCheckoutStep('confirm')}
+                style={{ fontSize: 13, fontWeight: 700 }}
+              >
+                ← Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {showGoogleModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1100,
