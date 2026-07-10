@@ -224,7 +224,7 @@ export default function CustomerMenu() {
   const [search, setSearch] = useState('');
   const [vegOnly, setVegOnly] = useState(false);
   const [nonVegOnly, setNonVegOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<'popular' | 'low-high' | 'high-low'>('popular');
+  const [sortBy] = useState<'popular' | 'low-high' | 'high-low'>('popular');
 
   const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
@@ -616,26 +616,6 @@ export default function CustomerMenu() {
               {t('non_veg')}
             </button>
           </div>
-
-          {/* Sort Selector */}
-          <select
-            className="input"
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value as any)}
-            style={{
-              width: 90,
-              padding: '4px 8px',
-              fontSize: 11,
-              background: 'var(--bg-secondary)',
-              cursor: 'pointer',
-              height: 28,
-              borderRadius: 'var(--radius-sm)'
-            }}
-          >
-            <option value="popular">{t('popular')}</option>
-            <option value="low-high">{t('low_high')}</option>
-            <option value="high-low">{t('high_low')}</option>
-          </select>
         </div>
       </div>
 

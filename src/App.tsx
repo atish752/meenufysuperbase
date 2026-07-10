@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { StoreProvider, useStore } from './context/RealtimeStore';
-import AdminLayout from './views/admin/AdminLayout';
 import CustomerLayout from './views/customer/CustomerLayout';
-import OnboardingFlow from './views/admin/OnboardingFlow';
 import ToastContainer from './components/ToastContainer';
 import SplashScreen from './components/SplashScreen';
+
+// Lazy load the heavy admin-facing components to split code and speed up customer load times
+const AdminLayout = lazy(() => import('./views/admin/AdminLayout'));
+const OnboardingFlow = lazy(() => import('./views/admin/OnboardingFlow'));
 
 function AppInner() {
   const { state } = useStore();
@@ -38,7 +40,11 @@ function AppInner() {
      dbHasCompleted === false);  // only explicitly false = new signup that hasn't finished onboarding
 
   if (isOnboarding) {
-    return <OnboardingFlow />;
+    return (
+      <Suspense fallback={<SplashScreen />}>
+        <OnboardingFlow />
+      </Suspense>
+    );
   }
 
   // Route to customer view if URL param present or accessing /home
@@ -48,7 +54,11 @@ function AppInner() {
   }
 
   // Admin view
-  return <AdminLayout />;
+  return (
+    <Suspense fallback={<SplashScreen />}>
+      <AdminLayout />
+    </Suspense>
+  );
 }
 
 export default function App() {
