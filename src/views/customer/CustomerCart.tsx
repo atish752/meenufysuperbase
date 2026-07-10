@@ -94,6 +94,9 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
     return localStorage.getItem('meenufy_customer_email') || '';
   });
 
+  const custRec = state.customers.find(c => c && c.phone === customerPhone.trim());
+  const customerAddresses = custRec?.savedAddresses || [];
+
   useEffect(() => {
     if (open) {
       try {
@@ -133,6 +136,64 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
   });
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'confirm' | 'upi_payment'>('cart');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
+  const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
+  const [pastAddressOption, setPastAddressOption] = useState<{ fullAddress: string; lat?: number; lng?: number; name?: string } | null>(null);
+
+  const isLoggedIn = !!googleUser;
+
+  // Monitor customerPhone to look up previous orders' address
+  useEffect(() => {
+    const phoneVal = customerPhone.trim();
+    if (phoneVal.length >= 10) {
+      const pastDeliveryOrders = state.orders.filter(o => o.customerPhone === phoneVal && o.orderType === 'delivery' && o.deliveryAddress);
+      if (pastDeliveryOrders.length > 0) {
+        const latest = [...pastDeliveryOrders].sort((a, b) => b.createdAt - a.createdAt)[0];
+        if (latest && latest.deliveryAddress) {
+          setPastAddressOption({
+            fullAddress: latest.deliveryAddress,
+            lat: latest.deliveryLat,
+            lng: latest.deliveryLng,
+            name: latest.customerName
+          });
+        } else {
+          setPastAddressOption(null);
+        }
+      } else {
+        setPastAddressOption(null);
+      }
+    } else {
+      setPastAddressOption(null);
+    }
+  }, [customerPhone, state.orders]);
+
+  const handleFetchGpsLocation = () => {
+    if (!navigator.geolocation) {
+      addToast('error', 'Geolocation not supported by your browser.');
+      return;
+    }
+    setLocationStatus('verifying');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setDeliveryLat(lat);
+        setDeliveryLng(lng);
+        setLocationStatus('idle');
+        addToast('success', 'GPS Coordinates captured successfully!');
+        
+        if (!deliveryAddress.trim()) {
+          setDeliveryAddress(`[GPS Coordinates: ${lat.toFixed(5)}, ${lng.toFixed(5)}]`);
+        }
+      },
+      (err) => {
+        console.error(err);
+        addToast('error', 'GPS access denied or timed out. Please input your address manually.');
+        setLocationStatus('idle');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -213,15 +274,51 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
     }
     couponDiscount = Math.min(cartTotal, couponDiscount);
   }
+  // Delivery Fee calculation
+  const distanceInKm = (() => {
+    if (deliveryLat === null || deliveryLng === null) return null;
+    const targetLat = restaurant.latitude || 12.9348;
+    const targetLng = restaurant.longitude || 77.6202;
+    return getDistanceInMeters(deliveryLat, deliveryLng, targetLat, targetLng) / 1000;
+  })();
+
+  const calculatedDeliveryCharge = (() => {
+    if (orderType !== 'delivery') return 0;
+    if (distanceInKm === null) return restaurant.deliveryCharge !== undefined ? restaurant.deliveryCharge : 40;
+    
+    const freeDist = restaurant.freeDeliveryDistance || 0;
+    const freeAmt = restaurant.freeDeliveryMinAmount || 0;
+    const criteria = restaurant.freeDeliveryCriteria || 'either';
+    
+    let qualifiesForFree = false;
+    
+    if (freeDist > 0 || freeAmt > 0) {
+      const isDistQualified = freeDist > 0 ? (distanceInKm <= freeDist) : false;
+      const isAmtQualified = freeAmt > 0 ? (cartTotal >= freeAmt) : false;
+      
+      if (criteria === 'both') {
+        // BOTH must be true
+        qualifiesForFree = (freeDist > 0 ? isDistQualified : true) && (freeAmt > 0 ? isAmtQualified : true);
+      } else {
+        // EITHER is true
+        qualifiesForFree = isDistQualified || isAmtQualified;
+      }
+    }
+    
+    if (qualifiesForFree) return 0;
+    return restaurant.deliveryCharge !== undefined ? restaurant.deliveryCharge : 40;
+  })();
+
   const amountAfterCoupon = Math.max(0, cartTotal - couponDiscount);
 
   // Loyalty calculations
-  const custRec = state.customers.find(c => c.phone === customerPhone.trim());
   const pointsAvailable = custRec ? (custRec.points || 0) : 0;
   const pointsVal = pointsAvailable * (restaurant.pointValueInRupees || 1);
   const discountApplied = redeemPointsChecked ? Math.min(amountAfterCoupon, pointsVal) : 0;
-  const finalAmount = Math.max(0, amountAfterCoupon - discountApplied);
-  const pointsEarned = restaurant.loyaltyEnabled ? Math.floor(finalAmount / 100) * (restaurant.pointsPer100Spent || 1) : 0;
+  const subtotalAndDiscount = Math.max(0, amountAfterCoupon - discountApplied);
+  
+  const finalAmount = subtotalAndDiscount + (orderType === 'delivery' ? calculatedDeliveryCharge : 0);
+  const pointsEarned = restaurant.loyaltyEnabled ? Math.floor(subtotalAndDiscount / 100) * (restaurant.pointsPer100Spent || 1) : 0;
 
   // Sum up nutrition info for all items in the cart
   const cartNutrition = state.cart.reduce((summary, cartItem) => {
@@ -292,36 +389,48 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
         addToast('error', 'Please enter your delivery address.');
         return;
       }
-      setLocationStatus('verifying');
-      if (!navigator.geolocation) {
-        addToast('error', 'Location verification failed. Geolocation is not supported by your browser.');
-        setLocationStatus('idle');
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const clientLat = position.coords.latitude;
-          const clientLng = position.coords.longitude;
-          const targetLat = restaurant.latitude || 12.9348;
-          const targetLng = restaurant.longitude || 77.6202;
-          const distanceInKm = getDistanceInMeters(clientLat, clientLng, targetLat, targetLng) / 1000;
-          const maxRadius = restaurant.deliveryRadius || 10;
+      
+      const targetLat = restaurant.latitude || 12.9348;
+      const targetLng = restaurant.longitude || 77.6202;
+      const maxRadius = restaurant.deliveryRadius || 10;
 
-          if (distanceInKm <= maxRadius) {
-            setLocationStatus('idle');
-            handlePlaceOrder();
-          } else {
-            addToast('error', `Out of range: You are ${distanceInKm.toFixed(1)} km away. Maximum delivery radius is ${maxRadius} km.`);
-            setLocationStatus('idle');
-          }
-        },
-        (error) => {
-          console.error(error);
-          addToast('error', 'Please enable GPS location to verify if your address is within delivery range.');
+      const checkAndPlace = (lat: number, lng: number) => {
+        const distanceInKm = getDistanceInMeters(lat, lng, targetLat, targetLng) / 1000;
+        if (distanceInKm <= maxRadius) {
+          handlePlaceOrder();
+        } else {
+          addToast('error', `Out of range: You are ${distanceInKm.toFixed(1)} km away. Maximum delivery radius is ${maxRadius} km.`);
           setLocationStatus('idle');
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
+        }
+      };
+
+      if (deliveryLat !== null && deliveryLng !== null) {
+        checkAndPlace(deliveryLat, deliveryLng);
+      } else {
+        setLocationStatus('verifying');
+        if (!navigator.geolocation) {
+          addToast('error', 'Location verification failed. Geolocation is not supported by your browser.');
+          setLocationStatus('idle');
+          return;
+        }
+        addToast('info', 'Capturing live GPS location to verify delivery range...');
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const clientLat = position.coords.latitude;
+            const clientLng = position.coords.longitude;
+            setDeliveryLat(clientLat);
+            setDeliveryLng(clientLng);
+            setLocationStatus('idle');
+            checkAndPlace(clientLat, clientLng);
+          },
+          (error) => {
+            console.error(error);
+            addToast('error', 'Live location capture is mandatory for home delivery orders. Please enable GPS.');
+            setLocationStatus('idle');
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      }
       return;
     }
 
@@ -497,6 +606,9 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       deliveryAddress: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
       paymentMethod: orderType === 'delivery' ? 'upi' : 'cash',
       paymentStatus: orderType === 'delivery' ? 'waiting_confirmation' : 'pending',
+      deliveryLat: orderType === 'delivery' ? (deliveryLat ?? undefined) : undefined,
+      deliveryLng: orderType === 'delivery' ? (deliveryLng ?? undefined) : undefined,
+      deliveryCharge: orderType === 'delivery' ? calculatedDeliveryCharge : undefined,
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: order });
@@ -1147,7 +1259,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 6,
+                  gap: 10,
                   marginBottom: 16,
                   padding: '12px 14px',
                   background: 'var(--bg-elevated)',
@@ -1155,15 +1267,90 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                   border: '1px solid var(--border)',
                   animation: 'fadeIn 0.2s ease'
                 }}>
-                  <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>Delivery Address</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>Delivery Address</label>
+                    <button
+                      type="button"
+                      onClick={handleFetchGpsLocation}
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: 10, height: 24, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}
+                    >
+                      📍 Locate Me (GPS)
+                    </button>
+                  </div>
+
+                  {/* Saved Addresses for logged-in user */}
+                  {isLoggedIn && customerAddresses.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>Choose Saved Address:</div>
+                      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }} className="hide-scrollbar">
+                        {customerAddresses.map((addr: any) => (
+                          <button
+                            key={addr.id}
+                            type="button"
+                            onClick={() => {
+                              setDeliveryAddress(addr.fullAddress);
+                              setDeliveryLat(addr.lat ?? null);
+                              setDeliveryLng(addr.lng ?? null);
+                              if (addr.name) setCustomerName(addr.name);
+                              addToast('success', `Selected: ${addr.name}'s address`);
+                            }}
+                            style={{
+                              flexShrink: 0, padding: '6px 10px', borderRadius: 8, fontSize: 10, fontWeight: 600,
+                              background: deliveryAddress === addr.fullAddress ? 'var(--brand-dim)' : 'var(--bg-primary)',
+                              border: deliveryAddress === addr.fullAddress ? '1.5px solid var(--border-brand)' : '1px solid var(--border)',
+                              color: deliveryAddress === addr.fullAddress ? 'var(--brand)' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            🏠 {addr.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Past Address Auto-population Badge for Guest / Regular Users */}
+                  {pastAddressOption && deliveryAddress !== pastAddressOption.fullAddress && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeliveryAddress(pastAddressOption.fullAddress);
+                          setDeliveryLat(pastAddressOption.lat ?? null);
+                          setDeliveryLng(pastAddressOption.lng ?? null);
+                          if (pastAddressOption.name) setCustomerName(pastAddressOption.name);
+                          addToast('success', 'Auto-filled your previous order address!');
+                        }}
+                        style={{
+                          fontSize: 10, fontWeight: 700, background: 'var(--brand-dim)', color: 'var(--brand)',
+                          border: '1px solid var(--border-brand)', borderRadius: 8, padding: '6px 10px',
+                          cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 4,
+                          outline: 'none'
+                        }}
+                      >
+                        📋 Use Previous Address: "{pastAddressOption.fullAddress.substring(0, 32)}..."
+                      </button>
+                    </div>
+                  )}
+
                   <textarea
                     className="input"
                     rows={3}
-                    placeholder="Enter your complete home address with landmark details..."
+                    placeholder="Enter complete home address with landmark details..."
                     value={deliveryAddress}
                     onChange={e => setDeliveryAddress(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: 8, fontSize: 12, resize: 'none', outline: 'none' }}
+                    style={{ width: '100%', padding: '10px', borderRadius: 8, fontSize: 12, resize: 'none', outline: 'none', background: 'var(--bg-primary)' }}
                   />
+                  {deliveryLat && deliveryLng && (
+                    <div style={{ fontSize: 9, color: 'var(--success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>✅ GPS Attached: {deliveryLat.toFixed(5)}, {deliveryLng.toFixed(5)}</span>
+                      {distanceInKm !== null && (
+                        <span>({distanceInKm.toFixed(2)} KM away)</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1263,6 +1450,14 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--brand)', marginBottom: 6, fontStyle: 'italic' }}>
                     <span>Points to earn:</span>
                     <span>+{pointsEarned} pts</span>
+                  </div>
+                )}
+                {orderType === 'delivery' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+                    <span>Delivery Charge</span>
+                    <span style={{ color: calculatedDeliveryCharge === 0 ? 'var(--success)' : 'var(--text-primary)', fontWeight: calculatedDeliveryCharge === 0 ? 700 : 500 }}>
+                      {calculatedDeliveryCharge === 0 ? 'Free' : `₹${calculatedDeliveryCharge}`}
+                    </span>
                   </div>
                 )}
                 <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>

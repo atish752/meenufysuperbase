@@ -140,6 +140,9 @@ export type Order = {
   deliveryBoyReview?: string;
   foodRating?: number;
   foodReview?: string;
+  deliveryLat?: number;
+  deliveryLng?: number;
+  deliveryCharge?: number;
 };
 
 export type TableInfo = {
@@ -207,8 +210,12 @@ export type RestaurantInfo = {
   isManualClosed?: boolean;
   subscriptionId?: string | null;
   deliveryEnabled?: boolean;
-  deliveryRadius?: 5 | 10 | 15;
+  deliveryRadius?: number;
   upiQrCode?: string;
+  freeDeliveryDistance?: number;
+  freeDeliveryMinAmount?: number;
+  freeDeliveryCriteria?: 'either' | 'both';
+  deliveryCharge?: number;
 };
 
 export type Coupon = {
@@ -274,6 +281,17 @@ export type CustomerRecord = {
   uniqueId?: string;
   password?: string;
   googleId?: string;
+  savedAddresses?: SavedAddress[];
+};
+
+export type SavedAddress = {
+  id: string;
+  name: string;
+  phone: string;
+  fullAddress: string;
+  mapLink?: string;
+  lat?: number;
+  lng?: number;
 };
 
 export type WalletTransaction = {

@@ -1193,6 +1193,184 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       {(isOnlyOutlet || activeSection === 'outlet') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           
+          {/* Box 0: Delivery & UPI Payment Configuration */}
+          <div className="card" style={{ padding: '16px' }}>
+            <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+              🏠 Delivery & UPI Payment Settings
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Enable delivery toggle */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Home Delivery</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Allow customers to order for home delivery from the app</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRestaurantForm(prev => ({ ...prev, deliveryEnabled: !prev.deliveryEnabled }))}
+                  style={{
+                    width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                    background: restaurantForm.deliveryEnabled ? 'var(--brand)' : 'var(--border)',
+                    position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: 3, left: restaurantForm.deliveryEnabled ? 22 : 3,
+                    width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                    transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
+                  }} />
+                </button>
+              </div>
+
+              {restaurantForm.deliveryEnabled && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+                    {/* Delivery Radius */}
+                    <div className="input-group">
+                      <label className="input-label">Delivery Radius (KM)</label>
+                      <input
+                        className="input"
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={restaurantForm.deliveryRadius || 10}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, deliveryRadius: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+
+                    {/* Standard Delivery Charge */}
+                    <div className="input-group">
+                      <label className="input-label">Standard Delivery Charge (₹)</label>
+                      <input
+                        className="input"
+                        type="number"
+                        min={0}
+                        value={restaurantForm.deliveryCharge !== undefined ? restaurantForm.deliveryCharge : 40}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, deliveryCharge: parseFloat(e.target.value) || 0 })}
+                        placeholder="e.g. 40"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 10 }}>
+                    <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10 }}>Free Delivery Criteria</h4>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div className="input-group">
+                        <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Distance Limit (KM)</label>
+                        <input
+                          className="input"
+                          type="number"
+                          min={0}
+                          value={restaurantForm.freeDeliveryDistance || ''}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryDistance: parseFloat(e.target.value) || 0 })}
+                          placeholder="e.g. 5"
+                        />
+                      </div>
+                      
+                      <div className="input-group">
+                        <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Min Order Amount (₹)</label>
+                        <input
+                          className="input"
+                          type="number"
+                          min={0}
+                          value={restaurantForm.freeDeliveryMinAmount || ''}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryMinAmount: parseFloat(e.target.value) || 0 })}
+                          placeholder="e.g. 500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="input-group" style={{ marginTop: 10 }}>
+                      <label className="input-label">Combination Criteria Rule</label>
+                      <select
+                        className="input"
+                        value={restaurantForm.freeDeliveryCriteria || 'either'}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryCriteria: e.target.value as any })}
+                        style={{ background: 'var(--bg-elevated)' }}
+                      >
+                        <option value="either">EITHER: Distance is within limit OR Order Amount is met</option>
+                        <option value="both">BOTH: Distance must be within limit AND Order Amount must be met</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ── UPI Payment Settings ── */}
+              <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 14 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>📱 UPI QR Code Configuration</h4>
+                
+                <div className="input-group">
+                  <label className="input-label">UPI ID</label>
+                  <div className="input-icon-wrap">
+                    <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>@</span>
+                    <input className="input" type="text" placeholder="e.g. merchant@okaxis"
+                      value={restaurantForm.upiId || ''}
+                      onChange={e => setRestaurantForm({ ...restaurantForm, upiId: e.target.value })} />
+                  </div>
+                </div>
+
+                {/* UPI QR Code upload */}
+                <div className="input-group" style={{ marginTop: 12 }}>
+                  <label className="input-label">UPI QR Code Image</label>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 6 }}>
+                    {restaurantForm.upiQrCode ? (
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div style={{ width: 80, height: 80, background: '#ffffff', padding: 4, borderRadius: 8, border: '1px solid var(--border)' }}>
+                          <img src={restaurantForm.upiQrCode} alt="UPI QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setRestaurantForm(prev => ({ ...prev, upiQrCode: undefined }))}
+                          style={{
+                            position: 'absolute', top: -6, right: -6, width: 20, height: 20,
+                            borderRadius: '50%', background: 'var(--error)', border: 'none',
+                            color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 900,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}
+                        >×</button>
+                      </div>
+                    ) : (
+                      <div style={{
+                        width: 80, height: 80, border: '2px dashed var(--border)', borderRadius: 8,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexDirection: 'column', gap: 4, color: 'var(--text-muted)', flexShrink: 0
+                      }}>
+                        <span style={{ fontSize: 22 }}>📷</span>
+                        <span style={{ fontSize: 9, fontWeight: 600 }}>No QR</span>
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <input
+                        type="file"
+                        id="upi-qr-upload-input"
+                        accept="image/*"
+                        onChange={handleUpiQrUpload}
+                        style={{ display: 'none' }}
+                      />
+                      <label
+                        htmlFor="upi-qr-upload-input"
+                        className="btn btn-secondary"
+                        style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 10, fontSize: 12, padding: '0 14px', width: '100%' }}
+                      >
+                        {uploadingUpiQr ? 'Uploading...' : '📁 Upload QR Code Image'}
+                      </label>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+                        Upload your UPI QR code image. Customers will scan this to pay for home delivery orders.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
+                <Save size={15} /> Save Delivery & UPI Settings
+              </button>
+            </div>
+          </div>
+
           {/* Box 1: Additional Customization */}
           <div className="card" style={{ padding: '16px' }}>
             <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>Additional Customization</h3>
@@ -1776,131 +1954,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         </button>
                       );
                     })}
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Home Delivery Settings ── */}
-              <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 16 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  🏠 Home Delivery Settings
-                </h4>
-
-                {/* Enable delivery toggle */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Home Delivery</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Allow customers to order for home delivery from the app</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRestaurantForm(prev => ({ ...prev, deliveryEnabled: !prev.deliveryEnabled }))}
-                    style={{
-                      width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                      background: restaurantForm.deliveryEnabled ? 'var(--brand)' : 'var(--border)',
-                      position: 'relative', transition: 'background 0.2s', flexShrink: 0
-                    }}
-                  >
-                    <div style={{
-                      position: 'absolute', top: 3, left: restaurantForm.deliveryEnabled ? 22 : 3,
-                      width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                      transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
-                    }} />
-                  </button>
-                </div>
-
-                {/* Delivery radius */}
-                {restaurantForm.deliveryEnabled && (
-                  <div className="input-group">
-                    <label className="input-label">Delivery Radius</label>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                      {([5, 10, 15] as const).map(km => (
-                        <button
-                          key={km}
-                          type="button"
-                          onClick={() => setRestaurantForm(prev => ({ ...prev, deliveryRadius: km }))}
-                          style={{
-                            flex: 1, padding: '10px 4px', borderRadius: 10, cursor: 'pointer',
-                            fontWeight: 700, fontSize: 13,
-                            background: (restaurantForm.deliveryRadius || 10) === km ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                            border: (restaurantForm.deliveryRadius || 10) === km ? '2px solid var(--border-brand)' : '1px solid var(--border)',
-                            color: (restaurantForm.deliveryRadius || 10) === km ? 'var(--brand)' : 'var(--text-secondary)',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          {km} KM
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ── UPI Payment Settings ── */}
-              <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 16 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  📱 UPI Payment Settings
-                </h4>
-
-                <div className="input-group">
-                  <label className="input-label">UPI ID</label>
-                  <div className="input-icon-wrap">
-                    <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>@</span>
-                    <input className="input" type="text" placeholder="e.g. merchant@okaxis"
-                      value={restaurantForm.upiId || ''}
-                      onChange={e => setRestaurantForm({ ...restaurantForm, upiId: e.target.value })} />
-                  </div>
-                </div>
-
-                {/* UPI QR Code upload */}
-                <div className="input-group" style={{ marginTop: 12 }}>
-                  <label className="input-label">UPI QR Code Image</label>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 6 }}>
-                    {restaurantForm.upiQrCode ? (
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <div style={{ width: 80, height: 80, background: '#ffffff', padding: 4, borderRadius: 8, border: '1px solid var(--border)' }}>
-                          <img src={restaurantForm.upiQrCode} alt="UPI QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setRestaurantForm(prev => ({ ...prev, upiQrCode: undefined }))}
-                          style={{
-                            position: 'absolute', top: -6, right: -6, width: 20, height: 20,
-                            borderRadius: '50%', background: 'var(--error)', border: 'none',
-                            color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 900,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                          }}
-                        >×</button>
-                      </div>
-                    ) : (
-                      <div style={{
-                        width: 80, height: 80, border: '2px dashed var(--border)', borderRadius: 8,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexDirection: 'column', gap: 4, color: 'var(--text-muted)', flexShrink: 0
-                      }}>
-                        <span style={{ fontSize: 22 }}>📷</span>
-                        <span style={{ fontSize: 9, fontWeight: 600 }}>No QR</span>
-                      </div>
-                    )}
-                    <div style={{ flex: 1 }}>
-                      <input
-                        type="file"
-                        id="upi-qr-upload-input"
-                        accept="image/*"
-                        onChange={handleUpiQrUpload}
-                        style={{ display: 'none' }}
-                      />
-                      <label
-                        htmlFor="upi-qr-upload-input"
-                        className="btn btn-secondary"
-                        style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 10, fontSize: 12, padding: '0 14px', width: '100%' }}
-                      >
-                        {uploadingUpiQr ? 'Uploading...' : '📁 Upload QR Code Image'}
-                      </label>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.4 }}>
-                        Upload your UPI QR code image. Customers will scan this to pay for home delivery orders.
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>

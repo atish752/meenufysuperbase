@@ -37,6 +37,17 @@ export default function CustomerMore() {
   const [editEmail, setEditEmail] = useState('');
   const [editUniqueId, setEditUniqueId] = useState('');
 
+  // Saved Address States
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [addrName, setAddrName] = useState('');
+  const [addrPhone, setAddrPhone] = useState('');
+  const [addrFull, setAddrFull] = useState('');
+  const [addrMapLink, setAddrMapLink] = useState('');
+  const [addrLat, setAddrLat] = useState<number | undefined>(undefined);
+  const [addrLng, setAddrLng] = useState<number | undefined>(undefined);
+  const [fetchingAddrLocation, setFetchingAddrLocation] = useState(false);
+
   // Check if logged in
   const [loggedInUser, setLoggedInUser] = useState<any>(() => {
     try {
@@ -600,6 +611,109 @@ setLoggedInUser({
     }
   };
 
+  const handleOpenAddressModal = (addr?: any) => {
+    if (addr) {
+      setEditingAddressId(addr.id);
+      setAddrName(addr.name || '');
+      setAddrPhone(addr.phone || '');
+      setAddrFull(addr.fullAddress || '');
+      setAddrMapLink(addr.mapLink || '');
+      setAddrLat(addr.lat);
+      setAddrLng(addr.lng);
+    } else {
+      setEditingAddressId(null);
+      setAddrName(loggedInUser?.name || '');
+      setAddrPhone(loggedInUser?.phone || '');
+      setAddrFull('');
+      setAddrMapLink('');
+      setAddrLat(undefined);
+      setAddrLng(undefined);
+    }
+    setShowAddressModal(true);
+  };
+
+  const handleSaveAddress = () => {
+    if (!addrName.trim()) { addToast('error', 'Name is required.'); return; }
+    if (!addrPhone.trim()) { addToast('error', 'Phone number is required.'); return; }
+    if (!addrFull.trim()) { addToast('error', 'Full address is required.'); return; }
+
+    const addressId = editingAddressId || `addr-${Date.now()}`;
+    const newAddress = {
+      id: addressId,
+      name: addrName.trim(),
+      phone: addrPhone.trim(),
+      fullAddress: addrFull.trim(),
+      mapLink: addrMapLink.trim(),
+      lat: addrLat,
+      lng: addrLng
+    };
+
+    const currentAddresses = customer?.savedAddresses || [];
+    let updatedAddresses = [];
+    if (editingAddressId) {
+      updatedAddresses = currentAddresses.map((a: any) => a.id === editingAddressId ? newAddress : a);
+    } else {
+      updatedAddresses = [...currentAddresses, newAddress];
+    }
+
+    if (hasFirebaseConfig && db && customer) {
+      update(ref(db, `customers/${restaurantId}/${customer.phone}`), {
+        savedAddresses: updatedAddresses
+      }).then(() => {
+        addToast('success', editingAddressId ? 'Address updated!' : 'Address saved!');
+        setShowAddressModal(false);
+      }).catch(err => {
+        console.error(err);
+        addToast('error', 'Failed to save address.');
+      });
+    } else {
+      addToast('success', 'Address saved locally.');
+      setShowAddressModal(false);
+    }
+  };
+
+  const handleDeleteAddress = (id: string) => {
+    if (!customer) return;
+    const currentAddresses = customer.savedAddresses || [];
+    const updatedAddresses = currentAddresses.filter((a: any) => a.id !== id);
+
+    if (hasFirebaseConfig && db) {
+      update(ref(db, `customers/${restaurantId}/${customer.phone}`), {
+        savedAddresses: updatedAddresses
+      }).then(() => {
+        addToast('success', 'Address deleted.');
+      }).catch(err => {
+        console.error(err);
+        addToast('error', 'Failed to delete address.');
+      });
+    }
+  };
+
+  const handleAddrLocateMe = () => {
+    if (!navigator.geolocation) {
+      addToast('error', 'Geolocation not supported by your browser.');
+      return;
+    }
+    setFetchingAddrLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setAddrLat(lat);
+        setAddrLng(lng);
+        setAddrMapLink(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+        addToast('success', 'GPS Location captured successfully!');
+        setFetchingAddrLocation(false);
+      },
+      (err) => {
+        console.error(err);
+        addToast('error', 'Unable to fetch current location. Check browser permissions.');
+        setFetchingAddrLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease', paddingBottom: 80 }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
@@ -697,6 +811,70 @@ setLoggedInUser({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Saved Addresses Block */}
+      {isLoggedIn && customer && (
+        <div className="card" style={{ marginBottom: 16, padding: '16px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              🏠 Saved Addresses
+            </h4>
+            <button
+              onClick={() => handleOpenAddressModal()}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: 11, fontWeight: 700, padding: '4px 8px', height: 26 }}
+            >
+              ➕ Add New
+            </button>
+          </div>
+
+          {(!customer.savedAddresses || customer.savedAddresses.length === 0) ? (
+            <div style={{ padding: '14px', textAlign: 'center', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px dashed var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>No saved addresses. Add one to speed up delivery orders!</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {customer.savedAddresses.map((addr: any) => (
+                <div key={addr.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'var(--bg-elevated)', borderRadius: 10, padding: 12, border: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {addr.name}
+                      <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-secondary)' }}>({addr.phone})</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.4, wordBreak: 'break-word' }}>
+                      {addr.fullAddress}
+                    </div>
+                    {addr.mapLink && (
+                      <a
+                        href={addr.mapLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--brand)', textDecoration: 'none', marginTop: 6, fontWeight: 600 }}
+                      >
+                        📍 View on Google Maps
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleOpenAddressModal(addr)}
+                      style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: 4 }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAddress(addr.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: 4 }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1037,6 +1215,102 @@ setLoggedInUser({
                 Save Profile changes
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Address Edit/Add Modal */}
+      {showAddressModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1200,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: 400, padding: 20, border: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
+            <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, marginBottom: 16 }}>
+              {editingAddressId ? '📝 Edit Address' : '🏠 Add Saved Address'}
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="input-group">
+                <label className="input-label">Recipient Name</label>
+                <input
+                  className="input"
+                  type="text"
+                  value={addrName}
+                  onChange={e => setAddrName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Recipient Phone (Mandatory)</label>
+                <input
+                  className="input"
+                  type="tel"
+                  value={addrPhone}
+                  onChange={e => setAddrPhone(e.target.value)}
+                  placeholder="e.g. 9876543210"
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Full Delivery Address</label>
+                <textarea
+                  className="input"
+                  rows={3}
+                  value={addrFull}
+                  onChange={e => setAddrFull(e.target.value)}
+                  placeholder="Street, Building, Flat No., City, Landmark"
+                />
+              </div>
+
+              <div className="input-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label className="input-label" style={{ margin: 0 }}>Google Maps Link / GPS Coordinates</label>
+                  <button
+                    type="button"
+                    onClick={handleAddrLocateMe}
+                    disabled={fetchingAddrLocation}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 10, height: 24, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}
+                  >
+                    📍 {fetchingAddrLocation ? 'Locating...' : 'Locate Me (GPS)'}
+                  </button>
+                </div>
+                <input
+                  className="input"
+                  type="text"
+                  value={addrMapLink}
+                  onChange={e => setAddrMapLink(e.target.value)}
+                  placeholder="Optional Google Maps URL"
+                />
+                {addrLat && addrLng && (
+                  <div style={{ fontSize: 9, color: 'var(--success)', marginTop: 4, fontWeight: 600 }}>
+                    Coordinates Captured: {addrLat.toFixed(5)}, {addrLng.toFixed(5)}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddressModal(false)}
+                  className="btn btn-secondary btn-full"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAddress}
+                  className="btn btn-primary btn-full"
+                  style={{ background: 'var(--brand)', color: '#000', fontWeight: 800 }}
+                >
+                  Save Address
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
