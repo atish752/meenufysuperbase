@@ -217,6 +217,7 @@ function MealCard({
 
 export default function CustomerMenu() {
   const { state, dispatch, addToast } = useStore();
+  const restaurantId = getActiveRestaurantId(state);
   const isViewOnly = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('viewOnly') === 'true' || window.location.pathname === '/home');
   const isCartAllowed = !isViewOnly || state.restaurant?.deliveryEnabled;
   const t = useTranslation();
@@ -232,6 +233,52 @@ export default function CustomerMenu() {
   // Tracks which category section is visible while scrolling in "all" mode
   const [scrollActiveCat, setScrollActiveCat] = useState<string>('');
   const mealsScrollRef = useRef<HTMLDivElement>(null);
+
+  const [showLoader, setShowLoader] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState('🍳 warming up the grills...');
+
+  const MESSAGES = [
+    '🍳 Warming up the griddle...',
+    '🥦 Gathering the freshest ingredients...',
+    '🍯 Preparing the secret spices...',
+    '🍽️ Setting the tables...',
+    '✨ Crafting your delicious experience...',
+  ];
+
+  useEffect(() => {
+    // Determine if the restaurant already has items loaded in local state
+    const hasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
+    if (hasItems) {
+      setShowLoader(false);
+      return;
+    }
+
+    setShowLoader(true);
+    let msgIdx = 0;
+    const msgInterval = setInterval(() => {
+      msgIdx = (msgIdx + 1) % MESSAGES.length;
+      setLoadingMessage(MESSAGES[msgIdx]);
+    }, 1800);
+
+    const checkTimer = setInterval(() => {
+      const currentHasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
+      if (currentHasItems) {
+        setTimeout(() => setShowLoader(false), 900); // smooth exit transition delay
+        clearInterval(checkTimer);
+      }
+    }, 200);
+
+    const maxTimer = setTimeout(() => {
+      setShowLoader(false);
+      clearInterval(checkTimer);
+    }, 8000);
+
+    return () => {
+      clearInterval(msgInterval);
+      clearInterval(checkTimer);
+      clearTimeout(maxTimer);
+    };
+  }, [restaurantId]);
 
   const [addonModalItem, setAddonModalItem] = useState<{
     item: MenuItem;
@@ -268,7 +315,6 @@ export default function CustomerMenu() {
     setVariantQty(1);
   };
 
-  const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
   const plan = restaurant.subscriptionPlan || 'free';
   const usage = restaurant.ordersPlacedThisMonth || 0;
@@ -490,6 +536,113 @@ export default function CustomerMenu() {
       flexDirection: 'column',
       height: '100%',
     }}>
+      {showLoader && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: 'rgba(10, 10, 10, 0.95)',
+          backdropFilter: 'blur(16px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'fadeIn 0.2s ease-out',
+        }}>
+          {/* Frying Pan & Flipping Egg Animation Wrapper */}
+          <div style={{ position: 'relative', width: 120, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+            {/* Spinning Neon Ring */}
+            <div style={{
+              position: 'absolute',
+              width: 100,
+              height: 100,
+              borderRadius: '50%',
+              border: '3px solid transparent',
+              borderTopColor: 'var(--brand)',
+              borderBottomColor: 'rgba(255, 125, 0, 0.1)',
+              animation: 'spin 1.5s linear infinite',
+            }} />
+            
+            {/* Cooking Pan & Food Icon */}
+            <div style={{
+              fontSize: 48,
+              animation: 'cookPan 1.8s ease-in-out infinite',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              userSelect: 'none'
+            }}>
+              🍳
+            </div>
+            
+            {/* Rising Steam Particles */}
+            <div style={{
+              position: 'absolute',
+              top: 15,
+              display: 'flex',
+              gap: 8,
+              opacity: 0.8
+            }}>
+              <span className="steam-particle" style={{ animationDelay: '0s' }}>☁️</span>
+              <span className="steam-particle" style={{ animationDelay: '0.4s' }}>☁️</span>
+              <span className="steam-particle" style={{ animationDelay: '0.8s' }}>☁️</span>
+            </div>
+          </div>
+
+          <h2 style={{
+            fontSize: 20,
+            fontFamily: 'var(--font-display)',
+            fontWeight: 900,
+            color: 'var(--brand)',
+            marginBottom: 8,
+            letterSpacing: '-0.02em',
+            textAlign: 'center',
+            textTransform: 'uppercase',
+            filter: 'drop-shadow(0 0 10px rgba(255, 125, 0, 0.3))'
+          }}>
+            Cooking Up Your Menu
+          </h2>
+          
+          <p style={{
+            fontSize: 13,
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+            textAlign: 'center',
+            padding: '0 24px',
+            lineHeight: 1.5,
+            minHeight: 20,
+            transition: 'all 0.3s ease-out',
+            animation: 'pulseText 2s infinite'
+          }}>
+            {loadingMessage}
+          </p>
+
+          {/* Embedded Styles for custom loading keyframes */}
+          <style>{`
+            @keyframes cookPan {
+              0%, 100% { transform: rotate(0deg) translateY(0); }
+              25% { transform: rotate(-15deg) translateY(-8px); }
+              50% { transform: rotate(15deg) translateY(2px); }
+              75% { transform: rotate(-5deg) translateY(-4px); }
+            }
+            @keyframes pulseText {
+              0%, 100% { opacity: 0.6; }
+              50% { opacity: 1; }
+            }
+            .steam-particle {
+              font-size: 10px;
+              animation: riseSteam 1.5s ease-out infinite;
+              opacity: 0;
+              transform: translateY(10px);
+            }
+            @keyframes riseSteam {
+              0% { opacity: 0; transform: translateY(15px) scale(0.6); }
+              50% { opacity: 0.8; }
+              100% { opacity: 0; transform: translateY(-20px) scale(1.2); }
+            }
+          `}</style>
+        </div>
+      )}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none !important;
