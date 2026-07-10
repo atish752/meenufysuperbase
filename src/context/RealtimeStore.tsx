@@ -2020,6 +2020,15 @@ export function useStore() {
 export function getActiveRestaurantId(state: AppState): string {
   if (typeof window === 'undefined') return 'admin-1';
   const urlParams = new URLSearchParams(window.location.search);
+  const viewParam = urlParams.get('view');
+  
+  // If we are in the admin dashboard view or onboarding, prioritize the logged-in admin's restaurant ID
+  const isAdminView = viewParam === 'admin' || viewParam === 'onboarding' || 
+                      (state.isAdminLoggedIn && viewParam !== 'customer' && window.location.pathname !== '/home' && window.location.pathname !== '/onboarding');
+  if (isAdminView && state.admin?.restaurantId) {
+    return state.admin.restaurantId;
+  }
+  
   return urlParams.get('restaurant') || 
          state.activeCustomerRestaurantId ||
          state.admin?.restaurantId || 
@@ -2292,63 +2301,128 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const targetRestaurantId = getActiveRestaurantId(state);
 
-  // Real-time Firebase Realtime Database sync listeners
+  // 1. Global Firebase sync listeners (Subscribed once on app load)
   useEffect(() => {
     if (!hasFirebaseConfig || !db) return;
 
-    // 0. Connection state listener (silent — no toasts)
-    const unsubscribeConnected = onValue(ref(db, '.info/connected'), (_snapshot) => {
-      // Connection state changes are handled silently
+    // Connection state listener (silent — no toasts)
+    const unsubscribeConnected = onValue(ref(db, '.info/connected'), (_snapshot) => {});
+
+    // Sync restaurant accounts (all active outlets)
+    const unsubscribeAccounts = onValue(ref(db, 'restaurantAccounts'), (snapshot) => {
+      const data = snapshot.val();
+      const accounts: RestaurantAccount[] = data ? Object.entries(data).map(([key, val]: [string, any]) => ({
+        ...val,
+        id: key
+      })) : [];
+      if (accounts.length > 0) {
+        dispatch({
+          type: 'SYNC_RESTAURANT_ACCOUNTS',
+          payload: accounts
+        });
+
+        const curAdmin = stateRef.current.admin;
+        if (curAdmin && !curAdmin.isSuperAdmin && db) {
+          const dbAcc = accounts.find(a => a.id === curAdmin.id);
+          if (dbAcc && !dbAcc.billingCountry) {
+            const detected = detectBillingCountry();
+            update(ref(db, `restaurantAccounts/${curAdmin.id}`), {
+              billingCountry: detected
+            }).catch(e => console.error("Failed to sync billingCountry back to DB:", e));
+          }
+        }
+      }
     });
+
+    // Listen to Gemini API keys
+    const unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as string[];
+        dispatch({
+          type: 'SET_STATE',
+          payload: { geminiApiKeys: keys }
+        });
+      }
+    });
+
+    // Listen to subscription coupons (global)
+    const unsubscribeSubscriptionCoupons = onValue(ref(db, 'subscriptionCoupons'), (snapshot) => {
+      const data = snapshot.val();
+      const items: SubscriptionCoupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as SubscriptionCoupon[] : [];
+      dispatch({ type: 'SYNC_SUBSCRIPTION_COUPONS', payload: items });
+    });
+
+    const isUrlAdmin = typeof window !== 'undefined' && window.location.search.includes('view=admin');
+    const isLocalAdmin = (() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return !!s.isAdminLoggedIn; } catch { return false; } })();
+    const isAdminMode = isUrlAdmin || isLocalAdmin;
+
+    // Listen to ownerFeedbacks (global — for super admin to receive all feedback)
+    let unsubscribeFeedbacks = () => {};
+    if (isAdminMode) {
+      unsubscribeFeedbacks = onValue(ref(db, 'ownerFeedbacks'), (snapshot) => {
+        const data = snapshot.val();
+        const feedbacks: OwnerFeedback[] = data ? Object.values(data) as OwnerFeedback[] : [];
+        feedbacks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        dispatch({ type: 'SYNC_OWNER_FEEDBACKS', payload: feedbacks });
+      });
+    }
+
+    // Listen to supportRequests (global — for super admin to receive all support tickets)
+    let unsubscribeSupport = () => {};
+    if (isAdminMode) {
+      unsubscribeSupport = onValue(ref(db, 'supportRequests'), (snapshot) => {
+        const data = snapshot.val();
+        const requests: SupportRequest[] = data ? Object.values(data) as SupportRequest[] : [];
+        requests.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        dispatch({ type: 'SYNC_SUPPORT_REQUESTS', payload: requests });
+      });
+    }
+
+    // Listen to staffMembers (for login authentication and permissions)
+    const unsubscribeStaff = onValue(ref(db, 'staffMembers'), (snapshot) => {
+      const data = snapshot.val();
+      const staff: StaffMember[] = data ? Object.values(data) as StaffMember[] : [];
+      dispatch({ type: 'SYNC_STAFF_MEMBERS', payload: staff });
+    });
+
+    // Listen to delivery riders
+    const unsubscribeDeliveryBoys = onValue(ref(db, 'deliveryBoys'), (snapshot) => {
+      const data = snapshot.val();
+      const boys: DeliveryBoy[] = data ? Object.values(data) as DeliveryBoy[] : [];
+      dispatch({ type: 'SYNC_DELIVERY_BOYS', payload: boys });
+    });
+
+    return () => {
+      unsubscribeConnected();
+      unsubscribeAccounts();
+      unsubscribeGeminiKeys();
+      unsubscribeSubscriptionCoupons();
+      unsubscribeFeedbacks();
+      unsubscribeSupport();
+      unsubscribeStaff();
+      unsubscribeDeliveryBoys();
+    };
+  }, [db]);
+
+  // 2. Restaurant-specific Firebase sync listeners (Subscribed and refreshed when targetRestaurantId changes)
+  useEffect(() => {
+    if (!hasFirebaseConfig || !db || !targetRestaurantId) return;
 
     const isCustomer = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'customer';
 
-    if (!targetRestaurantId) return;
-
-    // 1. Sync restaurant profile details
+    // Sync restaurant profile details
     const unsubscribeRestaurant = onValue(ref(db, `restaurants/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       if (data) {
         dispatch({
           type: 'SET_STATE',
-          payload: { restaurant: { ...state.restaurant, ...data } }
+          payload: { restaurant: { ...stateRef.current.restaurant, ...data } }
         });
       }
     });
 
-    // 2. Sync restaurant accounts (Only for admin views or super-admin connection)
-    let unsubscribeAccounts = () => {};
-    const isAdminMode = targetRestaurantId === 'super-admin' || 
-                        window.location.search.includes('view=admin') || 
-                        (() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return !!s.isAdminLoggedIn; } catch { return false; } })();
-    // Subscribe to restaurantAccounts always so customers can browse nearby outlets
-    unsubscribeAccounts = onValue(ref(db, 'restaurantAccounts'), (snapshot) => {
-        const data = snapshot.val();
-        const accounts: RestaurantAccount[] = data ? Object.entries(data).map(([key, val]: [string, any]) => ({
-          ...val,
-          id: key
-        })) : [];
-        if (accounts.length > 0) {
-          dispatch({
-            type: 'SYNC_RESTAURANT_ACCOUNTS',
-            payload: accounts
-          });
-
-          // Write detected country back to Firebase if it doesn't have it set yet
-          const curAdmin = stateRef.current.admin;
-          if (curAdmin && !curAdmin.isSuperAdmin && db) {
-            const dbAcc = accounts.find(a => a.id === curAdmin.id);
-            if (dbAcc && !dbAcc.billingCountry) {
-              const detected = detectBillingCountry();
-              update(ref(db, `restaurantAccounts/${curAdmin.id}`), {
-                billingCountry: detected
-              }).catch(e => console.error("Failed to sync billingCountry back to DB:", e));
-            }
-          }
-        }
-      });
-
-    // 3. Listen to menuItems
+    // Listen to menuItems
     const unsubscribeMenu = onValue(ref(db, `menuItems/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const items: MenuItem[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuItem[] : [];
@@ -2362,11 +2436,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // 4. Listen to categories
+    // Listen to categories
     const unsubscribeCat = onValue(ref(db, `categories/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // DB has categories - sync them to state
         const cats: MenuCategory[] = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuCategory[];
         const catsWithId = cats.map(c => ({
           ...c,
@@ -2377,7 +2450,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           payload: { restaurantId: targetRestaurantId, categories: catsWithId } 
         });
       } else if (!isCustomer) {
-        // Admin tab + DB has no categories → seed the current state categories to DB
         const localCats = stateRef.current.categories.filter(c => c && c.restaurantId === targetRestaurantId);
         if (localCats.length > 0) {
           const catsObj: Record<string, any> = {};
@@ -2385,11 +2457,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           set(ref(db!, `categories/${targetRestaurantId}`), catsObj);
         }
       }
-      // If customer tab and DB has no categories, do nothing - keep the local default categories in state
     });
 
-
-    // 5. Listen to orders
+    // Listen to orders
     const unsubscribeOrder = onValue(ref(db, `orders/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const ords: Order[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Order[] : [];
@@ -2403,7 +2473,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // 6. Listen to waiterRequests
+    // Listen to waiterRequests
     const unsubscribeWaiter = onValue(ref(db, `waiterRequests/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const reqs: WaiterRequest[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as WaiterRequest[] : [];
@@ -2417,7 +2487,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // 7. Listen to tables
+    // Listen to tables
     const unsubscribeTables = onValue(ref(db, `tables/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -2427,12 +2497,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           payload: { tables: tbls }
         });
       } else if (!isCustomer && stateRef.current.tables.length > 0) {
-        // If DB has no tables, upload the local tables to initialize it
         set(ref(db!, `tables/${targetRestaurantId}`), stateRef.current.tables);
       }
     });
 
-    // 8. Listen to schedules
+    // Listen to schedules
     const unsubscribeSchedules = onValue(ref(db, `schedules/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -2448,19 +2517,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // 9. Listen to Gemini API keys
-    const unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as string[];
-        dispatch({
-          type: 'SET_STATE',
-          payload: { geminiApiKeys: keys }
-        });
-      }
-    });
-
-    // 10. Listen to customers
+    // Listen to customers
     const unsubscribeCustomers = onValue(ref(db, `customers/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const custs: CustomerRecord[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as CustomerRecord[] : [];
@@ -2470,58 +2527,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // 11. Listen to coupons
+    // Listen to coupons
     const unsubscribeCoupons = onValue(ref(db, `coupons/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const items: Coupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Coupon[] : [];
       dispatch({ type: 'SYNC_COUPONS', payload: items });
     });
 
-    // 11b. Listen to subscription coupons (global)
-    const unsubscribeSubscriptionCoupons = onValue(ref(db, 'subscriptionCoupons'), (snapshot) => {
-      const data = snapshot.val();
-      const items: SubscriptionCoupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as SubscriptionCoupon[] : [];
-      dispatch({ type: 'SYNC_SUBSCRIPTION_COUPONS', payload: items });
-    });
-
-    // 12. Listen to ownerFeedbacks (global — for super admin to receive all feedback)
-    let unsubscribeFeedbacks = () => {};
-    if (targetRestaurantId === 'super-admin' || isAdminMode) {
-      unsubscribeFeedbacks = onValue(ref(db, 'ownerFeedbacks'), (snapshot) => {
-        const data = snapshot.val();
-        const feedbacks: OwnerFeedback[] = data ? Object.values(data) as OwnerFeedback[] : [];
-        // Sort newest first
-        feedbacks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        dispatch({ type: 'SYNC_OWNER_FEEDBACKS', payload: feedbacks });
-      });
-    }
-
-    // 13. Listen to supportRequests (global — for super admin to receive all support tickets)
-    let unsubscribeSupport = () => {};
-    if (targetRestaurantId === 'super-admin' || isAdminMode) {
-      unsubscribeSupport = onValue(ref(db, 'supportRequests'), (snapshot) => {
-        const data = snapshot.val();
-        const requests: SupportRequest[] = data ? Object.values(data) as SupportRequest[] : [];
-        // Sort newest first
-        requests.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        dispatch({ type: 'SYNC_SUPPORT_REQUESTS', payload: requests });
-      });
-    }
-
-    // 14. Listen to staffMembers (for login authentication and permissions)
-    const unsubscribeStaff = onValue(ref(db, 'staffMembers'), (snapshot) => {
-      const data = snapshot.val();
-      const staff: StaffMember[] = data ? Object.values(data) as StaffMember[] : [];
-      dispatch({ type: 'SYNC_STAFF_MEMBERS', payload: staff });
-    });
-
-    const unsubscribeDeliveryBoys = onValue(ref(db, 'deliveryBoys'), (snapshot) => {
-      const data = snapshot.val();
-      const boys: DeliveryBoy[] = data ? Object.values(data) as DeliveryBoy[] : [];
-      dispatch({ type: 'SYNC_DELIVERY_BOYS', payload: boys });
-    });
-
-    // 15. Listen to addons
+    // Listen to addons
     const unsubscribeAddons = onValue(ref(db, `addons/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
       const rawItems = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) : [];
@@ -2535,26 +2548,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
-      unsubscribeConnected();
       unsubscribeRestaurant();
-      unsubscribeAccounts();
       unsubscribeMenu();
       unsubscribeCat();
       unsubscribeOrder();
       unsubscribeWaiter();
       unsubscribeTables();
       unsubscribeSchedules();
-      unsubscribeGeminiKeys();
       unsubscribeCustomers();
       unsubscribeCoupons();
-      unsubscribeSubscriptionCoupons();
-      unsubscribeFeedbacks();
-      unsubscribeSupport();
-      unsubscribeStaff();
-      unsubscribeDeliveryBoys();
       unsubscribeAddons();
     };
-  }, [state.admin?.restaurantId, state.currentView, targetRestaurantId, urlSearch]);
+  }, [db, targetRestaurantId]);
 
   // Broadcast state changes to other tabs
   const wrappedDispatch = useCallback((action: Action) => {
