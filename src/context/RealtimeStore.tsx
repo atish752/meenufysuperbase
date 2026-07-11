@@ -143,6 +143,7 @@ export type Order = {
   deliveryLat?: number;
   deliveryLng?: number;
   deliveryCharge?: number;
+  isManualOrder?: boolean;
 };
 
 export type TableInfo = {

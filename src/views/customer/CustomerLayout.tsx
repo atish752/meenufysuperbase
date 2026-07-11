@@ -1271,7 +1271,7 @@ export default function CustomerLayout({ tableId }: Props) {
               /* --- STANDARD LIVE TIMELINE FLOW --- */
               <div>
                 {/* Banner */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <span style={{
                     fontSize: 11, fontWeight: 800, color: 'var(--brand)',
                     border: '1px solid var(--border-brand)', background: 'var(--brand-dim)',
@@ -1282,6 +1282,33 @@ export default function CustomerLayout({ tableId }: Props) {
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
                     🛵 {getStatusDesc(activeOrder.status)}
                   </span>
+                </div>
+
+                {/* Order Type & Creator Label */}
+                <div style={{
+                  marginBottom: 16,
+                  padding: '10px 12px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Order Type:</span>
+                    <span style={{ color: 'var(--brand)', textTransform: 'uppercase' }}>
+                      {activeOrder.orderType === 'delivery' ? '🛵 Home Delivery' : activeOrder.orderType === 'take-away' ? '🛍️ Take-Away' : '🍽️ In-Dining'}
+                    </span>
+                  </div>
+                  {activeOrder.isManualOrder && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 4, marginTop: 2 }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 10.5 }}>Placed By:</span>
+                      <span style={{ color: 'var(--success)', fontSize: 10.5 }}>👤 Restaurant Owner / Admin</span>
+                    </div>
+                  )}
                 </div>
 
                 {activeOrder.orderType === 'delivery' && activeOrder.deliveryOtp && activeOrder.status !== 'served' && (
