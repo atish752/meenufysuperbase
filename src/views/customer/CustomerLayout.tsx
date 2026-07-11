@@ -1325,8 +1325,8 @@ export default function CustomerLayout({ tableId }: Props) {
                     <span style={{ fontSize: 10, color: '#A855F7', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>🔑 Your Delivery OTP</span>
                     <span style={{
                       fontSize: 34, fontWeight: 950, letterSpacing: '0.22em',
-                      color: '#E9D5FF',
-                      textShadow: '0 0 20px rgba(168,85,247,0.6)',
+                      color: '#7E22CE',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.1)',
                       fontFamily: 'monospace'
                     }}>{activeOrder.deliveryOtp}</span>
                     <span style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: 260 }}>Show this OTP to the delivery rider when your food arrives. Do not share it until delivery.</span>

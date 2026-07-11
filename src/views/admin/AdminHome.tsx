@@ -2468,6 +2468,7 @@ function OrderCard({
   const { state, dispatch } = useStore();
   const customer = state.customers.find(c => c.phone === order.customerPhone);
   const isVip = customer ? !!customer.isVip : false;
+  const [showDetails, setShowDetails] = useState(false);
 
   const cfg = STATUS_CONFIG[order.status];
   const Icon = cfg.icon;
@@ -2614,89 +2615,117 @@ function OrderCard({
             </span>
           </div>
 
-          {order.orderType === 'delivery' && order.deliveryAddress && (
-            <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 6, width: '100%', background: 'rgba(157,78,221,0.08)', border: '1px solid rgba(157,78,221,0.3)', padding: '10px 12px', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <strong style={{ color: '#C084FC', fontSize: 10 }}>📍 DELIVERY ADDRESS</strong>
-              <span style={{ fontSize: 10.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{order.deliveryAddress}</span>
-              {order.customerPhone && (
-                <a href={`tel:${order.customerPhone}`} style={{ fontSize: 10.5, color: '#22C55E', fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                  📞 {order.customerPhone}
-                </a>
-              )}
-            </div>
-          )}
-
-          {order.orderType === 'delivery' && order.status !== 'served' && order.status !== 'cancelled' && (
-            <div style={{ marginTop: 10, width: '100%', borderTop: '1px dashed var(--border)', paddingTop: 8 }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                🚴 Assign Delivery Rider:
-              </label>
-              <div style={{ position: 'relative' }}>
-                <select
-                  value={order.deliveryBoyId || ''}
-                  onChange={(e) => {
-                    const boyId = e.target.value;
-                    if (!boyId) return;
-
-                    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
-                    const targetRestId = order.restaurantId || state.admin?.restaurantId || 'admin-1';
-                    dispatch({
-                      type: 'ASSIGN_DELIVERY_BOY',
-                      payload: {
-                        orderId: order.id,
-                        restaurantId: targetRestId,
-                        deliveryBoyId: boyId,
-                        deliveryOtp: otpCode
-                      }
-                    });
-                  }}
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-elevated)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    outline: 'none',
-                    cursor: 'pointer',
-                    appearance: 'none',
-                    WebkitAppearance: 'none'
-                  }}
+          {order.orderType === 'delivery' && (
+            !showDetails ? (
+              <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%' }}>
+                <span style={{ fontSize: 10.5, color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                  📍 {order.deliveryAddress || 'No address provided'}
+                </span>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setShowDetails(true); }}
+                  style={{ fontSize: 9.5, fontWeight: 800, color: '#C084FC', background: 'rgba(157,78,221,0.1)', border: '1px solid rgba(157,78,221,0.2)', cursor: 'pointer', padding: '3px 8px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 2 }}
                 >
-                  <option value="">-- Select Rider --</option>
-                  {(state.deliveryBoys || []).filter(b => b.restaurantId === (order.restaurantId || state.admin?.restaurantId || 'admin-1')).map(boy => (
-                    <option key={boy.id} value={boy.id}>
-                      {boy.name} ({boy.status || 'idle'})
-                    </option>
-                  ))}
-                </select>
-                <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: 10, color: 'var(--text-secondary)' }}>▼</span>
+                  Manage ▾
+                </button>
               </div>
-              {order.deliveryBoyId && (
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                  <span style={{
-                    fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
-                    background: 'rgba(157,78,221,0.15)', color: '#C084FC',
-                    border: '1px solid rgba(157,78,221,0.3)',
-                    display: 'inline-flex', alignItems: 'center', gap: 4
-                  }}>
-                    🛵 {(state.deliveryBoys || []).find(b => b.id === order.deliveryBoyId)?.name || 'Rider'}
-                  </span>
-                  {order.deliveryOtp && (
-                    <span style={{
-                      fontSize: 9.5, fontWeight: 900, padding: '2px 8px', borderRadius: 20,
-                      background: 'rgba(34,197,94,0.15)', color: '#4ADE80',
-                      border: '1px solid rgba(34,197,94,0.3)',
-                      display: 'inline-flex', alignItems: 'center', gap: 4
-                    }}>
-                      🔑 OTP: {order.deliveryOtp}
-                    </span>
-                  )}
+            ) : (
+              <div style={{ animation: 'fadeIn 0.2s ease', display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                {/* Expand Toggle Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, borderBottom: '1px dashed var(--border)', paddingBottom: 4 }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: '#C084FC', letterSpacing: '0.04em' }}>DELIVERY DETAILS</span>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowDetails(false); }}
+                    style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    Collapse ▴
+                  </button>
                 </div>
-              )}
-            </div>
+
+                {/* Full Address Block */}
+                {order.deliveryAddress && (
+                  <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', width: '100%', background: 'rgba(157,78,221,0.08)', border: '1px solid rgba(157,78,221,0.3)', padding: '8px 10px', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 10.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{order.deliveryAddress}</span>
+                    {order.customerPhone && (
+                      <a href={`tel:${order.customerPhone}`} style={{ fontSize: 10.5, color: '#22C55E', fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        📞 {order.customerPhone}
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {/* Assign Rider Select Dropdown */}
+                {order.status !== 'served' && order.status !== 'cancelled' && (
+                  <div style={{ marginTop: 2, position: 'relative', width: '100%' }}>
+                    <label style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 3 }}>
+                      🚴 Assign Rider:
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <select
+                        value={order.deliveryBoyId || ''}
+                        onChange={(e) => {
+                          const boyId = e.target.value;
+                          if (!boyId) return;
+
+                          const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+                          const targetRestId = order.restaurantId || state.admin?.restaurantId || 'admin-1';
+                          dispatch({
+                            type: 'ASSIGN_DELIVERY_BOY',
+                            payload: {
+                              orderId: order.id,
+                              restaurantId: targetRestId,
+                              deliveryBoyId: boyId,
+                              deliveryOtp: otpCode
+                            }
+                          });
+                        }}
+                        style={{
+                          width: '100%',
+                          background: 'var(--bg-elevated)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 6,
+                          padding: '4px 8px',
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          outline: 'none',
+                          cursor: 'pointer',
+                          appearance: 'none',
+                          WebkitAppearance: 'none'
+                        }}
+                      >
+                        <option value="">-- Select Rider --</option>
+                        {(state.deliveryBoys || []).filter(b => b.restaurantId === (order.restaurantId || state.admin?.restaurantId || 'admin-1')).map(boy => (
+                          <option key={boy.id} value={boy.id}>
+                            {boy.name} ({boy.status || 'idle'})
+                          </option>
+                        ))}
+                      </select>
+                      <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: 9, color: 'var(--text-secondary)' }}>▼</span>
+                    </div>
+                    {order.deliveryBoyId && (
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                        <span style={{
+                          fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 10,
+                          background: 'rgba(157,78,221,0.15)', color: '#C084FC',
+                          border: '1px solid rgba(157,78,221,0.2)'
+                        }}>
+                          🛵 {(state.deliveryBoys || []).find(b => b.id === order.deliveryBoyId)?.name || 'Rider'}
+                        </span>
+                        {order.deliveryOtp && (
+                          <span style={{
+                            fontSize: 9, fontWeight: 900, padding: '1px 6px', borderRadius: 10,
+                            background: 'rgba(34,197,94,0.15)', color: '#4ADE80',
+                            border: '1px solid rgba(34,197,94,0.2)'
+                          }}>
+                            🔑 OTP: {order.deliveryOtp}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
           )}
         </div>
         <div style={{

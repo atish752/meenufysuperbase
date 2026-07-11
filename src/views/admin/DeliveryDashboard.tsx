@@ -127,10 +127,11 @@ export default function DeliveryDashboard() {
       }
       addToast('success', 'Delivery started! Drive safely. 🛵');
 
-      // Open Google Maps with destination + driving mode
-      const dest = encodeURIComponent(activeOrder.deliveryAddress || '');
+      const dest = activeOrder.deliveryLat && activeOrder.deliveryLng 
+        ? `${activeOrder.deliveryLat},${activeOrder.deliveryLng}`
+        : (activeOrder.deliveryAddress || '');
       window.open(
-        `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`,
+        `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`,
         '_blank'
       );
     } catch (err: any) {
@@ -142,9 +143,11 @@ export default function DeliveryDashboard() {
   };
 
   const handleNavigate = () => {
-    const dest = encodeURIComponent(activeOrder?.deliveryAddress || '');
+    const dest = activeOrder?.deliveryLat && activeOrder?.deliveryLng 
+      ? `${activeOrder.deliveryLat},${activeOrder.deliveryLng}`
+      : (activeOrder?.deliveryAddress || '');
     window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`,
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`,
       '_blank'
     );
   };

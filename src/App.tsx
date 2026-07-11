@@ -37,6 +37,7 @@ function AppInner() {
     (state.isAdminLoggedIn && 
      !state.admin?.isSuperAdmin && 
      !state.admin?.isStaff && 
+     !state.admin?.isDeliveryBoy && 
      dbHasCompleted === false);  // only explicitly false = new signup that hasn't finished onboarding
 
   if (isOnboarding) {
