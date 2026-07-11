@@ -11,12 +11,9 @@ import {
 
 export default function AdminAuth() {
   const { state, dispatch, addToast } = useStore();
-  const [authPortal, setAuthPortal] = useState<'manager' | 'delivery'>('manager');
-  const [mode, setMode] = useState<'login' | 'signup' | 'staff_login'>('login');
+  const [mode, setMode] = useState<'login' | 'signup' | 'staff' | 'delivery'>('login');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showStaffPanel, setShowStaffPanel] = useState(false);
-  const [staffForm, setStaffForm] = useState({ username: '', password: '' });
 
   const [form, setForm] = useState({
     name: '', email: '', password: '', restaurantName: '',
@@ -28,7 +25,7 @@ export default function AdminAuth() {
       addToast('error', 'Please fill in all required fields.');
       return;
     }
-    if (authPortal === 'manager' && mode === 'signup' && (!form.name || !form.restaurantName)) {
+    if (mode === 'signup' && (!form.name || !form.restaurantName)) {
       addToast('error', 'Please fill in all required fields.');
       return;
     }
@@ -37,7 +34,7 @@ export default function AdminAuth() {
     const emailLower = form.email.trim().toLowerCase();
 
     // 0. Delivery Boy Login Portal Check
-    if (authPortal === 'delivery') {
+    if (mode === 'delivery') {
       try {
         let matchedBoy: any = null;
         if (hasFirebaseConfig && auth && db) {
@@ -89,8 +86,8 @@ export default function AdminAuth() {
       }
     }
 
-    // 0. Staff Member Login Portal Check (Manager portal checks for staff username first)
-    if (authPortal === 'manager') {
+    // 1. Staff Member Login Portal Check
+    if (mode === 'staff') {
       try {
         let matchedStaff: any = null;
         if (hasFirebaseConfig && auth && db) {
@@ -134,13 +131,20 @@ export default function AdminAuth() {
           addToast('success', `Welcome back, Staff ${staffUser.name}! 🎉`);
           setLoading(false);
           return;
+        } else {
+          addToast('error', '❌ No staff account found with this username.');
+          setLoading(false);
+          return;
         }
       } catch (err) {
         console.error('Staff match check error:', err);
+        addToast('error', '❌ Staff login failed.');
+        setLoading(false);
+        return;
       }
     }
 
-    // 1. Super Admin Check
+    // 2. Super Admin Check
     if (emailLower === 'atish752') {
       if (form.password === 'UHI(*Y90Jjk0JKop:ki-0PIkj9OP0') {
         const superUser = {
@@ -162,7 +166,7 @@ export default function AdminAuth() {
       }
     }
 
-    // 2. Firebase Auth Flow (if active)
+    // 3. Firebase Auth Flow (Owner / Admin)
     if (hasFirebaseConfig && auth) {
       try {
         let userCredential;
@@ -220,9 +224,6 @@ export default function AdminAuth() {
             type: 'UPDATE_RESTAURANT',
             payload: { name: form.restaurantName || 'My Restaurant' }
           });
-        }
-        // For new signups: mark onboarding as not yet completed so they see the onboarding flow
-        if (mode === 'signup') {
           dispatch({ type: 'MARK_ONBOARDING_PENDING' });
         }
         addToast('success', mode === 'signup' ? `Account created! Welcome, ${adminUser.name}! 🎉` : `Welcome back, ${adminUser.name}! 🎉`);
@@ -239,7 +240,7 @@ export default function AdminAuth() {
       return;
     }
 
-    // 3. Fallback Local storage authentication
+    // 4. Fallback Local storage authentication
     const existingAccount = state.restaurantAccounts?.find(
       acc => acc.ownerEmail.trim().toLowerCase() === emailLower ||
       (acc.ownerEmail.trim().toLowerCase() === 'atish3477' && emailLower === 'atish3477@gmail.com')
@@ -252,7 +253,6 @@ export default function AdminAuth() {
         return;
       }
 
-      // Password check for existing accounts
       if (mode === 'login') {
         if (existingAccount.password && existingAccount.password !== form.password) {
           addToast('error', '❌ Incorrect password.');
@@ -261,7 +261,6 @@ export default function AdminAuth() {
         }
       }
     } else {
-      // If trying to log in but account doesn't exist, block
       if (mode === 'login') {
         addToast('error', '❌ Account does not exist. Please Sign Up first.');
         setLoading(false);
@@ -291,10 +290,9 @@ export default function AdminAuth() {
         type: 'UPDATE_RESTAURANT',
         payload: { name: form.restaurantName || 'My Restaurant' }
       });
-    }
-    // For new signups: mark onboarding as not yet completed
-    if (mode === 'signup' && !existingAccount) {
-      dispatch({ type: 'MARK_ONBOARDING_PENDING' });
+      if (!existingAccount) {
+        dispatch({ type: 'MARK_ONBOARDING_PENDING' });
+      }
     }
     addToast('success', existingAccount ? `Welcome back, ${adminUser.name}! 🎉` : `Account created! Welcome, ${adminUser.name}! 🎉`);
     setLoading(false);
@@ -357,6 +355,11 @@ export default function AdminAuth() {
     }
   };
 
+  const handlePortalSwitch = (target: 'staff' | 'delivery') => {
+    setMode(target);
+    setForm({ name: '', email: '', password: '', restaurantName: '' });
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -364,105 +367,113 @@ export default function AdminAuth() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px 16px',
+      padding: '40px 16px',
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Background radial glow */}
+      {/* Background radial glows */}
       <div style={{
-        position: 'absolute', top: '-20%', left: '50%', transform: 'translateX(-50%)',
+        position: 'absolute', top: '-15%', left: '50%', transform: 'translateX(-50%)',
         width: 600, height: 600,
-        background: 'radial-gradient(circle, rgba(255,125,0,0.12) 0%, transparent 65%)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: '-20%', right: '-10%',
-        width: 400, height: 400,
-        background: 'radial-gradient(circle, rgba(255,125,0,0.06) 0%, transparent 65%)',
+        background: 'radial-gradient(circle, rgba(255,125,0,0.08) 0%, transparent 65%)',
         pointerEvents: 'none',
       }} />
 
-      <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
+      <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 1 }}>
+        
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.02em', fontFamily: 'Outfit, sans-serif' }}>
-            Hideout Access
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28, textAlign: 'center' }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: 18,
+            overflow: 'hidden',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-elevated)',
+            boxShadow: '0 8px 30px rgba(255, 125, 0, 0.15)',
+            border: '1px solid var(--border)',
+            marginBottom: 14
+          }}>
+            <img src="/meenufy_logo_dark.png" alt="Meenufy Logo" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+          </div>
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--brand)', margin: 0, fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.02em' }}>
+            Meenufy
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500, margin: 0 }}>
-            Select portal and sign in
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0', fontWeight: 600 }}>
+            Your restro's digital menu partner
           </p>
         </div>
 
         {/* Card */}
-        <div className="card-glass" style={{ borderRadius: 24, padding: '32px 28px', background: '#111111', border: '1px solid var(--border)' }}>
+        <div className="card-glass" style={{ borderRadius: 20, padding: '28px 24px', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
           
-          {/* Portal Switcher */}
-          <div style={{
-            display: 'flex', gap: 4,
-            background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 16, padding: 4,
-            marginBottom: 28,
-          }}>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthPortal('manager');
-                setMode('login');
-                setForm({ name: '', email: '', password: '', restaurantName: '' });
-              }}
-              style={{
-                flex: 1, padding: '12px 0',
-                borderRadius: 12,
-                fontWeight: 700, fontSize: 13.5,
-                transition: 'var(--transition)',
-                background: authPortal === 'manager' ? '#FF6B35' : 'transparent',
-                color: authPortal === 'manager' ? '#FFFFFF' : '#A3A3A3',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              }}
-            >
-              🛡️ Manager
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthPortal('delivery');
-                setForm({ name: '', email: '', password: '', restaurantName: '' });
-              }}
-              style={{
-                flex: 1, padding: '12px 0',
-                borderRadius: 12,
-                fontWeight: 700, fontSize: 13.5,
-                transition: 'var(--transition)',
-                background: authPortal === 'delivery' ? '#9D4EDD' : 'transparent',
-                color: authPortal === 'delivery' ? '#FFFFFF' : '#A3A3A3',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              }}
-            >
-              🚚 Delivery App
-            </button>
-          </div>
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 18, textAlign: 'center', fontFamily: 'Outfit, sans-serif' }}>
+            {mode === 'signup' && '✨ Create Restaurant Account'}
+            {mode === 'login' && '🛡️ Restaurant Owner Sign In'}
+            {mode === 'staff' && '👤 Staff Portal Access'}
+            {mode === 'delivery' && '🛵 Rider Portal Access'}
+          </h2>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {authPortal === 'manager' && mode === 'signup' && (
+          {/* Staff / Rider Segment switcher */}
+          {(mode === 'staff' || mode === 'delivery') && (
+            <div style={{
+              display: 'flex', gap: 4,
+              background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: 3,
+              marginBottom: 18,
+            }}>
+              <button
+                type="button"
+                onClick={() => handlePortalSwitch('staff')}
+                style={{
+                  flex: 1, padding: '10px 0',
+                  borderRadius: 10,
+                  fontWeight: 700, fontSize: 12,
+                  transition: 'all 0.2s',
+                  background: mode === 'staff' ? 'var(--brand)' : 'transparent',
+                  color: mode === 'staff' ? '#000000' : 'var(--text-secondary)',
+                  border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                👥 Staff
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePortalSwitch('delivery')}
+                style={{
+                  flex: 1, padding: '10px 0',
+                  borderRadius: 10,
+                  fontWeight: 700, fontSize: 12,
+                  transition: 'all 0.2s',
+                  background: mode === 'delivery' ? '#9D4EDD' : 'transparent',
+                  color: mode === 'delivery' ? '#FFFFFF' : 'var(--text-secondary)',
+                  border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                🏍️ Rider
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {mode === 'signup' && (
               <>
                 <div className="input-group">
-                  <label className="input-label" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 6, display: 'block' }}>YOUR NAME</label>
+                  <label className="input-label" style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>Your Name</label>
                   <input
                     className="input"
                     type="text"
+                    required
                     placeholder="e.g. Rahul Sharma"
                     value={form.name}
                     onChange={e => setForm({ ...form, name: e.target.value })}
                   />
                 </div>
                 <div className="input-group">
-                  <label className="input-label" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 6, display: 'block' }}>RESTAURANT NAME</label>
+                  <label className="input-label" style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>Restaurant Name</label>
                   <input
                     className="input"
                     type="text"
+                    required
                     placeholder="e.g. The Grand Spice"
                     value={form.restaurantName}
                     onChange={e => setForm({ ...form, restaurantName: e.target.value })}
@@ -472,22 +483,30 @@ export default function AdminAuth() {
             )}
 
             <div className="input-group">
-              <label className="input-label" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 6, display: 'block' }}>EMAIL ID</label>
+              <label className="input-label" style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>
+                {(mode === 'staff' || mode === 'delivery') ? 'Username' : 'Email ID'}
+              </label>
               <input
                 className="input"
                 type="text"
-                placeholder={authPortal === 'delivery' ? 'delivery@example.com' : 'admin@hideoutcafe.com'}
+                required
+                placeholder={
+                  mode === 'staff' ? 'e.g. rahul_staff' :
+                  mode === 'delivery' ? 'e.g. rahul_rider' :
+                  'e.g. owner@restaurant.com'
+                }
                 value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
               />
             </div>
 
             <div className="input-group">
-              <label className="input-label" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 6, display: 'block' }}>PASSWORD</label>
+              <label className="input-label" style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>Password</label>
               <div style={{ position: 'relative' }}>
                 <input
                   className="input"
                   type={showPass ? 'text' : 'password'}
+                  required
                   placeholder="••••••••"
                   value={form.password}
                   style={{ paddingRight: 42, width: '100%' }}
@@ -499,7 +518,7 @@ export default function AdminAuth() {
                   style={{
                     position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--text-muted)',
+                    color: 'var(--text-muted)', display: 'flex', alignItems: 'center'
                   }}
                 >
                   {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -512,13 +531,13 @@ export default function AdminAuth() {
               className="btn btn-full"
               disabled={loading}
               style={{
-                marginTop: 12,
-                height: 48,
-                borderRadius: 24,
-                background: authPortal === 'delivery' ? '#9D4EDD' : '#FF6B35',
-                color: '#FFFFFF',
+                marginTop: 8,
+                height: 44,
+                borderRadius: 12,
+                background: mode === 'delivery' ? '#9D4EDD' : 'var(--brand)',
+                color: mode === 'delivery' ? '#FFFFFF' : '#000000',
                 fontWeight: 800,
-                fontSize: 14,
+                fontSize: 13.5,
                 border: 'none',
                 cursor: 'pointer',
                 display: 'flex',
@@ -529,27 +548,28 @@ export default function AdminAuth() {
               }}
             >
               {loading ? (
-                <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
+                <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.3)', borderTopColor: mode === 'delivery' ? '#fff' : '#000', animation: 'spin 0.7s linear infinite' }} />
               ) : (
-                'SIGN IN'
+                mode === 'signup' ? 'Create Account' : 'Sign In'
               )}
             </button>
 
-            {authPortal === 'manager' && hasFirebaseConfig && (
+            {/* Google Login for Owner */}
+            {(mode === 'login' || mode === 'signup') && hasFirebaseConfig && (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
                   <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>or</span>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>or</span>
                   <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 </div>
                 <button
                   type="button"
-                  className="btn btn-secondary btn-full btn-lg"
+                  className="btn btn-secondary btn-full"
                   onClick={handleGoogleLogin}
                   disabled={loading}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', height: 42, borderRadius: 12 }}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
@@ -560,173 +580,76 @@ export default function AdminAuth() {
               </>
             )}
 
-            {authPortal === 'manager' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                <div style={{ textAlign: 'center' }}>
+            {/* Bottom Actions Switchers */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+              
+              {(mode === 'login' || mode === 'signup') && (
+                <>
                   <button
                     type="button"
                     onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                    style={{ background: 'none', border: 'none', color: '#FF6B35', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, outline: 'none' }}
                   >
                     {mode === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
                   </button>
-                </div>
-
-                {/* Staff Member Sign In */}
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                  
                   <button
                     type="button"
-                    onClick={() => setShowStaffPanel(v => !v)}
+                    onClick={() => handlePortalSwitch('staff')}
                     style={{
-                      width: '100%', padding: '10px 14px',
-                      background: showStaffPanel ? 'rgba(168,85,247,0.08)' : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${showStaffPanel ? 'rgba(168,85,247,0.3)' : 'var(--border)'}`,
-                      borderRadius: 10, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      color: showStaffPanel ? '#A855F7' : 'var(--text-secondary)',
-                      fontWeight: 700, fontSize: 12.5,
-                      transition: 'all 0.2s'
+                      background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer',
+                      fontSize: 12.5, fontWeight: 700, outline: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4
                     }}
                   >
-                    <span>👤 Staff Member? Sign in here</span>
-                    <span style={{ fontSize: 10, opacity: 0.7 }}>{showStaffPanel ? '▲' : '▼'}</span>
+                    👤 Staff or Rider Login Portal &rarr;
                   </button>
+                </>
+              )}
 
-                  {showStaffPanel && (
-                    <div style={{
-                      marginTop: 10, padding: '14px',
-                      background: 'rgba(168,85,247,0.05)',
-                      border: '1px solid rgba(168,85,247,0.2)',
-                      borderRadius: 12,
-                      display: 'flex', flexDirection: 'column', gap: 12,
-                      animation: 'fadeIn 0.2s ease'
-                    }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: '#A855F7', letterSpacing: '0.04em' }}>
-                        🛡️ STAFF LOGIN — Use your staff ID and password provided by the restaurant owner.
-                      </div>
-                      <div className="input-group">
-                        <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6, display: 'block', letterSpacing: '0.05em' }}>STAFF USERNAME</label>
-                        <input
-                          className="input"
-                          type="text"
-                          placeholder="e.g. john_staff"
-                          value={staffForm.username}
-                          onChange={e => setStaffForm({ ...staffForm, username: e.target.value })}
-                          style={{ borderColor: 'rgba(168,85,247,0.3)' }}
-                        />
-                      </div>
-                      <div className="input-group">
-                        <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6, display: 'block', letterSpacing: '0.05em' }}>STAFF PASSWORD</label>
-                        <input
-                          className="input"
-                          type="password"
-                          placeholder="••••••••"
-                          value={staffForm.password}
-                          onChange={e => setStaffForm({ ...staffForm, password: e.target.value })}
-                          style={{ borderColor: 'rgba(168,85,247,0.3)' }}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        disabled={loading || !staffForm.username || !staffForm.password}
-                        onClick={async () => {
-                          if (!staffForm.username || !staffForm.password) return;
-                          setLoading(true);
-                          const uname = staffForm.username.trim().toLowerCase();
-                          try {
-                            let matchedStaff: any = null;
-                            if (hasFirebaseConfig && auth && db) {
-                              const { ref, get } = await import('firebase/database');
-                              const snapshot = await get(ref(db, 'staffMembers'));
-                              if (snapshot.exists()) {
-                                const data = snapshot.val();
-                                matchedStaff = Object.values(data as Record<string, any>).find(
-                                  (s: any) => s.username && s.username.trim().toLowerCase() === uname
-                                );
-                              }
-                            } else {
-                              matchedStaff = state.staffMembers?.find(
-                                s => s.username.trim().toLowerCase() === uname
-                              );
-                            }
-                            if (!matchedStaff) {
-                              addToast('error', '❌ No staff account found with this username.');
-                              setLoading(false);
-                              return;
-                            }
-                            if (matchedStaff.password !== staffForm.password) {
-                              addToast('error', '❌ Incorrect staff password.');
-                              setLoading(false);
-                              return;
-                            }
-                            dispatch({ type: 'LOGIN_ADMIN', payload: {
-                              id: matchedStaff.id,
-                              name: matchedStaff.name,
-                              email: matchedStaff.username,
-                              restaurantId: matchedStaff.restaurantId,
-                              isLoggedIn: true,
-                              isStaff: true,
-                              permissions: matchedStaff.permissions || []
-                            }});
-                            addToast('success', `Welcome, ${matchedStaff.name}! 🎉`);
-                          } catch (err: any) {
-                            addToast('error', `❌ Staff login failed: ${err.message || err}`);
-                          } finally {
-                            setLoading(false);
-                          }
-                        }}
-                        style={{
-                          height: 42, borderRadius: 10,
-                          background: 'linear-gradient(135deg, #A855F7, #7C3AED)',
-                          color: '#FFFFFF', fontWeight: 800, fontSize: 13,
-                          border: 'none', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          opacity: loading || !staffForm.username || !staffForm.password ? 0.6 : 1,
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {loading ? (
-                          <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
-                        ) : (
-                          '🛡️ Sign in as Staff Member'
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+              {(mode === 'staff' || mode === 'delivery') && (
+                <button
+                  type="button"
+                  onClick={() => setMode('login')}
+                  style={{
+                    background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer',
+                    fontSize: 12.5, fontWeight: 700, outline: 'none'
+                  }}
+                >
+                  ← Back to Owner Sign In
+                </button>
+              )}
+
+            </div>
           </form>
         </div>
 
         {/* Secure storage disclaimer */}
-        <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 10, background: 'rgba(255,125,0,0.06)', border: '1px dashed var(--border-brand)', textAlign: 'center' }}>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            🔒 <strong style={{ color: 'var(--brand)' }}>Meenufy Admin</strong> — {hasFirebaseConfig ? 'Your account details are securely managed via Google Firebase Cloud Auth.' : 'Mock Dev Mode: Credentials and data are saved locally in this browser.'}<br />
-            Sign up to manage your digital restaurant menu.
+        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,125,0,0.04)', border: '1px dashed var(--border-brand)', textAlign: 'center' }}>
+          <p style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
+            🔒 <strong style={{ color: 'var(--brand)' }}>Meenufy Security Guard</strong> — {hasFirebaseConfig ? 'Your account credentials and records are safely hosted via Google Firebase Cloud.' : 'Demo Mode: All accounts, menus, and orders are saved locally in your browser cache.'}
           </p>
         </div>
 
         {/* Tutorial / Demo Video Link */}
         <div style={{
-          marginTop: 12,
-          padding: '12px 16px',
-          borderRadius: 10,
-          background: 'rgba(255,125,0,0.1)',
-          border: '1px solid rgba(255,125,0,0.2)',
+          marginTop: 10,
+          padding: '10px 14px',
+          borderRadius: 12,
+          background: 'rgba(255,125,0,0.06)',
+          border: '1px solid rgba(255,125,0,0.1)',
           textAlign: 'center',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8
+          gap: 6
         }}>
-          <span style={{ fontSize: 16 }}>📺</span>
+          <span style={{ fontSize: 14 }}>📺</span>
           <a
             href="https://youtu.be/guUt96vqUcM?si=L3aLUBWrZ0yNpvMj"
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              fontSize: 13,
+              fontSize: 12,
               color: 'var(--brand)',
               fontWeight: 700,
               textDecoration: 'none',
@@ -739,8 +662,8 @@ export default function AdminAuth() {
           </a>
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text-muted)' }}>
-          &copy; 2026 Meenufy. Built for restaurant owners worldwide.
+        <p style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: 'var(--text-muted)' }}>
+          &copy; 2026 Meenufy. All rights reserved.
         </p>
       </div>
     </div>
