@@ -87,6 +87,10 @@
     "staffMembers": {
       ".read": true,
       ".write": true
+    },
+    "deliveryBoys": {
+      ".read": true,
+      ".write": true
     }
   }
 }
