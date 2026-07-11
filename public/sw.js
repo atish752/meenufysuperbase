@@ -1,6 +1,6 @@
 // ── Meenufy Service Worker ────────────────────────────────────────────────
 // To invalidate the cache on a new deploy, bump the CACHE_VERSION number.
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const CACHE_NAME = `meenufy-v${CACHE_VERSION}`;
 
 // Static shell files that are always cached on install
