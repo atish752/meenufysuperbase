@@ -702,6 +702,18 @@ setLoggedInUser({
         setAddrLat(lat);
         setAddrLng(lng);
         setAddrMapLink(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+        
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.display_name) {
+              setAddrFull(data.display_name);
+            }
+          })
+          .catch(err => {
+            console.error('Reverse geocode error:', err);
+          });
+
         addToast('success', 'GPS Location captured successfully!');
         setFetchingAddrLocation(false);
       },

@@ -127,7 +127,7 @@ export default function CustomerLayout({ tableId }: Props) {
 
   // Find active orders chronologically ONLY for this customer (ignores other table guests/strangers)
   const activeOrders = state.orders
-    .filter(o => o.tableId === tableId && !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier)
+    .filter(o => (o.tableId === tableId || o.orderType === 'delivery') && !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier)
     .sort((a, b) => a.createdAt - b.createdAt);
 
   const activeOrder = activeOrders[selectedActiveOrderIndex] || activeOrders[0];
@@ -356,7 +356,7 @@ export default function CustomerLayout({ tableId }: Props) {
 
   // Find served orders for this table in the last 10 minutes that don't have ratings yet, specifically for this customer
   const unratedServedOrders = state.orders.filter(o => 
-    o.tableId === tableId && 
+    (o.tableId === tableId || o.orderType === 'delivery') && 
     o.status === 'served' && 
     !o.ratings && 
     o.customerPhone === myPhoneIdentifier &&
@@ -1286,7 +1286,7 @@ export default function CustomerLayout({ tableId }: Props) {
 
                 {activeOrder.orderType === 'delivery' && activeOrder.deliveryOtp && activeOrder.status !== 'served' && (
                   <div style={{
-                    marginBottom: 20,
+                    marginBottom: 16,
                     background: 'linear-gradient(135deg, rgba(157,78,221,0.12), rgba(157,78,221,0.06))',
                     border: '2px dashed rgba(157,78,221,0.5)',
                     padding: '16px 14px',
@@ -1302,16 +1302,77 @@ export default function CustomerLayout({ tableId }: Props) {
                       textShadow: '0 0 20px rgba(168,85,247,0.6)',
                       fontFamily: 'monospace'
                     }}>{activeOrder.deliveryOtp}</span>
-                    {activeOrder.deliveryBoyId && (() => {
-                      const rider = state.deliveryBoys?.find(b => b.id === activeOrder.deliveryBoyId);
-                      return rider ? (
-                        <span style={{ fontSize: 11, color: '#C4B5FD', fontWeight: 700 }}>
-                          🛵 {rider.name} is on the way!
-                        </span>
-                      ) : null;
-                    })()}
                     <span style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: 260 }}>Show this OTP to the delivery rider when your food arrives. Do not share it until delivery.</span>
                   </div>
+                )}
+
+                {activeOrder.orderType === 'delivery' && activeOrder.deliveryBoyId && (
+                  (() => {
+                    const rider = state.deliveryBoys?.find(b => b.id === activeOrder.deliveryBoyId);
+                    if (!rider) return null;
+
+                    // Calculate distance
+                    let distanceStr = '';
+                    if (rider.latitude && rider.longitude && activeOrder.deliveryLat && activeOrder.deliveryLng) {
+                      const meters = getDistanceInMeters(
+                        rider.latitude,
+                        rider.longitude,
+                        activeOrder.deliveryLat,
+                        activeOrder.deliveryLng
+                      );
+                      distanceStr = meters < 1000 ? `${Math.round(meters)} meters away` : `${(meters / 1000).toFixed(2)} km away`;
+                    }
+
+                    return (
+                      <div style={{
+                        marginBottom: 16,
+                        background: 'rgba(157,78,221,0.08)',
+                        border: '1px solid rgba(157,78,221,0.3)',
+                        borderRadius: 14,
+                        padding: '14px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: '#A855F7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🛵 Delivery Partner Appointed</span>
+                          {distanceStr && (
+                            <span style={{ 
+                              fontSize: 9.5, fontWeight: 900, background: 'rgba(34,197,94,0.15)', color: '#4ADE80', 
+                              padding: '2px 8px', borderRadius: 10, border: '1px solid rgba(34,197,94,0.3)',
+                              animation: 'pulse 1.5s infinite'
+                            }}>
+                              {distanceStr}
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {/* Rider avatar emoji */}
+                          <div style={{
+                            width: 38, height: 38, borderRadius: '50%', background: 'rgba(157,78,221,0.15)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18
+                          }}>
+                            🏍️
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                            <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text-primary)' }}>{rider.name}</span>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Status: {rider.status === 'delivering' ? 'On the way 🛵' : 'Preparing to depart'}</span>
+                          </div>
+                          {/* Call rider button */}
+                          {rider.username && (
+                            <a href={`tel:${rider.username}`} style={{
+                              width: 32, height: 32, borderRadius: '50%', background: 'rgba(34,197,94,0.15)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ADE80',
+                              border: '1px solid rgba(34,197,94,0.3)', textDecoration: 'none', fontSize: 13
+                            }}>
+                              📞
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
                 )}
 
                 {/* Steps */}
@@ -1455,4 +1516,19 @@ export default function CustomerLayout({ tableId }: Props) {
       {!isViewOnly && <CustomerBottomNav />}
     </div>
   );
+}
+
+function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3; // metres
+  const phi1 = lat1 * Math.PI / 180;
+  const phi2 = lat2 * Math.PI / 180;
+  const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+  const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+            Math.cos(phi1) * Math.cos(phi2) *
+            Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in meters
 }

@@ -4,6 +4,8 @@ import type { Order, OrderStatus, Coupon, OrderItem, MenuItem, MenuItemVariant }
 import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, Edit2 } from 'lucide-react';
 import { triggerNotification } from '../../utils/notifications';
 import { printThermalReceipt } from '../../utils/printReceipt';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 
@@ -394,6 +396,101 @@ export default function AdminHome() {
     })
     .sort((a, b) => b.createdAt - a.createdAt); // Newest first
 
+  const handleExportHistoryExcel = () => {
+    if (filteredHistoryOrders.length === 0) {
+      addToast('info', 'No orders in the filtered history to export.');
+      return;
+    }
+
+    const headers = [
+      'Order ID',
+      'Date & Time',
+      'Customer Name',
+      'Phone',
+      'Type',
+      'Table No',
+      'Items Ordered',
+      'Total Amount (INR)',
+      'Status',
+      'Payment Status'
+    ];
+
+    const rows = filteredHistoryOrders.map(o => {
+      const itemsList = o.items.map(i => `${i.name}${i.variant ? ' (' + i.variant.name + ')' : ''} x${i.qty}`).join('; ');
+      const dateStr = new Date(o.createdAt).toLocaleString();
+      return [
+        o.id,
+        `"${dateStr}"`,
+        `"${o.customerName || 'Guest'}"`,
+        `"${o.customerPhone || 'N/A'}"`,
+        o.orderType,
+        o.tableNumber || 'N/A',
+        `"${itemsList}"`,
+        o.totalAmount,
+        o.status,
+        o.paymentStatus || 'pending'
+      ];
+    });
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `meenufy-order-history-${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addToast('success', 'Order history exported as Excel/CSV! 📊');
+  };
+
+  const handleExportHistoryPDF = () => {
+    if (filteredHistoryOrders.length === 0) {
+      addToast('info', 'No orders in the filtered history to export.');
+      return;
+    }
+
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.setTextColor('#FF7D00');
+    doc.text('Meenufy Order History Report', 14, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor('#6B7280');
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 27);
+    doc.text(`Restaurant: ${state.restaurant.name || 'My Outlet'}`, 14, 33);
+    doc.text(`Filter Applied: ${historyTimeFilter.toUpperCase()} (${filteredHistoryOrders.length} orders)`, 14, 39);
+
+    const tableHeaders = [['Order ID', 'Date & Time', 'Customer', 'Type', 'Amount', 'Status']];
+    const tableBody = filteredHistoryOrders.map(o => [
+      o.id,
+      new Date(o.createdAt).toLocaleString(),
+      `${o.customerName || 'Guest'}\n(${o.customerPhone || 'N/A'})`,
+      (o.orderType || 'in-dining').toUpperCase(),
+      `${state.restaurant.currency || '₹'} ${o.totalAmount}`,
+      `${o.status.toUpperCase()} (${(o.paymentStatus || 'pending').toUpperCase()})`
+    ]);
+
+    (doc as any).autoTable({
+      startY: 45,
+      head: tableHeaders,
+      body: tableBody,
+      theme: 'grid',
+      headStyles: { fillColor: '#FF7D00', textColor: '#000000', fontStyle: 'bold' },
+      styles: { fontSize: 8, overflow: 'linebreak' },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 20 },
+        5: { cellWidth: 40 }
+      }
+    });
+
+    doc.save(`meenufy-order-history-${Date.now()}.pdf`);
+    addToast('success', 'Order history exported as PDF! 📄');
+  };
 
   const handleUpdateStatus = (orderId: string, status: OrderStatus) => {
     if (status === 'cancelled') {
@@ -734,9 +831,27 @@ export default function AdminHome() {
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             {/* Filters card */}
             <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <Search size={18} color="var(--brand)" />
-                <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 700, margin: 0 }}>Filter Order History</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Search size={18} color="var(--brand)" />
+                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 700, margin: 0 }}>Filter Order History</h3>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={handleExportHistoryPDF}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', height: 28, display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-elevated)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                  >
+                    📄 Export PDF
+                  </button>
+                  <button
+                    onClick={handleExportHistoryExcel}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', height: 28, display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-elevated)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                  >
+                    📊 Export Excel
+                  </button>
+                </div>
               </div>
               
               {/* Search input */}
@@ -2441,17 +2556,6 @@ function OrderCard({
                 </span>
               )}
             </span>
-            {order.orderType === 'delivery' && order.deliveryAddress && (
-              <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 4, width: '100%', background: 'rgba(157,78,221,0.05)', border: '1px solid rgba(157,78,221,0.2)', padding: '8px 10px', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <strong style={{ color: '#9D4EDD', fontSize: 10 }}>📍 DELIVERY ADDRESS</strong>
-                <span style={{ fontSize: 10.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{order.deliveryAddress}</span>
-                {order.customerPhone && (
-                  <a href={`tel:${order.customerPhone}`} style={{ fontSize: 10.5, color: '#22C55E', fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    📞 {order.customerPhone}
-                  </a>
-                )}
-              </div>
-            )}
             {order.numberOfGuests && (
               <span style={{
                 fontSize: 9.5, fontWeight: 700,
@@ -2473,6 +2577,14 @@ function OrderCard({
                 padding: '2px 6px', borderRadius: 4,
                 display: 'inline-flex', alignItems: 'center', gap: 3,
                 boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)'
+              } : order.orderType === 'delivery' ? {
+                fontSize: 9.5, fontWeight: 800,
+                background: 'rgba(157, 78, 221, 0.15)',
+                color: '#C084FC',
+                border: '1.5px solid rgba(157, 78, 221, 0.4)',
+                padding: '2px 6px', borderRadius: 4,
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                boxShadow: '0 0 8px rgba(157, 78, 221, 0.2)'
               } : {
                 fontSize: 9.5, fontWeight: 700,
                 background: 'var(--bg-elevated)',
@@ -2500,6 +2612,18 @@ function OrderCard({
               {timeTextStr}
             </span>
           </div>
+
+          {order.orderType === 'delivery' && order.deliveryAddress && (
+            <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 6, width: '100%', background: 'rgba(157,78,221,0.08)', border: '1px solid rgba(157,78,221,0.3)', padding: '10px 12px', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <strong style={{ color: '#C084FC', fontSize: 10 }}>📍 DELIVERY ADDRESS</strong>
+              <span style={{ fontSize: 10.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{order.deliveryAddress}</span>
+              {order.customerPhone && (
+                <a href={`tel:${order.customerPhone}`} style={{ fontSize: 10.5, color: '#22C55E', fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                  📞 {order.customerPhone}
+                </a>
+              )}
+            </div>
+          )}
         </div>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 4,

@@ -182,9 +182,19 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
         setLocationStatus('idle');
         addToast('success', 'GPS Coordinates captured successfully!');
         
-        if (!deliveryAddress.trim()) {
-          setDeliveryAddress(`[GPS Coordinates: ${lat.toFixed(5)}, ${lng.toFixed(5)}]`);
-        }
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.display_name) {
+              setDeliveryAddress(`${data.display_name} [GPS Coordinates: ${lat.toFixed(5)}, ${lng.toFixed(5)}]`);
+            } else {
+              setDeliveryAddress(`[GPS Coordinates: ${lat.toFixed(5)}, ${lng.toFixed(5)}]`);
+            }
+          })
+          .catch(err => {
+            console.error('Reverse geocode error:', err);
+            setDeliveryAddress(`[GPS Coordinates: ${lat.toFixed(5)}, ${lng.toFixed(5)}]`);
+          });
       },
       (err) => {
         console.error(err);
@@ -286,23 +296,19 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
     if (orderType !== 'delivery') return 0;
     if (distanceInKm === null) return restaurant.deliveryCharge !== undefined ? restaurant.deliveryCharge : 40;
     
+    const isDistEnabled = restaurant.freeDeliveryDistanceEnabled ?? true;
+    const isAmtEnabled = restaurant.freeDeliveryMinAmountEnabled ?? true;
+
     const freeDist = restaurant.freeDeliveryDistance || 0;
     const freeAmt = restaurant.freeDeliveryMinAmount || 0;
-    const criteria = restaurant.freeDeliveryCriteria || 'either';
     
     let qualifiesForFree = false;
     
-    if (freeDist > 0 || freeAmt > 0) {
-      const isDistQualified = freeDist > 0 ? (distanceInKm <= freeDist) : false;
-      const isAmtQualified = freeAmt > 0 ? (cartTotal >= freeAmt) : false;
-      
-      if (criteria === 'both') {
-        // BOTH must be true
-        qualifiesForFree = (freeDist > 0 ? isDistQualified : true) && (freeAmt > 0 ? isAmtQualified : true);
-      } else {
-        // EITHER is true
-        qualifiesForFree = isDistQualified || isAmtQualified;
-      }
+    const isDistQualified = isDistEnabled && freeDist > 0 && distanceInKm <= freeDist;
+    const isAmtQualified = isAmtEnabled && freeAmt > 0 && cartTotal >= freeAmt;
+
+    if (isDistQualified || isAmtQualified) {
+      qualifiesForFree = true;
     }
     
     if (qualifiesForFree) return 0;

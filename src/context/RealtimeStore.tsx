@@ -216,6 +216,8 @@ export type RestaurantInfo = {
   freeDeliveryMinAmount?: number;
   freeDeliveryCriteria?: 'either' | 'both';
   deliveryCharge?: number;
+  freeDeliveryDistanceEnabled?: boolean;
+  freeDeliveryMinAmountEnabled?: boolean;
 };
 
 export type Coupon = {
@@ -350,6 +352,8 @@ export type DeliveryBoy = {
   totalEarnings: number;
   assignedOrderId?: string | null;
   createdAt: number;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type SupportRequest = {

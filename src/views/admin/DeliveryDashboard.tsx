@@ -64,6 +64,39 @@ export default function DeliveryDashboard() {
     }
   }, [activeOrder?.id]);
 
+  // Watch rider location if delivering
+  useEffect(() => {
+    if (!activeOrder || activeOrder.deliveryStatus !== 'started') return;
+    if (!navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (hasFirebaseConfig && db) {
+          const { ref, update } = await import('firebase/database');
+          await update(ref(db, `deliveryBoys/${rider.id}`), {
+            latitude: lat,
+            longitude: lng
+          });
+        } else {
+          dispatch({
+            type: 'SET_STATE',
+            payload: {
+              deliveryBoys: state.deliveryBoys.map(b =>
+                b.id === rider.id ? { ...b, latitude: lat, longitude: lng } : b
+              )
+            }
+          });
+        }
+      },
+      (err) => console.error('Error watching rider location:', err),
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [activeOrder?.id, activeOrder?.deliveryStatus]);
+
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT_ADMIN' });
     addToast('success', 'Logged out successfully.');
