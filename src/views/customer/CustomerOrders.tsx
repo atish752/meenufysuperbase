@@ -585,6 +585,55 @@ function OrderStatusCard({ order }: { order: Order }) {
             </div>
           </div>
 
+          {order.orderType === 'delivery' && order.deliveryBoyId && (
+            (() => {
+              const assignedDboy = state.deliveryBoys?.find(b => b.id === order.deliveryBoyId);
+              if (!assignedDboy) return null;
+              return (
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'rgba(255, 125, 0, 0.04)',
+                  borderTop: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10
+                }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>DELIVERY PARTNER</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>
+                      🚴 {assignedDboy.name}
+                    </div>
+                    {assignedDboy.phone && (
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>
+                        📞 {assignedDboy.phone}
+                      </div>
+                    )}
+                  </div>
+                  {assignedDboy.phone && (
+                    <a
+                      href={`tel:${assignedDboy.phone}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                        color: '#000',
+                        textDecoration: 'none',
+                        boxShadow: '0 4px 10px rgba(255,125,0,0.3)',
+                      }}
+                    >
+                      📞
+                    </a>
+                  )}
+                </div>
+              );
+            })()
+          )}
+
           {['served', 'bill_pay'].includes(order.status) && (
             <div style={{ padding: '0 14px 12px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
               <button

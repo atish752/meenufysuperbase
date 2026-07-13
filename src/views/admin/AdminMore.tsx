@@ -255,6 +255,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [dboyName, setDboyName] = useState('');
   const [dboyUsername, setDboyUsername] = useState('');
   const [dboyPassword, setDboyPassword] = useState('');
+  const [dboyPhone, setDboyPhone] = useState('');
   const [dboyPayoutPerKm, setDboyPayoutPerKm] = useState<number>(12);
   const [editingDboyId, setEditingDboyId] = useState<string | null>(null);
 
@@ -263,6 +264,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     setDboyName('');
     setDboyUsername('');
     setDboyPassword('');
+    setDboyPhone('');
     setDboyPayoutPerKm(12);
   };
 
@@ -992,6 +994,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         name: dboyName.trim(),
         username: dboyUsername.trim().toLowerCase(),
         password: dboyPassword,
+        phone: dboyPhone.trim(),
         restaurantId: currentRestaurantId,
         status: 'idle' as const,
         totalDeliveries: 0,
@@ -1010,6 +1013,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         ...existing,
         name: dboyName.trim(),
         password: dboyPassword.trim() ? dboyPassword : existing.password,
+        phone: dboyPhone.trim(),
         payoutPerKm: dboyPayoutPerKm
       };
 
@@ -1025,6 +1029,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     setDboyName(dboy.name);
     setDboyUsername(dboy.username);
     setDboyPassword(dboy.password || '');
+    setDboyPhone(dboy.phone || '');
     setDboyPayoutPerKm(dboy.payoutPerKm || 12);
   };
 
@@ -3452,6 +3457,13 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 <input className="input" type="text" placeholder="Enter rider sign in password" value={dboyPassword} onChange={e => setDboyPassword(e.target.value)} />
               </div>
               <div className="input-group">
+                <label className="input-label">Rider Phone Number</label>
+                <input className="input" type="tel" placeholder="e.g. +91 9876543210" value={dboyPhone} onChange={e => setDboyPhone(e.target.value)} />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+              <div className="input-group">
                 <label className="input-label">Payout per Kilometer (₹)</label>
                 <input className="input" type="number" step="0.5" min="1" max="100" placeholder="e.g. 12" value={dboyPayoutPerKm} onChange={e => setDboyPayoutPerKm(parseFloat(e.target.value) || 0)} />
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>* Recommended: ₹10 to ₹15 (ideal)</span>
@@ -3515,7 +3527,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         </span>
                       </div>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'block' }}>
-                        Username: @{dboy.username} | Payout: <strong style={{ color: 'var(--brand)' }}>₹{dboy.payoutPerKm || 12}/KM</strong>
+                        Username: @{dboy.username} | Payout: <strong style={{ color: 'var(--brand)' }}>₹{dboy.payoutPerKm || 12}/KM</strong>{dboy.phone && ` | Phone: ${dboy.phone}`}
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>

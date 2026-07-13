@@ -354,6 +354,7 @@ export type DeliveryBoy = {
   name: string;
   username: string;
   password?: string;
+  phone?: string;
   restaurantId: string;
   status: 'idle' | 'delivering';
   totalDeliveries: number;
