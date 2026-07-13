@@ -6,6 +6,7 @@ import { triggerNotification } from '../../utils/notifications';
 import { printThermalReceipt } from '../../utils/printReceipt';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { hasFirebaseConfig, db } from '../../utils/firebase';
 
 
 
@@ -501,6 +502,53 @@ export default function AdminHome() {
     dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status } });
     if (status === 'served') {
       dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, status: 'paid' } });
+      
+      const order = state.orders.find(ord => ord.id === orderId);
+      if (order && order.orderType === 'delivery' && order.deliveryBoyId) {
+        const riderProfile = state.deliveryBoys.find(b => b.id === order.deliveryBoyId);
+        if (riderProfile) {
+          const payoutRate = riderProfile.payoutPerKm || 12;
+          const distance = order.deliveryDistance || 2.5;
+          const commission = Math.round(distance * payoutRate);
+          const nextDeliveries = (riderProfile.totalDeliveries || 0) + 1;
+          const nextEarnings = (riderProfile.totalEarnings || 0) + commission;
+
+          if (hasFirebaseConfig && db) {
+            import('firebase/database').then(({ ref, update }) => {
+              update(ref(db!, `orders/${order.restaurantId}/${order.id}`), {
+                deliveryStatus: 'delivered',
+                deliveryDistance: distance,
+                deliveryBoyEarnings: commission,
+                updatedAt: Date.now()
+              });
+              update(ref(db!, `deliveryBoys/${riderProfile.id}`), {
+                status: 'idle',
+                totalDeliveries: nextDeliveries,
+                totalEarnings: nextEarnings,
+                assignedOrderId: null
+              });
+            }).catch(console.error);
+          } else {
+            dispatch({
+              type: 'SET_STATE',
+              payload: {
+                orders: state.orders.map(o =>
+                  o.id === order.id
+                    ? { ...o, deliveryStatus: 'delivered', deliveryDistance: distance, deliveryBoyEarnings: commission }
+                    : o
+                ),
+                deliveryBoys: state.deliveryBoys.map(b =>
+                  b.id === riderProfile.id
+                    ? { ...b, status: 'idle', totalDeliveries: nextDeliveries, totalEarnings: nextEarnings, assignedOrderId: null }
+                    : b
+                )
+              }
+            });
+          }
+          addToast('success', `Rider ${riderProfile.name} earned ₹${commission} for this delivery.`);
+        }
+      }
+
       addToast('success', `Payment confirmed! Order marked as Served/Completed.`);
     } else {
       addToast('success', `Order status updated to ${STATUS_CONFIG[status].label}`);

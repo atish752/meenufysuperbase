@@ -255,6 +255,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [dboyName, setDboyName] = useState('');
   const [dboyUsername, setDboyUsername] = useState('');
   const [dboyPassword, setDboyPassword] = useState('');
+  const [dboyPayoutPerKm, setDboyPayoutPerKm] = useState<number>(12);
   const [editingDboyId, setEditingDboyId] = useState<string | null>(null);
 
   const resetDboyForm = () => {
@@ -262,6 +263,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     setDboyName('');
     setDboyUsername('');
     setDboyPassword('');
+    setDboyPayoutPerKm(12);
   };
 
   // Deep-link redirect & fallback initialization
@@ -992,6 +994,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         status: 'idle' as const,
         totalDeliveries: 0,
         totalEarnings: 0,
+        payoutPerKm: dboyPayoutPerKm,
         createdAt: Date.now()
       };
 
@@ -1004,7 +1007,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       const updatedDboy = {
         ...existing,
         name: dboyName.trim(),
-        password: dboyPassword.trim() ? dboyPassword : existing.password
+        password: dboyPassword.trim() ? dboyPassword : existing.password,
+        payoutPerKm: dboyPayoutPerKm
       };
 
       dispatch({ type: 'UPDATE_DELIVERY_BOY', payload: updatedDboy });
@@ -1019,6 +1023,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     setDboyName(dboy.name);
     setDboyUsername(dboy.username);
     setDboyPassword(dboy.password || '');
+    setDboyPayoutPerKm(dboy.payoutPerKm || 12);
   };
 
   const handleDeleteDboyClick = (id: string) => {
@@ -2136,6 +2141,20 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
               </div>
             </div>
 
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Ringing Pop-up Notification</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Show a Swiggy/Zomato-style ringing popup for new orders</div>
+              </div>
+              <div 
+                className={`toggle ${restaurantForm.orderPopupEnabled !== false ? 'on' : ''}`}
+                onClick={() => setRestaurantForm(prev => ({ ...prev, orderPopupEnabled: restaurantForm.orderPopupEnabled === false ? true : false }))}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="toggle-thumb" />
+              </div>
+            </div>
+
             {/* ── Connection Instructions (collapsible) ── */}
             <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)', padding: 12 }}>
               <button 
@@ -2369,54 +2388,55 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           {/* SPECIAL VIEW-ONLY MENU QR CODE */}
           <div style={{
             background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.06) 0%, rgba(234, 88, 12, 0.01) 100%)',
-            border: '2px dashed rgba(249, 115, 22, 0.35)',
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 24,
+            border: '1px solid rgba(249, 115, 22, 0.25)',
+            borderRadius: 12,
+            padding: '12px 16px',
+            marginBottom: 16,
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            textAlign: 'center',
-            gap: 12,
-            boxShadow: '0 4px 16px rgba(249,115,22,0.03)'
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+            boxShadow: '0 2px 8px rgba(249,115,22,0.03)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#ea580c' }}>
-              <span style={{ fontSize: 20 }}>👁️</span>
-              <h4 style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>Special View-Only Menu QR Code</h4>
+            <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ea580c' }}>
+                <span style={{ fontSize: 16 }}>👁️</span>
+                <h4 style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>Special View-Only Menu QR Code</h4>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
+                <strong>Flyer & Social Media QR:</strong> Allows customers to browse your menu items and photos without ordering or calling waitstaff. Do not place on dining tables.
+              </p>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <a
+                  href={`${window.location.origin}/?view=customer&viewOnly=true&restaurant=${state.admin?.restaurantId || 'admin-1'}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: 10, height: 26, padding: '0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                >
+                  <ExternalLink size={11} /> Live Preview
+                </a>
+                <button
+                  onClick={() => {
+                    const canvas = viewOnlyQRRef.current;
+                    if (canvas) {
+                      const link = document.createElement('a');
+                      link.download = `${state.restaurant.name || 'restaurant'}_View_Only_Menu_QR.png`;
+                      link.href = canvas.toDataURL('image/png');
+                      link.click();
+                    }
+                  }}
+                  className="btn btn-primary btn-sm"
+                  style={{ fontSize: 10, height: 26, padding: '0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, background: '#ea580c', color: '#fff', border: 'none', fontWeight: 800 }}
+                >
+                  📥 Download
+                </button>
+              </div>
             </div>
-            <p style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: 400, margin: 0 }}>
-              <strong>Important Use Case:</strong> Put this QR Code on your social media, website, or flyers. When customers scan it, they can <strong>only view and browse your menu</strong> (categories, dish descriptions, photos, variants, calories) but <strong>cannot place orders or call waitstaff</strong>. Do not place this on your dining tables!
-            </p>
             
-            <div style={{ background: '#ffffff', padding: 12, borderRadius: 12, display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 6, border: '1px solid var(--border)' }}>
-              <canvas ref={viewOnlyQRRef} style={{ borderRadius: 6, display: 'block', width: 140, height: 140 }} />
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 300, marginTop: 6 }}>
-              <a
-                href={`${window.location.origin}/?view=customer&viewOnly=true&restaurant=${state.admin?.restaurantId || 'admin-1'}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary btn-sm"
-                style={{ flex: 1, fontSize: 11, padding: '6px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-              >
-                <ExternalLink size={12} /> Live Preview
-              </a>
-              <button
-                onClick={() => {
-                  const canvas = viewOnlyQRRef.current;
-                  if (canvas) {
-                    const link = document.createElement('a');
-                    link.download = `${state.restaurant.name || 'restaurant'}_View_Only_Menu_QR.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                  }
-                }}
-                className="btn btn-primary btn-sm"
-                style={{ flex: 1, fontSize: 11, padding: '6px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, background: '#ea580c', color: '#fff', border: 'none', fontWeight: 800 }}
-              >
-                📥 Download
-              </button>
+            <div style={{ background: '#ffffff', padding: 8, borderRadius: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border)', flexShrink: 0 }}>
+              <canvas ref={viewOnlyQRRef} style={{ borderRadius: 4, display: 'block', width: 90, height: 90 }} />
             </div>
           </div>
 
@@ -3340,9 +3360,16 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
               </div>
             </div>
 
-            <div className="input-group">
-              <label className="input-label">Rider Password {editingDboyId && '(leave blank to keep unchanged)'}</label>
-              <input className="input" type="text" placeholder="Enter rider sign in password" value={dboyPassword} onChange={e => setDboyPassword(e.target.value)} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="input-group">
+                <label className="input-label">Rider Password {editingDboyId && '(leave blank to keep unchanged)'}</label>
+                <input className="input" type="text" placeholder="Enter rider sign in password" value={dboyPassword} onChange={e => setDboyPassword(e.target.value)} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Payout per Kilometer (₹)</label>
+                <input className="input" type="number" step="0.5" min="1" max="100" placeholder="e.g. 12" value={dboyPayoutPerKm} onChange={e => setDboyPayoutPerKm(parseFloat(e.target.value) || 0)} />
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>* Recommended: ₹10 to ₹15 (ideal)</span>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
@@ -3402,7 +3429,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         </span>
                       </div>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'block' }}>
-                        Username: @{dboy.username}
+                        Username: @{dboy.username} | Payout: <strong style={{ color: 'var(--brand)' }}>₹{dboy.payoutPerKm || 12}/KM</strong>
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>

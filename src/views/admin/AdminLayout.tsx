@@ -61,6 +61,11 @@ export default function AdminLayout() {
             `🛒 New Order Placed! (Table ${order.tableNumber})`,
             `${order.customerName || 'Guest'} ordered ${order.items.length} items (Total: ${state.restaurant.currency}${order.totalAmount})`
           );
+          
+          if (state.restaurant.orderPopupEnabled !== false) {
+            dispatch({ type: 'SET_STATE', payload: { newOrderAlert: order } });
+          }
+
           // Auto print KOT if enabled
           if (state.restaurant.autoprintKotEnabled) {
             printThermalReceipt(order, 'kot', state.restaurant).then(result => {

@@ -703,6 +703,11 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
 
     const parsedGuests = parseInt(numberOfGuests, 10);
 
+    let finalDistanceKm: number | undefined = undefined;
+    if (orderType === 'delivery' && deliveryLat && deliveryLng && restaurant.latitude && restaurant.longitude) {
+      finalDistanceKm = getDistanceInMeters(deliveryLat, deliveryLng, restaurant.latitude, restaurant.longitude) / 1000;
+    }
+
     const order: Order = {
       id: `ord-${Date.now()}`,
       tableNumber: orderType === 'delivery' ? 0 : (table?.number || 0),
@@ -731,6 +736,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       deliveryLat: orderType === 'delivery' ? (deliveryLat ?? undefined) : undefined,
       deliveryLng: orderType === 'delivery' ? (deliveryLng ?? undefined) : undefined,
       deliveryCharge: orderType === 'delivery' ? calculatedDeliveryCharge : undefined,
+      deliveryDistance: finalDistanceKm !== undefined ? parseFloat(finalDistanceKm.toFixed(2)) : undefined,
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: order });

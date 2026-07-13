@@ -18,6 +18,22 @@ export default function DeliveryDashboard() {
   const [isOnline, setIsOnline] = useState(true);
   const [newOrderPing, setNewOrderPing] = useState(false);
 
+  // Advanced history filtering states
+  const [filterType, setFilterType] = useState<'today' | 'week' | 'month' | 'custom_month' | 'date_range'>('month');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}`;
+  });
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+
   if (!rider) return null;
 
   // Find rider detail from global state
@@ -41,6 +57,66 @@ export default function DeliveryDashboard() {
   const deliveryHistory = (state.orders?.filter(
     o => o.deliveryBoyId === rider.id && o.status === 'served'
   ) || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  const filteredHistory = deliveryHistory.filter(ord => {
+    const ts = ord.createdAt || 0;
+    const date = new Date(ts);
+    
+    if (filterType === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return ts >= today.getTime();
+    }
+    
+    if (filterType === 'week') {
+      const today = new Date();
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(today.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+      return ts >= monday.getTime();
+    }
+    
+    if (filterType === 'month') {
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      firstDay.setHours(0, 0, 0, 0);
+      return ts >= firstDay.getTime();
+    }
+    
+    if (filterType === 'custom_month') {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      return date.getFullYear() === year && (date.getMonth() + 1) === month;
+    }
+    
+    if (filterType === 'date_range') {
+      const start = new Date(customStartDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(customEndDate);
+      end.setHours(23, 59, 59, 999);
+      return ts >= start.getTime() && ts <= end.getTime();
+    }
+    
+    return true;
+  });
+
+  const getPastMonths = () => {
+    const list = [];
+    const date = new Date();
+    for (let i = 0; i < 12; i++) {
+      const yr = date.getFullYear();
+      const mIdx = date.getMonth();
+      const monthLabel = date.toLocaleString('default', { month: 'long' });
+      const value = `${yr}-${String(mIdx + 1).padStart(2, '0')}`;
+      list.push({ label: `${monthLabel} ${yr}`, value });
+      date.setMonth(date.getMonth() - 1);
+    }
+    return list;
+  };
+
+  const totalDistance = filteredHistory.reduce((sum, o) => sum + (o.deliveryDistance || 2.5), 0);
+  const totalPayout = filteredHistory.reduce((sum, o) => sum + (o.deliveryBoyEarnings || Math.round((o.deliveryDistance || 2.5) * (riderDetail.payoutPerKm || 12))), 0);
+  const avgPayout = filteredHistory.length ? Math.round(totalPayout / filteredHistory.length) : 0;
 
   // Today's deliveries
   const todayStart = new Date();
@@ -160,7 +236,10 @@ export default function DeliveryDashboard() {
     }
     setVerifying(true);
     try {
-      const commission = 50;
+      const payoutRate = riderDetail.payoutPerKm || 12;
+      const distance = activeOrder.deliveryDistance || 2.5;
+      const commission = Math.round(distance * payoutRate);
+
       const nextDeliveries = (riderDetail.totalDeliveries || 0) + 1;
       const nextEarnings = (riderDetail.totalEarnings || 0) + commission;
 
@@ -170,6 +249,8 @@ export default function DeliveryDashboard() {
           status: 'served',
           paymentStatus: 'paid',
           deliveryStatus: 'delivered',
+          deliveryDistance: distance,
+          deliveryBoyEarnings: commission,
           updatedAt: Date.now()
         });
         await update(ref(db, `deliveryBoys/${rider.id}`), {
@@ -184,7 +265,7 @@ export default function DeliveryDashboard() {
           payload: {
             orders: state.orders.map(o =>
               o.id === activeOrder.id
-                ? { ...o, status: 'served', paymentStatus: 'paid', deliveryStatus: 'delivered' }
+                ? { ...o, status: 'served', paymentStatus: 'paid', deliveryStatus: 'delivered', deliveryDistance: distance, deliveryBoyEarnings: commission }
                 : o
             ),
             deliveryBoys: state.deliveryBoys.map(b =>
@@ -195,7 +276,7 @@ export default function DeliveryDashboard() {
           }
         });
       }
-      addToast('success', `🎉 Delivered! You earned ₹${commission}. Great job!`);
+      addToast('success', `🎉 Delivered! You earned ₹${commission} for ${distance} KM (${state.restaurant.currency || '₹'}${payoutRate}/KM). Great job!`);
       setOtpInput('');
     } catch (err: any) {
       console.error(err);
@@ -487,63 +568,155 @@ export default function DeliveryDashboard() {
   // ─────────────────────────────────────────────
   const HistoryTab = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={labelStyle}>Completed Deliveries ({deliveryHistory.length})</div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#22C55E' }}>
-          Total: ₹{riderDetail.totalEarnings || 0}
+      {/* Tab Filter buttons */}
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' }}>
+        {[
+          { id: 'today', label: 'Today' },
+          { id: 'week', label: 'This Week' },
+          { id: 'month', label: 'This Month' },
+          { id: 'custom_month', label: 'By Month' },
+          { id: 'date_range', label: 'Date Range' }
+        ].map(f => (
+          <button
+            key={f.id}
+            onClick={() => setFilterType(f.id as any)}
+            style={{
+              flexShrink: 0, padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+              background: filterType === f.id ? 'var(--brand)' : 'rgba(255,255,255,0.06)',
+              color: filterType === f.id ? '#fff' : '#9CA3AF',
+              border: filterType === f.id ? '1px solid var(--brand)' : '1px solid rgba(255,255,255,0.08)',
+              cursor: 'pointer', transition: 'all 0.2s', outline: 'none'
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Conditional selectors */}
+      {filterType === 'custom_month' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: '#161616', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+          <label style={{ fontSize: 10, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.03em' }}>SELECT MONTH</label>
+          <select
+            value={selectedMonth}
+            onChange={e => setSelectedMonth(e.target.value)}
+            style={{
+              background: '#0D0D0D', border: '1px solid rgba(255,255,255,0.1)',
+              color: '#fff', padding: '8px 12px', borderRadius: 8, fontSize: 12,
+              fontWeight: 700, outline: 'none', width: '100%'
+            }}
+          >
+            {getPastMonths().map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {filterType === 'date_range' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: '#161616', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 9.5, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.03em' }}>FROM DATE</label>
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={e => setCustomStartDate(e.target.value)}
+              style={{
+                background: '#0D0D0D', border: '1px solid rgba(255,255,255,0.1)',
+                color: '#fff', padding: '8px 10px', borderRadius: 8, fontSize: 11.5,
+                fontWeight: 700, outline: 'none', width: '100%'
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 9.5, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.03em' }}>TO DATE</label>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={e => setCustomEndDate(e.target.value)}
+              style={{
+                background: '#0D0D0D', border: '1px solid rgba(255,255,255,0.1)',
+                color: '#fff', padding: '8px 10px', borderRadius: 8, fontSize: 11.5,
+                fontWeight: 700, outline: 'none', width: '100%'
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Analytics Summary Panel */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ ...card, padding: 12, background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.1)' }}>
+          <div style={{ fontSize: 9.5, fontWeight: 800, color: '#A855F7', letterSpacing: '0.03em' }}>DELIVERIES</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', marginTop: 2 }}>{filteredHistory.length} orders</div>
+          <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>Dist: <strong style={{ color: '#E5E7EB' }}>{totalDistance.toFixed(1)} KM</strong></div>
+        </div>
+        <div style={{ ...card, padding: 12, background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.1)' }}>
+          <div style={{ fontSize: 9.5, fontWeight: 800, color: '#22C55E', letterSpacing: '0.03em' }}>TOTAL PAYOUT</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: '#22C55E', marginTop: 2 }}>₹{totalPayout}</div>
+          <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>Avg payout: <strong style={{ color: '#E5E7EB' }}>₹{avgPayout}</strong></div>
         </div>
       </div>
 
-      {deliveryHistory.length === 0 ? (
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', margin: '4px 0' }} />
+
+      <div style={{ ...labelStyle, fontSize: 11 }}>Delivery Logs ({filteredHistory.length})</div>
+
+      {filteredHistory.length === 0 ? (
         <div style={{
           ...card, border: '1px dashed rgba(255,255,255,0.07)',
           padding: '32px 16px', textAlign: 'center'
         }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>📦</div>
-          <div style={{ fontSize: 13, color: '#6B7280' }}>No completed deliveries yet.</div>
+          <div style={{ fontSize: 13, color: '#6B7280' }}>No completed deliveries in selected range.</div>
         </div>
       ) : (
-        deliveryHistory.map((ord) => {
+        filteredHistory.map((ord) => {
           const date = ord.createdAt
             ? new Date(ord.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
             : '—';
           const time = ord.createdAt
             ? new Date(ord.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
             : '';
+          
+          const payoutRate = riderDetail.payoutPerKm || 12;
+          const distance = ord.deliveryDistance || 2.5;
+          const commission = ord.deliveryBoyEarnings || Math.round(distance * payoutRate);
+
           return (
             <div key={ord.id} style={{
               ...card,
               display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-              animation: 'fadeIn 0.2s ease'
+              animation: 'fadeIn 0.2s ease', padding: 12
             }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', minWidth: 0 }}>
                 <div style={{
-                  width: 36, height: 36, borderRadius: 10,
+                  width: 32, height: 32, borderRadius: 8,
                   background: 'rgba(34,197,94,0.1)', color: '#22C55E',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                 }}>
-                  <CheckCircle size={16} />
+                  <CheckCircle size={15} />
                 </div>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: '#A855F7' }}>
                     #{ord.id.slice(-4).toUpperCase()}
                   </div>
-                  <div style={{ fontSize: 12, color: '#E5E7EB', marginTop: 3, maxWidth: 180 }}>
-                    {ord.deliveryAddress?.slice(0, 40)}{(ord.deliveryAddress?.length || 0) > 40 ? '…' : ''}
+                  <div style={{ fontSize: 11.5, color: '#E5E7EB', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                    {ord.deliveryAddress || 'Address details not stored'}
                   </div>
-                  <div style={{ fontSize: 10.5, color: '#6B7280', marginTop: 3 }}>
+                  <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
                     {date} • {time}
                     {ord.deliveryBoyRating ? (
-                      <span style={{ marginLeft: 8, color: '#FBBF24' }}>
-                        {'★'.repeat(ord.deliveryBoyRating)} {ord.deliveryBoyRating}/5
+                      <span style={{ marginLeft: 6, color: '#FBBF24' }}>
+                        ★ {ord.deliveryBoyRating}
                       </span>
                     ) : null}
                   </div>
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, color: '#22C55E' }}>+₹50</div>
-                <div style={{ fontSize: 9.5, color: '#6B7280', marginTop: 2 }}>Order ₹{ord.totalAmount}</div>
+                <div style={{ fontSize: 13, fontWeight: 900, color: '#22C55E' }}>+₹{commission}</div>
+                <div style={{ fontSize: 9.5, color: '#6B7280', marginTop: 2 }}>{distance} KM (@₹{payoutRate})</div>
               </div>
             </div>
           );
@@ -745,9 +918,9 @@ export default function DeliveryDashboard() {
 
       {/* Scrollable content */}
       <div style={{ flex: 1, padding: '16px 16px 90px', overflowY: 'auto' }}>
-        {activeTab === 'home' && <HomeTab />}
-        {activeTab === 'history' && <HistoryTab />}
-        {activeTab === 'profile' && <ProfileTab />}
+        {activeTab === 'home' && HomeTab()}
+        {activeTab === 'history' && HistoryTab()}
+        {activeTab === 'profile' && ProfileTab()}
       </div>
 
       {/* Bottom Tab Bar */}

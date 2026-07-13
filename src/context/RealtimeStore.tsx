@@ -144,6 +144,8 @@ export type Order = {
   deliveryLng?: number;
   deliveryCharge?: number;
   isManualOrder?: boolean;
+  deliveryDistance?: number;
+  deliveryBoyEarnings?: number;
 };
 
 export type TableInfo = {
@@ -188,6 +190,7 @@ export type RestaurantInfo = {
   mustLoginBeforeOrder?: boolean;
   autoprintKotEnabled?: boolean;
   autoprintBillEnabled?: boolean;
+  orderPopupEnabled?: boolean;
   taxPercentage?: number;
   printWidth?: '58mm' | '80mm';
   printHeaderMessage?: string;
@@ -355,6 +358,7 @@ export type DeliveryBoy = {
   createdAt: number;
   latitude?: number;
   longitude?: number;
+  payoutPerKm?: number;
 };
 
 export type SupportRequest = {
@@ -512,6 +516,7 @@ const DEFAULT_RESTAURANT: RestaurantInfo = {
   mustLoginBeforeOrder: false,
   autoprintKotEnabled: false,
   autoprintBillEnabled: false,
+  orderPopupEnabled: true,
   taxPercentage: 5,
   printWidth: '80mm',
   printHeaderMessage: 'Welcome to our restaurant!',
@@ -2045,7 +2050,6 @@ export function getActiveRestaurantId(state: AppState): string {
   const urlParams = new URLSearchParams(window.location.search);
   const viewParam = urlParams.get('view');
   
-  // If we are in the admin dashboard view or onboarding, prioritize the logged-in admin's restaurant ID
   const isAdminView = viewParam === 'admin' || viewParam === 'onboarding' || 
                       (state.isAdminLoggedIn && viewParam !== 'customer' && window.location.pathname !== '/home' && window.location.pathname !== '/onboarding');
   if (isAdminView && state.admin?.restaurantId) {
@@ -2054,8 +2058,8 @@ export function getActiveRestaurantId(state: AppState): string {
   
   return urlParams.get('restaurant') || 
          state.activeCustomerRestaurantId ||
-         state.admin?.restaurantId || 
          localStorage.getItem('meenufy_active_restaurant_id') || 
+         state.admin?.restaurantId || 
          'admin-1';
 }
 
@@ -2137,6 +2141,17 @@ function loadState(): Partial<AppState> {
       parsed.admin = { ...parsed.admin, id: 'admin-1', restaurantId: 'admin-1' };
     }
 
+    try {
+      const sessRaw = sessionStorage.getItem('meenufy_admin_session');
+      if (sessRaw) {
+        const sess = JSON.parse(sessRaw);
+        parsed.admin = sess.admin;
+        parsed.isAdminLoggedIn = sess.isAdminLoggedIn;
+      }
+    } catch (e) {
+      console.error('sessionStorage load error:', e);
+    }
+
     // Decouple transient and tab-specific UI states
     delete parsed.currentView;
     delete parsed.adminTab;
@@ -2156,8 +2171,18 @@ function loadState(): Partial<AppState> {
 function saveState(state: AppState) {
   try {
     // Don't persist transient UI state or tab-local states
-    const { toasts, isLoading, newOrderAlert, cart, currentView, adminTab, customerTab, ...rest } = state;
+    const { toasts, admin, isAdminLoggedIn, isLoading, newOrderAlert, cart, currentView, adminTab, customerTab, ...rest } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+    
+    // Write admin session to sessionStorage for tab isolation
+    sessionStorage.setItem('meenufy_admin_session', JSON.stringify({
+      admin: state.admin,
+      isAdminLoggedIn: state.isAdminLoggedIn
+    }));
+    
+    if (state.admin?.restaurantId) {
+      localStorage.setItem('meenufy_active_restaurant_id', state.admin.restaurantId);
+    }
   } catch {}
 }
 
@@ -3330,9 +3355,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (channelRef.current && !isBroadcasting.current && !FIREBASE_SYNC_ACTIONS.has(action.type)) {
         const savedRaw = localStorage.getItem(STORAGE_KEY);
         if (savedRaw) {
+          const parsed = JSON.parse(savedRaw);
+          // Exclude admin session from tab sync broadcasts to prevent profile overrides
+          delete parsed.admin;
+          delete parsed.isAdminLoggedIn;
           channelRef.current.postMessage({
             type: 'STATE_SYNC',
-            payload: JSON.parse(savedRaw),
+            payload: parsed,
           });
         }
       }
