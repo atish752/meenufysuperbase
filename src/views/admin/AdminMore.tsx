@@ -302,7 +302,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
 
-  const [originalPosterSource, setOriginalPosterSource] = useState<string | null>(null);
   const [uploadingPoster, setUploadingPoster] = useState(false);
 
 
@@ -353,17 +352,15 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       reader.readAsDataURL(file);
       reader.onload = async (event) => {
         const base64Src = event.target?.result as string;
-        setOriginalPosterSource(base64Src);
         
-        // Crop it to current ratio
-        const ratio = restaurantForm.posterRatio || '1:1';
-        const cropped = await cropImageSource(base64Src, ratio);
-        setRestaurantForm(prev => ({ ...prev, posterImage: cropped }));
-        addToast('success', `Poster uploaded & cropped to ${ratio} successfully! 📸`);
+        // Enforce square (1:1) crop for the profile image
+        const cropped = await cropImageSource(base64Src, '1:1');
+        setRestaurantForm(prev => ({ ...prev, posterImage: cropped, posterRatio: '1:1' }));
+        addToast('success', 'Profile image uploaded & cropped to square successfully! 📸');
       };
     } catch (err: any) {
       console.error(err);
-      addToast('error', `❌ Poster upload failed: ${err.message || err}`);
+      addToast('error', `❌ Profile image upload failed: ${err.message || err}`);
     } finally {
       setUploadingPoster(false);
     }
@@ -396,18 +393,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   };
 
 
-  const handleRatioChange = async (newRatio: '1:1' | '3:4' | '9:16') => {
-    setRestaurantForm(prev => ({ ...prev, posterRatio: newRatio }));
-    if (originalPosterSource) {
-      try {
-        const cropped = await cropImageSource(originalPosterSource, newRatio);
-        setRestaurantForm(prev => ({ ...prev, posterImage: cropped }));
-        addToast('success', `Poster auto-recropped to ${newRatio}! ✂️`);
-      } catch (e) {
-        console.error('Failed to auto-recrop poster:', e);
-      }
-    }
-  };
 
   // Secure payment gateway checkout state
   const [showCheckout, setShowCheckout] = useState(false);
@@ -1973,18 +1958,18 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 )}
               </div>
 
-              {/* Poster Display Settings */}
+              {/* Restaurant Profile Image Settings */}
               <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Poster Display Settings</h4>
+                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Restaurant Profile Image</h4>
                 <div className="input-group" style={{ marginBottom: 12 }}>
-                  <label className="input-label">Poster Image URL / Upload</label>
+                  <label className="input-label">Profile Image (will be shown in the browsing list as a square)</label>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <input
                       className="input"
                       type="text"
                       placeholder="Paste image URL or upload photo below"
                       value={restaurantForm.posterImage || ''}
-                      onChange={e => setRestaurantForm({ ...restaurantForm, posterImage: e.target.value })}
+                      onChange={e => setRestaurantForm({ ...restaurantForm, posterImage: e.target.value, posterRatio: '1:1' })}
                       style={{ flex: 1 }}
                     />
                     <div style={{ position: 'relative' }}>
@@ -2018,14 +2003,14 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 
                 {restaurantForm.posterImage && (
                   <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
-                    <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Poster Preview</label>
+                    <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Profile Image Preview (Square)</label>
                     <div style={{
                       margin: '0 auto',
-                      maxWidth: 160,
-                      borderRadius: 8,
+                      width: 120,
+                      height: 120,
+                      borderRadius: 12,
                       overflow: 'hidden',
-                      border: '1px solid var(--border)',
-                      aspectRatio: restaurantForm.posterRatio === '9:16' ? '9 / 16' : (restaurantForm.posterRatio === '3:4' ? '3 / 4' : '1 / 1'),
+                      border: '2px solid var(--brand)',
                       background: 'var(--bg-elevated)',
                       display: 'flex',
                       alignItems: 'center',
@@ -2033,7 +2018,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                     }}>
                       <img
                         src={restaurantForm.posterImage}
-                        alt="Poster Preview"
+                        alt="Profile Preview"
                         style={{
                           width: '100%',
                           height: '100%',
@@ -2043,50 +2028,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                     </div>
                   </div>
                 )}
-
-                <div className="input-group">
-                  <label className="input-label">Poster Aspect Ratio</label>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-                    {[
-                      { ratio: '1:1', w: 24, h: 24, label: 'Square (1:1)' },
-                      { ratio: '3:4', w: 18, h: 24, label: 'Portrait (3:4)' },
-                      { ratio: '9:16', w: 13, h: 24, label: 'Tall (9:16)' }
-                    ].map(opt => {
-                      const isSelected = (restaurantForm.posterRatio || '1:1') === opt.ratio;
-                      return (
-                        <button
-                          key={opt.ratio}
-                          type="button"
-                          onClick={() => handleRatioChange(opt.ratio as any)}
-                          style={{
-                            flex: 1,
-                            padding: '10px 8px',
-                            borderRadius: '8px',
-                            background: isSelected ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                            border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 8,
-                            transition: 'all 0.2s ease',
-                            color: isSelected ? '#fff' : 'var(--text-secondary)'
-                          }}
-                        >
-                          <div style={{
-                            width: opt.w,
-                            height: opt.h,
-                            border: `2px solid ${isSelected ? 'var(--brand)' : 'var(--text-muted)'}`,
-                            background: isSelected ? 'rgba(255, 125, 0, 0.2)' : 'transparent',
-                            borderRadius: '2px',
-                            transition: 'all 0.2s ease'
-                          }} />
-                          <span style={{ fontSize: 11, fontWeight: 600 }}>{opt.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
 
               <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 16 }}>

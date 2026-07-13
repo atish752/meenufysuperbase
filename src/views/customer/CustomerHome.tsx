@@ -806,10 +806,10 @@ export default function CustomerHome() {
                           transition: 'transform 0.2s'
                         }}
                       >
-                        {/* Left Side: Banner Photo (40% width) */}
-                        <div style={{ width: '40%', position: 'relative', background: 'var(--border-dim)' }}>
+                        {/* Left Side: Restaurant Profile Image (Square) */}
+                        <div style={{ width: 125, height: 125, position: 'relative', background: 'var(--border-dim)', flexShrink: 0 }}>
                           <img
-                            src={acc.bannerImage || DEFAULT_BANNER}
+                            src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
                             alt={acc.restaurantName}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />

@@ -270,6 +270,8 @@ export default function CustomerMenu() {
   const isReallyClosed = isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime, restaurant?.daySpecificHours) || restaurant?.isManualClosed === true;
   const isCartAllowed = (!isViewOnly || restaurant?.deliveryEnabled) && !isReallyClosed;
   const t = useTranslation();
+  const [showOffersModal, setShowOffersModal] = useState(false);
+  const activeCoupons = (state.coupons || []).filter(c => c.isActive && (!c.restaurantId || c.restaurantId === restaurantId));
   const [selectedCat, setSelectedCat] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [vegOnly, setVegOnly] = useState(false);
@@ -756,6 +758,59 @@ export default function CustomerMenu() {
         maxWidth: '100%',
         boxSizing: 'border-box',
       }}>
+        {/* Offers Scrolling Ticker */}
+        {activeCoupons.length > 0 && (
+          <div
+            onClick={() => setShowOffersModal(true)}
+            style={{
+              background: 'rgba(255, 125, 0, 0.06)',
+              border: '1px solid rgba(255, 125, 0, 0.15)',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              position: 'relative',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              userSelect: 'none',
+              marginBottom: 4,
+            }}
+          >
+            {/* Styles for marquee animation */}
+            <style>{`
+              @keyframes marquee-scroll {
+                0% { transform: translateX(100%); }
+                100% { transform: translateX(-100%); }
+              }
+              .ticker-text {
+                display: inline-block;
+                animation: marquee-scroll 22s linear infinite;
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--brand);
+                padding-left: 10%;
+              }
+              .ticker-text:hover {
+                animation-play-state: paused;
+              }
+            `}</style>
+            <div style={{ position: 'absolute', left: 8, background: 'var(--bg-glass)', padding: '0 4px', zIndex: 2, fontSize: 10, fontWeight: 800, color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: 3 }}>
+              🏷️ <span style={{ textTransform: 'uppercase', fontSize: 9 }}>Offers</span>:
+            </div>
+            <div style={{ width: '100%', overflow: 'hidden' }}>
+              <div className="ticker-text">
+                {activeCoupons.map((c, idx) => {
+                  const desc = c.type === 'percentage'
+                    ? `🎉 Get ${c.value}% OFF using code ${c.code}${c.minOrderAmount ? ` (Min order ₹${c.minOrderAmount})` : ''}`
+                    : `🎉 Flat ₹${c.value} OFF using code ${c.code}${c.minOrderAmount ? ` (Min order ₹${c.minOrderAmount})` : ''}`;
+                  return `${desc}${idx < activeCoupons.length - 1 ? '   •   ' : ''}`;
+                }).join(' ')}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Upper Filter Row */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Search Input */}
@@ -1089,6 +1144,94 @@ export default function CustomerMenu() {
           )}
         </div>
       </div>
+
+      {showOffersModal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowOffersModal(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: 360, padding: 20, position: 'relative', borderRadius: 16 }}>
+            <button
+              onClick={() => setShowOffersModal(false)}
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                background: 'var(--border)',
+                border: 'none',
+                borderRadius: '50%',
+                width: 28,
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                zIndex: 10
+              }}
+            >
+              <X size={16} />
+            </button>
+
+            <h3 style={{ fontSize: 16, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+              🎁 Current Offers &amp; Coupons
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
+              {activeCoupons.map(c => {
+                const desc = c.type === 'percentage'
+                  ? `Get ${c.value}% OFF${c.minOrderAmount ? ` on orders above ₹${c.minOrderAmount}` : ''}`
+                  : `Flat ₹${c.value} OFF${c.minOrderAmount ? ` on orders above ₹${c.minOrderAmount}` : ''}`;
+                return (
+                  <div key={c.id} style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    padding: 12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        color: 'var(--brand)',
+                        background: 'rgba(255, 125, 0, 0.1)',
+                        border: '1.5px dashed var(--brand)',
+                        padding: '4px 10px',
+                        borderRadius: 6,
+                        fontFamily: 'monospace'
+                      }}>
+                        {c.code}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(c.code);
+                          addToast('success', `📋 Copied code: ${c.code}`);
+                        }}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          color: '#fff',
+                          background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: 8,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Copy Code
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      {desc}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {variantModalItem && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setVariantModalItem(null)}>

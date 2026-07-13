@@ -336,6 +336,7 @@ export type RestaurantAccount = {
   cuisines?: string;
   rating?: number;
   bannerImage?: string;
+  posterImage?: string;
   daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>;
 };
 
@@ -3246,6 +3247,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (action.payload.cuisines) accountUpdates.cuisines = action.payload.cuisines;
             if (action.payload.rating !== undefined) accountUpdates.rating = action.payload.rating;
             if (action.payload.bannerImage) accountUpdates.bannerImage = action.payload.bannerImage;
+            if (action.payload.posterImage) accountUpdates.posterImage = action.payload.posterImage;
             
             if (Object.keys(accountUpdates).length > 0) {
               update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)
