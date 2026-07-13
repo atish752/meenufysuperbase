@@ -2570,33 +2570,86 @@ function OrderCard({
                 👥 {order.numberOfGuests}
               </span>
             )}
-            {order.orderType && (
-              <span style={order.orderType === 'take-away' ? {
-                fontSize: 9.5, fontWeight: 800,
-                background: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
-                border: '1.5px solid #ef4444',
-                padding: '2px 6px', borderRadius: 4,
-                display: 'inline-flex', alignItems: 'center', gap: 3,
-                boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)'
-              } : order.orderType === 'delivery' ? {
-                fontSize: 9.5, fontWeight: 800,
-                background: 'rgba(157, 78, 221, 0.15)',
-                color: '#C084FC',
-                border: '1.5px solid rgba(157, 78, 221, 0.4)',
-                padding: '2px 6px', borderRadius: 4,
-                display: 'inline-flex', alignItems: 'center', gap: 3,
-                boxShadow: '0 0 8px rgba(157, 78, 221, 0.2)'
-              } : {
-                fontSize: 9.5, fontWeight: 700,
-                background: 'var(--bg-elevated)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border)',
-                padding: '2px 6px', borderRadius: 4,
-                display: 'inline-flex', alignItems: 'center', gap: 3,
-              }}>
-                {order.orderType === 'in-dining' ? '🪑 In-Dining' : '🛍️ Take-Away'}
-              </span>
+            {order.orderType === 'delivery' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {order.deliveryBoyId && (
+                  <span style={{
+                    fontSize: 9.5, fontWeight: 900, padding: '2.5px 6px', borderRadius: 4,
+                    background: 'rgba(34,197,94,0.15)', color: '#4ADE80',
+                    border: '1.5px solid rgba(34,197,94,0.3)',
+                    display: 'inline-flex', alignItems: 'center', gap: 3
+                  }}>
+                    🛵 {(state.deliveryBoys || []).find(b => b.id === order.deliveryBoyId)?.name || 'Rider'}
+                  </span>
+                )}
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                  <select
+                    value={order.deliveryBoyId || ''}
+                    onChange={(e) => {
+                      const boyId = e.target.value;
+                      if (!boyId) return;
+
+                      const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+                      const targetRestId = order.restaurantId || state.admin?.restaurantId || 'admin-1';
+                      dispatch({
+                        type: 'ASSIGN_DELIVERY_BOY',
+                        payload: {
+                          orderId: order.id,
+                          restaurantId: targetRestId,
+                          deliveryBoyId: boyId,
+                          deliveryOtp: otpCode
+                        }
+                      });
+                    }}
+                    style={{
+                      background: 'rgba(157, 78, 221, 0.15)',
+                      color: '#C084FC',
+                      border: '1.5px solid rgba(157, 78, 221, 0.4)',
+                      padding: '2.5px 18px 2.5px 6px',
+                      borderRadius: 4,
+                      fontSize: 9.5,
+                      fontWeight: 800,
+                      outline: 'none',
+                      cursor: 'pointer',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      letterSpacing: '0.02em',
+                      boxShadow: '0 0 8px rgba(157, 78, 221, 0.2)'
+                    }}
+                  >
+                    <option value="" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+                      {order.deliveryBoyId ? 'Reassign' : '🚴 Select Rider'}
+                    </option>
+                    {(state.deliveryBoys || []).filter(b => b.restaurantId === (order.restaurantId || state.admin?.restaurantId || 'admin-1')).map(boy => (
+                      <option key={boy.id} value={boy.id} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+                        {boy.name} ({boy.status || 'idle'})
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: 7, color: '#C084FC' }}>▼</span>
+                </div>
+              </div>
+            ) : (
+              order.orderType && (
+                <span style={order.orderType === 'take-away' ? {
+                  fontSize: 9.5, fontWeight: 800,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  color: '#ef4444',
+                  border: '1.5px solid #ef4444',
+                  padding: '2px 6px', borderRadius: 4,
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)'
+                } : {
+                  fontSize: 9.5, fontWeight: 700,
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  padding: '2px 6px', borderRadius: 4,
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                }}>
+                  {order.orderType === 'in-dining' ? '🪑 In-Dining' : '🛍️ Take-Away'}
+                </span>
+              )
             )}
             <span style={{ 
               fontSize: 9.5, 
@@ -2877,6 +2930,15 @@ function OrderCard({
               style={{ fontSize: 10, padding: '4px 8px' }}
             >
               Next
+            </button>
+          )}
+          {order.orderType === 'delivery' && order.status === 'bill_pay' && (
+            <button
+              className="btn btn-sm"
+              onClick={() => onStatusChange(order.id, 'served')}
+              style={{ fontSize: 10, padding: '4px 8px', background: '#22C55E', color: '#fff', border: '1px solid #16A34A', fontWeight: 800 }}
+            >
+              Mark Delivered
             </button>
           )}
           {order.status !== 'cancelled' && (

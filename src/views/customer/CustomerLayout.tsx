@@ -345,8 +345,12 @@ export default function CustomerLayout({ tableId }: Props) {
     setLastActiveOrdersCount(activeOrders.length);
   }, [activeOrders.length, lastActiveOrdersCount]);
 
-  // Check if all active orders have been successfully delivered (status is 'ready' or 'bill_pay')
-  const allActiveOrdersDelivered = activeOrders.length > 0 && activeOrders.every(o => o.status === 'ready' || o.status === 'bill_pay');
+  const allActiveOrdersDelivered = activeOrders.length > 0 && activeOrders.every(o => {
+    if (o.orderType === 'delivery') {
+      return false; // Delivery orders are not fully delivered until marked 'served'
+    }
+    return o.status === 'ready' || o.status === 'bill_pay';
+  });
 
   // Check if any active order is in confirmation stage
   const isWaitingConfirmation = activeOrders.some(o => o.paymentStatus === 'waiting_confirmation');
@@ -1419,7 +1423,7 @@ export default function CustomerLayout({ tableId }: Props) {
                       { label: 'Delivered', desc: 'Enjoy your meal! 🎉', icon: Truck, statusMatch: 'served' },
                     ];
                     const steps = isDelivery ? deliverySteps : STEPS.map(s => ({ ...s, statusMatch: s.status }));
-                    const deliveryStatusMap: Record<string, number> = { pending: 0, preparing: 1, ready: 2, served: 3 };
+                    const deliveryStatusMap: Record<string, number> = { pending: 0, preparing: 1, ready: 2, bill_pay: 2, served: 3 };
                     const currentStepIdx = isDelivery
                       ? (deliveryStatusMap[activeOrder.status] ?? 0) + (activeOrder.deliveryStatus === 'started' ? 0 : 0)
                       : ['pending', 'preparing', 'ready'].indexOf(activeOrder.status);
