@@ -410,6 +410,7 @@ export type AdminUser = {
   permissions?: ('orders' | 'menu' | 'customers' | 'analysis' | 'outlet_setting' | 'qr_tables')[];
   restaurantName?: string;
   ownerPhone?: string;
+  existingAccount?: any;
 };
 
 export type Toast = {
@@ -1248,9 +1249,16 @@ function reducer(state: AppState, action: Action): AppState {
         return acc;
       });
       
-      let existingAccount = newAccounts.find(
+      let existingAccount = action.payload.existingAccount || newAccounts.find(
         acc => acc.ownerEmail.trim().toLowerCase() === email.trim().toLowerCase()
       );
+
+      if (action.payload.existingAccount && !newAccounts.some(acc => acc.id === action.payload.existingAccount.id)) {
+        newAccounts.push({
+          ...action.payload.existingAccount,
+          id: action.payload.existingAccount.id || action.payload.id
+        });
+      }
       
       // Determine default country based on timezone
       const detectedCountry = detectBillingCountry();
@@ -2171,7 +2179,7 @@ function loadState(): Partial<AppState> {
 function saveState(state: AppState) {
   try {
     // Don't persist transient UI state or tab-local states
-    const { toasts, admin, isAdminLoggedIn, isLoading, newOrderAlert, cart, currentView, adminTab, customerTab, ...rest } = state;
+    const { toasts, isLoading, newOrderAlert, cart, currentView, adminTab, customerTab, ...rest } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
     
     // Write admin session to sessionStorage for tab isolation
@@ -3164,53 +3172,60 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             break;
           case 'LOGIN_ADMIN': {
             if (!action.payload.isSuperAdmin && !action.payload.isStaff) {
-              const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === action.payload.id);
               const detectedCountry = detectBillingCountry();
+              const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === action.payload.id);
 
-              // Asynchronously fetch authoritative restaurant profile to self-heal restaurant name and phone
-              import('firebase/database').then(({ get, ref }) => {
-                get(ref(db!, `restaurants/${action.payload.id}`)).then((snapshot) => {
-                  const restData = snapshot.val();
-                  const realRestName = restData?.name || action.payload.restaurantName || matchedAcc?.restaurantName || 'My Restaurant';
-                  const realRestPhone = restData?.phone || action.payload.ownerPhone || matchedAcc?.ownerPhone || '+91 99999 88888';
+              import('firebase/database').then(({ get, ref, update }) => {
+                get(ref(db!, `restaurantAccounts/${action.payload.id}`)).then((snapshot) => {
+                  const existingDbAcc = snapshot.val();
+                  
+                  // Retrieve current restaurant data to heal restaurantName and ownerPhone if missing
+                  get(ref(db!, `restaurants/${action.payload.id}`)).then((restSnap) => {
+                    const restData = restSnap.val();
+                    const realRestName = restData?.name || action.payload.restaurantName || existingDbAcc?.restaurantName || 'My Restaurant';
+                    const realRestPhone = restData?.phone || action.payload.ownerPhone || existingDbAcc?.ownerPhone || '+91 99999 88888';
 
-                  const accountData = {
-                    id: action.payload.id,
-                    ownerName: action.payload.name,
-                    ownerEmail: action.payload.email,
-                    ownerPhone: realRestPhone,
-                    restaurantName: realRestName,
-                    walletBalance: matchedAcc ? (matchedAcc.walletBalance ?? 300) : 300,
-                    status: matchedAcc ? (matchedAcc.status ?? 'active') : 'active',
-                    createdAt: matchedAcc ? (matchedAcc.createdAt ?? Date.now()) : Date.now(),
-                    subscriptionPlan: matchedAcc ? (matchedAcc.subscriptionPlan ?? 'free') : 'free',
-                    ordersPlacedThisMonth: matchedAcc ? (matchedAcc.ordersPlacedThisMonth ?? 0) : 0,
-                    subscriptionRenewalDate: matchedAcc ? (matchedAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
-                    billingCountry: matchedAcc ? (matchedAcc.billingCountry ?? detectedCountry) : detectedCountry,
-                    billingPeriod: matchedAcc ? (matchedAcc.billingPeriod ?? 'monthly') : 'monthly'
-                  };
+                    const accountData = {
+                      id: action.payload.id,
+                      ownerName: action.payload.name,
+                      ownerEmail: action.payload.email,
+                      ownerPhone: realRestPhone,
+                      restaurantName: realRestName,
+                      walletBalance: existingDbAcc ? (existingDbAcc.walletBalance ?? 300) : 300,
+                      status: existingDbAcc ? (existingDbAcc.status ?? 'active') : 'active',
+                      createdAt: existingDbAcc ? (existingDbAcc.createdAt ?? Date.now()) : Date.now(),
+                      subscriptionPlan: existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free',
+                      ordersPlacedThisMonth: existingDbAcc ? (existingDbAcc.ordersPlacedThisMonth ?? 0) : 0,
+                      subscriptionRenewalDate: existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
+                      billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
+                      billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
+                      hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false
+                    };
 
-                  update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData))
-                    .catch(err => console.error('Failed to update self-healed restaurant account:', err));
+                    update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData))
+                      .catch(err => console.error('Failed to update self-healed restaurant account:', err));
+                  }).catch((err) => {
+                    console.error('Failed to get authoritative restaurant details for self-healing:', err);
+                    const accountData = {
+                      id: action.payload.id,
+                      ownerName: action.payload.name,
+                      ownerEmail: action.payload.email,
+                      ownerPhone: action.payload.ownerPhone || existingDbAcc?.ownerPhone || '+91 99999 88888',
+                      restaurantName: action.payload.restaurantName || existingDbAcc?.restaurantName || 'My Restaurant',
+                      walletBalance: existingDbAcc ? (existingDbAcc.walletBalance ?? 300) : 300,
+                      status: existingDbAcc ? (existingDbAcc.status ?? 'active') : 'active',
+                      createdAt: existingDbAcc ? (existingDbAcc.createdAt ?? Date.now()) : Date.now(),
+                      subscriptionPlan: existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free',
+                      ordersPlacedThisMonth: existingDbAcc ? (existingDbAcc.ordersPlacedThisMonth ?? 0) : 0,
+                      subscriptionRenewalDate: existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
+                      billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
+                      billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
+                      hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false
+                    };
+                    update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData)).catch(() => {});
+                  });
                 }).catch((err) => {
-                  console.error('Failed to get authoritative restaurant details for self-healing:', err);
-                  // Fallback to payload or matched values if read fails
-                  const accountData = {
-                    id: action.payload.id,
-                    ownerName: action.payload.name,
-                    ownerEmail: action.payload.email,
-                    ownerPhone: action.payload.ownerPhone || matchedAcc?.ownerPhone || currentState.restaurant.phone || '+91 99999 88888',
-                    restaurantName: action.payload.restaurantName || matchedAcc?.restaurantName || currentState.restaurant.name,
-                    walletBalance: matchedAcc ? (matchedAcc.walletBalance ?? 300) : 300,
-                    status: matchedAcc ? (matchedAcc.status ?? 'active') : 'active',
-                    createdAt: matchedAcc ? (matchedAcc.createdAt ?? Date.now()) : Date.now(),
-                    subscriptionPlan: matchedAcc ? (matchedAcc.subscriptionPlan ?? 'free') : 'free',
-                    ordersPlacedThisMonth: matchedAcc ? (matchedAcc.ordersPlacedThisMonth ?? 0) : 0,
-                    subscriptionRenewalDate: matchedAcc ? (matchedAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
-                    billingCountry: matchedAcc ? (matchedAcc.billingCountry ?? detectedCountry) : detectedCountry,
-                    billingPeriod: matchedAcc ? (matchedAcc.billingPeriod ?? 'monthly') : 'monthly'
-                  };
-                  update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData)).catch(() => {});
+                  console.error('Failed to get restaurant account details for self-healing:', err);
                 });
               });
               

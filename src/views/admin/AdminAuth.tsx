@@ -181,25 +181,43 @@ export default function AdminAuth() {
 
         const fbUser = userCredential.user;
         const fbEmail = fbUser.email?.trim().toLowerCase() || '';
-        
+
         let resolvedAdminId = fbUser.uid;
+        let dbMatchedAccount: any = null;
+
         if (fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477') {
           resolvedAdminId = 'admin-1';
-        } else {
-          const existingAccount = state.restaurantAccounts?.find(
-            acc => acc.id === fbUser.uid || 
-            acc.ownerEmail.trim().toLowerCase() === fbEmail
-          );
-          if (existingAccount) {
-            resolvedAdminId = existingAccount.id;
+        } else if (db) {
+          try {
+            const { ref, get } = await import('firebase/database');
+            const accountsSnap = await get(ref(db, 'restaurantAccounts'));
+            if (accountsSnap.exists()) {
+              const accountsData = accountsSnap.val();
+              const matchedEntry = Object.entries(accountsData).find(([key, val]: [string, any]) =>
+                key === fbUser.uid || (val.ownerEmail && val.ownerEmail.trim().toLowerCase() === fbEmail)
+              );
+              if (matchedEntry) {
+                resolvedAdminId = matchedEntry[0];
+                dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+              }
+            }
+          } catch (dbErr) {
+            console.error('Error pre-fetching restaurant account during login:', dbErr);
           }
         }
 
-        const existingAccountForBlock = state.restaurantAccounts?.find(
-          acc => acc.id === resolvedAdminId || 
-          acc.ownerEmail.trim().toLowerCase() === fbEmail
-        );
-        if (existingAccountForBlock && existingAccountForBlock.status === 'blocked') {
+        // Fallback search in memory state if database read is skipped or failed
+        if (!dbMatchedAccount) {
+          const localAcc = state.restaurantAccounts?.find(
+            acc => acc.id === fbUser.uid || acc.ownerEmail.trim().toLowerCase() === fbEmail
+          );
+          if (localAcc) {
+            resolvedAdminId = localAcc.id;
+            dbMatchedAccount = localAcc;
+          }
+        }
+
+        if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
           addToast('error', '❌ Your account has been blocked. Please contact support@meenufy.com');
           setLoading(false);
           await auth.signOut();
@@ -213,8 +231,9 @@ export default function AdminAuth() {
           restaurantId: resolvedAdminId,
           isLoggedIn: true,
           isFirebaseUser: true,
-          restaurantName: form.restaurantName || existingAccountForBlock?.restaurantName || 'My Restaurant',
-          ownerPhone: existingAccountForBlock?.ownerPhone || fbUser.phoneNumber || state.restaurant.phone || '+91 99999 88888',
+          restaurantName: form.restaurantName || dbMatchedAccount?.restaurantName || 'My Restaurant',
+          ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || state.restaurant.phone || '+91 99999 88888',
+          existingAccount: dbMatchedAccount || undefined
         };
 
         dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
@@ -308,19 +327,41 @@ export default function AdminAuth() {
       const fbEmail = fbUser.email?.trim().toLowerCase() || '';
 
       let resolvedAdminId = adminId;
-      const existingAccount = state.restaurantAccounts?.find(
-        acc => acc.id === adminId || 
-        acc.ownerEmail.trim().toLowerCase() === fbEmail ||
-        ((fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477') && (acc.id === 'admin-1' || acc.ownerEmail.trim().toLowerCase() === 'atish3477'))
-      );
+      let dbMatchedAccount: any = null;
 
       if (fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477') {
         resolvedAdminId = 'admin-1';
-      } else if (existingAccount) {
-        resolvedAdminId = existingAccount.id;
+      } else if (db) {
+        try {
+          const { ref, get } = await import('firebase/database');
+          const accountsSnap = await get(ref(db, 'restaurantAccounts'));
+          if (accountsSnap.exists()) {
+            const accountsData = accountsSnap.val();
+            const matchedEntry = Object.entries(accountsData).find(([key, val]: [string, any]) =>
+              key === adminId || (val.ownerEmail && val.ownerEmail.trim().toLowerCase() === fbEmail)
+            );
+            if (matchedEntry) {
+              resolvedAdminId = matchedEntry[0];
+              dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+            }
+          }
+        } catch (dbErr) {
+          console.error('Error pre-fetching restaurant account during Google login:', dbErr);
+        }
       }
 
-      if (existingAccount && existingAccount.status === 'blocked') {
+      // Fallback search in memory state if database read is skipped or failed
+      if (!dbMatchedAccount) {
+        const localAcc = state.restaurantAccounts?.find(
+          acc => acc.id === adminId || acc.ownerEmail.trim().toLowerCase() === fbEmail
+        );
+        if (localAcc) {
+          resolvedAdminId = localAcc.id;
+          dbMatchedAccount = localAcc;
+        }
+      }
+
+      if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
         addToast('error', '❌ Your account has been blocked. Please contact support@meenufy.com');
         setLoading(false);
         await auth.signOut();
@@ -334,13 +375,14 @@ export default function AdminAuth() {
         restaurantId: resolvedAdminId,
         isLoggedIn: true,
         isFirebaseUser: true,
-        restaurantName: existingAccount?.restaurantName || `${fbUser.displayName || 'My'}'s Restaurant`,
-        ownerPhone: existingAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
+        restaurantName: dbMatchedAccount?.restaurantName || `${fbUser.displayName || 'My'}'s Restaurant`,
+        ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
+        existingAccount: dbMatchedAccount || undefined
       };
 
       dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
 
-      if (!existingAccount) {
+      if (!dbMatchedAccount) {
         dispatch({
           type: 'UPDATE_RESTAURANT',
           payload: { name: `${adminUser.name}'s Restaurant` }
