@@ -34,6 +34,52 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
   return R * c; // in meters
 }
 
+function isRestaurantClosed(
+  openTimeStr?: string,
+  closeTimeStr?: string,
+  daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>
+): boolean {
+  try {
+    const now = new Date();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayName = dayNames[now.getDay()];
+
+    let finalOpenStr = openTimeStr;
+    let finalCloseStr = closeTimeStr;
+
+    if (daySpecificHours && daySpecificHours[todayName]) {
+      const todayHours = daySpecificHours[todayName];
+      if (todayHours.closed) return true;
+      if (todayHours.openTime && todayHours.closeTime) {
+        finalOpenStr = todayHours.openTime;
+        finalCloseStr = todayHours.closeTime;
+      }
+    }
+
+    if (!finalOpenStr || !finalCloseStr) return false;
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const [openH, openM] = finalOpenStr.split(':').map(Number);
+    const [closeH, closeM] = finalCloseStr.split(':').map(Number);
+
+    const openMinutes = openH * 60 + openM;
+    const closeMinutes = closeH * 60 + closeM;
+
+    if (openMinutes === closeMinutes) {
+      return false;
+    }
+    if (closeMinutes > openMinutes) {
+      return currentMinutes < openMinutes || currentMinutes > closeMinutes;
+    } else {
+      const isOpen = currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+      return !isOpen;
+    }
+  } catch (e) {
+    console.error('Error parsing business hours:', e);
+    return false;
+  }
+}
+
 const loadLeaflet = (): Promise<any> => {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined') {
@@ -669,6 +715,11 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
   };
 
   const handlePlaceOrder = async () => {
+    const isReallyClosed = isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime, restaurant?.daySpecificHours) || restaurant?.isManualClosed === true;
+    if (isReallyClosed) {
+      addToast('error', '❌ The restaurant is currently closed. No new orders can be placed.');
+      return;
+    }
     if (!activeTableId) { addToast('error', 'No table selected.'); return; }
     if (state.cart.length === 0) { addToast('error', 'Cart is empty.'); return; }
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
   LogOut, Mail, Phone, Store, Calendar,
-  Check, ShieldAlert, Plus, Trash2, Send, Key
+  Check, ShieldAlert, Plus, Trash2, Key
 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
@@ -778,98 +778,175 @@ export default function SuperAdminDashboard() {
                 AI Support Tickets
               </h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>
-                Submitted by restaurant owners when self-healing API key rotation failed completely.
+                Submitted by restaurant owners and customers for assistance.
               </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {(!state.supportRequests || state.supportRequests.length === 0) ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
-                  No support tickets filed yet. All AI operations are running smoothly! 🎉
-                </div>
-              ) : (
-                state.supportRequests.map(req => (
-                  <div
-                    key={req.id}
-                    className="card"
-                    style={{
-                      padding: 18,
-                      background: 'var(--bg-elevated)',
-                      border: req.status === 'pending' ? '1px solid var(--error-dim)' : '1px solid var(--border)',
-                      boxShadow: req.status === 'pending' ? '0 2px 10px rgba(239, 68, 68, 0.05)' : 'none',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 12
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-primary)' }}>
-                            {req.restaurantName}
-                          </span>
-                          <span style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            background: req.status === 'pending' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                            color: req.status === 'pending' ? 'var(--error)' : 'var(--success)'
-                          }}>
-                            {req.status === 'pending' ? 'Pending' : 'Resolved'}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                          Owner: {req.ownerName} ({req.ownerEmail}) · Filed: {new Date(req.createdAt).toLocaleString()}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <a
-                          href={`mailto:${req.ownerEmail}?subject=Meenufy AI Support Ticket Inquiry`}
-                          className="btn btn-secondary btn-sm"
-                          style={{ fontSize: 11, padding: '4px 8px', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                        >
-                          <Mail size={12} style={{ marginRight: 4 }} /> Contact Owner
-                        </a>
-                      </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+              {/* Column 1: Restaurant Owners */}
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+                  🏢 Restaurant Owners ({(state.supportRequests || []).filter(r => r.isCustomerTicket !== true).length})
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {(!state.supportRequests || state.supportRequests.filter(r => r.isCustomerTicket !== true).length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-secondary)', background: 'var(--bg-elevated)', borderRadius: 8 }}>
+                      No owner tickets filed yet.
                     </div>
-
-                    <div style={{ background: 'var(--bg-primary)', padding: 12, borderRadius: 6, fontSize: 13, border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 4 }}>
-                        AI Failure Attempts Count: <span style={{ color: 'var(--error)' }}>{req.attemptsCount} times</span>
-                      </div>
-                      <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-                        "{req.message}"
-                      </div>
-                    </div>
-
-                    {req.replyText && (
-                      <div style={{ background: 'rgba(255, 125, 0, 0.05)', borderLeft: '3px solid var(--brand)', padding: 10, borderRadius: '0 6px 6px 0', fontSize: 12 }}>
-                        <strong>Your Reply:</strong><br />
-                        <span style={{ color: 'var(--text-secondary)' }}>"{req.replyText}"</span>
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <input
-                        className="input"
-                        style={{ padding: '6px 12px', fontSize: 12, flex: 1 }}
-                        placeholder={req.replyText ? "Update your reply..." : "Type reply to owner..."}
-                        value={supportReplies[req.id] || ''}
-                        onChange={e => setSupportReplies(prev => ({ ...prev, [req.id]: e.target.value }))}
-                      />
-                      <button
-                        className="btn btn-primary btn-sm"
-                        style={{ padding: '6px 14px', height: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
-                        onClick={() => handleReplySupport(req.id)}
+                  ) : (
+                    state.supportRequests.filter(r => r.isCustomerTicket !== true).map(req => (
+                      <div
+                        key={req.id}
+                        className="card"
+                        style={{
+                          padding: 16,
+                          background: 'var(--bg-elevated)',
+                          border: req.status === 'pending' ? '1px solid var(--error-dim)' : '1px solid var(--border)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12
+                        }}
                       >
-                        <Send size={12} /> Send Reply
-                      </button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)' }}>
+                                {req.restaurantName}
+                              </span>
+                              <span style={{
+                                fontSize: 9,
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: req.status === 'pending' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                color: req.status === 'pending' ? 'var(--error)' : 'var(--success)'
+                              }}>
+                                {req.status === 'pending' ? 'Pending' : 'Resolved'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
+                              Owner: {req.ownerName} ({req.ownerEmail}) · Filed: {new Date(req.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ background: 'var(--bg-primary)', padding: 10, borderRadius: 6, fontSize: 12, border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 4 }}>
+                            AI Failure Attempts Count: <span style={{ color: 'var(--error)' }}>{req.attemptsCount || 0} times</span>
+                          </div>
+                          <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+                            "{req.message}"
+                          </div>
+                        </div>
+
+                        {req.replyText && (
+                          <div style={{ background: 'rgba(255, 125, 0, 0.05)', borderLeft: '3px solid var(--brand)', padding: 8, borderRadius: '0 6px 6px 0', fontSize: 11 }}>
+                            <strong>Reply:</strong> <span style={{ color: 'var(--text-secondary)' }}>"{req.replyText}"</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          <input
+                            className="input"
+                            style={{ padding: '4px 10px', fontSize: 11, flex: 1, height: 28 }}
+                            placeholder={req.replyText ? "Update reply..." : "Type reply..."}
+                            value={supportReplies[req.id] || ''}
+                            onChange={e => setSupportReplies(prev => ({ ...prev, [req.id]: e.target.value }))}
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '4px 10px', height: 28, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                            onClick={() => handleReplySupport(req.id)}
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Column 2: Customers */}
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+                  👥 Customers ({(state.supportRequests || []).filter(r => r.isCustomerTicket === true).length})
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {(!state.supportRequests || state.supportRequests.filter(r => r.isCustomerTicket === true).length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-secondary)', background: 'var(--bg-elevated)', borderRadius: 8 }}>
+                      No customer tickets filed yet.
                     </div>
-                  </div>
-                ))
-              )}
+                  ) : (
+                    state.supportRequests.filter(r => r.isCustomerTicket === true).map(req => (
+                      <div
+                        key={req.id}
+                        className="card"
+                        style={{
+                          padding: 16,
+                          background: 'var(--bg-elevated)',
+                          border: req.status === 'pending' ? '1px solid var(--error-dim)' : '1px solid var(--border)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)' }}>
+                                {req.restaurantName}
+                              </span>
+                              <span style={{
+                                fontSize: 9,
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: req.status === 'pending' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                color: req.status === 'pending' ? 'var(--error)' : 'var(--success)'
+                              }}>
+                                {req.status === 'pending' ? 'Pending' : 'Resolved'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
+                              Cust: {req.ownerName} ({req.ownerEmail || 'No Email'}) · Filed: {new Date(req.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ background: 'var(--bg-primary)', padding: 10, borderRadius: 6, fontSize: 12, border: '1px solid var(--border)' }}>
+                          <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+                            "{req.message}"
+                          </div>
+                        </div>
+
+                        {req.replyText && (
+                          <div style={{ background: 'rgba(255, 125, 0, 0.05)', borderLeft: '3px solid var(--brand)', padding: 8, borderRadius: '0 6px 6px 0', fontSize: 11 }}>
+                            <strong>Reply:</strong> <span style={{ color: 'var(--text-secondary)' }}>"{req.replyText}"</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          <input
+                            className="input"
+                            style={{ padding: '4px 10px', fontSize: 11, flex: 1, height: 28 }}
+                            placeholder={req.replyText ? "Update reply..." : "Type reply..."}
+                            value={supportReplies[req.id] || ''}
+                            onChange={e => setSupportReplies(prev => ({ ...prev, [req.id]: e.target.value }))}
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '4px 10px', height: 28, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                            onClick={() => handleReplySupport(req.id)}
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -881,116 +958,194 @@ export default function SuperAdminDashboard() {
                 Feedback & Tickets
               </h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>
-                General feedback and support tickets submitted by restaurant owner admins.
+                General feedback and suggestions submitted by restaurant owners and customers.
               </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {(!state.ownerFeedbacks || state.ownerFeedbacks.length === 0) ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
-                  No feedback received yet.
-                </div>
-              ) : (
-                state.ownerFeedbacks.map(fb => (
-                  <div
-                    key={fb.id}
-                    className="card"
-                    style={{
-                      padding: 18,
-                      background: 'var(--bg-elevated)',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 12
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>
-                            {fb.restaurantName}
-                          </span>
-                          {fb.ticketType && (
-                            <span style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              padding: '2px 8px',
-                              borderRadius: 20,
-                              textTransform: 'uppercase',
-                              background: fb.ticketType === 'bug' ? 'rgba(239, 68, 68, 0.1)' :
-                                          fb.ticketType === 'feature' ? 'rgba(59, 130, 246, 0.1)' :
-                                          fb.ticketType === 'feedback' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-primary)',
-                              color: fb.ticketType === 'bug' ? 'var(--error)' :
-                                     fb.ticketType === 'feature' ? 'var(--brand)' :
-                                     fb.ticketType === 'feedback' ? 'var(--success)' : 'var(--text-secondary)',
-                              border: '1px solid currentColor'
-                            }}>
-                              {fb.ticketType === 'bug' ? '🐛 Bug' :
-                               fb.ticketType === 'feature' ? '✨ Feature' :
-                               fb.ticketType === 'feedback' ? '💡 Feedback' : '❓ Ticket'}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <div>👤 <strong>Owner:</strong> {fb.ownerName}</div>
-                          <div>✉️ <strong>Email:</strong> <a href={`mailto:${fb.ownerEmail}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{fb.ownerEmail}</a></div>
-                          {fb.ownerPhone && (
-                            <div>
-                              📞 <strong>Phone:</strong> <a href={`tel:${fb.ownerPhone}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{fb.ownerPhone}</a> · <a href={`https://wa.me/91${fb.ownerPhone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 600 }}>WhatsApp 💬</a>
-                            </div>
-                          )}
-                          <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>🕒 Submitted: {new Date(fb.createdAt).toLocaleString()}</div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <a
-                          href={`mailto:${fb.ownerEmail}?subject=Meenufy Feedback Reply`}
-                          className="btn btn-secondary btn-sm"
-                          style={{ fontSize: 11, padding: '4px 8px', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                        >
-                          <Mail size={12} style={{ marginRight: 4 }} /> Contact Owner
-                        </a>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          style={{ fontSize: 11, padding: '4px 8px', borderColor: 'var(--border)', color: 'var(--error)' }}
-                          onClick={() => handleDeleteFeedback(fb.id)}
-                        >
-                          <Trash2 size={12} style={{ marginRight: 4 }} /> Delete
-                        </button>
-                      </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+              {/* Column 1: Restaurant Owners */}
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+                  🏢 Restaurant Owners ({(state.ownerFeedbacks || []).filter(f => f.isCustomerTicket !== true).length})
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {(!state.ownerFeedbacks || state.ownerFeedbacks.filter(f => f.isCustomerTicket !== true).length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-secondary)', background: 'var(--bg-elevated)', borderRadius: 8 }}>
+                      No owner feedback received yet.
                     </div>
-
-                    <div style={{ background: 'var(--bg-primary)', padding: 12, borderRadius: 6, fontSize: 13, border: '1px solid var(--border)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-                      "{fb.message}"
-                    </div>
-
-                    {fb.replyText && (
-                      <div style={{ background: 'rgba(255, 125, 0, 0.05)', borderLeft: '3px solid var(--brand)', padding: 10, borderRadius: '0 6px 6px 0', fontSize: 12 }}>
-                        <strong>Your Reply:</strong><br />
-                        <span style={{ color: 'var(--text-secondary)' }}>"{fb.replyText}"</span>
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <input
-                        className="input"
-                        style={{ padding: '6px 12px', fontSize: 12, flex: 1 }}
-                        placeholder={fb.replyText ? "Update your reply..." : "Type reply to owner..."}
-                        value={feedbackReplies[fb.id] || ''}
-                        onChange={e => setFeedbackReplies(prev => ({ ...prev, [fb.id]: e.target.value }))}
-                      />
-                      <button
-                        className="btn btn-primary btn-sm"
-                        style={{ padding: '6px 14px', height: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
-                        onClick={() => handleReplyFeedback(fb.id)}
+                  ) : (
+                    state.ownerFeedbacks.filter(f => f.isCustomerTicket !== true).map(fb => (
+                      <div
+                        key={fb.id}
+                        className="card"
+                        style={{
+                          padding: 16,
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12
+                        }}
                       >
-                        <Send size={12} /> Send Reply
-                      </button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)' }}>
+                                {fb.restaurantName}
+                              </span>
+                              {fb.ticketType && (
+                                <span style={{
+                                  fontSize: 8,
+                                  fontWeight: 700,
+                                  padding: '1px 5px',
+                                  borderRadius: 20,
+                                  textTransform: 'uppercase',
+                                  border: '1px solid currentColor',
+                                  color: fb.ticketType === 'bug' ? 'var(--error)' :
+                                         fb.ticketType === 'feature' ? 'var(--brand)' : 'var(--success)'
+                                }}>
+                                  {fb.ticketType}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <div>👤 {fb.ownerName} ({fb.ownerEmail})</div>
+                              {fb.ownerPhone && <div>📞 {fb.ownerPhone}</div>}
+                              <div style={{ fontSize: 9, opacity: 0.8 }}>🕒 {new Date(fb.createdAt).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: 10, padding: '2px 6px', height: 22, borderColor: 'var(--border)', color: 'var(--error)' }}
+                            onClick={() => handleDeleteFeedback(fb.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+
+                        <div style={{ background: 'var(--bg-primary)', padding: 10, borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+                          "{fb.message}"
+                        </div>
+
+                        {fb.replyText && (
+                          <div style={{ background: 'rgba(255, 125, 0, 0.05)', borderLeft: '3px solid var(--brand)', padding: 8, borderRadius: '0 6px 6px 0', fontSize: 11 }}>
+                            <strong>Reply:</strong> <span style={{ color: 'var(--text-secondary)' }}>"{fb.replyText}"</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          <input
+                            className="input"
+                            style={{ padding: '4px 10px', fontSize: 11, flex: 1, height: 28 }}
+                            placeholder={fb.replyText ? "Update reply..." : "Type reply..."}
+                            value={feedbackReplies[fb.id] || ''}
+                            onChange={e => setFeedbackReplies(prev => ({ ...prev, [fb.id]: e.target.value }))}
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '4px 10px', height: 28, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                            onClick={() => handleReplyFeedback(fb.id)}
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Column 2: Customers */}
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+                  👥 Customers ({(state.ownerFeedbacks || []).filter(f => f.isCustomerTicket === true).length})
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {(!state.ownerFeedbacks || state.ownerFeedbacks.filter(f => f.isCustomerTicket === true).length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-secondary)', background: 'var(--bg-elevated)', borderRadius: 8 }}>
+                      No customer feedback received yet.
                     </div>
-                  </div>
-                ))
-              )}
+                  ) : (
+                    state.ownerFeedbacks.filter(f => f.isCustomerTicket === true).map(fb => (
+                      <div
+                        key={fb.id}
+                        className="card"
+                        style={{
+                          padding: 16,
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)' }}>
+                                {fb.restaurantName}
+                              </span>
+                              {fb.ticketType && (
+                                <span style={{
+                                  fontSize: 8,
+                                  fontWeight: 700,
+                                  padding: '1px 5px',
+                                  borderRadius: 20,
+                                  textTransform: 'uppercase',
+                                  border: '1px solid currentColor',
+                                  color: fb.ticketType === 'bug' ? 'var(--error)' :
+                                         fb.ticketType === 'feature' ? 'var(--brand)' : 'var(--success)'
+                                }}>
+                                  {fb.ticketType}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <div>👤 {fb.ownerName} ({fb.ownerEmail || 'No Email'})</div>
+                              {fb.ownerPhone && <div>📞 {fb.ownerPhone}</div>}
+                              <div style={{ fontSize: 9, opacity: 0.8 }}>🕒 {new Date(fb.createdAt).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: 10, padding: '2px 6px', height: 22, borderColor: 'var(--border)', color: 'var(--error)' }}
+                            onClick={() => handleDeleteFeedback(fb.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+
+                        <div style={{ background: 'var(--bg-primary)', padding: 10, borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+                          "{fb.message}"
+                        </div>
+
+                        {fb.replyText && (
+                          <div style={{ background: 'rgba(255, 125, 0, 0.05)', borderLeft: '3px solid var(--brand)', padding: 8, borderRadius: '0 6px 6px 0', fontSize: 11 }}>
+                            <strong>Reply:</strong> <span style={{ color: 'var(--text-secondary)' }}>"{fb.replyText}"</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          <input
+                            className="input"
+                            style={{ padding: '4px 10px', fontSize: 11, flex: 1, height: 28 }}
+                            placeholder={fb.replyText ? "Update reply..." : "Type reply..."}
+                            value={feedbackReplies[fb.id] || ''}
+                            onChange={e => setFeedbackReplies(prev => ({ ...prev, [fb.id]: e.target.value }))}
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '4px 10px', height: 28, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                            onClick={() => handleReplyFeedback(fb.id)}
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

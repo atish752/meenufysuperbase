@@ -136,11 +136,20 @@ export default function CustomerMore() {
             name: matched.name,
             phone: matched.phone,
             email: matched.email || user.email || '',
-            uniqueId: matched.uniqueId || ''
+            uniqueId: matched.uniqueId || '',
+            googleId: user.uid
           };
+          localStorage.setItem('meenufy_customer_google_user', JSON.stringify(localUser));
           localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(localUser));
           localStorage.setItem('meenufy_customer_user_logged_in', 'true');
           setLoggedInUser(localUser);
+
+          if (hasFirebaseConfig && db) {
+            const cleanPhone = matched.phone.replace(/[^a-zA-Z0-9]/g, '');
+            update(ref(db, `customers/${restaurantId}/${cleanPhone}`), { googleId: user.uid })
+              .catch(e => console.error("Failed to link Google ID in DB:", e));
+          }
+
           setShowAuthModal(false);
           addToast('success', `Welcome back, ${matched.name}! Signed in via Google.`);
         } else {
@@ -534,7 +543,8 @@ setLoggedInUser({
       ownerPhone: savedPhone,
       message: ticketMessageText.trim(),
       status: 'pending',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      isCustomerTicket: true
     };
 
     if (hasFirebaseConfig && db) {
@@ -583,7 +593,8 @@ setLoggedInUser({
       ownerEmail: loggedInUser.email || 'No Email',
       message: feedbackText.trim(),
       ticketType: feedbackType,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      isCustomerTicket: true
     };
 
     if (hasFirebaseConfig && db) {
@@ -747,7 +758,13 @@ setLoggedInUser({
               {isLoggedIn ? `Welcome, ${loggedInUser.name}` : 'Guest Profile'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-              {isLoggedIn ? `Linked: ${loggedInUser.phone}` : 'Sign in to access order history & loyalty points.'}
+              {isLoggedIn ? (
+                <span>
+                  {loggedInUser.googleId || customer?.googleId ? 'Logged in with -Google' : 'Registered Member'} • {loggedInUser.phone}
+                </span>
+              ) : (
+                'Sign in to access order history & loyalty points.'
+              )}
             </div>
           </div>
         </div>
@@ -898,27 +915,48 @@ setLoggedInUser({
         </h4>
 
         {/* Contact Hotline Button */}
-        <a
-          href="tel:+919999988888"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            width: '100%',
-            padding: '12px',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 10,
-            color: 'var(--brand)',
-            fontSize: 12,
-            fontWeight: 800,
-            textDecoration: 'none',
-            marginBottom: 16
-          }}
-        >
-          <PhoneCall size={14} /> Call Hotline Support (+91 99999 88888)
-        </a>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          <a
+            href="tel:+919798482404"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '12px',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              color: 'var(--brand)',
+              fontSize: 12,
+              fontWeight: 800,
+              textDecoration: 'none',
+            }}
+          >
+            <PhoneCall size={14} /> Call Support: +91 9798482404
+          </a>
+          <a
+            href="mailto:meenufy@gmail.com"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '12px',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              color: 'var(--brand)',
+              fontSize: 12,
+              fontWeight: 800,
+              textDecoration: 'none',
+            }}
+          >
+            ✉️ Email Support: meenufy@gmail.com
+          </a>
+        </div>
 
         {isLoggedIn ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

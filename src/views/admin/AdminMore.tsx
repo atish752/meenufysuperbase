@@ -1768,6 +1768,90 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                   </div>
                 </div>
               </div>
+
+              {/* Day-Specific Custom Hours */}
+              <div style={{ marginTop: 12, marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  🗓️ Day-Specific Custom Hours (Optional)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
+                    const customHours = (restaurantForm as any).daySpecificHours?.[day] || { openTime: '', closeTime: '', closed: false };
+                    const isEnabled = !!((restaurantForm as any).daySpecificHours?.[day]);
+                    
+                    return (
+                      <div key={day} style={{ display: 'flex', flexDirection: 'column', gap: 6, borderBottom: '1px solid var(--border-dim)', paddingBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                              type="checkbox"
+                              checked={isEnabled}
+                              onChange={e => {
+                                const newHours = { ...(restaurantForm as any).daySpecificHours };
+                                if (e.target.checked) {
+                                  newHours[day] = { openTime: restaurantForm.openTime || '11:00', closeTime: restaurantForm.closeTime || '22:00', closed: false };
+                                } else {
+                                  delete newHours[day];
+                                }
+                                setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                              }}
+                              style={{ accentColor: 'var(--brand)' }}
+                            />
+                            {day}
+                          </label>
+                          {isEnabled && (
+                            <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <input
+                                type="checkbox"
+                                checked={!!customHours.closed}
+                                onChange={e => {
+                                  const newHours = { ...(restaurantForm as any).daySpecificHours };
+                                  newHours[day] = { ...customHours, closed: e.target.checked };
+                                  setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                }}
+                                style={{ accentColor: 'var(--error)' }}
+                              />
+                              Mark Closed
+                            </label>
+                          )}
+                        </div>
+                        {isEnabled && !customHours.closed && (
+                          <div style={{ display: 'flex', gap: 10, marginLeft: 20 }}>
+                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+                              <label style={{ fontSize: 10, color: 'var(--text-muted)' }}>Opens At</label>
+                              <input
+                                className="input"
+                                type="time"
+                                value={customHours.openTime}
+                                onChange={e => {
+                                  const newHours = { ...(restaurantForm as any).daySpecificHours };
+                                  newHours[day] = { ...customHours, openTime: e.target.value };
+                                  setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                }}
+                                style={{ height: 32, padding: '4px 8px', fontSize: 12 }}
+                              />
+                            </div>
+                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+                              <label style={{ fontSize: 10, color: 'var(--text-muted)' }}>Closes At</label>
+                              <input
+                                className="input"
+                                type="time"
+                                value={customHours.closeTime}
+                                onChange={e => {
+                                  const newHours = { ...(restaurantForm as any).daySpecificHours };
+                                  newHours[day] = { ...customHours, closeTime: e.target.value };
+                                  setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                }}
+                                style={{ height: 32, padding: '4px 8px', fontSize: 12 }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="input-group">
                 <label className="input-label">Address</label>
                 <div className="input-icon-wrap">

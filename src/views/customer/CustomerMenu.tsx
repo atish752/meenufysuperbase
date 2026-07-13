@@ -3,6 +3,52 @@ import { useStore, useTranslation, getActiveRestaurantId, getActiveRestaurantInf
 import type { MenuItem } from '../../context/RealtimeStore';
 import { Search, X } from 'lucide-react';
 
+function isRestaurantClosed(
+  openTimeStr?: string,
+  closeTimeStr?: string,
+  daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>
+): boolean {
+  try {
+    const now = new Date();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayName = dayNames[now.getDay()];
+
+    let finalOpenStr = openTimeStr;
+    let finalCloseStr = closeTimeStr;
+
+    if (daySpecificHours && daySpecificHours[todayName]) {
+      const todayHours = daySpecificHours[todayName];
+      if (todayHours.closed) return true;
+      if (todayHours.openTime && todayHours.closeTime) {
+        finalOpenStr = todayHours.openTime;
+        finalCloseStr = todayHours.closeTime;
+      }
+    }
+
+    if (!finalOpenStr || !finalCloseStr) return false;
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const [openH, openM] = finalOpenStr.split(':').map(Number);
+    const [closeH, closeM] = finalCloseStr.split(':').map(Number);
+
+    const openMinutes = openH * 60 + openM;
+    const closeMinutes = closeH * 60 + closeM;
+
+    if (openMinutes === closeMinutes) {
+      return false;
+    }
+    if (closeMinutes > openMinutes) {
+      return currentMinutes < openMinutes || currentMinutes > closeMinutes;
+    } else {
+      const isOpen = currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+      return !isOpen;
+    }
+  } catch (e) {
+    console.error('Error parsing business hours:', e);
+    return false;
+  }
+}
+
 const VegNonVegIndicator = ({ isVeg, size = 14 }: { isVeg: boolean; size?: number }) => (
   <div style={{
     width: size,
@@ -59,7 +105,8 @@ function MealCard({
 }) {
   const { rating, reviews } = getRatingDetails(item.id);
   const isViewOnly = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('viewOnly') === 'true' || window.location.pathname === '/home');
-  const isCartAllowed = !isViewOnly || restaurant?.deliveryEnabled;
+  const isReallyClosed = isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime, restaurant?.daySpecificHours) || restaurant?.isManualClosed === true;
+  const isCartAllowed = (!isViewOnly || restaurant?.deliveryEnabled) && !isReallyClosed;
   return (
     <div className="card" style={{
       padding: 0,
@@ -218,8 +265,10 @@ function MealCard({
 export default function CustomerMenu() {
   const { state, dispatch, addToast } = useStore();
   const restaurantId = getActiveRestaurantId(state);
+  const restaurant = getActiveRestaurantInfo(state, restaurantId);
   const isViewOnly = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('viewOnly') === 'true' || window.location.pathname === '/home');
-  const isCartAllowed = !isViewOnly || state.restaurant?.deliveryEnabled;
+  const isReallyClosed = isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime, restaurant?.daySpecificHours) || restaurant?.isManualClosed === true;
+  const isCartAllowed = (!isViewOnly || restaurant?.deliveryEnabled) && !isReallyClosed;
   const t = useTranslation();
   const [selectedCat, setSelectedCat] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -315,7 +364,6 @@ export default function CustomerMenu() {
     setVariantQty(1);
   };
 
-  const restaurant = getActiveRestaurantInfo(state, restaurantId);
   const plan = restaurant.subscriptionPlan || 'free';
   const usage = restaurant.ordersPlacedThisMonth || 0;
   const limit = plan === 'free' ? 100 : plan === 'base' ? 1000 : plan === 'standard' ? 2000 : Infinity;
@@ -670,6 +718,26 @@ export default function CustomerMenu() {
             ? '⚠️ Ordering is temporarily unavailable: waiting for the restaurant owner to recharge us...'
             : '⚠️ Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.'
           }
+        </div>
+      )}
+
+      {isReallyClosed && (
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.15)',
+          color: 'var(--error)',
+          padding: '12px 16px',
+          fontSize: '13px',
+          fontWeight: 700,
+          borderBottom: '1px solid rgba(239, 68, 68, 0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          justifyContent: 'center',
+          textAlign: 'center',
+          animation: 'fadeIn 0.3s ease',
+          flexShrink: 0,
+        }}>
+          <span>⚠️</span> The restaurant is currently closed. No new orders are being accepted.
         </div>
       )}
 

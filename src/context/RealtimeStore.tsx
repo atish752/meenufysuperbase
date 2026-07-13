@@ -193,6 +193,7 @@ export type RestaurantInfo = {
   autoprintKotEnabled?: boolean;
   autoprintBillEnabled?: boolean;
   orderPopupEnabled?: boolean;
+  daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>;
   taxPercentage?: number;
   printWidth?: '58mm' | '80mm';
   printHeaderMessage?: string;
@@ -335,6 +336,7 @@ export type RestaurantAccount = {
   cuisines?: string;
   rating?: number;
   bannerImage?: string;
+  daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>;
 };
 
 export type StaffMember = {
@@ -374,6 +376,7 @@ export type SupportRequest = {
   createdAt: number;
   status: 'pending' | 'resolved';
   replyText?: string;
+  isCustomerTicket?: boolean;
 };
 
 export type OwnerFeedback = {
@@ -387,6 +390,7 @@ export type OwnerFeedback = {
   message: string;
   createdAt: number;
   replyText?: string;
+  isCustomerTicket?: boolean;
 };
 
 export type WaiterRequest = {
@@ -396,6 +400,7 @@ export type WaiterRequest = {
   restaurantId?: string;
   createdAt: number;
   resolved: boolean;
+  resolvedAt?: number;
 };
 
 export type AdminUser = {
@@ -1725,7 +1730,7 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'RESOLVE_WAITER': return {
       ...state,
-      waiterRequests: state.waiterRequests.map(r => r.id === action.payload ? { ...r, resolved: true } : r)
+      waiterRequests: state.waiterRequests.map(r => r.id === action.payload ? { ...r, resolved: true, resolvedAt: Date.now() } : r)
     };
     case 'LINK_GOOGLE_ACCOUNT': {
       if (!state.admin) return state;
@@ -2889,11 +2894,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             break;
           }
           case 'RESOLVE_WAITER': {
-            const waiterRestId = currentState.waiterRequests.find(r => r.id === action.payload)?.restaurantId || restId;
-            handleDbPromise(
-              update(ref(db, `waiterRequests/${waiterRestId}/${action.payload}`), { resolved: true }),
-              'Failed to resolve waiter request'
-            );
+            const database = db;
+            if (database) {
+              const waiterRestId = currentState.waiterRequests.find(r => r.id === action.payload)?.restaurantId || restId;
+              handleDbPromise(
+                update(ref(database, `waiterRequests/${waiterRestId}/${action.payload}`), { resolved: true, resolvedAt: Date.now() }),
+                'Failed to resolve waiter request'
+              );
+              setTimeout(() => {
+                import('firebase/database').then(({ remove }) => {
+                  remove(ref(database, `waiterRequests/${waiterRestId}/${action.payload}`)).catch(e => console.error("Failed to auto-delete resolved waiter request:", e));
+                });
+              }, 5000);
+            }
             break;
           }
           case 'SET_TABLES': {

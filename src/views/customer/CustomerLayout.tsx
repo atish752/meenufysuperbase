@@ -1,14 +1,33 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 
-function isRestaurantClosed(openTimeStr?: string, closeTimeStr?: string): boolean {
-  if (!openTimeStr || !closeTimeStr) return false;
+function isRestaurantClosed(
+  openTimeStr?: string,
+  closeTimeStr?: string,
+  daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>
+): boolean {
   try {
     const now = new Date();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayName = dayNames[now.getDay()];
+
+    let finalOpenStr = openTimeStr;
+    let finalCloseStr = closeTimeStr;
+
+    if (daySpecificHours && daySpecificHours[todayName]) {
+      const todayHours = daySpecificHours[todayName];
+      if (todayHours.closed) return true;
+      if (todayHours.openTime && todayHours.closeTime) {
+        finalOpenStr = todayHours.openTime;
+        finalCloseStr = todayHours.closeTime;
+      }
+    }
+
+    if (!finalOpenStr || !finalCloseStr) return false;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    const [openH, openM] = openTimeStr.split(':').map(Number);
-    const [closeH, closeM] = closeTimeStr.split(':').map(Number);
+    const [openH, openM] = finalOpenStr.split(':').map(Number);
+    const [closeH, closeM] = finalCloseStr.split(':').map(Number);
 
     const openMinutes = openH * 60 + openM;
     const closeMinutes = closeH * 60 + closeM;
@@ -209,7 +228,7 @@ export default function CustomerLayout({ tableId }: Props) {
 
   const rId = new URLSearchParams(window.location.search).get('restaurant') || getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, rId);
-  const isClosed = (isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime) || restaurant?.isManualClosed === true) && activeOrders.length === 0;
+  const isClosed = (isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime, restaurant?.daySpecificHours) || restaurant?.isManualClosed === true) && activeOrders.length === 0;
 
   if (isClosed) {
     return (

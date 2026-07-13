@@ -6,14 +6,21 @@ export default function AdminNotificationBell() {
   const { state, dispatch, addToast } = useStore();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [time, setTime] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const adminId = state.admin?.restaurantId || 'admin-1';
   const activeRequests = state.waiterRequests.filter(
     (r: WaiterRequest) => !r.resolved && (r.restaurantId || 'admin-1') === adminId
   );
   const resolvedRequests = state.waiterRequests.filter(
-    (r: WaiterRequest) => r.resolved && (r.restaurantId || 'admin-1') === adminId
-  ).sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+    (r: WaiterRequest) => r.resolved && (r.restaurantId || 'admin-1') === adminId && (time - (r.resolvedAt || r.createdAt || 0) < 5000)
+  ).sort((a, b) => b.createdAt - a.createdAt);
 
   const count = activeRequests.length;
 

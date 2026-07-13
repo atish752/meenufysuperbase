@@ -46,6 +46,13 @@ if (typeof document !== 'undefined' && !document.getElementById(BLINK_STYLE_ID))
 
 export default function AdminHome() {
   const { state, dispatch, addToast } = useStore();
+  const [time, setTime] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   const hasOrdersPermission = !state.admin?.isStaff || state.admin.permissions?.includes('orders');
   const hasQrTablesPermission = !state.admin?.isStaff || state.admin.permissions?.includes('qr_tables');
   const hasOutletSettingPermission = !state.admin?.isStaff || state.admin.permissions?.includes('outlet_setting');
@@ -331,7 +338,7 @@ export default function AdminHome() {
 
   const adminId = state.admin?.restaurantId || 'admin-1';
   const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && (r.restaurantId || 'admin-1') === adminId);
-  const resolvedWaiterRequests = state.waiterRequests.filter(r => r.resolved && (r.restaurantId || 'admin-1') === adminId && (Date.now() - r.createdAt < 2 * 60 * 60 * 1000));
+  const resolvedWaiterRequests = state.waiterRequests.filter(r => r.resolved && (r.restaurantId || 'admin-1') === adminId && (time - (r.resolvedAt || r.createdAt || 0) < 5000));
   const activeOrders = state.orders.filter(o => {
     const isActive = ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status);
     const isUnder180Min = Date.now() - o.createdAt < 180 * 60 * 1000;
