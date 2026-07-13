@@ -4,7 +4,7 @@ import {
   LogOut, MapPin, Phone, Package, CheckCircle, Navigation,
   Check, Star, TrendingUp, Bike, User, Home, History, Zap
 } from 'lucide-react';
-import { hasFirebaseConfig, db } from '../../utils/firebase';
+import { hasFirebaseConfig, db, auth } from '../../utils/firebase';
 
 type Tab = 'home' | 'history' | 'profile';
 
@@ -174,6 +174,8 @@ export default function DeliveryDashboard() {
   }, [activeOrder?.id, activeOrder?.deliveryStatus]);
 
   const handleLogout = () => {
+    // Delivery boys don't use Firebase Auth — just clear app state
+    if (auth) auth.signOut().catch(() => {});
     dispatch({ type: 'LOGOUT_ADMIN' });
     addToast('success', 'Logged out successfully.');
   };

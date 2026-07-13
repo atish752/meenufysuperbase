@@ -3,7 +3,8 @@
 // Cross-tab state sync via BroadcastChannel + localStorage
 // ============================================================
 import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useState } from 'react';
-import { db, hasFirebaseConfig } from '../utils/firebase';
+import { db, auth, hasFirebaseConfig } from '../utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { 
   ref, 
   set, 
@@ -1303,6 +1304,17 @@ function reducer(state: AppState, action: Action): AppState {
       
       const isDemoAdmin = action.payload.id === 'admin-1' || email.trim().toLowerCase() === 'atish3477';
       
+      const loginRestId = action.payload.id;
+
+      // Preserve data that already belongs to this restaurant (from localStorage or prior Firebase sync).
+      // Firebase listeners will overwrite with authoritative DB data momentarily.
+      // Only wipe data that belongs to a DIFFERENT (previous) session's restaurant.
+      const existingOrders     = state.orders.filter(o => o.restaurantId === loginRestId);
+      const existingCategories = state.categories.filter(c => c.restaurantId === loginRestId);
+      const existingMenuItems  = state.menuItems.filter(m => m.restaurantId === loginRestId);
+      const existingCustomers  = state.customers;
+      const existingTables     = state.tables;
+
       return { 
         ...state, 
         admin: action.payload, 
@@ -1316,20 +1328,22 @@ function reducer(state: AppState, action: Action): AppState {
         billingPeriod,
         subscriptionId,
         adminTab: defaultTab,
-        // Reset dynamic state parameters to prevent session data leak
-        orders: isSuper ? state.orders : (isDemoAdmin ? MOCK_ORDERS : []),
-        categories: isSuper ? state.categories : (isDemoAdmin ? DEFAULT_CATEGORIES : []),
-        menuItems: isSuper ? state.menuItems : (isDemoAdmin ? DEFAULT_MENU_ITEMS : []),
-        customers: isSuper ? state.customers : (isDemoAdmin ? MOCK_CUSTOMERS : []),
-        tables: isSuper ? state.tables : generateTables(8),
+        // Preserve existing data for this restaurant — Firebase listeners will refresh it.
+        // For super admin, keep all state as-is.
+        orders: isSuper ? state.orders : (isDemoAdmin ? MOCK_ORDERS : existingOrders),
+        categories: isSuper ? state.categories : (isDemoAdmin ? DEFAULT_CATEGORIES : (existingCategories.length > 0 ? existingCategories : [])),
+        menuItems: isSuper ? state.menuItems : (isDemoAdmin ? DEFAULT_MENU_ITEMS : (existingMenuItems.length > 0 ? existingMenuItems : [])),
+        customers: isSuper ? state.customers : (isDemoAdmin ? MOCK_CUSTOMERS : existingCustomers),
+        tables: isSuper ? state.tables : (existingTables.length > 0 ? existingTables : generateTables(8)),
         waiterRequests: isSuper ? state.waiterRequests : [],
         coupons: isSuper ? state.coupons : [],
         schedules: isSuper ? state.schedules : [],
         restaurant: isSuper ? state.restaurant : (isDemoAdmin ? DEFAULT_RESTAURANT : {
           ...DEFAULT_RESTAURANT,
-          name: existingAccount ? existingAccount.restaurantName : 'New Restaurant',
+          ...state.restaurant, // keep existing restaurant data (Firebase will override with fresh data)
+          name: existingAccount ? existingAccount.restaurantName : (state.restaurant?.name || 'New Restaurant'),
         }),
-        walletTransactions: isSuper ? state.walletTransactions : (isDemoAdmin ? state.walletTransactions : [
+        walletTransactions: isSuper ? state.walletTransactions : (isDemoAdmin ? state.walletTransactions : (state.walletTransactions.length > 0 ? state.walletTransactions : [
           {
             id: 'tx-initial',
             amount: 300,
@@ -1337,7 +1351,7 @@ function reducer(state: AppState, action: Action): AppState {
             description: 'Monthly allowance top-up (June 2026)',
             createdAt: Date.now()
           }
-        ])
+        ]))
       };
     }
     case 'COMPLETE_ONBOARDING': {
@@ -2149,16 +2163,9 @@ function loadState(): Partial<AppState> {
       parsed.admin = { ...parsed.admin, id: 'admin-1', restaurantId: 'admin-1' };
     }
 
-    try {
-      const sessRaw = sessionStorage.getItem('meenufy_admin_session');
-      if (sessRaw) {
-        const sess = JSON.parse(sessRaw);
-        parsed.admin = sess.admin;
-        parsed.isAdminLoggedIn = sess.isAdminLoggedIn;
-      }
-    } catch (e) {
-      console.error('sessionStorage load error:', e);
-    }
+    // NOTE: Session restoration from Firebase Auth is handled by onAuthStateChanged
+    // listener in StoreProvider. We do NOT restore from sessionStorage here to avoid
+    // stale-session issues across different browser tabs.
 
     // Decouple transient and tab-specific UI states
     delete parsed.currentView;
@@ -2181,12 +2188,6 @@ function saveState(state: AppState) {
     // Don't persist transient UI state or tab-local states
     const { toasts, isLoading, newOrderAlert, cart, currentView, adminTab, customerTab, ...rest } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
-    
-    // Write admin session to sessionStorage for tab isolation
-    sessionStorage.setItem('meenufy_admin_session', JSON.stringify({
-      admin: state.admin,
-      isAdminLoggedIn: state.isAdminLoggedIn
-    }));
     
     if (state.admin?.restaurantId) {
       localStorage.setItem('meenufy_active_restaurant_id', state.admin.restaurantId);
@@ -2249,6 +2250,72 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  // ── Firebase Auth State Listener ──────────────────────────────────────────────
+  // This is the KEY to multi-device login. Firebase Auth persists the login session
+  // in IndexedDB (not localStorage), so it works across devices, incognito, etc.
+  // onAuthStateChanged fires immediately on app load when Firebase has a valid session.
+  useEffect(() => {
+    if (!hasFirebaseConfig || !auth || !db) return;
+    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+      // If Firebase has a logged-in user but our app state doesn't yet know about them,
+      // restore the session by fetching data from Firebase DB.
+      const currentAdmin = stateRef.current?.admin;
+      const isAlreadyLoggedIn = currentAdmin && currentAdmin.isLoggedIn && !currentAdmin.isStaff && !currentAdmin.isDeliveryBoy;
+
+      if (fbUser && !isAlreadyLoggedIn) {
+        // Firebase session exists — restore admin session from DB
+        try {
+          const { get, ref: dbRef } = await import('firebase/database');
+          const fbEmail = fbUser.email?.trim().toLowerCase() || '';
+
+          // Try to find the account by UID first, then by email
+          let resolvedAdminId = fbUser.uid;
+          let dbMatchedAccount: any = null;
+
+          const accountsSnap = await get(dbRef(db!, 'restaurantAccounts'));
+          if (accountsSnap.exists()) {
+            const accountsData = accountsSnap.val();
+            // Match by UID (key) or by email field
+            const matchedEntry = Object.entries(accountsData).find(([key, val]: [string, any]) =>
+              key === fbUser.uid ||
+              (val.ownerEmail && val.ownerEmail.trim().toLowerCase() === fbEmail)
+            );
+            if (matchedEntry) {
+              resolvedAdminId = matchedEntry[0];
+              dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+            }
+          }
+
+          if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
+            await auth!.signOut();
+            return;
+          }
+
+          const adminUser = {
+            id: resolvedAdminId,
+            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
+            email: fbUser.email || '',
+            restaurantId: resolvedAdminId,
+            isLoggedIn: true,
+            isFirebaseUser: true,
+            restaurantName: dbMatchedAccount?.restaurantName || 'My Restaurant',
+            ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
+            existingAccount: dbMatchedAccount || undefined
+          };
+
+          dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
+        } catch (err) {
+          console.error('Failed to restore session from Firebase Auth:', err);
+        }
+      } else if (!fbUser && isAlreadyLoggedIn && currentAdmin?.isFirebaseUser) {
+        // Firebase session expired or signed out — log out the admin
+        dispatch({ type: 'LOGOUT_ADMIN' });
+      }
+    });
+    return () => unsubscribeAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db]);
 
   // Apply body theme class separately for customer and admin tabs
   useEffect(() => {

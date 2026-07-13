@@ -873,6 +873,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   };
 
   const handleLogout = () => {
+    // Sign out from Firebase Auth so the session is cleared on all devices
+    if (auth) auth.signOut().catch(() => {});
     dispatch({ type: 'LOGOUT_ADMIN' });
     addToast('info', 'Logged out successfully.');
   };
