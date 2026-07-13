@@ -67,6 +67,81 @@ export default function CustomerLayout({ tableId }: Props) {
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'denied'
   );
 
+  const [callingWaiter, setCallingWaiter] = useState(false);
+
+  const handleCallWaiter = () => {
+    if (callingWaiter) return;
+
+    const rId = urlParams.get('restaurant') || getActiveRestaurantId(state);
+    const activeRest = state.restaurantAccounts?.find(acc => acc.id === rId) || state.restaurant;
+
+    // Fallback coordinates for Siwan test location
+    const restLat = activeRest?.latitude || 26.2196;
+    const restLng = activeRest?.longitude || 84.3567;
+
+    if (!navigator.geolocation) {
+      addToast('error', '❌ Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setCallingWaiter(true);
+    addToast('info', 'Checking location to verify you are inside the restaurant...');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+
+        // Haversine formula to compute distance in meters
+        const R = 6371e3; // Earth radius in meters
+        const phi1 = (userLat * Math.PI) / 180;
+        const phi2 = (restLat * Math.PI) / 180;
+        const deltaPhi = ((restLat - userLat) * Math.PI) / 180;
+        const deltaLambda = ((restLng - userLng) * Math.PI) / 180;
+
+        const a =
+          Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+          Math.cos(phi1) * Math.cos(phi2) *
+          Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distanceMeters = R * c;
+
+        // Enforce 25 meters range (allows for small GPS fluctuation inside a building)
+        if (distanceMeters > 25) {
+          addToast('error', `❌ You must be inside the restaurant to call a waiter. (You are ${distanceMeters.toFixed(1)}m away).`);
+          setCallingWaiter(false);
+          return;
+        }
+
+        // Place waiter request
+        const reqId = `req-${Date.now()}`;
+        const finalTableId = tableId || 'table-1';
+        const finalTableNumber = state.tables.find(t => t.id === finalTableId)?.number || parseInt(finalTableId) || 1;
+
+        dispatch({
+          type: 'CALL_WAITER',
+          payload: {
+            id: reqId,
+            tableNumber: finalTableNumber,
+            tableId: finalTableId,
+            restaurantId: rId,
+            createdAt: Date.now(),
+            resolved: false,
+          },
+        });
+
+        addToast('success', '🔔 Waiter called! Assistance is on the way. Please wait.');
+        setCallingWaiter(false);
+      },
+      (error) => {
+        console.error('GPS error during Call Waiter:', error);
+        addToast('error', '❌ Location access is required to call a waiter. Please enable GPS.');
+        setCallingWaiter(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   const handleRequestPermission = () => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       Notification.requestPermission().then((perm) => {
@@ -507,14 +582,38 @@ export default function CustomerLayout({ tableId }: Props) {
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {activeRestaurantName}
                   </h2>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, marginTop: 1 }}>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {activeRestaurantTagline}
                   </p>
                 </div>
+                {!isViewOnly && (
+                  <button
+                    onClick={handleCallWaiter}
+                    disabled={callingWaiter}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                      color: '#000',
+                      border: 'none',
+                      fontWeight: 800,
+                      fontSize: 11,
+                      cursor: callingWaiter ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 4px 12px rgba(255,125,0,0.25)',
+                      transition: 'all 0.2s',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span>🔔</span> {callingWaiter ? 'Calling...' : 'Call Waiter'}
+                  </button>
+                )}
               </div>
               
               {/* The Menu Content */}

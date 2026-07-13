@@ -147,6 +147,7 @@ export type Order = {
   isManualOrder?: boolean;
   deliveryDistance?: number;
   deliveryBoyEarnings?: number;
+  isVipCustomer?: boolean;
 };
 
 export type TableInfo = {
@@ -1724,7 +1725,7 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'RESOLVE_WAITER': return {
       ...state,
-      waiterRequests: state.waiterRequests.filter(r => r.id !== action.payload)
+      waiterRequests: state.waiterRequests.map(r => r.id === action.payload ? { ...r, resolved: true } : r)
     };
     case 'LINK_GOOGLE_ACCOUNT': {
       if (!state.admin) return state;
@@ -2266,24 +2267,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (fbUser && !isAlreadyLoggedIn) {
         // Firebase session exists — restore admin session from DB
         try {
-          const { get, ref: dbRef } = await import('firebase/database');
+          const { get, ref: dbRef, query, orderByChild, equalTo } = await import('firebase/database');
           const fbEmail = fbUser.email?.trim().toLowerCase() || '';
 
           // Try to find the account by UID first, then by email
           let resolvedAdminId = fbUser.uid;
           let dbMatchedAccount: any = null;
 
-          const accountsSnap = await get(dbRef(db!, 'restaurantAccounts'));
-          if (accountsSnap.exists()) {
-            const accountsData = accountsSnap.val();
-            // Match by UID (key) or by email field
-            const matchedEntry = Object.entries(accountsData).find(([key, val]: [string, any]) =>
-              key === fbUser.uid ||
-              (val.ownerEmail && val.ownerEmail.trim().toLowerCase() === fbEmail)
+          const directSnap = await get(dbRef(db!, `restaurantAccounts/${fbUser.uid}`));
+          if (directSnap.exists()) {
+            dbMatchedAccount = { ...directSnap.val(), id: fbUser.uid };
+            resolvedAdminId = fbUser.uid;
+          } else {
+            const emailQuery = query(
+              dbRef(db!, 'restaurantAccounts'),
+              orderByChild('ownerEmail'),
+              equalTo(fbEmail)
             );
-            if (matchedEntry) {
-              resolvedAdminId = matchedEntry[0];
-              dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+            const querySnap = await get(emailQuery);
+            if (querySnap.exists()) {
+              const queryData = querySnap.val();
+              const matchedEntry = Object.entries(queryData)[0];
+              if (matchedEntry) {
+                resolvedAdminId = matchedEntry[0];
+                dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+              }
             }
           }
 
@@ -2883,7 +2891,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'RESOLVE_WAITER': {
             const waiterRestId = currentState.waiterRequests.find(r => r.id === action.payload)?.restaurantId || restId;
             handleDbPromise(
-              remove(ref(db, `waiterRequests/${waiterRestId}/${action.payload}`)),
+              update(ref(db, `waiterRequests/${waiterRestId}/${action.payload}`), { resolved: true }),
               'Failed to resolve waiter request'
             );
             break;

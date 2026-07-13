@@ -11,6 +11,10 @@ export default function AdminNotificationBell() {
   const activeRequests = state.waiterRequests.filter(
     (r: WaiterRequest) => !r.resolved && (r.restaurantId || 'admin-1') === adminId
   );
+  const resolvedRequests = state.waiterRequests.filter(
+    (r: WaiterRequest) => r.resolved && (r.restaurantId || 'admin-1') === adminId
+  ).sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+
   const count = activeRequests.length;
 
   useEffect(() => {
@@ -26,8 +30,7 @@ export default function AdminNotificationBell() {
 
   const handleResolve = (id: string, tableNumber: number) => {
     dispatch({ type: 'RESOLVE_WAITER', payload: id });
-    addToast('success', `Table ${tableNumber} waiter request resolved.`);
-    if (activeRequests.length <= 1) setOpen(false);
+    addToast('success', `Table ${tableNumber} marked as done.`);
   };
 
   return (
@@ -109,31 +112,61 @@ export default function AdminNotificationBell() {
             <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 15, lineHeight: 1, padding: '2px 4px', borderRadius: 4 }}>✕</button>
           </div>
           <div style={{ maxHeight: 270, overflowY: 'auto' }}>
-            {count === 0 ? (
+            {activeRequests.length === 0 && resolvedRequests.length === 0 ? (
               <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
                 All requests resolved
               </div>
             ) : (
-              activeRequests.map((req: WaiterRequest, idx: number) => (
-                <div key={req.id} style={{
-                  padding: '10px 14px',
-                  borderBottom: idx < activeRequests.length - 1 ? '1px solid var(--border)' : 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                  background: 'rgba(239,68,68,0.03)',
-                }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🪑 Table {req.tableNumber}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                      Called at {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <>
+                {/* Active Calls */}
+                {activeRequests.map((req: WaiterRequest) => (
+                  <div key={req.id} style={{
+                    padding: '10px 14px',
+                    borderBottom: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                    background: 'rgba(239,68,68,0.03)',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🪑 Table {req.tableNumber}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Called at {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
                     </div>
+                    <button
+                      onClick={() => handleResolve(req.id, req.tableNumber)}
+                      style={{ background: 'rgba(34,197,94,0.12)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+                    >Resolve ✓</button>
                   </div>
-                  <button
-                    onClick={() => handleResolve(req.id, req.tableNumber)}
-                    style={{ background: 'rgba(34,197,94,0.12)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
-                  >Resolve ✓</button>
-                </div>
-              ))
+                ))}
+
+                {/* Resolved Calls */}
+                {resolvedRequests.length > 0 && (
+                  <div>
+                    <div style={{ padding: '6px 14px', background: 'var(--bg-secondary)', fontSize: 9.5, fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>
+                      RESOLVED / WAITER SENT
+                    </div>
+                    {resolvedRequests.map((req: WaiterRequest, idx: number) => (
+                      <div key={req.id} style={{
+                        padding: '10px 14px',
+                        borderBottom: idx < resolvedRequests.length - 1 ? '1px solid var(--border)' : 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                        opacity: 0.65,
+                      }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textDecoration: 'line-through' }}>🪑 Table {req.tableNumber}</div>
+                          <div style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 1 }}>
+                            Assisted ✓
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 3 }}>
+                          Done ✓
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
           {count > 1 && (

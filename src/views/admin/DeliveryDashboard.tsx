@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
   LogOut, MapPin, Phone, Package, CheckCircle, Navigation,
-  Check, Star, TrendingUp, Bike, User, Home, History, Zap
+  Check, Star, TrendingUp, Bike, User, Home, History, Zap, Sun, Moon
 } from 'lucide-react';
 import { hasFirebaseConfig, db, auth } from '../../utils/firebase';
 
@@ -292,16 +292,18 @@ export default function DeliveryDashboard() {
   // SHARED STYLES
   // ─────────────────────────────────────────────
   const card = {
-    background: '#161616',
-    border: '1px solid rgba(255,255,255,0.07)',
+    background: state.adminTheme === 'light' ? '#FFFFFF' : '#161616',
+    border: state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.07)',
     borderRadius: 18,
     padding: 16,
+    boxShadow: state.adminTheme === 'light' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
+    color: state.adminTheme === 'light' ? '#1F2937' : '#F5F5F5',
   } as React.CSSProperties;
 
   const labelStyle = {
     fontSize: 9.5,
     fontWeight: 800,
-    color: '#6B7280',
+    color: state.adminTheme === 'light' ? '#4B5563' : '#6B7280',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.06em',
   };
@@ -361,10 +363,10 @@ export default function DeliveryDashboard() {
                 }}>
                   #{activeOrder.id.slice(-4).toUpperCase()}
                 </span>
-                <div style={{ fontSize: 13, fontWeight: 800, marginTop: 7, color: '#F5F5F5' }}>
+                <div style={{ fontSize: 13, fontWeight: 800, marginTop: 7, color: state.adminTheme === 'light' ? '#1F2937' : '#F5F5F5' }}>
                   {state.restaurant?.name || 'Restaurant Outlet'}
                 </div>
-                <div style={{ fontSize: 10.5, color: '#9CA3AF', marginTop: 2 }}>
+                <div style={{ fontSize: 10.5, color: state.adminTheme === 'light' ? '#4B5563' : '#9CA3AF', marginTop: 2 }}>
                   {activeOrder.items?.length || 0} item{(activeOrder.items?.length || 0) !== 1 ? 's' : ''} •{' '}
                   {activeOrder.items?.map(i => i.name).slice(0, 2).join(', ')}
                   {(activeOrder.items?.length || 0) > 2 ? ` +${(activeOrder.items?.length || 0) - 2} more` : ''}
@@ -372,13 +374,13 @@ export default function DeliveryDashboard() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 17, fontWeight: 900, color: '#22C55E' }}>₹{activeOrder.totalAmount}</div>
-                <div style={{ fontSize: 9.5, color: '#6B7280', marginTop: 2, fontWeight: 700 }}>
+                <div style={{ fontSize: 9.5, color: state.adminTheme === 'light' ? '#4B5563' : '#6B7280', marginTop: 2, fontWeight: 700 }}>
                   {activeOrder.paymentMethod === 'cash' ? '💵 CASH' : '📱 UPI PAID'}
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px dashed rgba(255,255,255,0.07)', paddingTop: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: state.adminTheme === 'light' ? '1px dashed rgba(0,0,0,0.12)' : '1px dashed rgba(255,255,255,0.07)', paddingTop: 12 }}>
               {/* Address */}
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <div style={{ background: 'rgba(168,85,247,0.1)', color: '#A855F7', padding: 7, borderRadius: 8, flexShrink: 0 }}>
@@ -386,7 +388,7 @@ export default function DeliveryDashboard() {
                 </div>
                 <div>
                   <div style={labelStyle}>Delivery Address</div>
-                  <div style={{ fontSize: 12.5, color: '#E5E7EB', marginTop: 3, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12.5, color: state.adminTheme === 'light' ? '#1F2937' : '#E5E7EB', marginTop: 3, lineHeight: 1.5 }}>
                     {activeOrder.deliveryAddress}
                   </div>
                 </div>
@@ -399,7 +401,7 @@ export default function DeliveryDashboard() {
                 </div>
                 <div>
                   <div style={labelStyle}>Customer</div>
-                  <div style={{ fontSize: 12.5, color: '#E5E7EB', marginTop: 3 }}>
+                  <div style={{ fontSize: 12.5, color: state.adminTheme === 'light' ? '#1F2937' : '#E5E7EB', marginTop: 3 }}>
                     {activeOrder.customerName || 'Guest'}
                   </div>
                   <a
@@ -597,48 +599,48 @@ export default function DeliveryDashboard() {
 
       {/* Conditional selectors */}
       {filterType === 'custom_month' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: '#161616', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
-          <label style={{ fontSize: 10, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.03em' }}>SELECT MONTH</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: state.adminTheme === 'light' ? '#FFFFFF' : '#161616', padding: 12, borderRadius: 12, border: state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.05)', boxShadow: state.adminTheme === 'light' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none' }}>
+          <label style={{ fontSize: 10, fontWeight: 800, color: state.adminTheme === 'light' ? '#6B7280' : '#9CA3AF', letterSpacing: '0.03em' }}>SELECT MONTH</label>
           <select
             value={selectedMonth}
             onChange={e => setSelectedMonth(e.target.value)}
             style={{
-              background: '#0D0D0D', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#fff', padding: '8px 12px', borderRadius: 8, fontSize: 12,
+              background: state.adminTheme === 'light' ? '#F3F4F6' : '#0D0D0D', border: state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.1)',
+              color: state.adminTheme === 'light' ? '#1F2937' : '#fff', padding: '8px 12px', borderRadius: 8, fontSize: 12,
               fontWeight: 700, outline: 'none', width: '100%'
             }}
           >
             {getPastMonths().map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+              <option key={m.value} value={m.value} style={{ background: state.adminTheme === 'light' ? '#FFF' : '#0D0D0D', color: state.adminTheme === 'light' ? '#1F2937' : '#FFF' }}>{m.label}</option>
             ))}
           </select>
         </div>
       )}
 
       {filterType === 'date_range' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: '#161616', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: state.adminTheme === 'light' ? '#FFFFFF' : '#161616', padding: 12, borderRadius: 12, border: state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.05)', boxShadow: state.adminTheme === 'light' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 9.5, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.03em' }}>FROM DATE</label>
+            <label style={{ fontSize: 9.5, fontWeight: 800, color: state.adminTheme === 'light' ? '#6B7280' : '#9CA3AF', letterSpacing: '0.03em' }}>FROM DATE</label>
             <input
               type="date"
               value={customStartDate}
               onChange={e => setCustomStartDate(e.target.value)}
               style={{
-                background: '#0D0D0D', border: '1px solid rgba(255,255,255,0.1)',
-                color: '#fff', padding: '8px 10px', borderRadius: 8, fontSize: 11.5,
+                background: state.adminTheme === 'light' ? '#F3F4F6' : '#0D0D0D', border: state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.1)',
+                color: state.adminTheme === 'light' ? '#1F2937' : '#fff', padding: '8px 10px', borderRadius: 8, fontSize: 11.5,
                 fontWeight: 700, outline: 'none', width: '100%'
               }}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 9.5, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.03em' }}>TO DATE</label>
+            <label style={{ fontSize: 9.5, fontWeight: 800, color: state.adminTheme === 'light' ? '#6B7280' : '#9CA3AF', letterSpacing: '0.03em' }}>TO DATE</label>
             <input
               type="date"
               value={customEndDate}
               onChange={e => setCustomEndDate(e.target.value)}
               style={{
-                background: '#0D0D0D', border: '1px solid rgba(255,255,255,0.1)',
-                color: '#fff', padding: '8px 10px', borderRadius: 8, fontSize: 11.5,
+                background: state.adminTheme === 'light' ? '#F3F4F6' : '#0D0D0D', border: state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.1)',
+                color: state.adminTheme === 'light' ? '#1F2937' : '#fff', padding: '8px 10px', borderRadius: 8, fontSize: 11.5,
                 fontWeight: 700, outline: 'none', width: '100%'
               }}
             />
@@ -648,25 +650,25 @@ export default function DeliveryDashboard() {
 
       {/* Analytics Summary Panel */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={{ ...card, padding: 12, background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.1)' }}>
+        <div style={{ ...card, padding: 12, background: state.adminTheme === 'light' ? 'rgba(168,85,247,0.06)' : 'rgba(168,85,247,0.04)', border: state.adminTheme === 'light' ? '1px solid rgba(168,85,247,0.2)' : '1px solid rgba(168,85,247,0.1)' }}>
           <div style={{ fontSize: 9.5, fontWeight: 800, color: '#A855F7', letterSpacing: '0.03em' }}>DELIVERIES</div>
-          <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', marginTop: 2 }}>{filteredHistory.length} orders</div>
-          <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>Dist: <strong style={{ color: '#E5E7EB' }}>{totalDistance.toFixed(1)} KM</strong></div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: state.adminTheme === 'light' ? '#A855F7' : '#fff', marginTop: 2 }}>{filteredHistory.length} orders</div>
+          <div style={{ fontSize: 10, color: state.adminTheme === 'light' ? '#6B7280' : '#8B949E', marginTop: 2 }}>Dist: <strong style={{ color: state.adminTheme === 'light' ? '#1F2937' : '#E5E7EB' }}>{totalDistance.toFixed(1)} KM</strong></div>
         </div>
-        <div style={{ ...card, padding: 12, background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.1)' }}>
+        <div style={{ ...card, padding: 12, background: state.adminTheme === 'light' ? 'rgba(34,197,94,0.06)' : 'rgba(34,197,94,0.04)', border: state.adminTheme === 'light' ? '1px solid rgba(34,197,94,0.2)' : '1px solid rgba(34,197,94,0.1)' }}>
           <div style={{ fontSize: 9.5, fontWeight: 800, color: '#22C55E', letterSpacing: '0.03em' }}>TOTAL PAYOUT</div>
           <div style={{ fontSize: 16, fontWeight: 900, color: '#22C55E', marginTop: 2 }}>₹{totalPayout}</div>
-          <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>Avg payout: <strong style={{ color: '#E5E7EB' }}>₹{avgPayout}</strong></div>
+          <div style={{ fontSize: 10, color: state.adminTheme === 'light' ? '#6B7280' : '#8B949E', marginTop: 2 }}>Avg payout: <strong style={{ color: state.adminTheme === 'light' ? '#1F2937' : '#E5E7EB' }}>₹{avgPayout}</strong></div>
         </div>
       </div>
 
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', margin: '4px 0' }} />
+      <div style={{ borderBottom: state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.05)', margin: '4px 0' }} />
 
       <div style={{ ...labelStyle, fontSize: 11 }}>Delivery Logs ({filteredHistory.length})</div>
 
       {filteredHistory.length === 0 ? (
         <div style={{
-          ...card, border: '1px dashed rgba(255,255,255,0.07)',
+          ...card, border: state.adminTheme === 'light' ? '1px dashed rgba(0,0,0,0.15)' : '1px dashed rgba(255,255,255,0.07)',
           padding: '32px 16px', textAlign: 'center'
         }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>📦</div>
@@ -703,10 +705,10 @@ export default function DeliveryDashboard() {
                   <div style={{ fontSize: 11, fontWeight: 800, color: '#A855F7' }}>
                     #{ord.id.slice(-4).toUpperCase()}
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#E5E7EB', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                  <div style={{ fontSize: 11.5, color: state.adminTheme === 'light' ? '#374151' : '#E5E7EB', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
                     {ord.deliveryAddress || 'Address details not stored'}
                   </div>
-                  <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: state.adminTheme === 'light' ? '#6B7280' : '#8B949E', marginTop: 2 }}>
                     {date} • {time}
                     {ord.deliveryBoyRating ? (
                       <span style={{ marginLeft: 6, color: '#FBBF24' }}>
@@ -718,7 +720,7 @@ export default function DeliveryDashboard() {
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, color: '#22C55E' }}>+₹{commission}</div>
-                <div style={{ fontSize: 9.5, color: '#6B7280', marginTop: 2 }}>{distance} KM (@₹{payoutRate})</div>
+                <div style={{ fontSize: 9.5, color: state.adminTheme === 'light' ? '#6B7280' : '#8B949E', marginTop: 2 }}>{distance} KM (@₹{payoutRate})</div>
               </div>
             </div>
           );
@@ -744,8 +746,8 @@ export default function DeliveryDashboard() {
           {riderDetail.name?.charAt(0).toUpperCase()}
         </div>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#F5F5F5' }}>{riderDetail.name}</div>
-          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+          <div style={{ fontSize: 18, fontWeight: 900, color: state.adminTheme === 'light' ? '#1F2937' : '#F5F5F5' }}>{riderDetail.name}</div>
+          <div style={{ fontSize: 12, color: state.adminTheme === 'light' ? '#4B5563' : '#9CA3AF', marginTop: 2 }}>
             🛵 Delivery Rider • @{riderDetail.username}
           </div>
         </div>
@@ -807,10 +809,10 @@ export default function DeliveryDashboard() {
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             paddingTop: rowIdx > 0 ? 12 : 0,
             paddingBottom: rowIdx < arr.length - 1 ? 12 : 0,
-            borderBottom: rowIdx < arr.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+            borderBottom: rowIdx < arr.length - 1 ? (state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.05)') : 'none'
           }}>
-            <div style={{ fontSize: 11.5, color: '#6B7280', fontWeight: 600 }}>{row.label}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#E5E7EB', textAlign: 'right', maxWidth: '55%' }}>{row.value}</div>
+            <div style={{ fontSize: 11.5, color: state.adminTheme === 'light' ? '#6B7280' : '#8B949E', fontWeight: 600 }}>{row.label}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: state.adminTheme === 'light' ? '#1F2937' : '#E5E7EB', textAlign: 'right', maxWidth: '55%' }}>{row.value}</div>
           </div>
         ))}
       </div>
@@ -824,11 +826,11 @@ export default function DeliveryDashboard() {
             const pct = ratedOrders.length > 0 ? (count / ratedOrders.length) * 100 : 0;
             return (
               <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <div style={{ width: 24, fontSize: 11, fontWeight: 700, color: '#9CA3AF', textAlign: 'right' }}>{star}★</div>
-                <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ width: 24, fontSize: 11, fontWeight: 700, color: state.adminTheme === 'light' ? '#4B5563' : '#9CA3AF', textAlign: 'right' }}>{star}★</div>
+                <div style={{ flex: 1, height: 6, background: state.adminTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${pct}%`, background: '#FBBF24', borderRadius: 4, transition: 'width 0.5s ease' }} />
                 </div>
-                <div style={{ width: 22, fontSize: 10.5, color: '#6B7280', fontWeight: 700 }}>{count}</div>
+                <div style={{ width: 22, fontSize: 10.5, color: state.adminTheme === 'light' ? '#4B5563' : '#6B7280', fontWeight: 700 }}>{count}</div>
               </div>
             );
           })}
@@ -857,8 +859,8 @@ export default function DeliveryDashboard() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0D0D0D',
-      color: '#F5F5F5',
+      background: state.adminTheme === 'light' ? '#F3F4F6' : '#0D0D0D',
+      color: state.adminTheme === 'light' ? '#1F2937' : '#F5F5F5',
       fontFamily: 'var(--font-sans)',
       display: 'flex',
       flexDirection: 'column',
@@ -878,7 +880,7 @@ export default function DeliveryDashboard() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '16px 16px 0',
         position: 'sticky', top: 0, zIndex: 10,
-        background: '#0D0D0D'
+        background: state.adminTheme === 'light' ? '#F3F4F6' : '#0D0D0D'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
@@ -890,7 +892,7 @@ export default function DeliveryDashboard() {
             {riderDetail.name?.charAt(0).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#F5F5F5' }}>{riderDetail.name}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: state.adminTheme === 'light' ? '#1F2937' : '#F5F5F5' }}>{riderDetail.name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
               <div style={{
                 width: 7, height: 7, borderRadius: '50%',
@@ -900,22 +902,40 @@ export default function DeliveryDashboard() {
               <span style={{ fontSize: 10.5, fontWeight: 700, color: isOnline ? '#22C55E' : '#6B7280' }}>
                 {isOnline ? 'Online' : 'Offline'}
               </span>
-              <span style={{ fontSize: 10, color: '#4B5563' }}>• Rider Account</span>
+              <span style={{ fontSize: 10, color: state.adminTheme === 'light' ? '#6B7280' : '#4B5563' }}>• Rider Account</span>
             </div>
           </div>
         </div>
-        {/* Active order indicator dot */}
-        {activeOrder && (
-          <div style={{
-            fontSize: 11, fontWeight: 800, color: '#A855F7',
-            background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)',
-            padding: '4px 10px', borderRadius: 20,
-            display: 'flex', alignItems: 'center', gap: 5
-          }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#A855F7', animation: 'deliveryPing 1s ease infinite alternate' }} />
-            ACTIVE
-          </div>
-        )}
+        
+        {/* Toggle Theme & Active status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => dispatch({ type: 'TOGGLE_ADMIN_THEME' })}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: state.adminTheme === 'light' ? '#7C3AED' : '#FBBF24',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 8, borderRadius: '50%',
+              backgroundColor: state.adminTheme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)',
+              transition: 'all 0.2s'
+            }}
+            title={state.adminTheme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+          >
+            {state.adminTheme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+          
+          {activeOrder && (
+            <div style={{
+              fontSize: 11, fontWeight: 800, color: '#A855F7',
+              background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)',
+              padding: '4px 10px', borderRadius: 20,
+              display: 'flex', alignItems: 'center', gap: 5
+            }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#A855F7', animation: 'deliveryPing 1s ease infinite alternate' }} />
+              ACTIVE
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Scrollable content */}
@@ -929,8 +949,8 @@ export default function DeliveryDashboard() {
       <div style={{
         position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
         width: '100%', maxWidth: 480,
-        background: '#111111',
-        borderTop: '1px solid rgba(255,255,255,0.07)',
+        background: state.adminTheme === 'light' ? '#FFFFFF' : '#111111',
+        borderTop: state.adminTheme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.07)',
         display: 'flex',
         zIndex: 20,
         paddingBottom: 'env(safe-area-inset-bottom, 0px)'
@@ -947,7 +967,7 @@ export default function DeliveryDashboard() {
               flex: 1, padding: '12px 4px 10px',
               background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              color: activeTab === tab.id ? '#A855F7' : '#4B5563',
+              color: activeTab === tab.id ? '#A855F7' : (state.adminTheme === 'light' ? '#9CA3AF' : '#4B5563'),
               transition: 'color 0.2s',
               position: 'relative'
             }}

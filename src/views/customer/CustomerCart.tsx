@@ -708,6 +708,12 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       finalDistanceKm = getDistanceInMeters(deliveryLat, deliveryLng, restaurant.latitude, restaurant.longitude) / 1000;
     }
 
+    const cleanPhone = finalPhone.replace(/[^a-zA-Z0-9]/g, '');
+    const matchedCust = state.customers?.find(
+      c => c.phone?.replace(/[^a-zA-Z0-9]/g, '') === cleanPhone
+    );
+    const isVipCustomer = matchedCust ? !!matchedCust.isVip : false;
+
     const order: Order = {
       id: `ord-${Date.now()}`,
       tableNumber: orderType === 'delivery' ? 0 : (table?.number || 0),
@@ -737,6 +743,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       deliveryLng: orderType === 'delivery' ? (deliveryLng ?? undefined) : undefined,
       deliveryCharge: orderType === 'delivery' ? calculatedDeliveryCharge : undefined,
       deliveryDistance: finalDistanceKm !== undefined ? parseFloat(finalDistanceKm.toFixed(2)) : undefined,
+      isVipCustomer: isVipCustomer,
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: order });

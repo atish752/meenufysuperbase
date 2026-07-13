@@ -143,6 +143,12 @@ export default function AdminHome() {
     const totalAmount = manualOrderItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const orderId = `order-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const cleanPhone = manualOrderPhone.trim().replace(/[^a-zA-Z0-9]/g, '');
+    const matchedCust = state.customers?.find(
+      c => c.phone?.replace(/[^a-zA-Z0-9]/g, '') === cleanPhone
+    );
+    const isVipCustomer = matchedCust ? !!matchedCust.isVip : false;
+
     const newOrder: Order = {
       id: orderId,
       tableNumber: manualOrderType === 'take-away' ? 0 : manualOrderTableNumber,
@@ -161,7 +167,8 @@ export default function AdminHome() {
       paymentStatus: manualOrderPaymentStatus,
       pointsEarned: Math.floor(totalAmount * (state.restaurant.pointsPer100Spent || 0) / 100),
       pointsRedeemed: 0,
-      isManualOrder: true
+      isManualOrder: true,
+      isVipCustomer: isVipCustomer,
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: newOrder });
@@ -324,6 +331,7 @@ export default function AdminHome() {
 
   const adminId = state.admin?.restaurantId || 'admin-1';
   const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && (r.restaurantId || 'admin-1') === adminId);
+  const resolvedWaiterRequests = state.waiterRequests.filter(r => r.resolved && (r.restaurantId || 'admin-1') === adminId && (Date.now() - r.createdAt < 2 * 60 * 60 * 1000));
   const activeOrders = state.orders.filter(o => {
     const isActive = ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status);
     const isUnder180Min = Date.now() - o.createdAt < 180 * 60 * 1000;
@@ -624,25 +632,30 @@ export default function AdminHome() {
       )}
 
       {/* Waiter Requests Section */}
-      {activeWaiterRequests.length > 0 && (
+      {(activeWaiterRequests.length > 0 || resolvedWaiterRequests.length > 0) && (
         <div style={{
-          background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.03) 100%)',
-          border: '1px solid rgba(239,68,68,0.25)',
+          background: activeWaiterRequests.length > 0
+            ? 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.03) 100%)'
+            : 'linear-gradient(135deg, rgba(34,197,94,0.1) 0%, rgba(34,197,94,0.02) 100%)',
+          border: activeWaiterRequests.length > 0
+            ? '1px solid rgba(239,68,68,0.25)'
+            : '1px solid rgba(34,197,94,0.2)',
           borderRadius: 12,
           padding: '12px 16px',
           marginBottom: 16,
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
-          animation: 'blink-yellow 3s infinite',
+          animation: activeWaiterRequests.length > 0 ? 'blink-yellow 3s infinite' : 'none',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 16 }}>🔔</span>
-            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--error)' }}>
-              Active Waiter Requests ({activeWaiterRequests.length})
+            <span style={{ fontSize: 13, fontWeight: 800, color: activeWaiterRequests.length > 0 ? 'var(--error)' : 'var(--success)' }}>
+              Waiter Requests ({activeWaiterRequests.length} active, {resolvedWaiterRequests.length} resolved)
             </span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {/* Active Requests */}
             {activeWaiterRequests.map(req => (
               <div key={req.id} style={{
                 background: 'var(--bg-primary)',
@@ -661,7 +674,7 @@ export default function AdminHome() {
                 <button
                   onClick={() => {
                     dispatch({ type: 'RESOLVE_WAITER', payload: req.id });
-                    addToast('success', `Assistance for Table ${req.tableNumber} resolved.`);
+                    addToast('success', `Assistance for Table ${req.tableNumber} marked done.`);
                   }}
                   style={{
                     background: 'rgba(34,197,94,0.15)',
@@ -676,6 +689,36 @@ export default function AdminHome() {
                 >
                   Resolve
                 </button>
+              </div>
+            ))}
+
+            {/* Resolved Requests */}
+            {resolvedWaiterRequests.map(req => (
+              <div key={req.id} style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid rgba(34,197,94,0.2)',
+                borderRadius: 8,
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12,
+                opacity: 0.85
+              }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-muted)', textDecoration: 'line-through' }}>Table {req.tableNumber}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+                  {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <span style={{
+                  background: 'rgba(34,197,94,0.12)',
+                  color: '#22c55e',
+                  borderRadius: 4,
+                  padding: '2px 6px',
+                  fontSize: 10,
+                  fontWeight: 800,
+                }}>
+                  Waiter Sent ✓
+                </span>
               </div>
             ))}
           </div>
@@ -2512,10 +2555,9 @@ function OrderCard({
   onConfirmCard: (id: string) => void;
   currency: string;
 }) {
-  // Look up customer VIP status
   const { state, dispatch } = useStore();
   const customer = state.customers.find(c => c.phone === order.customerPhone);
-  const isVip = customer ? !!customer.isVip : false;
+  const isVip = order.isVipCustomer || (customer ? !!customer.isVip : false);
   const [showDetails, setShowDetails] = useState(false);
 
   const cfg = STATUS_CONFIG[order.status];
@@ -3039,7 +3081,7 @@ function TabularOrderRow({
 }) {
   const { state, dispatch } = useStore();
   const customer = state.customers.find(c => c.phone === order.customerPhone);
-  const isVip = customer ? !!customer.isVip : false;
+  const isVip = order.isVipCustomer || (customer ? !!customer.isVip : false);
 
   const cfg = STATUS_CONFIG[order.status];
   const currentIdx = STATUS_ORDER.indexOf(order.status);

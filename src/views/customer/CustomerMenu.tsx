@@ -263,7 +263,7 @@ export default function CustomerMenu() {
     const checkTimer = setInterval(() => {
       const currentHasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
       if (currentHasItems) {
-        setTimeout(() => setShowLoader(false), 900); // smooth exit transition delay
+        setTimeout(() => setShowLoader(false), 50); // fast exit transition delay
         clearInterval(checkTimer);
       }
     }, 200);

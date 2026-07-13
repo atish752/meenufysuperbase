@@ -189,16 +189,23 @@ export default function AdminAuth() {
           resolvedAdminId = 'admin-1';
         } else if (db) {
           try {
-            const { ref, get } = await import('firebase/database');
-            const accountsSnap = await get(ref(db, 'restaurantAccounts'));
-            if (accountsSnap.exists()) {
-              const accountsData = accountsSnap.val();
-              const matchedEntry = Object.entries(accountsData).find(([key, val]: [string, any]) =>
-                key === fbUser.uid || (val.ownerEmail && val.ownerEmail.trim().toLowerCase() === fbEmail)
-              );
-              if (matchedEntry) {
-                resolvedAdminId = matchedEntry[0];
-                dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+            const { ref, get, query, orderByChild, equalTo } = await import('firebase/database');
+            // Try fetching by UID directly first
+            const directSnap = await get(ref(db, `restaurantAccounts/${fbUser.uid}`));
+            if (directSnap.exists()) {
+              dbMatchedAccount = { ...directSnap.val(), id: fbUser.uid };
+              resolvedAdminId = fbUser.uid;
+            } else {
+              // Query by ownerEmail
+              const emailQuery = query(ref(db, 'restaurantAccounts'), orderByChild('ownerEmail'), equalTo(fbEmail));
+              const querySnap = await get(emailQuery);
+              if (querySnap.exists()) {
+                const queryData = querySnap.val();
+                const matchedEntry = Object.entries(queryData)[0];
+                if (matchedEntry) {
+                  resolvedAdminId = matchedEntry[0];
+                  dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+                }
               }
             }
           } catch (dbErr) {
@@ -333,16 +340,23 @@ export default function AdminAuth() {
         resolvedAdminId = 'admin-1';
       } else if (db) {
         try {
-          const { ref, get } = await import('firebase/database');
-          const accountsSnap = await get(ref(db, 'restaurantAccounts'));
-          if (accountsSnap.exists()) {
-            const accountsData = accountsSnap.val();
-            const matchedEntry = Object.entries(accountsData).find(([key, val]: [string, any]) =>
-              key === adminId || (val.ownerEmail && val.ownerEmail.trim().toLowerCase() === fbEmail)
-            );
-            if (matchedEntry) {
-              resolvedAdminId = matchedEntry[0];
-              dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+          const { ref, get, query, orderByChild, equalTo } = await import('firebase/database');
+          // Try fetching by UID directly first
+          const directSnap = await get(ref(db, `restaurantAccounts/${adminId}`));
+          if (directSnap.exists()) {
+            dbMatchedAccount = { ...directSnap.val(), id: adminId };
+            resolvedAdminId = adminId;
+          } else {
+            // Query by ownerEmail
+            const emailQuery = query(ref(db, 'restaurantAccounts'), orderByChild('ownerEmail'), equalTo(fbEmail));
+            const querySnap = await get(emailQuery);
+            if (querySnap.exists()) {
+              const queryData = querySnap.val();
+              const matchedEntry = Object.entries(queryData)[0];
+              if (matchedEntry) {
+                resolvedAdminId = matchedEntry[0];
+                dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+              }
             }
           }
         } catch (dbErr) {

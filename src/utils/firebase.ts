@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
-import { getDatabase, forceLongPolling } from 'firebase/database';
+import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCRilyFMSDmCkISroL4b7ACsOgAzjYxaWU",
@@ -24,13 +24,7 @@ export const auth = app ? getAuth(app) : null;
 export const storage = app ? getStorage(app) : null;
 export const db = app ? getDatabase(app, firebaseConfig.databaseURL) : null;
 
-if (db) {
-  try {
-    forceLongPolling();
-  } catch (err) {
-    console.warn("Failed to force long polling:", err);
-  }
-}
+// Removed forceLongPolling() to enable fast WebSockets in production, falling back automatically as needed.
 
 export const googleProvider = new GoogleAuthProvider();
 
