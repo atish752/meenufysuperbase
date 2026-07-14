@@ -31,14 +31,16 @@ function AppInner() {
   const currentAccount = state.restaurantAccounts?.find(acc => acc.id === state.admin?.id);
   const dbHasCompleted = currentAccount ? currentAccount.hasCompletedOnboarding === true : null;
 
+  // Route to onboarding if URL param is onboarding, or accessing '/onboarding'
   const isOnboarding = 
     window.location.pathname === '/onboarding' || 
+    window.location.pathname === '/onboarding/' || 
     viewParam === 'onboarding' || 
     (state.isAdminLoggedIn && 
      !state.admin?.isSuperAdmin && 
      !state.admin?.isStaff && 
      !state.admin?.isDeliveryBoy && 
-     dbHasCompleted === false);  // only explicitly false = new signup that hasn't finished onboarding
+     dbHasCompleted === false); 
 
   if (isOnboarding) {
     return (
@@ -48,20 +50,28 @@ function AppInner() {
     );
   }
 
+  // Explicitly check for admin route:
+  // If path is '/admin' or '/admin/' or has viewParam === 'admin', ALWAYS route to Admin view.
+  const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname === '/admin/' || viewParam === 'admin';
+
+  if (isAdminRoute) {
+    return (
+      <Suspense fallback={<SplashScreen />}>
+        <AdminLayout />
+      </Suspense>
+    );
+  }
+
   // Route to customer view if URL param is customer, or accessing '/' or '/home'
-  const isHomePath = window.location.pathname === '/' || window.location.pathname === '/home';
-  const isCustomerView = viewParam === 'customer' || (isHomePath && viewParam !== 'admin' && window.location.pathname !== '/admin');
+  const isHomePath = window.location.pathname === '/' || window.location.pathname === '/home' || window.location.pathname === '/home/';
+  const isCustomerView = viewParam === 'customer' || isHomePath;
 
   if (isCustomerView) {
     return <CustomerLayout tableId={tableParam || 'table-1'} />;
   }
 
-  // Otherwise, default to Admin Layout (for /admin or other admin paths)
-  return (
-    <Suspense fallback={<SplashScreen />}>
-      <AdminLayout />
-    </Suspense>
-  );
+  // Fallback default: show customer layout for any other undefined routes
+  return <CustomerLayout tableId={tableParam || 'table-1'} />;
 }
 
 export default function App() {
