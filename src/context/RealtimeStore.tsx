@@ -89,6 +89,8 @@ export type MenuItem = {
   nutrition?: NutritionInfo;
   rank?: number;
   addons?: string[];
+  rating?: number;
+  ratingsCount?: number;
 };
 
 export type OrderItem = {
@@ -994,7 +996,7 @@ const DEFAULT_STATE: AppState = {
   newOrderAlert: null,
   language: 'en',
   adminTheme: 'dark',
-  customerTheme: 'dark',
+  customerTheme: 'light',
   customerMenuTheme: {
     primaryBg: '',
     itemName: '',
@@ -1309,7 +1311,9 @@ function reducer(state: AppState, action: Action): AppState {
           ordersPlacedThisMonth: 0,
           subscriptionRenewalDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
           billingCountry: detectedCountry,
-          billingPeriod: 'monthly'
+          billingPeriod: 'monthly',
+          rating: 0,
+          ratingsCount: 0
         };
         newAccounts.push(existingAccount);
       }
@@ -1643,18 +1647,48 @@ function reducer(state: AppState, action: Action): AppState {
         updatedAt: Date.now()
       } : o)
     };
-    case 'RATE_ORDER': return {
-      ...state,
-      orders: state.orders.map(o => o.id === action.payload.id ? {
-        ...o,
-        ratings: action.payload.ratings,
-        deliveryBoyRating: action.payload.deliveryBoyRating,
-        deliveryBoyReview: action.payload.deliveryBoyReview,
-        foodRating: action.payload.foodRating,
-        foodReview: action.payload.foodReview,
-        updatedAt: Date.now()
-      } : o)
-    };
+    case 'RATE_ORDER': {
+      const order = state.orders.find(o => o.id === action.payload.id);
+      const orderRestId = order?.restaurantId || state.admin?.restaurantId || '';
+      
+      const nextAccounts = state.restaurantAccounts.map(acc => {
+        if (acc.id === orderRestId && action.payload.foodRating !== undefined && action.payload.foodRating > 0) {
+          const currentRating = acc.rating || 0;
+          const currentCount = acc.ratingsCount || 0;
+          const newCount = currentCount + 1;
+          const newRating = Math.round((((currentRating * currentCount) + action.payload.foodRating) / newCount) * 10) / 10;
+          return { ...acc, rating: newRating, ratingsCount: newCount };
+        }
+        return acc;
+      });
+
+      const nextMenuItems = state.menuItems.map(item => {
+        const itemRatingVal = action.payload.ratings?.[item.id];
+        if (itemRatingVal && Number(itemRatingVal) > 0) {
+          const currentRating = item.rating || 0;
+          const currentCount = item.ratingsCount || 0;
+          const newCount = currentCount + 1;
+          const newRating = Math.round((((currentRating * currentCount) + Number(itemRatingVal)) / newCount) * 10) / 10;
+          return { ...item, rating: newRating, ratingsCount: newCount };
+        }
+        return item;
+      });
+
+      return {
+        ...state,
+        restaurantAccounts: nextAccounts,
+        menuItems: nextMenuItems,
+        orders: state.orders.map(o => o.id === action.payload.id ? {
+          ...o,
+          ratings: action.payload.ratings,
+          deliveryBoyRating: action.payload.deliveryBoyRating,
+          deliveryBoyReview: action.payload.deliveryBoyReview,
+          foodRating: action.payload.foodRating,
+          foodReview: action.payload.foodReview,
+          updatedAt: Date.now()
+        } : o)
+      };
+    }
     case 'ADD_TO_CART': {
       const payloadKey = (action.payload.addons || []).map(a => a.optionId).sort().join(',');
       const existing = state.cart.findIndex(i => 
@@ -2358,7 +2392,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const isCustomerTab = urlParams.get('view') === 'customer' || state.currentView === 'customer';
-    const activeTheme = isCustomerTab ? (state.customerTheme || 'dark') : (state.adminTheme || 'dark');
+    const activeTheme = isCustomerTab ? (state.customerTheme || 'light') : (state.adminTheme || 'dark');
     
     if (activeTheme === 'light') {
       document.documentElement.classList.add('light-mode');
@@ -2939,6 +2973,44 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData(updatePayload)),
               'Failed to submit ratings'
             );
+
+            // Compute and update restaurant rating + ratingsCount in database
+            if (action.payload.foodRating !== undefined && action.payload.foodRating > 0) {
+              const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === orderRestId);
+              const currentRating = matchedAcc?.rating || 0;
+              const currentCount = matchedAcc?.ratingsCount || 0;
+              const newCount = currentCount + 1;
+              const newRating = Math.round((((currentRating * currentCount) + action.payload.foodRating) / newCount) * 10) / 10;
+              
+              update(ref(db!, `restaurantAccounts/${orderRestId}`), {
+                rating: newRating,
+                ratingsCount: newCount
+              }).catch(err => console.error('Failed to update restaurantAccount rating:', err));
+
+              update(ref(db!, `restaurants/${orderRestId}`), {
+                rating: newRating,
+                ratingsCount: newCount
+              }).catch(err => console.error('Failed to update restaurant rating:', err));
+            }
+
+            // Compute and update individual menu items ratings in database
+            if (action.payload.ratings) {
+              Object.entries(action.payload.ratings).forEach(([itemId, itemRatingVal]) => {
+                const item = currentState.menuItems.find(i => i.id === itemId);
+                const ratingVal = Number(itemRatingVal);
+                if (item && ratingVal > 0) {
+                  const currentRating = item.rating || 0;
+                  const currentCount = item.ratingsCount || 0;
+                  const newCount = currentCount + 1;
+                  const newRating = Math.round((((currentRating * currentCount) + ratingVal) / newCount) * 10) / 10;
+                  
+                  update(ref(db!, `menuItems/${orderRestId}/${itemId}`), {
+                    rating: newRating,
+                    ratingsCount: newCount
+                  }).catch(err => console.error(`Failed to update item ${itemId} rating:`, err));
+                }
+              });
+            }
             break;
           }
           case 'CALL_WAITER': {
@@ -3349,7 +3421,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                       subscriptionRenewalDate: existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
                       billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
                       billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
-                      hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false
+                      hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false,
+                      rating: existingDbAcc ? (existingDbAcc.rating ?? 0) : 0,
+                      ratingsCount: existingDbAcc ? (existingDbAcc.ratingsCount ?? 0) : 0
                     };
 
                     update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData))
@@ -3370,7 +3444,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                       subscriptionRenewalDate: existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
                       billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
                       billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
-                      hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false
+                      hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false,
+                      rating: existingDbAcc ? (existingDbAcc.rating ?? 0) : 0,
+                      ratingsCount: existingDbAcc ? (existingDbAcc.ratingsCount ?? 0) : 0
                     };
                     update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData)).catch(() => {});
                   });

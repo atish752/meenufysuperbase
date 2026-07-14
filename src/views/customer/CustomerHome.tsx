@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
-import { Search, MapPin, Star, Clock, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
+import { Search, MapPin, Star, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
 import { db } from '../../utils/firebase';
 import { ref, get } from 'firebase/database';
 
@@ -42,11 +42,17 @@ const VegNonVegIndicator = ({ isVeg, size = 14 }: { isVeg: boolean; size?: numbe
 // Popular cuisines quick filters (circular category icons)
 const POPULAR_CUISINES = [
   { name: 'Biryani', query: 'biryani', image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Paneer', query: 'paneer', image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Chicken', query: 'chicken', image: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Burger', query: 'burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&auto=format&fit=crop&q=60' },
   { name: 'Pizza', query: 'pizza', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Burgers', query: 'burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Chinese', query: 'chinese', image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Desserts', query: 'sweet', image: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?w=150&auto=format&fit=crop&q=60' },
-  { name: 'South Indian', query: 'dosa', image: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Roll', query: 'roll', image: 'https://images.unsplash.com/photo-1626700051175-6518c4793f4f?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Noodles', query: 'noodles', image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Chilli', query: 'chilli', image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Fried Rice', query: 'fried rice', image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Momo', query: 'momo', image: 'https://images.unsplash.com/photo-1625220194771-7ebedd0b4869?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Dosa', query: 'dosa', image: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Manchurian', query: 'manchurian', image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=150&auto=format&fit=crop&q=60' },
 ];
 
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&auto=format&fit=crop&q=60';
@@ -356,7 +362,7 @@ export default function CustomerHome() {
         restaurantId,
         restaurantName: restAccount?.restaurantName || meals[0].restaurantName,
         logo: restAccount?.logo || meals[0].restaurantLogo,
-        rating: restAccount?.rating || meals[0].restaurantRating,
+        rating: restAccount?.rating ?? 0,
         tagline: restAccount?.tagline || 'Flavors you will love',
         cuisines: restAccount?.cuisines || 'Multi-Cuisine',
         distance,
@@ -370,7 +376,7 @@ export default function CustomerHome() {
   if (sortBy === 'distance') {
     processedRestaurants.sort((a, b) => a.distance - b.distance);
   } else if (sortBy === 'rating') {
-    processedRestaurants.sort((a, b) => (b.rating || 4.2) - (a.rating || 4.2));
+    processedRestaurants.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
   }
 
   return (
@@ -815,7 +821,7 @@ export default function CustomerHome() {
                           alignItems: 'center',
                           gap: 2
                         }}>
-                          <span>{group.rating || 4.2}</span>
+                          <span>{(group.rating ?? 0).toFixed(1)}</span>
                           <Star size={9} fill="#ffffff" stroke="none" />
                         </div>
                       </div>
@@ -1009,7 +1015,7 @@ export default function CustomerHome() {
                             <div>
                               {/* Header with Logo on Top Right */}
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                                <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: '#ffffff', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
+                                <h4 style={{ fontSize: 22, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: '#ffffff', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
                                   {acc.restaurantName}
                                 </h4>
                                 
@@ -1039,9 +1045,8 @@ export default function CustomerHome() {
                             {/* Distance, Rating & Delivery */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: 8 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'rgba(255,255,255,0.9)' }}>
-                                  <Clock size={11} color="rgba(255,255,255,0.9)" />
-                                  <span style={{ fontWeight: 700 }}>{acc.distance.toFixed(1)} km</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: acc.distance <= 5 ? '#86efac' : '#fde047' }}>
+                                  <span style={{ fontWeight: 800 }}>{acc.distance.toFixed(1)} km</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#86efac' }}>
                                   <Award size={11} color="#86efac" />
@@ -1062,11 +1067,11 @@ export default function CustomerHome() {
                                   alignItems: 'center',
                                   gap: 2
                                 }}>
-                                  <span>{acc.rating || 4.2}</span>
+                                  <span>{(acc.rating ?? 0).toFixed(1)}</span>
                                   <Star size={9} fill="#16a34a" stroke="none" />
                                 </div>
                                 <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
-                                  ({acc.ratingsCount || ((acc.id.charCodeAt(5) || 5) * 128 + 84)})
+                                  ({acc.ratingsCount ?? 0})
                                 </span>
                               </div>
                             </div>

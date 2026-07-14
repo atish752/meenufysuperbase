@@ -516,9 +516,12 @@ export default function CustomerMenu() {
   };
 
   const getRatingDetails = (itemId: string) => {
-    const sum = itemId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const rating = (4.0 + (sum % 10) / 10).toFixed(1);
-    const reviews = 50 + (sum % 450);
+    const item = state.menuItems.find(i => i.id === itemId);
+    const ratingVal = item?.rating !== undefined ? Number(item.rating) : 0;
+    const reviewsVal = item?.ratingsCount ?? 0;
+    
+    const rating = ratingVal > 0 ? ratingVal.toFixed(1) : '0.0';
+    const reviews = reviewsVal;
     return { rating, reviews };
   };
 
