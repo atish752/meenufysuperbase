@@ -1729,17 +1729,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                     onChange={e => setRestaurantForm({ ...restaurantForm, name: e.target.value })} />
                 </div>
               </div>
-              <div className="input-group">
-                <label className="input-label">Tagline</label>
-                <input className="input" type="text" value={restaurantForm.tagline}
-                  onChange={e => setRestaurantForm({ ...restaurantForm, tagline: e.target.value })} />
-              </div>
-              <div className="input-group">
-                <label className="input-label">About / Description</label>
-                <textarea className="input" rows={3} value={restaurantForm.description}
-                  onChange={e => setRestaurantForm({ ...restaurantForm, description: e.target.value })}
-                  style={{ resize: 'vertical' }} />
-              </div>
+
               <div style={{ display: 'flex', gap: 10 }}>
                 <div className="input-group" style={{ flex: 1 }}>
                   <label className="input-label">Opens At</label>

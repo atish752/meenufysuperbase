@@ -63,14 +63,21 @@ export default function CustomerHome() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   
-  // Geolocation states - starts as null to enforce location requirement
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  // Geolocation states - loaded from localStorage to persist state across view/menu toggles
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(() => {
+    const saved = localStorage.getItem('meenufy_customer_coords');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [gpsLoading, setGpsLoading] = useState(false);
-  const [addressName, setAddressName] = useState('Location Disabled');
-  const [selectedCity, setSelectedCity] = useState<string>('gps');
+  const [addressName, setAddressName] = useState(() => {
+    return localStorage.getItem('meenufy_customer_address_name') || 'Location Disabled';
+  });
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    return localStorage.getItem('meenufy_customer_selected_city') || 'gps';
+  });
 
   const [customerTheme, setCustomerTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('meenufy_customer_theme') as 'light' | 'dark') || 'dark';
+    return (localStorage.getItem('meenufy_customer_theme') as 'light' | 'dark') || 'light';
   });
 
   useEffect(() => {
@@ -125,17 +132,23 @@ export default function CustomerHome() {
   const [nearbyMeals, setNearbyMeals] = useState<any[]>([]);
   const [loadingMeals, setLoadingMeals] = useState(false);
 
-  // Enforce GPS authorization on mount
+  // Enforce GPS authorization on mount if not already loaded from cache
   useEffect(() => {
+    const savedCoords = localStorage.getItem('meenufy_customer_coords');
+    if (savedCoords) return;
+
     if (selectedCity === 'gps' && navigator.geolocation) {
       setGpsLoading(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setCoords({
+          const newCoords = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
-          });
+          };
+          setCoords(newCoords);
+          localStorage.setItem('meenufy_customer_coords', JSON.stringify(newCoords));
           setAddressName('Current GPS Location');
+          localStorage.setItem('meenufy_customer_address_name', 'Current GPS Location');
           setGpsLoading(false);
         },
         () => {
@@ -148,34 +161,46 @@ export default function CustomerHome() {
 
   const handleCityChange = (cityVal: string) => {
     setSelectedCity(cityVal);
+    localStorage.setItem('meenufy_customer_selected_city', cityVal);
     if (cityVal === 'gps') {
       if (navigator.geolocation) {
         setGpsLoading(true);
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            setCoords({
+            const newCoords = {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
-            });
+            };
+            setCoords(newCoords);
+            localStorage.setItem('meenufy_customer_coords', JSON.stringify(newCoords));
             setAddressName('Current GPS Location');
+            localStorage.setItem('meenufy_customer_address_name', 'Current GPS Location');
             setGpsLoading(false);
           },
           () => {
             setGpsLoading(false);
             setCoords(null);
+            localStorage.removeItem('meenufy_customer_coords');
             setAddressName('Location Disabled');
+            localStorage.setItem('meenufy_customer_address_name', 'Location Disabled');
           }
         );
       }
     } else if (cityVal === 'all') {
       // Mock coordinates to central position, but distance checking is bypassed in filter
-      setCoords({ latitude: 12.9348, longitude: 77.6202 });
+      const newCoords = { latitude: 12.9348, longitude: 77.6202 };
+      setCoords(newCoords);
+      localStorage.setItem('meenufy_customer_coords', JSON.stringify(newCoords));
       setAddressName('India Browsing');
+      localStorage.setItem('meenufy_customer_address_name', 'India Browsing');
     } else {
       const cityObj = CITIES.find(c => c.name === cityVal);
       if (cityObj) {
-        setCoords({ latitude: cityObj.lat, longitude: cityObj.lon });
+        const newCoords = { latitude: cityObj.lat, longitude: cityObj.lon };
+        setCoords(newCoords);
+        localStorage.setItem('meenufy_customer_coords', JSON.stringify(newCoords));
         setAddressName(`City: ${cityObj.name}`);
+        localStorage.setItem('meenufy_customer_address_name', `City: ${cityObj.name}`);
       }
     }
   };
@@ -188,11 +213,14 @@ export default function CustomerHome() {
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoords({
+        const newCoords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-        });
+        };
+        setCoords(newCoords);
+        localStorage.setItem('meenufy_customer_coords', JSON.stringify(newCoords));
         setAddressName('Current GPS Location');
+        localStorage.setItem('meenufy_customer_address_name', 'Current GPS Location');
         addToast('success', '📍 Geolocation enabled successfully!');
         setGpsLoading(false);
       },
@@ -236,15 +264,17 @@ export default function CustomerHome() {
         return matchesSearch;
       }
 
-      // 2. Haversine 15 Kilometer radius limit (if coords allowed/active)
+      // 2. Haversine 15 Kilometer radius limit or city address fallback
       if (!coords) return false;
-      if (acc.distance > 15) return false;
+      const isNearby = acc.distance <= 15;
+      const isAddressMatch = selectedCity !== 'all' && selectedCity !== 'gps' && 
+                             !!acc.address && acc.address.toLowerCase().includes(selectedCity.toLowerCase());
+      if (!isNearby && !isAddressMatch) return false;
 
-      // 2. Search query filter
+      // 3. Search query filter
       const matchesSearch = searchQuery.trim() === '' || 
         acc.restaurantName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (acc.cuisines && acc.cuisines.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (acc.tagline && acc.tagline.toLowerCase().includes(searchQuery.toLowerCase()));
+        (acc.cuisines && acc.cuisines.toLowerCase().includes(searchQuery.toLowerCase()));
 
       return matchesSearch;
     });
@@ -508,6 +538,10 @@ export default function CustomerHome() {
                       0% { transform: translateX(0); }
                       100% { transform: translateX(-33.33%); }
                     }
+                    @keyframes marquee-right {
+                      0% { transform: translateX(-33.33%); }
+                      100% { transform: translateX(0); }
+                    }
                     .marquee-row {
                       display: flex;
                       white-space: nowrap;
@@ -517,12 +551,12 @@ export default function CustomerHome() {
                       animation: marquee-left 28s linear infinite;
                     }
                     .marquee-row-2 {
-                      animation: marquee-left 22s linear infinite;
+                      animation: marquee-right 22s linear infinite;
                     }
                     .marquee-item {
                       display: inline-flex;
                       align-items: center;
-                      gap: 6px;
+                      gap: 8px;
                       background: rgba(255, 125, 0, 0.08);
                       border: 1px solid rgba(255, 125, 0, 0.15);
                       border-radius: 99px;
@@ -557,7 +591,12 @@ export default function CustomerHome() {
                               className="marquee-item"
                               onClick={() => setSelectedDeal({ coupon: c, restaurant: rest })}
                             >
-                              <span>🏷️</span> <strong style={{ color: 'var(--text-primary)' }}>{restName}:</strong> {desc}
+                              <img
+                                src={rest?.logo || DEFAULT_LOGO}
+                                alt=""
+                                style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover', background: '#fff', border: '1px solid var(--border)' }}
+                              />
+                              <strong style={{ color: 'var(--text-primary)' }}>{restName}:</strong> {desc}
                             </div>
                           );
                         })}
@@ -580,7 +619,12 @@ export default function CustomerHome() {
                               className="marquee-item"
                               onClick={() => setSelectedDeal({ coupon: c, restaurant: rest })}
                             >
-                              <span>🏷️</span> <strong style={{ color: 'var(--text-primary)' }}>{restName}:</strong> {desc}
+                              <img
+                                src={rest?.logo || DEFAULT_LOGO}
+                                alt=""
+                                style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover', background: '#fff', border: '1px solid var(--border)' }}
+                              />
+                              <strong style={{ color: 'var(--text-primary)' }}>{restName}:</strong> {desc}
                             </div>
                           );
                         })}
@@ -937,8 +981,8 @@ export default function CustomerHome() {
                         )}
 
                         <div style={{ display: 'flex', flex: 1 }}>
-                          {/* Left Side: Restaurant Profile Image (Square) */}
-                          <div style={{ width: 125, height: 125, position: 'relative', background: 'var(--border-dim)', flexShrink: 0 }}>
+                          {/* Left Side: Restaurant Profile Image (Square with curved left edges) */}
+                          <div style={{ width: 125, height: 125, position: 'relative', background: 'var(--border-dim)', flexShrink: 0, borderTopLeftRadius: acc.promoText ? 0 : 16, borderBottomLeftRadius: 16, overflow: 'hidden' }}>
                             <img
                               src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
                               alt={acc.restaurantName}
@@ -946,19 +990,19 @@ export default function CustomerHome() {
                             />
                           </div>
 
-                          {/* Right Side: Details (60% width) */}
+                          {/* Right Side: Details (half size) */}
                           <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', minWidth: 0 }}>
                             <div>
-                              {/* Header with Logo */}
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                                <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {/* Header with Logo Adjacent */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--brand)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                   {acc.restaurantName}
                                 </h4>
                                 
-                                {/* Logo Image */}
+                                {/* Logo Image Adjacent */}
                                 <div style={{
-                                  width: 28,
-                                  height: 28,
+                                  width: 18,
+                                  height: 18,
                                   borderRadius: '50%',
                                   border: '1px solid var(--border)',
                                   overflow: 'hidden',
@@ -972,10 +1016,6 @@ export default function CustomerHome() {
                                   />
                                 </div>
                               </div>
-
-                              <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: '4px 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {acc.tagline || 'Flavors you will love'}
-                              </p>
 
                               <p style={{ fontSize: 9, color: 'var(--text-muted)', margin: '2px 0 0', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                 {acc.cuisines || 'North Indian • Chinese • Fast Food'}
