@@ -98,7 +98,7 @@ export default function CustomerHome() {
     return !localStorage.getItem('meenufy_first_time_city_selected');
   });
   const [selectedDeal, setSelectedDeal] = useState<any | null>(null);
-  const allCoupons = state.coupons || [];
+  const [allCoupons, setAllCoupons] = useState<any[]>([]);
 
   // Cross-restaurant meals states
   const [nearbyMeals, setNearbyMeals] = useState<any[]>([]);
@@ -251,15 +251,18 @@ export default function CustomerHome() {
       return matchesSearch;
     });
 
-  // Fetch meals from all nearby restaurants in parallel when coordinates are active
+  // Fetch meals and coupons from all nearby restaurants in parallel when coordinates are active
   useEffect(() => {
     if (!coords || processedRestaurants.length === 0) {
       setNearbyMeals([]);
+      setAllCoupons([]);
       return;
     }
 
     setLoadingMeals(true);
-    const promises = processedRestaurants.map(rest => {
+
+    // 1. Fetch meals
+    const mealPromises = processedRestaurants.map(rest => {
       return get(ref(db!, `menuItems/${rest.id}`))
         .then(snapshot => {
           const data = snapshot.val();
@@ -279,8 +282,26 @@ export default function CustomerHome() {
         .catch(() => []);
     });
 
-    Promise.all(promises).then(results => {
-      setNearbyMeals(results.flat());
+    // 2. Fetch coupons
+    const couponPromises = processedRestaurants.map(rest => {
+      return get(ref(db!, `coupons/${rest.id}`))
+        .then(snapshot => {
+          const data = snapshot.val();
+          if (data) {
+            const couponsList = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
+            return couponsList.filter((c: any) => c && c.isActive).map((c: any) => ({
+              ...c,
+              restaurantId: rest.id
+            }));
+          }
+          return [];
+        })
+        .catch(() => []);
+    });
+
+    Promise.all([Promise.all(mealPromises), Promise.all(couponPromises)]).then(([mealResults, couponResults]) => {
+      setNearbyMeals(mealResults.flat());
+      setAllCoupons(couponResults.flat());
       setLoadingMeals(false);
     });
   }, [coords, processedRestaurants.map(r => r.id).join(',')]);
