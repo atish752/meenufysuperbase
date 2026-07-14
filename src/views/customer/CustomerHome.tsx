@@ -210,8 +210,9 @@ export default function CustomerHome() {
     const newUrl = `${window.location.pathname}?view=customer&restaurant=${restaurantId}`;
     window.history.pushState({}, '', newUrl);
 
-    // Pre-fetch menu items and categories in background ASAP
-    // so CustomerMenu has data as fast as possible (200-400ms typical)
+    // Pre-fetch menu items AND categories atomically in background
+    // Dispatched as SYNC_MENU_DATA so both land in state simultaneously,
+    // eliminating the race condition that shows only 'All' in the sidebar.
     const alreadyHasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
     const alreadyHasCats = state.categories.some(c => c && c.restaurantId === restaurantId);
 
@@ -220,29 +221,24 @@ export default function CustomerHome() {
         get(ref(db!, `menuItems/${restaurantId}`)),
         get(ref(db!, `categories/${restaurantId}`)),
       ]).then(([menuSnap, catSnap]) => {
-        if (menuSnap.exists()) {
-          const data = menuSnap.val();
-          const items = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as any[];
-          dispatch({
-            type: 'SYNC_MENU_ITEMS',
-            payload: {
-              restaurantId,
-              items: items.map(i => ({ ...i, restaurantId: i.restaurantId || restaurantId }))
-            }
-          });
-        }
+        const menuData = menuSnap.val();
+        const catData = catSnap.val();
 
-        if (catSnap.exists()) {
-          const data = catSnap.val();
-          const cats = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as any[];
-          dispatch({
-            type: 'SYNC_CATEGORIES',
-            payload: {
-              restaurantId,
-              categories: cats.map(c => ({ ...c, restaurantId: c.restaurantId || restaurantId }))
-            }
-          });
-        }
+        const items = menuData
+          ? (Array.isArray(menuData) ? menuData.filter(Boolean) : Object.values(menuData)).filter(Boolean) as any[]
+          : [];
+        const cats = catData
+          ? (Array.isArray(catData) ? catData.filter(Boolean) : Object.values(catData)).filter(Boolean) as any[]
+          : [];
+
+        dispatch({
+          type: 'SYNC_MENU_DATA' as any,
+          payload: {
+            restaurantId,
+            items: items.map((i: any) => ({ ...i, restaurantId: i.restaurantId || restaurantId })),
+            categories: cats.map((c: any) => ({ ...c, restaurantId: c.restaurantId || restaurantId }))
+          }
+        });
       }).catch(() => {
         // Fallback: onValue listeners in RealtimeStore will populate data
       });

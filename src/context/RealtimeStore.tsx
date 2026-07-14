@@ -10,7 +10,8 @@ import {
   set, 
   update, 
   remove, 
-  onValue 
+  onValue,
+  get
 } from 'firebase/database';
 
 export function detectBillingCountry(): 'IN' | 'global' {
@@ -1074,6 +1075,7 @@ type Action =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SYNC_MENU_ITEMS'; payload: { restaurantId: string; items: MenuItem[] } }
   | { type: 'SYNC_CATEGORIES'; payload: { restaurantId: string; categories: MenuCategory[] } }
+  | { type: 'SYNC_MENU_DATA'; payload: { restaurantId: string; items: MenuItem[]; categories: MenuCategory[] } }
   | { type: 'SYNC_ORDERS'; payload: { restaurantId: string; orders: Order[] } }
   | { type: 'SYNC_WAITER_REQUESTS'; payload: { restaurantId: string; requests: WaiterRequest[] } }
   | { type: 'SYNC_RESTAURANT_ACCOUNTS'; payload: RestaurantAccount[] }
@@ -1118,6 +1120,22 @@ function reducer(state: AppState, action: Action): AppState {
       const { restaurantId, categories } = action.payload;
       return {
         ...state,
+        categories: [
+          ...state.categories.filter(c => c.restaurantId !== restaurantId),
+          ...categories
+        ]
+      };
+    }
+    case 'SYNC_MENU_DATA': {
+      // Atomic update of both menuItems and categories in ONE state transition
+      // This prevents the race condition where only 'All' shows while waiting for the second dataset
+      const { restaurantId, items, categories } = action.payload;
+      return {
+        ...state,
+        menuItems: [
+          ...state.menuItems.filter(item => item.restaurantId !== restaurantId),
+          ...items
+        ],
         categories: [
           ...state.categories.filter(c => c.restaurantId !== restaurantId),
           ...categories
@@ -2565,42 +2583,76 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Listen to menuItems
+    // Fetch menuItems AND categories atomically using parallel get()
+    // Using get() (one-shot read) instead of onValue (WebSocket subscription) for the initial load
+    // This avoids the race condition where categories arrive before items (or vice versa)
+    // making restaurantCategories always show only 'All'.
+    // The capturedId prevents stale closures if user navigates away before fetch resolves.
+    const capturedId = targetRestaurantId;
+    let menuUnsubscribe: (() => void) | null = null;
+    let catUnsubscribe: (() => void) | null = null;
+
+    // Check if we already have data in state (e.g., already visited this restaurant)
+    const alreadyHasItems = stateRef.current.menuItems.some(i => i && i.restaurantId === capturedId);
+    const alreadyHasCats = stateRef.current.categories.some(c => c && c.restaurantId === capturedId);
+
+    if (alreadyHasItems && alreadyHasCats) {
+      // Data already cached — no fetch needed, just set up live update listeners
+    } else {
+      // Parallel get() for both — dispatched atomically as SYNC_MENU_DATA
+      Promise.all([
+        get(ref(db, `menuItems/${capturedId}`)),
+        get(ref(db, `categories/${capturedId}`)),
+      ]).then(([menuSnap, catSnap]) => {
+        if (capturedId !== getActiveRestaurantId(stateRef.current)) return; // navigated away
+        const menuData = menuSnap.val();
+        const catData = catSnap.val();
+        const items: MenuItem[] = menuData
+          ? (Array.isArray(menuData) ? menuData.filter(Boolean) : Object.values(menuData)).filter(Boolean) as MenuItem[]
+          : [];
+        const itemsWithId = items.map(item => ({ ...item, restaurantId: item.restaurantId || capturedId }));
+        const cats: MenuCategory[] = catData
+          ? (Array.isArray(catData) ? catData.filter(Boolean) : Object.values(catData)).filter(Boolean) as MenuCategory[]
+          : [];
+        const catsWithId = cats.map(c => ({ ...c, restaurantId: c.restaurantId || capturedId }));
+
+        if (!isCustomer && catData === null) {
+          const localCats = stateRef.current.categories.filter(c => c && c.restaurantId === capturedId);
+          if (localCats.length > 0) {
+            const catsObj: Record<string, any> = {};
+            localCats.forEach(cat => { if (cat) catsObj[cat.id] = cat; });
+            set(ref(db!, `categories/${capturedId}`), catsObj);
+          }
+        }
+
+        dispatch({
+          type: 'SYNC_MENU_DATA',
+          payload: { restaurantId: capturedId, items: itemsWithId, categories: catsWithId }
+        });
+      }).catch(() => {});
+    }
+
+    // Keep live onValue listeners for real-time updates after initial load
+    // These fire again when data changes (e.g., admin edits menu while customer is viewing)
     const unsubscribeMenu = onValue(ref(db, `menuItems/${targetRestaurantId}`), (snapshot) => {
+      if (!menuUnsubscribe) { menuUnsubscribe = () => {}; return; } // skip first callback (covered by get())
       const data = snapshot.val();
       const items: MenuItem[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuItem[] : [];
-      const itemsWithId = items.map(item => ({
-        ...item,
-        restaurantId: item.restaurantId || targetRestaurantId
-      }));
-      dispatch({ 
-        type: 'SYNC_MENU_ITEMS', 
-        payload: { restaurantId: targetRestaurantId, items: itemsWithId } 
-      });
+      const itemsWithId = items.map(item => ({ ...item, restaurantId: item.restaurantId || targetRestaurantId }));
+      dispatch({ type: 'SYNC_MENU_ITEMS', payload: { restaurantId: targetRestaurantId, items: itemsWithId } });
     });
+    menuUnsubscribe = unsubscribeMenu;
 
-    // Listen to categories
     const unsubscribeCat = onValue(ref(db, `categories/${targetRestaurantId}`), (snapshot) => {
+      if (!catUnsubscribe) { catUnsubscribe = () => {}; return; } // skip first callback (covered by get())
       const data = snapshot.val();
       if (data) {
         const cats: MenuCategory[] = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuCategory[];
-        const catsWithId = cats.map(c => ({
-          ...c,
-          restaurantId: c.restaurantId || targetRestaurantId
-        }));
-        dispatch({ 
-          type: 'SYNC_CATEGORIES', 
-          payload: { restaurantId: targetRestaurantId, categories: catsWithId } 
-        });
-      } else if (!isCustomer) {
-        const localCats = stateRef.current.categories.filter(c => c && c.restaurantId === targetRestaurantId);
-        if (localCats.length > 0) {
-          const catsObj: Record<string, any> = {};
-          localCats.forEach(cat => { if (cat) catsObj[cat.id] = cat; });
-          set(ref(db!, `categories/${targetRestaurantId}`), catsObj);
-        }
+        const catsWithId = cats.map(c => ({ ...c, restaurantId: c.restaurantId || targetRestaurantId }));
+        dispatch({ type: 'SYNC_CATEGORIES', payload: { restaurantId: targetRestaurantId, categories: catsWithId } });
       }
     });
+    catUnsubscribe = unsubscribeCat;
 
     // Listen to orders
     const unsubscribeOrder = onValue(ref(db, `orders/${targetRestaurantId}`), (snapshot) => {
