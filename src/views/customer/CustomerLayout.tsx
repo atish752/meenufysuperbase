@@ -804,11 +804,11 @@ export default function CustomerLayout({ tableId }: Props) {
         flex: 1,
         minHeight: 0,
         // On menu tab: overflow:hidden so CustomerMenu manages its own column scroll independently
-        overflowY: state.customerTab === 'menu' ? 'hidden' : 'auto',
+        overflowY: (state.customerTab === 'menu' && state.activeCustomerRestaurantId) ? 'hidden' : 'auto',
         overflowX: 'hidden',
         width: '100%',
         maxWidth: '100%',
-        paddingBottom: state.customerTab === 'menu' ? 0 : 'calc(68px + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: (state.customerTab === 'menu' && state.activeCustomerRestaurantId) ? 0 : 'calc(68px + env(safe-area-inset-bottom, 0px))',
         display: 'flex',
         flexDirection: 'column',
       }}>

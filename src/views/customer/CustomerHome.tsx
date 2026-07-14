@@ -49,6 +49,7 @@ const POPULAR_CUISINES = [
 
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&auto=format&fit=crop&q=60';
 const DEFAULT_LOGO = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100&auto=format&fit=crop&q=60';
+const databaseUrl = (import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://meenufy-default-rtdb.firebaseio.com').replace(/\/$/, '');
 
 const CITIES = [
   { name: 'Mumbai', lat: 19.0760, lon: 72.8777 },
@@ -100,7 +101,7 @@ export default function CustomerHome() {
 
   // Fetch all active coupons from the global database node
   useEffect(() => {
-    fetch('https://meenufy-default-rtdb.firebaseio.com/coupons.json')
+    fetch(`${databaseUrl}/coupons.json`)
       .then(res => res.json())
       .then(data => {
         if (data) {
@@ -288,7 +289,7 @@ export default function CustomerHome() {
 
     setLoadingMeals(true);
     const promises = processedRestaurants.map(rest => {
-      return fetch(`https://meenufy-default-rtdb.firebaseio.com/menuItems/${rest.id}.json`)
+      return fetch(`${databaseUrl}/menuItems/${rest.id}.json`)
         .then(res => res.json())
         .then(data => {
           if (data) {
@@ -548,10 +549,10 @@ export default function CustomerHome() {
                       width: max-content;
                     }
                     .marquee-row-1 {
-                      animation: marquee-left 28s linear infinite;
+                      animation: marquee-right 28s linear infinite;
                     }
                     .marquee-row-2 {
-                      animation: marquee-right 22s linear infinite;
+                      animation: marquee-left 22s linear infinite;
                     }
                     .marquee-item {
                       display: inline-flex;
@@ -1287,6 +1288,30 @@ export default function CustomerHome() {
                 </div>
               </div>
             </div>
+
+            <button
+              onClick={() => {
+                if (selectedDeal.restaurant) {
+                  handleOpenRestaurant(selectedDeal.restaurant.id);
+                  setSelectedDeal(null);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                color: '#000',
+                border: 'none',
+                borderRadius: 12,
+                fontWeight: 800,
+                fontSize: 13,
+                cursor: 'pointer',
+                marginTop: 16,
+                boxShadow: '0 4px 12px rgba(255,125,0,0.2)'
+              }}
+            >
+              🟢 Open Restaurant & Order Now
+            </button>
           </div>
         </div>
       )}

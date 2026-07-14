@@ -4,6 +4,8 @@ import type { Order, OrderStatus } from '../../context/RealtimeStore';
 import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, ChevronDown, ChevronUp, Calendar, Printer, Gift, ShieldCheck } from 'lucide-react';
 import { printThermalReceipt } from '../../utils/printReceipt';
 
+const databaseUrl = (import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://meenufy-default-rtdb.firebaseio.com').replace(/\/$/, '');
+
 type Props = { tableId: string };
 
 const STATUS_STEPS: OrderStatus[] = ['pending', 'preparing', 'ready', 'bill_pay', 'served'];
@@ -40,7 +42,7 @@ export default function CustomerOrders({ tableId }: Props) {
 
     const cleanPhone = myPhoneIdentifier.replace(/[^a-zA-Z0-9]/g, '');
     const promises = (state.restaurantAccounts || []).map(acc => {
-      return fetch(`https://meenufy-default-rtdb.firebaseio.com/customers/${acc.id}/${cleanPhone}.json`)
+      return fetch(`${databaseUrl}/customers/${acc.id}/${cleanPhone}.json`)
         .then(res => res.json())
         .then(data => {
           if (data && (data.points > 0 || data.visitsCount > 0)) {
