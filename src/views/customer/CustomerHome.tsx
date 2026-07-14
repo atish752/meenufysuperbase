@@ -205,9 +205,48 @@ export default function CustomerHome() {
   };
 
   const handleOpenRestaurant = (restaurantId: string) => {
+    // Switch view IMMEDIATELY — don't block on network requests
     dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: restaurantId });
     const newUrl = `${window.location.pathname}?view=customer&restaurant=${restaurantId}`;
     window.history.pushState({}, '', newUrl);
+
+    // Pre-fetch menu items and categories in background ASAP
+    // so CustomerMenu has data as fast as possible (200-400ms typical)
+    const alreadyHasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
+    const alreadyHasCats = state.categories.some(c => c && c.restaurantId === restaurantId);
+
+    if (!alreadyHasItems || !alreadyHasCats) {
+      Promise.all([
+        get(ref(db!, `menuItems/${restaurantId}`)),
+        get(ref(db!, `categories/${restaurantId}`)),
+      ]).then(([menuSnap, catSnap]) => {
+        if (menuSnap.exists()) {
+          const data = menuSnap.val();
+          const items = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as any[];
+          dispatch({
+            type: 'SYNC_MENU_ITEMS',
+            payload: {
+              restaurantId,
+              items: items.map(i => ({ ...i, restaurantId: i.restaurantId || restaurantId }))
+            }
+          });
+        }
+
+        if (catSnap.exists()) {
+          const data = catSnap.val();
+          const cats = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as any[];
+          dispatch({
+            type: 'SYNC_CATEGORIES',
+            payload: {
+              restaurantId,
+              categories: cats.map(c => ({ ...c, restaurantId: c.restaurantId || restaurantId }))
+            }
+          });
+        }
+      }).catch(() => {
+        // Fallback: onValue listeners in RealtimeStore will populate data
+      });
+    }
   };
 
   // Filter & calculate active restaurants nearby (within 15 km limit)

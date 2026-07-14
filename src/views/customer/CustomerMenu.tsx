@@ -285,8 +285,11 @@ export default function CustomerMenu() {
   const [scrollActiveCat, setScrollActiveCat] = useState<string>('');
   const mealsScrollRef = useRef<HTMLDivElement>(null);
 
-  const [showLoader, setShowLoader] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState('🍳 warming up the grills...');
+  const [showLoader, setShowLoader] = useState(() => {
+    // Start with no loader if data already pre-fetched into state
+    return false;
+  });
+  const [loadingMessage, setLoadingMessage] = useState('🍳 Warming up the grills...');
 
   const MESSAGES = [
     '🍳 Warming up the griddle...',
@@ -297,13 +300,14 @@ export default function CustomerMenu() {
   ];
 
   useEffect(() => {
-    // Determine if the restaurant already has items loaded in local state
+    // Check immediately — data may have been pre-fetched before this component mounted
     const hasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
     if (hasItems) {
       setShowLoader(false);
       return;
     }
 
+    // Data not yet available — show loader and poll
     setShowLoader(true);
     let msgIdx = 0;
     const msgInterval = setInterval(() => {
@@ -314,22 +318,23 @@ export default function CustomerMenu() {
     const checkTimer = setInterval(() => {
       const currentHasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
       if (currentHasItems) {
-        setTimeout(() => setShowLoader(false), 50); // fast exit transition delay
+        setShowLoader(false);
         clearInterval(checkTimer);
       }
-    }, 200);
+    }, 100);
 
+    // Max 3s fallback — show what we have
     const maxTimer = setTimeout(() => {
       setShowLoader(false);
       clearInterval(checkTimer);
-    }, 8000);
+    }, 3000);
 
     return () => {
       clearInterval(msgInterval);
       clearInterval(checkTimer);
       clearTimeout(maxTimer);
     };
-  }, [restaurantId]);
+  }, [restaurantId, state.menuItems.length]);
 
   const [addonModalItem, setAddonModalItem] = useState<{
     item: MenuItem;
