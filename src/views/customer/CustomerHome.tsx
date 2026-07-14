@@ -214,7 +214,7 @@ export default function CustomerHome() {
   const handleOpenRestaurant = (restaurantId: string) => {
     // Switch view IMMEDIATELY — don't block on network requests
     dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: restaurantId });
-    const newUrl = `${window.location.pathname}?view=customer&restaurant=${restaurantId}`;
+    const newUrl = `${window.location.pathname}?restaurant=${restaurantId}`;
     window.history.pushState({}, '', newUrl);
 
     // Pre-fetch menu items AND categories atomically in background

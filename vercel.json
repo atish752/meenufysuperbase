@@ -1,0 +1,13 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/tools/:path*",
+      "destination": "/tools/:path*"
+    },
+    {
+      "source": "/((?!assets/|tools/|favicon.png|manifest.json|meenufy_logo_transparent.png|meenufy_logo_white.png).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

@@ -583,7 +583,7 @@ export default function CustomerLayout({ tableId }: Props) {
                   onClick={() => {
                     dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: null });
                     // Clear query params to clean URL
-                    const newUrl = window.location.pathname + '?view=customer';
+                    const newUrl = window.location.pathname;
                     window.history.pushState({}, '', newUrl);
                   }}
                   style={{
