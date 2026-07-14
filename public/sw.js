@@ -1,111 +1,88 @@
 // ── Meenufy Service Worker ────────────────────────────────────────────────
 // To invalidate the cache on a new deploy, bump the CACHE_VERSION number.
-const CACHE_VERSION = 5;
+const CACHE_VERSION = 6;
 const CACHE_NAME = `meenufy-v${CACHE_VERSION}`;
-const ADMIN_CACHE_NAME = `meenufy-admin-v${CACHE_VERSION}`;
 
-// Static shell files for the customer app
+// ── Install: minimal cache — only icons and manifests (NOT HTML pages) ────
+// HTML navigation requests are always served network-first so the app shell
+// is always fresh. We only cache assets (JS/CSS) and static files.
 const STATIC_SHELL = [
-  '/',
-  '/index.html',
+  '/icon-192.png',
+  '/icon-512.png',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/icon.svg',
-];
-
-// Static shell files for the admin app
-const ADMIN_SHELL = [
-  '/admin',
-  '/index.html',
   '/admin-manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/icon.svg',
 ];
 
-// ── Install: cache both app shells ───────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    Promise.all([
-      caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_SHELL)),
-      caches.open(ADMIN_CACHE_NAME).then((cache) => cache.addAll(ADMIN_SHELL)),
-    ])
+    caches.open(CACHE_NAME).then((cache) => {
+      // Use individual try/catch so a missing file doesn't fail entire install
+      return Promise.allSettled(STATIC_SHELL.map(url => cache.add(url)));
+    })
   );
-  // Take over immediately without waiting for existing tabs to close
   self.skipWaiting();
 });
 
-// ── Activate: clean up old caches ────────────────────────────────────────
+// Handle SKIP_WAITING message from main.tsx to force immediate activation
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// ── Activate: delete ALL old caches ───────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) =>
+    caches.keys().then((names) =>
       Promise.all(
-        cacheNames
-          .filter((name) =>
-            name.startsWith('meenufy-') &&
-            name !== CACHE_NAME &&
-            name !== ADMIN_CACHE_NAME
-          )
-          .map((name) => caches.delete(name))
+        names
+          .filter((n) => n.startsWith('meenufy-') && n !== CACHE_NAME)
+          .map((n) => caches.delete(n))
       )
     )
   );
-  // Claim all open clients so updates apply immediately
   self.clients.claim();
 });
 
-// ── Helper: is this an admin route? ──────────────────────────────────────
-function isAdminPath(pathname) {
-  return pathname === '/admin' || pathname === '/admin/' || pathname.startsWith('/admin/');
-}
-
-// ── Fetch: network-first with offline fallback ────────────────────────────
+// ── Fetch handler ─────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests, chrome-extension://, and Firebase/CDN requests
+  // Skip non-GET, non-http, and all third-party/Firebase/CDN requests
   if (
     request.method !== 'GET' ||
     !request.url.startsWith('http') ||
-    url.hostname.includes('firebase') ||
-    url.hostname.includes('googleapis') ||
-    url.hostname.includes('gstatic') ||
-    url.hostname.includes('ipapi') ||
-    url.hostname.includes('fonts.goo')
+    url.hostname !== self.location.hostname
   ) {
     return;
   }
 
-  // For navigation requests (HTML page): network-first, fallback to the right cached shell
+  // ── HTML navigation requests: ALWAYS network-first, NO cache fallback ───
+  // This ensures the user always gets the latest index.html with fresh JS
+  // bundle hashes. Do NOT cache navigation responses — stale cached HTML
+  // is the root cause of "blank screen on reload" bugs.
   if (request.mode === 'navigate') {
-    const admin = isAdminPath(url.pathname);
-    const fallbackCache = admin ? ADMIN_CACHE_NAME : CACHE_NAME;
-
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(fallbackCache).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match('/index.html'))
+      fetch(request).catch(() => {
+        // Offline-only fallback: return cached index.html if network fails
+        return caches.match('/index.html');
+      })
     );
     return;
   }
 
-  // Serve admin-manifest.json directly when requested
-  if (url.pathname === '/admin-manifest.json') {
+  // ── Vite-hashed JS/CSS assets: cache-first (immutable — hash changes on rebuild) ──
+  if (
+    url.pathname.startsWith('/assets/') &&
+    (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))
+  ) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
           if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(ADMIN_CACHE_NAME).then((cache) => cache.put(request, clone));
+            caches.open(CACHE_NAME).then((c) => c.put(request, response.clone()));
           }
           return response;
         });
@@ -114,15 +91,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For Vite-hashed JS/CSS assets (immutable): cache-first (they change names on rebuild)
-  if (url.pathname.startsWith('/assets/') && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
+  // ── Manifest & icon files: cache-first ───────────────────────────────────
+  if (
+    url.pathname === '/manifest.json' ||
+    url.pathname === '/admin-manifest.json' ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.ico')
+  ) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
           if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            caches.open(CACHE_NAME).then((c) => c.put(request, response.clone()));
           }
           return response;
         });
@@ -131,30 +113,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For images: stale-while-revalidate
-  if (request.destination === 'image') {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const fetchPromise = fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        }).catch(() => cached);
-        return cached || fetchPromise;
-      })
-    );
-    return;
-  }
-
-  // Default: network-first with cache fallback
+  // ── Default: network-first for everything else ────────────────────────────
   event.respondWith(
     fetch(request)
       .then((response) => {
         if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          caches.open(CACHE_NAME).then((c) => c.put(request, response.clone()));
         }
         return response;
       })
