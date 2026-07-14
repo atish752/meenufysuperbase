@@ -3,8 +3,8 @@ import { useStore, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import type { Order, OrderStatus } from '../../context/RealtimeStore';
 import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, ChevronDown, ChevronUp, Calendar, Printer, Gift, ShieldCheck } from 'lucide-react';
 import { printThermalReceipt } from '../../utils/printReceipt';
-
-const databaseUrl = (import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://meenufy-default-rtdb.firebaseio.com').replace(/\/$/, '');
+import { db } from '../../utils/firebase';
+import { ref, get } from 'firebase/database';
 
 type Props = { tableId: string };
 
@@ -42,9 +42,9 @@ export default function CustomerOrders({ tableId }: Props) {
 
     const cleanPhone = myPhoneIdentifier.replace(/[^a-zA-Z0-9]/g, '');
     const promises = (state.restaurantAccounts || []).map(acc => {
-      return fetch(`${databaseUrl}/customers/${acc.id}/${cleanPhone}.json`)
-        .then(res => res.json())
-        .then(data => {
+      return get(ref(db!, `customers/${acc.id}/${cleanPhone}`))
+        .then(snapshot => {
+          const data = snapshot.val();
           if (data && (data.points > 0 || data.visitsCount > 0)) {
             return {
               restaurantId: acc.id,

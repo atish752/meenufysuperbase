@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import { Search, MapPin, Star, Clock, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
+import { db } from '../../utils/firebase';
+import { ref, onValue, get } from 'firebase/database';
 
 // Haversine formula to calculate distance in km between two sets of coordinates
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -49,7 +51,6 @@ const POPULAR_CUISINES = [
 
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&auto=format&fit=crop&q=60';
 const DEFAULT_LOGO = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100&auto=format&fit=crop&q=60';
-const databaseUrl = (import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://meenufy-default-rtdb.firebaseio.com').replace(/\/$/, '');
 
 const CITIES = [
   { name: 'Mumbai', lat: 19.0760, lon: 72.8777 },
@@ -99,34 +100,36 @@ export default function CustomerHome() {
   const [allCoupons, setAllCoupons] = useState<any[]>([]);
   const [selectedDeal, setSelectedDeal] = useState<any | null>(null);
 
-  // Fetch all active coupons from the global database node
+  // Fetch all active coupons from the global database node using Firebase SDK
   useEffect(() => {
-    fetch(`${databaseUrl}/coupons.json`)
-      .then(res => res.json())
-      .then(data => {
-        if (data) {
-          const list: any[] = [];
-          Object.entries(data).forEach(([rId, restCoupons]: [string, any]) => {
-            if (restCoupons) {
-              const cList = Array.isArray(restCoupons) ? restCoupons.filter(Boolean) : Object.values(restCoupons);
-              cList.forEach((c: any) => {
-                if (c && c.isActive) {
-                  list.push({ ...c, restaurantId: rId });
-                }
-              });
-            }
-          });
-          setAllCoupons(list);
-        } else {
-          setAllCoupons([]);
-        }
-      })
-      .catch(() => {
-        setAllCoupons([
-          { id: 'c1', code: 'MEENUFY50', type: 'percentage', value: 50, minOrderAmount: 200, isActive: true, restaurantId: 'admin-1' },
-          { id: 'c2', code: 'FREECOOK', type: 'flat', value: 100, minOrderAmount: 500, isActive: true, restaurantId: 'admin-1' },
-        ]);
-      });
+    const couponsRef = ref(db!, 'coupons');
+    const unsubscribe = onValue(couponsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list: any[] = [];
+        Object.entries(data).forEach(([rId, restCoupons]: [string, any]) => {
+          if (restCoupons) {
+            const cList = Array.isArray(restCoupons) ? restCoupons.filter(Boolean) : Object.values(restCoupons);
+            cList.forEach((c: any) => {
+              if (c && c.isActive) {
+                list.push({ ...c, restaurantId: rId });
+              }
+            });
+          }
+        });
+        setAllCoupons(list);
+      } else {
+        setAllCoupons([]);
+      }
+    }, (error) => {
+      console.error("Error fetching coupons: ", error);
+      setAllCoupons([
+        { id: 'c1', code: 'MEENUFY50', type: 'percentage', value: 50, minOrderAmount: 200, isActive: true, restaurantId: 'admin-1' },
+        { id: 'c2', code: 'FREECOOK', type: 'flat', value: 100, minOrderAmount: 500, isActive: true, restaurantId: 'admin-1' },
+      ]);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Cross-restaurant meals states
@@ -289,9 +292,9 @@ export default function CustomerHome() {
 
     setLoadingMeals(true);
     const promises = processedRestaurants.map(rest => {
-      return fetch(`${databaseUrl}/menuItems/${rest.id}.json`)
-        .then(res => res.json())
-        .then(data => {
+      return get(ref(db!, `menuItems/${rest.id}`))
+        .then(snapshot => {
+          const data = snapshot.val();
           if (data) {
             const mealsList = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
             return mealsList.map((meal: any) => ({
