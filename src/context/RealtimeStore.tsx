@@ -195,6 +195,8 @@ export type RestaurantInfo = {
   orderPopupEnabled?: boolean;
   daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>;
   taxPercentage?: number;
+  ratingsCount?: number;
+  promoText?: string;
   printWidth?: '58mm' | '80mm';
   printHeaderMessage?: string;
   printFooterMessage?: string;
@@ -337,6 +339,8 @@ export type RestaurantAccount = {
   rating?: number;
   bannerImage?: string;
   posterImage?: string;
+  ratingsCount?: number;
+  promoText?: string;
   daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>;
 };
 
@@ -3248,6 +3252,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (action.payload.rating !== undefined) accountUpdates.rating = action.payload.rating;
             if (action.payload.bannerImage) accountUpdates.bannerImage = action.payload.bannerImage;
             if (action.payload.posterImage) accountUpdates.posterImage = action.payload.posterImage;
+            if (action.payload.ratingsCount !== undefined) accountUpdates.ratingsCount = action.payload.ratingsCount;
+            if (action.payload.promoText !== undefined) accountUpdates.promoText = action.payload.promoText;
             
             if (Object.keys(accountUpdates).length > 0) {
               update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)

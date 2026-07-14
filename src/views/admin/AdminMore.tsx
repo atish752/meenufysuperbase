@@ -1885,6 +1885,47 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 </div>
               </div>
 
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label className="input-label">Rating (out of 5)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    max="5"
+                    placeholder="e.g. 4.6"
+                    value={restaurantForm.rating !== undefined ? restaurantForm.rating : ''}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, rating: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label className="input-label">Ratings Count (Number of raters)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 5485"
+                    value={restaurantForm.ratingsCount !== undefined ? restaurantForm.ratingsCount : ''}
+                    onChange={e => setRestaurantForm({ ...restaurantForm, ratingsCount: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Custom Promotional Banner Text (Attract Customers)</label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  maxLength={120}
+                  placeholder="e.g. Best Biryani in Delhi! Flat 20% OFF on all orders this week."
+                  value={restaurantForm.promoText || ''}
+                  onChange={e => setRestaurantForm({ ...restaurantForm, promoText: e.target.value })}
+                  style={{ resize: 'vertical' }}
+                />
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>* Displays at the top of your card on the home screen (Maximum 2 lines / 120 characters)</span>
+              </div>
+
 
               {/* Logo Settings */}
               <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>

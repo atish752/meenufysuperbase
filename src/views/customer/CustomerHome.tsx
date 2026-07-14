@@ -85,6 +85,42 @@ export default function CustomerHome() {
   // Filters
   const [sortBy, setSortBy] = useState<'distance' | 'rating' | 'none'>('none');
 
+  const [showFirstTimeCityModal, setShowFirstTimeCityModal] = useState(() => {
+    return !localStorage.getItem('meenufy_first_time_city_selected');
+  });
+  const [allCoupons, setAllCoupons] = useState<any[]>([]);
+  const [selectedDeal, setSelectedDeal] = useState<any | null>(null);
+
+  // Fetch all active coupons from the global database node
+  useEffect(() => {
+    fetch('https://meenufy-default-rtdb.firebaseio.com/coupons.json')
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          const list: any[] = [];
+          Object.entries(data).forEach(([rId, restCoupons]: [string, any]) => {
+            if (restCoupons) {
+              const cList = Array.isArray(restCoupons) ? restCoupons.filter(Boolean) : Object.values(restCoupons);
+              cList.forEach((c: any) => {
+                if (c && c.isActive) {
+                  list.push({ ...c, restaurantId: rId });
+                }
+              });
+            }
+          });
+          setAllCoupons(list);
+        } else {
+          setAllCoupons([]);
+        }
+      })
+      .catch(() => {
+        setAllCoupons([
+          { id: 'c1', code: 'MEENUFY50', type: 'percentage', value: 50, minOrderAmount: 200, isActive: true, restaurantId: 'admin-1' },
+          { id: 'c2', code: 'FREECOOK', type: 'flat', value: 100, minOrderAmount: 500, isActive: true, restaurantId: 'admin-1' },
+        ]);
+      });
+  }, []);
+
   // Cross-restaurant meals states
   const [nearbyMeals, setNearbyMeals] = useState<any[]>([]);
   const [loadingMeals, setLoadingMeals] = useState(false);
@@ -134,7 +170,7 @@ export default function CustomerHome() {
     } else if (cityVal === 'all') {
       // Mock coordinates to central position, but distance checking is bypassed in filter
       setCoords({ latitude: 12.9348, longitude: 77.6202 });
-      setAddressName('Global Browsing');
+      setAddressName('India Browsing');
     } else {
       const cityObj = CITIES.find(c => c.name === cityVal);
       if (cityObj) {
@@ -326,7 +362,7 @@ export default function CustomerHome() {
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               {selectedCity === 'all'
-                ? 'Radius limit: Worldwide'
+                ? 'Radius limit: India (All)'
                 : selectedCity === 'gps'
                 ? 'Radius limit: Within 15 km'
                 : `Radius limit: 15 km from ${selectedCity}`}
@@ -352,7 +388,7 @@ export default function CustomerHome() {
             }}
           >
             <option value="gps">📍 GPS Location</option>
-            <option value="all">🌍 Global (All)</option>
+            <option value="all">🇮🇳 India (All)</option>
             {CITIES.map(c => (
               <option key={c.name} value={c.name}>🌆 {c.name}</option>
             ))}
@@ -435,51 +471,125 @@ export default function CustomerHome() {
         /* Geolocation Allowed view */
         <>
           {/* Offers and Promo Banner Carousel */}
-          <div style={{ padding: '16px 20px 8px' }}>
-            <h3 style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 12, color: 'var(--text-secondary)' }}>
+          <div style={{ padding: '16px 0 8px' }}>
+            <h3 style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 12, paddingLeft: 20, color: 'var(--text-secondary)' }}>
               DEALS FOR YOU 🎁
             </h3>
-            <div style={{
-              display: 'flex',
-              gap: 12,
-              overflowX: 'auto',
-              paddingBottom: 8,
-              scrollSnapType: 'x mandatory'
-            }} className="hide-scrollbar">
-              {[
-                { id: 1, title: '50% OFF UP TO ₹100', subtitle: 'On your first delivery order', bg: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)', code: 'MEENUFY50' },
-                { id: 2, title: 'FREE DELIVERY', subtitle: 'On orders above ₹199', bg: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', code: 'FREECOOK' },
-                { id: 3, title: 'FLAT ₹75 CASHBACK', subtitle: 'Using UPI payment options', bg: 'linear-gradient(135deg, #10B981 0%, #047857 100%)', code: 'UPISAVE' }
-              ].map(promo => (
-                <div
-                  key={promo.id}
-                  style={{
-                    flex: '0 0 280px',
-                    height: 120,
-                    background: promo.bg,
-                    borderRadius: 14,
-                    padding: '16px',
-                    color: '#ffffff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    scrollSnapAlign: 'start',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 900, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>{promo.title}</div>
-                    <div style={{ fontSize: 11, opacity: 0.9, marginTop: 4 }}>{promo.subtitle}</div>
+            {(() => {
+              const nearbyRestaurantIds = new Set(processedRestaurants.map(r => r.id));
+              const filteredCoupons = allCoupons.filter(c => nearbyRestaurantIds.has(c.restaurantId));
+              const row1Coupons = filteredCoupons.filter((_, idx) => idx % 2 === 0);
+              const row2Coupons = filteredCoupons.filter((_, idx) => idx % 2 !== 0);
+
+              const loopRow1 = [...row1Coupons, ...row1Coupons, ...row1Coupons];
+              const loopRow2 = [...row2Coupons, ...row2Coupons, ...row2Coupons];
+
+              if (filteredCoupons.length === 0) {
+                return (
+                  <div style={{
+                    margin: '0 20px',
+                    textAlign: 'center',
+                    padding: '24px 20px',
+                    background: 'var(--bg-elevated)',
+                    borderRadius: 16,
+                    fontSize: 12,
+                    color: 'var(--text-muted)',
+                    border: '1px dashed var(--border)'
+                  }}>
+                    📢 No active restaurant offers in this city right now. Try switching to "India (All)"!
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
-                      CODE: {promo.code}
-                    </span>
-                    <ArrowRight size={14} />
-                  </div>
+                );
+              }
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflow: 'hidden', padding: '4px 0' }}>
+                  <style>{`
+                    @keyframes marquee-left {
+                      0% { transform: translateX(0); }
+                      100% { transform: translateX(-33.33%); }
+                    }
+                    .marquee-row {
+                      display: flex;
+                      white-space: nowrap;
+                      width: max-content;
+                    }
+                    .marquee-row-1 {
+                      animation: marquee-left 28s linear infinite;
+                    }
+                    .marquee-row-2 {
+                      animation: marquee-left 22s linear infinite;
+                    }
+                    .marquee-item {
+                      display: inline-flex;
+                      align-items: center;
+                      gap: 6px;
+                      background: rgba(255, 125, 0, 0.08);
+                      border: 1px solid rgba(255, 125, 0, 0.15);
+                      border-radius: 99px;
+                      padding: 6px 14px;
+                      margin-right: 12px;
+                      cursor: pointer;
+                      font-size: 11px;
+                      font-weight: 700;
+                      color: var(--brand);
+                      box-shadow: var(--shadow-sm);
+                      transition: transform 0.15s ease;
+                      user-select: none;
+                    }
+                    .marquee-item:hover {
+                      transform: scale(1.03);
+                      border-color: var(--brand);
+                    }
+                  `}</style>
+
+                  {row1Coupons.length > 0 && (
+                    <div style={{ overflow: 'hidden', width: '100%' }}>
+                      <div className="marquee-row marquee-row-1">
+                        {loopRow1.map((c, i) => {
+                          const rest = allAccounts.find(r => r.id === c.restaurantId);
+                          const restName = rest?.restaurantName || 'Restaurant';
+                          const desc = c.type === 'percentage'
+                            ? `Get ${c.value}% OFF on order above ₹${c.minOrderAmount || 0}`
+                            : `Flat ₹${c.value} OFF on order above ₹${c.minOrderAmount || 0}`;
+                          return (
+                            <div
+                              key={`row1-${c.id}-${i}`}
+                              className="marquee-item"
+                              onClick={() => setSelectedDeal({ coupon: c, restaurant: rest })}
+                            >
+                              <span>🏷️</span> <strong style={{ color: 'var(--text-primary)' }}>{restName}:</strong> {desc}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {row2Coupons.length > 0 && (
+                    <div style={{ overflow: 'hidden', width: '100%' }}>
+                      <div className="marquee-row marquee-row-2">
+                        {loopRow2.map((c, i) => {
+                          const rest = allAccounts.find(r => r.id === c.restaurantId);
+                          const restName = rest?.restaurantName || 'Restaurant';
+                          const desc = c.type === 'percentage'
+                            ? `Get ${c.value}% OFF on order above ₹${c.minOrderAmount || 0}`
+                            : `Flat ₹${c.value} OFF on order above ₹${c.minOrderAmount || 0}`;
+                          return (
+                            <div
+                              key={`row2-${c.id}-${i}`}
+                              className="marquee-item"
+                              onClick={() => setSelectedDeal({ coupon: c, restaurant: rest })}
+                            >
+                              <span>🏷️</span> <strong style={{ color: 'var(--text-primary)' }}>{restName}:</strong> {desc}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
 
           {/* Cuisines circular list */}
@@ -796,88 +906,115 @@ export default function CustomerHome() {
                         onClick={() => handleOpenRestaurant(acc.id)}
                         style={{
                           display: 'flex',
+                          flexDirection: 'column',
                           background: 'var(--bg-elevated)',
                           border: '1px solid var(--border)',
                           borderRadius: 16,
                           overflow: 'hidden',
                           cursor: 'pointer',
                           boxShadow: 'var(--shadow)',
-                          minHeight: 125,
                           transition: 'transform 0.2s'
                         }}
                       >
-                        {/* Left Side: Restaurant Profile Image (Square) */}
-                        <div style={{ width: 125, height: 125, position: 'relative', background: 'var(--border-dim)', flexShrink: 0 }}>
-                          <img
-                            src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
-                            alt={acc.restaurantName}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        </div>
+                        {/* Orange Promotional Banner at the top of the card */}
+                        {acc.promoText && (
+                          <div style={{
+                            background: 'linear-gradient(90deg, #F97316 0%, #EA580C 100%)',
+                            color: '#ffffff',
+                            fontSize: 10,
+                            fontWeight: 800,
+                            padding: '6px 14px',
+                            lineHeight: '1.4',
+                            textAlign: 'left',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            borderBottom: '1px solid var(--border)',
+                          }}>
+                            📢 {acc.promoText}
+                          </div>
+                        )}
 
-                        {/* Right Side: Details (60% width) */}
-                        <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
-                          <div>
-                            {/* Header with Logo */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                              <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {acc.restaurantName}
-                              </h4>
-                              
-                              {/* Logo Image */}
-                              <div style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: '50%',
-                                border: '1px solid var(--border)',
-                                overflow: 'hidden',
-                                background: '#ffffff',
-                                flexShrink: 0
-                              }}>
-                                <img
-                                  src={acc.logo || DEFAULT_LOGO}
-                                  alt={acc.restaurantName}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                              </div>
-                            </div>
-
-                            <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: '4px 0 0', display: '-webkit-box', WebkitLineClamp: '1', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                              {acc.tagline || 'Flavors you will love'}
-                            </p>
-
-                            <p style={{ fontSize: 9, color: 'var(--text-muted)', margin: '2px 0 0', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: '1', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                              {acc.cuisines || 'North Indian • Chinese • Fast Food'}
-                            </p>
+                        <div style={{ display: 'flex', flex: 1 }}>
+                          {/* Left Side: Restaurant Profile Image (Square) */}
+                          <div style={{ width: 125, height: 125, position: 'relative', background: 'var(--border-dim)', flexShrink: 0 }}>
+                            <img
+                              src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
+                              alt={acc.restaurantName}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
                           </div>
 
-                          {/* Distance, Rating & Delivery */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 8, borderTop: '1px dashed var(--border)', paddingTop: 8 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-secondary)' }}>
-                                <Clock size={11} color="var(--brand)" />
-                                <span style={{ fontWeight: 700 }}>{acc.distance.toFixed(1)} km</span>
+                          {/* Right Side: Details (60% width) */}
+                          <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', minWidth: 0 }}>
+                            <div>
+                              {/* Header with Logo */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                                <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                  {acc.restaurantName}
+                                </h4>
+                                
+                                {/* Logo Image */}
+                                <div style={{
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: '50%',
+                                  border: '1px solid var(--border)',
+                                  overflow: 'hidden',
+                                  background: '#ffffff',
+                                  flexShrink: 0
+                                }}>
+                                  <img
+                                    src={acc.logo || DEFAULT_LOGO}
+                                    alt={acc.restaurantName}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                </div>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#10B981' }}>
-                                <Award size={11} color="#10B981" />
-                                <span style={{ fontWeight: 800 }}>Free</span>
-                              </div>
+
+                              <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: '4px 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {acc.tagline || 'Flavors you will love'}
+                              </p>
+
+                              <p style={{ fontSize: 9, color: 'var(--text-muted)', margin: '2px 0 0', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {acc.cuisines || 'North Indian • Chinese • Fast Food'}
+                              </p>
                             </div>
 
-                            {/* Rating Badge */}
-                            <div style={{
-                              background: '#22c55e',
-                              color: '#ffffff',
-                              fontSize: 9,
-                              fontWeight: 900,
-                              padding: '2px 6px',
-                              borderRadius: 6,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 2
-                            }}>
-                              <span>{acc.rating || 4.2}</span>
-                              <Star size={9} fill="#ffffff" stroke="none" />
+                            {/* Distance, Rating & Delivery */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 8, borderTop: '1px dashed var(--border)', paddingTop: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-secondary)' }}>
+                                  <Clock size={11} color="var(--brand)" />
+                                  <span style={{ fontWeight: 700 }}>{acc.distance.toFixed(1)} km</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#10B981' }}>
+                                  <Award size={11} color="#10B981" />
+                                  <span style={{ fontWeight: 800 }}>Free</span>
+                                </div>
+                              </div>
+
+                              {/* Rating Badge & Count */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <div style={{
+                                  background: '#22c55e',
+                                  color: '#ffffff',
+                                  fontSize: 9,
+                                  fontWeight: 900,
+                                  padding: '2px 6px',
+                                  borderRadius: 6,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 2
+                                }}>
+                                  <span>{acc.rating || 4.2}</span>
+                                  <Star size={9} fill="#ffffff" stroke="none" />
+                                </div>
+                                <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>
+                                  ({acc.ratingsCount || ((acc.id.charCodeAt(5) || 5) * 128 + 84)})
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -889,6 +1026,229 @@ export default function CustomerHome() {
             </>
           )}
         </>
+      )}
+
+
+      {/* 1. First-Time City Selector Popup Modal */}
+      {showFirstTimeCityModal && (
+        <div className="modal-backdrop" style={{ zIndex: 1200, background: 'rgba(10, 10, 10, 0.95)', backdropFilter: 'blur(16px)' }}>
+          <div className="modal-content" style={{ maxWidth: 380, padding: 24, borderRadius: 18, border: '1px solid var(--border)', textAlign: 'center' }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>🍕</div>
+            <h3 style={{ fontSize: 18, fontWeight: 900, fontFamily: 'var(--font-display)', color: '#fff', marginBottom: 6 }}>
+              Welcome to Meenufy!
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: 20 }}>
+              Choose a city to explore delicious cuisines, or enable GPS to find restaurants nearby.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* GPS Option */}
+              <button
+                onClick={() => {
+                  handleCityChange('gps');
+                  localStorage.setItem('meenufy_first_time_city_selected', 'true');
+                  setShowFirstTimeCityModal(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                  border: 'none',
+                  borderRadius: 12,
+                  color: '#000',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(255,125,0,0.2)'
+                }}
+              >
+                📍 Use GPS Live Location
+              </button>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 6 }}>
+                {CITIES.map(c => (
+                  <button
+                    key={c.name}
+                    onClick={() => {
+                      handleCityChange(c.name);
+                      localStorage.setItem('meenufy_first_time_city_selected', 'true');
+                      setShowFirstTimeCityModal(false);
+                    }}
+                    style={{
+                      padding: '10px',
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      color: 'var(--text-primary)',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    🌆 {c.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* India All Option */}
+              <button
+                onClick={() => {
+                  handleCityChange('all');
+                  localStorage.setItem('meenufy_first_time_city_selected', 'true');
+                  setShowFirstTimeCityModal(false);
+                }}
+                style={{
+                  padding: '10px',
+                  background: 'var(--border)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  color: 'var(--text-primary)',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  marginTop: 6
+                }}
+              >
+                🇮🇳 India (All)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Coupon Deal Details Popup Modal */}
+      {selectedDeal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setSelectedDeal(null)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: 360, padding: 24, position: 'relative', borderRadius: 16 }}>
+            <button
+              onClick={() => setSelectedDeal(null)}
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                background: 'var(--border)',
+                border: 'none',
+                borderRadius: '50%',
+                width: 28,
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                zIndex: 10
+              }}
+            >
+              <X size={16} />
+            </button>
+
+            <h3 style={{ fontSize: 16, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              🎁 Exclusive Restaurant Offer
+            </h3>
+
+            {/* Clickable Restaurant Header Link */}
+            <div
+              onClick={() => {
+                if (selectedDeal.restaurant) {
+                  handleOpenRestaurant(selectedDeal.restaurant.id);
+                  setSelectedDeal(null);
+                }
+              }}
+              style={{
+                background: 'rgba(255, 125, 0, 0.05)',
+                border: '1px solid var(--brand)',
+                borderRadius: 12,
+                padding: 12,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                marginBottom: 16,
+                transition: 'all 0.2s'
+              }}
+              title="Click to visit restaurant profile menu"
+            >
+              {/* Logo */}
+              <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', background: '#fff', border: '1px solid var(--border)', flexShrink: 0 }}>
+                <img
+                  src={selectedDeal.restaurant?.logo || DEFAULT_LOGO}
+                  alt={selectedDeal.restaurant?.restaurantName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  🏢 <span style={{ textDecoration: 'underline' }}>{selectedDeal.restaurant?.restaurantName}</span>
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedDeal.restaurant?.tagline || 'Tap to view full menu'}
+                </div>
+              </div>
+            </div>
+
+            {/* Offer details */}
+            <div style={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12
+            }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Coupon Code</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <span style={{
+                    fontSize: 14,
+                    fontWeight: 900,
+                    letterSpacing: '0.04em',
+                    color: 'var(--brand)',
+                    background: 'rgba(255, 125, 0, 0.1)',
+                    border: '1.5px dashed var(--brand)',
+                    padding: '4px 12px',
+                    borderRadius: 6,
+                    fontFamily: 'monospace'
+                  }}>
+                    {selectedDeal.coupon?.code}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedDeal.coupon?.code);
+                      addToast('success', `📋 Copied code: ${selectedDeal.coupon?.code}`);
+                    }}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: '#fff',
+                      background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Copy Code
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Offer Description</div>
+                <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 700, marginTop: 4 }}>
+                  {selectedDeal.coupon?.type === 'percentage'
+                    ? `Get ${selectedDeal.coupon?.value}% OFF on order${selectedDeal.coupon?.minOrderAmount ? ` above ₹${selectedDeal.coupon?.minOrderAmount}` : ''}`
+                    : `Flat ₹${selectedDeal.coupon?.value} OFF on order${selectedDeal.coupon?.minOrderAmount ? ` above ₹${selectedDeal.coupon?.minOrderAmount}` : ''}`
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
