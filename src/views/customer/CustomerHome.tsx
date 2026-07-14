@@ -98,7 +98,8 @@ export default function CustomerHome() {
     return !localStorage.getItem('meenufy_first_time_city_selected');
   });
   const [selectedDeal, setSelectedDeal] = useState<any | null>(null);
-  const [allCoupons, setAllCoupons] = useState<any[]>([]);
+  // Use global state coupons directly so they persist across navigation
+  const allCoupons = state.coupons || [];
 
   // Cross-restaurant meals states
   const [nearbyMeals, setNearbyMeals] = useState<any[]>([]);
@@ -286,17 +287,16 @@ export default function CustomerHome() {
       return matchesSearch;
     });
 
-  // Fetch meals and coupons from all nearby restaurants in parallel when coordinates are active
+  // Fetch meals from all nearby restaurants in parallel when coordinates are active
   useEffect(() => {
     if (!coords || processedRestaurants.length === 0) {
       setNearbyMeals([]);
-      setAllCoupons([]);
       return;
     }
 
     setLoadingMeals(true);
 
-    // 1. Fetch meals
+    // Fetch meals from nearby restaurants for the cuisine/search filter section
     const mealPromises = processedRestaurants.map(rest => {
       return get(ref(db!, `menuItems/${rest.id}`))
         .then(snapshot => {
@@ -317,26 +317,8 @@ export default function CustomerHome() {
         .catch(() => []);
     });
 
-    // 2. Fetch coupons
-    const couponPromises = processedRestaurants.map(rest => {
-      return get(ref(db!, `coupons/${rest.id}`))
-        .then(snapshot => {
-          const data = snapshot.val();
-          if (data) {
-            const couponsList = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
-            return couponsList.filter((c: any) => c && c.isActive).map((c: any) => ({
-              ...c,
-              restaurantId: rest.id
-            }));
-          }
-          return [];
-        })
-        .catch(() => []);
-    });
-
-    Promise.all([Promise.all(mealPromises), Promise.all(couponPromises)]).then(([mealResults, couponResults]) => {
+    Promise.all(mealPromises).then(mealResults => {
       setNearbyMeals(mealResults.flat());
-      setAllCoupons(couponResults.flat());
       setLoadingMeals(false);
     });
   }, [coords, processedRestaurants.map(r => r.id).join(',')]);
@@ -397,7 +379,7 @@ export default function CustomerHome() {
       minHeight: '100vh',
       color: 'var(--text-primary)',
       fontFamily: 'var(--font-sans)',
-      paddingBottom: 120,
+      paddingBottom: 160,
       animation: 'fadeIn 0.2s ease-in-out'
     }}>
       {/* Location Header */}
@@ -534,8 +516,10 @@ export default function CustomerHome() {
               DEALS FOR YOU 🎁
             </h3>
             {(() => {
-              const nearbyRestaurantIds = new Set(processedRestaurants.map(r => r.id));
-              const filteredCoupons = allCoupons.filter(c => c.restaurantId && nearbyRestaurantIds.has(c.restaurantId));
+              // Show deals from ALL active restaurants (not just nearby ones)
+              // so they persist even when processedRestaurants briefly recalculates after navigation
+              const activeRestaurantIds = new Set(allAccounts.filter(a => a.status === 'active').map(r => r.id));
+              const filteredCoupons = allCoupons.filter(c => c.isActive !== false && c.restaurantId && activeRestaurantIds.has(c.restaurantId));
               const row1Coupons = filteredCoupons.filter((_, idx) => idx % 2 === 0);
               const row2Coupons = filteredCoupons.filter((_, idx) => idx % 2 !== 0);
 
@@ -979,19 +963,21 @@ export default function CustomerHome() {
                         style={{
                           display: 'flex',
                           flexDirection: 'column',
-                          background: 'var(--bg-elevated)',
-                          border: '1px solid var(--border)',
+                          background: 'linear-gradient(135deg, #F97316 0%, #EA580C 80%, #C2410C 100%)',
+                          border: 'none',
                           borderRadius: 16,
                           overflow: 'hidden',
                           cursor: 'pointer',
-                          boxShadow: 'var(--shadow)',
-                          transition: 'transform 0.2s'
+                          boxShadow: '0 4px 16px rgba(249,115,22,0.35)',
+                          transition: 'transform 0.2s, box-shadow 0.2s'
                         }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(249,115,22,0.45)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(249,115,22,0.35)'; }}
                       >
                         {/* Orange Promotional Banner at the top of the card */}
                         {acc.promoText && (
                           <div style={{
-                            background: 'linear-gradient(90deg, #F97316 0%, #EA580C 100%)',
+                            background: 'rgba(0,0,0,0.25)',
                             color: '#ffffff',
                             fontSize: 10,
                             fontWeight: 800,
@@ -1002,15 +988,15 @@ export default function CustomerHome() {
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            borderBottom: '1px solid var(--border)',
+                            borderBottom: '1px solid rgba(255,255,255,0.15)',
                           }}>
                             📢 {acc.promoText}
                           </div>
                         )}
 
                         <div style={{ display: 'flex', flex: 1 }}>
-                          {/* Left Side: Restaurant Profile Image (Square with curved left edges) */}
-                          <div style={{ width: 125, height: 125, position: 'relative', background: 'var(--border-dim)', flexShrink: 0, borderTopLeftRadius: acc.promoText ? 0 : 16, borderBottomLeftRadius: 16, overflow: 'hidden' }}>
+                          {/* Left Side: Restaurant Profile Image */}
+                          <div style={{ width: 125, height: 125, position: 'relative', background: 'rgba(0,0,0,0.15)', flexShrink: 0, borderTopLeftRadius: acc.promoText ? 0 : 16, borderBottomLeftRadius: 16, overflow: 'hidden' }}>
                             <img
                               src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
                               alt={acc.restaurantName}
@@ -1018,12 +1004,12 @@ export default function CustomerHome() {
                             />
                           </div>
 
-                          {/* Right Side: Details (half size) */}
+                          {/* Right Side: Details */}
                           <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', minWidth: 0 }}>
                             <div>
                               {/* Header with Logo on Top Right */}
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                                <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--brand)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: '#ffffff', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
                                   {acc.restaurantName}
                                 </h4>
                                 
@@ -1045,20 +1031,20 @@ export default function CustomerHome() {
                                 </div>
                               </div>
 
-                              <p style={{ fontSize: 9, color: 'var(--text-muted)', margin: '2px 0 0', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)', margin: '2px 0 0', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                 {acc.cuisines || 'North Indian • Chinese • Fast Food'}
                               </p>
                             </div>
 
                             {/* Distance, Rating & Delivery */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 8, borderTop: '1px dashed var(--border)', paddingTop: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: 8 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-secondary)' }}>
-                                  <Clock size={11} color="var(--brand)" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'rgba(255,255,255,0.9)' }}>
+                                  <Clock size={11} color="rgba(255,255,255,0.9)" />
                                   <span style={{ fontWeight: 700 }}>{acc.distance.toFixed(1)} km</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#10B981' }}>
-                                  <Award size={11} color="#10B981" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#86efac' }}>
+                                  <Award size={11} color="#86efac" />
                                   <span style={{ fontWeight: 800 }}>Free</span>
                                 </div>
                               </div>
@@ -1066,8 +1052,8 @@ export default function CustomerHome() {
                               {/* Rating Badge & Count */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 <div style={{
-                                  background: '#22c55e',
-                                  color: '#ffffff',
+                                  background: 'rgba(255,255,255,0.9)',
+                                  color: '#16a34a',
                                   fontSize: 9,
                                   fontWeight: 900,
                                   padding: '2px 6px',
@@ -1077,9 +1063,9 @@ export default function CustomerHome() {
                                   gap: 2
                                 }}>
                                   <span>{acc.rating || 4.2}</span>
-                                  <Star size={9} fill="#ffffff" stroke="none" />
+                                  <Star size={9} fill="#16a34a" stroke="none" />
                                 </div>
-                                <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>
+                                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
                                   ({acc.ratingsCount || ((acc.id.charCodeAt(5) || 5) * 128 + 84)})
                                 </span>
                               </div>
@@ -1090,6 +1076,59 @@ export default function CustomerHome() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Meenufy Footer — extra scroll space + brand tagline */}
+              <div style={{
+                margin: '32px 20px 0',
+                padding: '28px 20px',
+                background: 'linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(234,88,12,0.06) 100%)',
+                border: '1px solid rgba(249,115,22,0.2)',
+                borderRadius: 20,
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>🍽️</div>
+                <div style={{
+                  fontSize: 18,
+                  fontWeight: 900,
+                  fontFamily: 'var(--font-display)',
+                  background: 'linear-gradient(90deg, #F97316, #EA580C)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  marginBottom: 8
+                }}>Meenufy</div>
+                <p style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  margin: '0 0 6px',
+                  lineHeight: 1.5
+                }}>
+                  "Your favourite restaurant, one tap away."
+                </p>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                  Browse menus · Scan QR codes · Order at the table · Track in real-time
+                </p>
+                <div style={{
+                  marginTop: 16,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 20,
+                  flexWrap: 'wrap'
+                }}>
+                  {['🚀 Instant Menus', '💳 Easy Ordering', '🔔 Live Updates', '⭐ Trusted by restaurants'].map(feat => (
+                    <span key={feat} style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: 'var(--brand)',
+                      background: 'rgba(249,115,22,0.1)',
+                      padding: '4px 10px',
+                      borderRadius: 99,
+                      border: '1px solid rgba(249,115,22,0.2)'
+                    }}>{feat}</span>
+                  ))}
+                </div>
               </div>
             </>
           )}
