@@ -400,18 +400,25 @@ export default function CustomerHome() {
         top: 0,
         zIndex: 30
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <MapPin size={18} color="var(--brand)" />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              {addressName}
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-              {selectedCity === 'all'
-                ? 'Radius limit: India (All)'
-                : selectedCity === 'gps'
-                ? 'Radius limit: Within 15 km'
-                : `Radius limit: 15 km from ${selectedCity}`}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img 
+            src={customerTheme === 'light' ? '/meenufy_logo_transparent.png' : '/meenufy_logo_white.png'} 
+            alt="Meenufy Logo" 
+            style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }} 
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <MapPin size={18} color="var(--brand)" style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {addressName}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                {selectedCity === 'all'
+                  ? 'Radius limit: India (All)'
+                  : selectedCity === 'gps'
+                  ? 'Radius limit: Within 15 km'
+                  : `Radius limit: 15 km from ${selectedCity}`}
+              </div>
             </div>
           </div>
         </div>

@@ -451,6 +451,24 @@ export default function CustomerMenu() {
     return (a.rank || 0) - (b.rank || 0);
   });
 
+  const checkAndClearCartForDifferentRestaurant = (itemId: string): boolean => {
+    const cartItem = state.cart[0];
+    if (cartItem) {
+      const firstCartItemInfo = state.menuItems.find(i => i.id === cartItem.menuItemId);
+      const currentItemInfo = state.menuItems.find(i => i.id === itemId);
+      if (firstCartItemInfo && currentItemInfo && firstCartItemInfo.restaurantId !== currentItemInfo.restaurantId) {
+        const confirmClear = window.confirm("Your cart contains items from another restaurant. Would you like to clear your cart to add items from this restaurant?");
+        if (confirmClear) {
+          dispatch({ type: 'CLEAR_CART' });
+          return true;
+        } else {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
   const handleAddToCart = (item: MenuItem) => {
     if (isLimitExceeded) {
       addToast('error', isHardLimitReached
@@ -459,6 +477,7 @@ export default function CustomerMenu() {
       );
       return;
     }
+    if (!checkAndClearCartForDifferentRestaurant(item.id)) return;
     if (item.variants && item.variants.length > 0) {
       handleOpenVariantModal(item);
       return;
@@ -489,6 +508,7 @@ export default function CustomerMenu() {
     }
     const item = state.menuItems.find(i => i.id === itemId);
     if (!item) return;
+    if (!checkAndClearCartForDifferentRestaurant(itemId)) return;
     if (item.variants && item.variants.length > 0) {
       handleOpenVariantModal(item);
       return;

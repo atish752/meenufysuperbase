@@ -1235,15 +1235,43 @@ export default function CustomerLayout({ tableId }: Props) {
                         margin: '0 auto 12px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                       }}>
-                        <img 
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`upi://pay?pa=hideoutcafe@upi&pn=Hideout%20Cafe&am=${totalBillAmount}&cu=INR`)}`}
-                          style={{ width: 160, height: 160, display: 'block' }} 
-                          alt="UPI QR Code" 
-                        />
+                        {restaurant?.upiQrCode ? (
+                          <img 
+                            src={restaurant.upiQrCode}
+                            style={{ width: 160, height: 160, display: 'block', objectFit: 'contain' }} 
+                            alt="UPI QR Code" 
+                          />
+                        ) : (
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`upi://pay?pa=${restaurant?.upiId || 'hideoutcafe@upi'}&pn=${encodeURIComponent(restaurant?.name || 'Restaurant')}&am=${totalBillAmount}&cu=INR`)}`}
+                            style={{ width: 160, height: 160, display: 'block' }} 
+                            alt="UPI QR Code" 
+                          />
+                        )}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>Scan with GPay, PhonePe, Paytm</div>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>UPI ID: hideoutcafe@upi</div>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--brand)', marginTop: 4 }}>₹{totalBillAmount}</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 }}>
+                        <span>UPI ID: {restaurant?.upiId || 'hideoutcafe@upi'}</span>
+                        <button
+                          type="button"
+                          onClick={() => { 
+                            navigator.clipboard.writeText(restaurant?.upiId || 'hideoutcafe@upi'); 
+                            addToast('success', 'UPI ID copied! 📋'); 
+                          }}
+                          style={{
+                            background: 'var(--brand-dim)', 
+                            border: '1px solid var(--border-brand)',
+                            color: 'var(--brand)', 
+                            fontWeight: 800, 
+                            fontSize: 10,
+                            padding: '3px 8px', 
+                            borderRadius: 6, 
+                            cursor: 'pointer',
+                            marginLeft: 4
+                          }}
+                        >Copy</button>
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--brand)', marginTop: 8 }}>₹{totalBillAmount}</div>
                     </div>
 
                     <button
