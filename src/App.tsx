@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, useState } from 'react';
 import { StoreProvider, useStore } from './context/RealtimeStore';
 import CustomerLayout from './views/customer/CustomerLayout';
 import ToastContainer from './components/ToastContainer';
@@ -8,15 +8,40 @@ import SplashScreen from './components/SplashScreen';
 const AdminLayout = lazy(() => import('./views/admin/AdminLayout'));
 const OnboardingFlow = lazy(() => import('./views/admin/OnboardingFlow'));
 
+function getPathname() {
+  return typeof window !== 'undefined' ? window.location.pathname : '/';
+}
+
+function getSearch() {
+  return typeof window !== 'undefined' ? window.location.search : '';
+}
+
 function AppInner() {
   const { state } = useStore();
 
-  // Check URL params to determine view
+  // Reactive URL tracking — re-renders when path or search changes
+  const [pathname, setPathname] = useState(getPathname);
+  const [search, setSearch] = useState(getSearch);
+
   useEffect(() => {
-    // Customer view is accessed via /?view=customer&table=TABLE_ID
+    const onNav = () => {
+      setPathname(window.location.pathname);
+      setSearch(window.location.search);
+    };
+    window.addEventListener('popstate', onNav);
+    // Also handle pushState / replaceState by patching them
+    const origPush = history.pushState.bind(history);
+    const origReplace = history.replaceState.bind(history);
+    history.pushState = (...args) => { origPush(...args); onNav(); };
+    history.replaceState = (...args) => { origReplace(...args); onNav(); };
+    return () => {
+      window.removeEventListener('popstate', onNav);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+    };
   }, []);
 
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(search);
   const viewParam = urlParams.get('view');
   const tableParam = urlParams.get('table');
 
@@ -31,16 +56,15 @@ function AppInner() {
   const currentAccount = state.restaurantAccounts?.find(acc => acc.id === state.admin?.id);
   const dbHasCompleted = currentAccount ? currentAccount.hasCompletedOnboarding === true : null;
 
-  // Route to onboarding if URL param is onboarding, or accessing '/onboarding'
-  const isOnboarding = 
-    window.location.pathname === '/onboarding' || 
-    window.location.pathname === '/onboarding/' || 
-    viewParam === 'onboarding' || 
-    (state.isAdminLoggedIn && 
-     !state.admin?.isSuperAdmin && 
-     !state.admin?.isStaff && 
-     !state.admin?.isDeliveryBoy && 
-     dbHasCompleted === false); 
+  const isOnboarding =
+    pathname === '/onboarding' ||
+    pathname === '/onboarding/' ||
+    viewParam === 'onboarding' ||
+    (state.isAdminLoggedIn &&
+     !state.admin?.isSuperAdmin &&
+     !state.admin?.isStaff &&
+     !state.admin?.isDeliveryBoy &&
+     dbHasCompleted === false);
 
   if (isOnboarding) {
     return (
@@ -51,8 +75,12 @@ function AppInner() {
   }
 
   // Explicitly check for admin route:
-  // If path is '/admin' or '/admin/' or has viewParam === 'admin', ALWAYS route to Admin view.
-  const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname === '/admin/' || viewParam === 'admin';
+  // /admin or /admin/ or ?view=admin -> ALWAYS show admin panel
+  const isAdminRoute =
+    pathname === '/admin' ||
+    pathname === '/admin/' ||
+    pathname.startsWith('/admin/') ||
+    viewParam === 'admin';
 
   if (isAdminRoute) {
     return (
@@ -62,15 +90,18 @@ function AppInner() {
     );
   }
 
-  // Route to customer view if URL param is customer, or accessing '/' or '/home'
-  const isHomePath = window.location.pathname === '/' || window.location.pathname === '/home' || window.location.pathname === '/home/';
-  const isCustomerView = viewParam === 'customer' || isHomePath;
+  // Customer route: '/' or '/home' or viewParam=customer
+  const isCustomerRoute =
+    pathname === '/' ||
+    pathname === '/home' ||
+    pathname === '/home/' ||
+    viewParam === 'customer';
 
-  if (isCustomerView) {
+  if (isCustomerRoute) {
     return <CustomerLayout tableId={tableParam || 'table-1'} />;
   }
 
-  // Fallback default: show customer layout for any other undefined routes
+  // Fallback: restaurant QR code scans or unknown paths -> customer view
   return <CustomerLayout tableId={tableParam || 'table-1'} />;
 }
 
