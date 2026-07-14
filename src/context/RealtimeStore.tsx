@@ -2137,7 +2137,7 @@ export function getActiveRestaurantId(state: AppState): string {
   const viewParam = urlParams.get('view');
   
   const isAdminView = viewParam === 'admin' || viewParam === 'onboarding' || 
-                      (state.isAdminLoggedIn && viewParam !== 'customer' && window.location.pathname !== '/home' && window.location.pathname !== '/onboarding');
+                      (state.isAdminLoggedIn && viewParam !== 'customer' && window.location.pathname !== '/' && window.location.pathname !== '/home' && window.location.pathname !== '/onboarding');
   if (isAdminView && state.admin?.restaurantId) {
     return state.admin.restaurantId;
   }

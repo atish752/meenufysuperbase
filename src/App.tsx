@@ -48,13 +48,15 @@ function AppInner() {
     );
   }
 
-  // Route to customer view if URL param present or accessing /home
-  const isHomePath = window.location.pathname === '/home';
-  if (viewParam === 'customer' || isHomePath) {
+  // Route to customer view if URL param is customer, or accessing '/' or '/home'
+  const isHomePath = window.location.pathname === '/' || window.location.pathname === '/home';
+  const isCustomerView = viewParam === 'customer' || (isHomePath && viewParam !== 'admin' && window.location.pathname !== '/admin');
+
+  if (isCustomerView) {
     return <CustomerLayout tableId={tableParam || 'table-1'} />;
   }
 
-  // Admin view
+  // Otherwise, default to Admin Layout (for /admin or other admin paths)
   return (
     <Suspense fallback={<SplashScreen />}>
       <AdminLayout />

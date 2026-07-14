@@ -174,7 +174,7 @@ export default function CustomerLayout({ tableId }: Props) {
   };
 
   const urlParams = new URLSearchParams(window.location.search);
-  const isViewOnly = urlParams.get('viewOnly') === 'true' || window.location.pathname === '/home';
+  const isViewOnly = urlParams.get('viewOnly') === 'true' || window.location.pathname === '/' || window.location.pathname === '/home';
 
   useEffect(() => {
     dispatch({ type: 'SET_CUSTOMER_TABLE', payload: tableId });
