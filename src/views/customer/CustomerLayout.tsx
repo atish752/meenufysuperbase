@@ -180,8 +180,19 @@ export default function CustomerLayout({ tableId }: Props) {
     dispatch({ type: 'SET_CUSTOMER_TABLE', payload: tableId });
     dispatch({ type: 'SET_VIEW', payload: 'customer' });
 
-    // Always derive restaurantId from URL params (most reliable - doesn't depend on admin login state)
-    const rId = urlParams.get('restaurant') || getActiveRestaurantId(state);
+    const currentPath = window.location.pathname;
+    const isRootOrHome = currentPath === '/' || currentPath === '/home' || currentPath === '/home/';
+    const restaurantParam = urlParams.get('restaurant');
+
+    // If on root path with no restaurant param, always reset to home browse screen
+    if (isRootOrHome && !restaurantParam) {
+      dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: null });
+      localStorage.removeItem('meenufy_active_restaurant_id');
+      return;
+    }
+
+    // Otherwise restore / set the restaurant from URL param or stored state
+    const rId = restaurantParam || getActiveRestaurantId(state);
     const prevRestaurantId = localStorage.getItem('meenufy_active_restaurant_id');
     if (prevRestaurantId && prevRestaurantId !== rId) {
       dispatch({ type: 'CLEAR_CART' });

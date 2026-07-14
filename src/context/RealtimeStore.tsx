@@ -2240,6 +2240,18 @@ function loadState(): Partial<AppState> {
     delete parsed.isLoading;
     delete parsed.newOrderAlert;
 
+    // If the user is opening the root path ("/") or "/home", always reset any
+    // persisted restaurant selection so they land on the customer home browse
+    // screen, not a cached restaurant menu from a previous session.
+    if (typeof window !== 'undefined') {
+      const p = window.location.pathname;
+      const isRootOrHome = p === '/' || p === '/home' || p === '/home/';
+      const hasRestaurantParam = window.location.search.includes('restaurant=');
+      if (isRootOrHome && !hasRestaurantParam) {
+        delete parsed.activeCustomerRestaurantId;
+      }
+    }
+
     return parsed;
   } catch {
     return {};
