@@ -104,7 +104,7 @@ function MealCard({
   t: (key: any) => string;
 }) {
   const { rating, reviews } = getRatingDetails(item.id);
-  const isViewOnly = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('viewOnly') === 'true' || window.location.pathname === '/' || window.location.pathname === '/home');
+  const isViewOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('viewOnly') === 'true';
   const isReallyClosed = isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime, restaurant?.daySpecificHours) || restaurant?.isManualClosed === true;
   const isCartAllowed = (!isViewOnly || restaurant?.deliveryEnabled) && !isReallyClosed;
   return (
@@ -266,7 +266,7 @@ export default function CustomerMenu() {
   const { state, dispatch, addToast } = useStore();
   const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
-  const isViewOnly = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('viewOnly') === 'true' || window.location.pathname === '/' || window.location.pathname === '/home');
+  const isViewOnly = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('viewOnly') === 'true';
   const isReallyClosed = isRestaurantClosed(restaurant?.openTime, restaurant?.closeTime, restaurant?.daySpecificHours) || restaurant?.isManualClosed === true;
   const isCartAllowed = (!isViewOnly || restaurant?.deliveryEnabled) && !isReallyClosed;
   const t = useTranslation();
