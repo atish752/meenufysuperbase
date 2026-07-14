@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import { Search, MapPin, Star, Clock, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
 import { db } from '../../utils/firebase';
-import { ref, onValue, get } from 'firebase/database';
+import { ref, get } from 'firebase/database';
 
 // Haversine formula to calculate distance in km between two sets of coordinates
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -97,40 +97,8 @@ export default function CustomerHome() {
   const [showFirstTimeCityModal, setShowFirstTimeCityModal] = useState(() => {
     return !localStorage.getItem('meenufy_first_time_city_selected');
   });
-  const [allCoupons, setAllCoupons] = useState<any[]>([]);
   const [selectedDeal, setSelectedDeal] = useState<any | null>(null);
-
-  // Fetch all active coupons from the global database node using Firebase SDK
-  useEffect(() => {
-    const couponsRef = ref(db!, 'coupons');
-    const unsubscribe = onValue(couponsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const list: any[] = [];
-        Object.entries(data).forEach(([rId, restCoupons]: [string, any]) => {
-          if (restCoupons) {
-            const cList = Array.isArray(restCoupons) ? restCoupons.filter(Boolean) : Object.values(restCoupons);
-            cList.forEach((c: any) => {
-              if (c && c.isActive) {
-                list.push({ ...c, restaurantId: rId });
-              }
-            });
-          }
-        });
-        setAllCoupons(list);
-      } else {
-        setAllCoupons([]);
-      }
-    }, (error) => {
-      console.error("Error fetching coupons: ", error);
-      setAllCoupons([
-        { id: 'c1', code: 'MEENUFY50', type: 'percentage', value: 50, minOrderAmount: 200, isActive: true, restaurantId: 'admin-1' },
-        { id: 'c2', code: 'FREECOOK', type: 'flat', value: 100, minOrderAmount: 500, isActive: true, restaurantId: 'admin-1' },
-      ]);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const allCoupons = state.coupons || [];
 
   // Cross-restaurant meals states
   const [nearbyMeals, setNearbyMeals] = useState<any[]>([]);
@@ -373,7 +341,7 @@ export default function CustomerHome() {
       minHeight: '100vh',
       color: 'var(--text-primary)',
       fontFamily: 'var(--font-sans)',
-      paddingBottom: 80,
+      paddingBottom: 120,
       animation: 'fadeIn 0.2s ease-in-out'
     }}>
       {/* Location Header */}
@@ -511,7 +479,7 @@ export default function CustomerHome() {
             </h3>
             {(() => {
               const nearbyRestaurantIds = new Set(processedRestaurants.map(r => r.id));
-              const filteredCoupons = allCoupons.filter(c => nearbyRestaurantIds.has(c.restaurantId));
+              const filteredCoupons = allCoupons.filter(c => c.restaurantId && nearbyRestaurantIds.has(c.restaurantId));
               const row1Coupons = filteredCoupons.filter((_, idx) => idx % 2 === 0);
               const row2Coupons = filteredCoupons.filter((_, idx) => idx % 2 !== 0);
 
@@ -997,16 +965,16 @@ export default function CustomerHome() {
                           {/* Right Side: Details (half size) */}
                           <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', minWidth: 0 }}>
                             <div>
-                              {/* Header with Logo Adjacent */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                              {/* Header with Logo on Top Right */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                                 <h4 style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: 'var(--brand)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                   {acc.restaurantName}
                                 </h4>
                                 
-                                {/* Logo Image Adjacent */}
+                                {/* Logo Image on Top Right */}
                                 <div style={{
-                                  width: 18,
-                                  height: 18,
+                                  width: 24,
+                                  height: 24,
                                   borderRadius: '50%',
                                   border: '1px solid var(--border)',
                                   overflow: 'hidden',

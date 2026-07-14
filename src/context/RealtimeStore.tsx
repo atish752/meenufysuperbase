@@ -2495,6 +2495,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SYNC_SUBSCRIPTION_COUPONS', payload: items });
     });
 
+    // Listen to all coupons globally to avoid CORS/REST security restrictions in CustomerHome
+    const unsubscribeAllCoupons = onValue(ref(db, 'coupons'), (snapshot) => {
+      const data = snapshot.val();
+      const list: Coupon[] = [];
+      if (data) {
+        Object.entries(data).forEach(([rId, restCoupons]: [string, any]) => {
+          if (restCoupons) {
+            const cList = Array.isArray(restCoupons) ? restCoupons.filter(Boolean) : Object.values(restCoupons);
+            cList.forEach((c: any) => {
+              if (c && c.isActive) {
+                list.push({ ...c, restaurantId: rId });
+              }
+            });
+          }
+        });
+      }
+      dispatch({ type: 'SYNC_COUPONS', payload: list });
+    });
+
     const isUrlAdmin = typeof window !== 'undefined' && window.location.search.includes('view=admin');
     const isLocalAdmin = (() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return !!s.isAdminLoggedIn; } catch { return false; } })();
     const isAdminMode = isUrlAdmin || isLocalAdmin;
@@ -2540,6 +2559,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAccounts();
       unsubscribeGeminiKeys();
       unsubscribeSubscriptionCoupons();
+      unsubscribeAllCoupons();
       unsubscribeFeedbacks();
       unsubscribeSupport();
       unsubscribeStaff();
@@ -2669,13 +2689,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // Listen to coupons
-    const unsubscribeCoupons = onValue(ref(db, `coupons/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
-      const items: Coupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Coupon[] : [];
-      dispatch({ type: 'SYNC_COUPONS', payload: items });
-    });
-
     // Listen to addons
     const unsubscribeAddons = onValue(ref(db, `addons/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
@@ -2698,7 +2711,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeTables();
       unsubscribeSchedules();
       unsubscribeCustomers();
-      unsubscribeCoupons();
       unsubscribeAddons();
     };
   }, [db, targetRestaurantId]);
