@@ -1,16 +1,16 @@
 {
-  "name": "Meenufy",
-  "short_name": "Meenufy",
-  "description": "Meenufy — Browse restaurants, view menus, and place orders instantly",
-  "id": "/",
-  "start_url": "/",
-  "scope": "/",
+  "name": "Meenufy Admin",
+  "short_name": "Meenufy Admin",
+  "description": "Meenufy — Restaurant owner and admin management dashboard",
+  "id": "/admin",
+  "start_url": "/admin",
+  "scope": "/admin",
   "display": "standalone",
   "display_override": ["standalone", "browser"],
   "orientation": "portrait",
-  "background_color": "#FFFFFF",
+  "background_color": "#0D0D0D",
   "theme_color": "#FF7D00",
-  "categories": ["food", "lifestyle"],
+  "categories": ["business", "productivity", "food"],
   "lang": "en",
   "icons": [
     {
@@ -44,7 +44,7 @@
       "type": "image/png",
       "sizes": "512x512",
       "form_factor": "narrow",
-      "label": "Meenufy — Browse Restaurants"
+      "label": "Meenufy Admin Dashboard"
     }
   ],
   "prefer_related_applications": false
