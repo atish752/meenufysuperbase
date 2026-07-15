@@ -179,6 +179,9 @@ export default function OnboardingFlow() {
       setTimeout(() => {
         // Complete onboarding session state updates
         localStorage.setItem('meenufy_has_completed_onboarding', 'true');
+        if (selectedPlan === 'base' || selectedPlan === 'standard') {
+          localStorage.setItem('meenufy_pending_onboarding_payment', selectedPlan);
+        }
         dispatch({
           type: 'COMPLETE_ONBOARDING',
           payload: {
@@ -209,13 +212,13 @@ export default function OnboardingFlow() {
             name: restaurantName.trim(),
             subscriptionPlan: (selectedPlan as any) || 'free',
             basePlanSelectedType: selectedPlan === 'base' && basePlanSelectedType !== 'both' ? (basePlanSelectedType as 'dining_takeaway' | 'delivery_only') : undefined,
-            subscriptionRenewalDate: Date.now() + (selectedPlan === 'free' ? 21 : 30) * 24 * 60 * 60 * 1000,
+            subscriptionRenewalDate: selectedPlan === 'free' ? Date.now() + 14 * 24 * 60 * 60 * 1000 : 0,
             createdAt: Date.now()
           }
         });
 
         // Redirect to admin dashboard
-        dispatch({ type: 'SET_ADMIN_TAB', payload: 'home' });
+        dispatch({ type: 'SET_ADMIN_TAB', payload: selectedPlan === 'free' ? 'home' : 'more' });
         window.history.pushState({}, '', '/admin');
         addToast('success', `🎉 Welcome to Meenufy, ${restaurantName.trim()}! Your dashboard is ready. 🚀`);
       }, 1500);
@@ -1169,7 +1172,7 @@ export default function OnboardingFlow() {
                     marginTop: 8
                   }}
                 >
-                  Start 21-Day Free Trial (Try all features free for 21 days) →
+                  Start 14-Day Free Trial (Try all features free for 14 days) →
                 </button>
               </div>
             )}

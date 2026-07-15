@@ -5,6 +5,50 @@ import {
   Check, ShieldAlert, Plus, Trash2, Key
 } from 'lucide-react';
 
+const DEFAULT_POPULAR_CUISINES = [
+  { name: 'Biryani', query: 'biryani', image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Paneer', query: 'paneer', image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Chicken', query: 'chicken', image: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Burger', query: 'burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Pizza', query: 'pizza', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Roll', query: 'roll', image: 'https://images.unsplash.com/photo-1626700051175-6518c4793f4f?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Noodles', query: 'noodles', image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Chilli', query: 'chilli', image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Fried Rice', query: 'fried rice', image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Momo', query: 'momo', image: 'https://images.unsplash.com/photo-1625220194771-7ebedd0b4869?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Dosa', query: 'dosa', image: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Manchurian', query: 'manchurian', image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=150&auto=format&fit=crop&q=60' }
+];
+
+const getPlanBadge = (plan: string) => {
+  const planColors: Record<string, { bg: string; color: string; border: string }> = {
+    free: { bg: 'rgba(107, 114, 128, 0.12)', color: '#9ca3af', border: '1px solid rgba(107, 114, 128, 0.3)' },
+    base: { bg: 'rgba(255, 125, 0, 0.12)', color: '#ff7d00', border: '1px solid rgba(255, 125, 0, 0.3)' },
+    standard: { bg: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' },
+    advance: { bg: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }
+  };
+  const currentPlan = plan || 'free';
+  const displayLabel = currentPlan === 'standard' ? 'Advance' : currentPlan;
+  const colors = planColors[currentPlan] || planColors.free;
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '4px 8px',
+      borderRadius: 6,
+      fontSize: 11,
+      fontWeight: 800,
+      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+      background: colors.bg,
+      color: colors.color,
+      border: colors.border
+    }}>
+      {displayLabel} Plan
+    </span>
+  );
+};
+
 export default function SuperAdminDashboard() {
   const { state, dispatch, addToast } = useStore();
   const [selectedAccountEmail, setSelectedAccountEmail] = useState<string | null>(null);
@@ -88,7 +132,11 @@ export default function SuperAdminDashboard() {
   }, [accounts.length, state.admin?.isSuperAdmin]);
 
   // Tabs and replies
-  const [activeTab, setActiveTab] = useState<'accounts' | 'api_keys' | 'support' | 'feedback' | 'coupons'>('accounts');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'api_keys' | 'support' | 'feedback' | 'coupons' | 'cuisines'>('accounts');
+  const [newCuisineName, setNewCuisineName] = useState('');
+  const [newCuisineQuery, setNewCuisineQuery] = useState('');
+  const [newCuisineImage, setNewCuisineImage] = useState('');
+  const [uploadingCuisineImage, setUploadingCuisineImage] = useState(false);
   const [newApiKey, setNewApiKey] = useState('');
   const [supportReplies, setSupportReplies] = useState<Record<string, string>>({});
   const [feedbackReplies, setFeedbackReplies] = useState<Record<string, string>>({});
@@ -470,7 +518,8 @@ export default function SuperAdminDashboard() {
           { id: 'api_keys', label: 'Gemini API Keys', count: state.geminiApiKeys?.length || 0 },
           { id: 'support', label: 'Support Tickets', count: state.supportRequests?.filter(r => r.status === 'pending').length || 0, badgeColor: 'var(--error)' },
           { id: 'feedback', label: 'Feedback & Tickets', count: state.ownerFeedbacks?.length || 0 },
-          { id: 'coupons', label: 'Subscription Coupons', count: state.subscriptionCoupons?.length || 0 }
+          { id: 'coupons', label: 'Subscription Coupons', count: state.subscriptionCoupons?.length || 0 },
+          { id: 'cuisines', label: 'Cuisines (Mind List)', count: state.popularCuisines?.length || DEFAULT_POPULAR_CUISINES.length }
         ].map(tab => {
           const isActive = activeTab === tab.id;
           return (
@@ -608,13 +657,10 @@ export default function SuperAdminDashboard() {
                       </td>
 
                       <td style={{ padding: '16px 16px' }}>
-                        <div style={{ fontWeight: 800, fontSize: 14, textTransform: 'capitalize', color: 'var(--text-primary)' }}>
-                          {acc.subscriptionPlan || 'free'}
+                        <div>
+                          {getPlanBadge(acc.subscriptionPlan || 'free')}
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                          Usage: {acc.ordersPlacedThisMonth || 0} / {acc.subscriptionPlan === 'free' ? 100 : acc.subscriptionPlan === 'base' ? 1000 : acc.subscriptionPlan === 'standard' ? 2000 : 'Unlimited'}
-                        </div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
                           Region: {acc.billingCountry === 'IN' ? 'India' : 'Global'} ({acc.billingPeriod === 'yearly' ? 'Yearly' : 'Monthly'})
                         </div>
                       </td>
@@ -1298,6 +1344,190 @@ export default function SuperAdminDashboard() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'cuisines' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, margin: 0 }}>
+                  What's on Your Mind? (Cuisines Manager)
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>
+                  Add, remove, and manage circular cuisine items displayed at the top of the customer home page.
+                </p>
+              </div>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to load default popular cuisines? This will overwrite the current list.")) {
+                    import('firebase/database').then(({ ref, set, getDatabase }) => {
+                      const db = getDatabase();
+                      set(ref(db, 'popularCuisines'), DEFAULT_POPULAR_CUISINES).then(() => {
+                        addToast('success', 'Popular cuisines initialized to defaults!');
+                      });
+                    });
+                  }
+                }}
+                style={{ fontSize: 12, padding: '6px 12px' }}
+              >
+                🔄 Load Defaults
+              </button>
+            </div>
+
+            {/* Create Cuisine Item Form */}
+            <div className="card" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: 20, marginBottom: 24 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brand)' }}>
+                🍕 Add New Cuisine Item
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
+                <div className="input-group">
+                  <label className="input-label">Cuisine Name (Display Label)</label>
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="e.g. Burger"
+                    value={newCuisineName}
+                    onChange={e => {
+                      setNewCuisineName(e.target.value);
+                      if (!newCuisineQuery) {
+                        setNewCuisineQuery(e.target.value.trim().toLowerCase());
+                      }
+                    }}
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Search Query (Lowercase Keyword)</label>
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="e.g. burger"
+                    value={newCuisineQuery}
+                    onChange={e => setNewCuisineQuery(e.target.value.trim().toLowerCase())}
+                  />
+                </div>
+                <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="input-label">Cuisine Image (URL or Upload File)</label>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Paste Image URL or upload a file"
+                      value={newCuisineImage}
+                      onChange={e => setNewCuisineImage(e.target.value.trim())}
+                      style={{ flex: 1 }}
+                    />
+                    <input
+                      type="file"
+                      id="cuisine-img-upload-input"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const files = e.target.files;
+                        if (!files || files.length === 0) return;
+                        setUploadingCuisineImage(true);
+                        try {
+                          const reader = new FileReader();
+                          reader.readAsDataURL(files[0]);
+                          reader.onload = (event) => {
+                            setNewCuisineImage(event.target?.result as string);
+                            setUploadingCuisineImage(false);
+                            addToast('success', 'Image uploaded successfully!');
+                          };
+                        } catch (err) {
+                          console.error(err);
+                          setUploadingCuisineImage(false);
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                    <label
+                      htmlFor="cuisine-img-upload-input"
+                      className="btn btn-secondary"
+                      style={{ height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8, fontSize: 12, padding: '0 12px' }}
+                    >
+                      {uploadingCuisineImage ? 'Uploading...' : '📁 Upload'}
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <button
+                className="btn btn-primary"
+                disabled={!newCuisineName.trim() || !newCuisineQuery.trim() || !newCuisineImage}
+                onClick={() => {
+                  dispatch({
+                    type: 'ADD_POPULAR_CUISINE',
+                    payload: {
+                      name: newCuisineName.trim(),
+                      query: newCuisineQuery.trim(),
+                      image: newCuisineImage.trim()
+                    }
+                  });
+                  addToast('success', `${newCuisineName} added to Circular Cuisines list!`);
+                  setNewCuisineName('');
+                  setNewCuisineQuery('');
+                  setNewCuisineImage('');
+                }}
+              >
+                Add Cuisine Item
+              </button>
+            </div>
+
+            {/* Cuisines Grid */}
+            <div className="card" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: 16 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 14 }}>
+                Active Circular Cuisines ({state.popularCuisines?.length || 0})
+              </h4>
+              {(!state.popularCuisines || state.popularCuisines.length === 0) ? (
+                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-secondary)' }}>
+                  No popular cuisines added yet. Click "Load Defaults" to fill this section.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 16 }}>
+                  {state.popularCuisines.map((c) => (
+                    <div
+                      key={c.query}
+                      style={{
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 12,
+                        padding: 12,
+                        textAlign: 'center',
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 8
+                      }}
+                    >
+                      <button
+                        style={{
+                          position: 'absolute', top: 4, right: 4,
+                          background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: '50%',
+                          width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#ef4444', cursor: 'pointer', fontSize: 12
+                        }}
+                        onClick={() => {
+                          if (window.confirm(`Delete ${c.name} from Circular Cuisines?`)) {
+                            dispatch({ type: 'REMOVE_POPULAR_CUISINE', payload: c.query });
+                            addToast('info', `${c.name} deleted.`);
+                          }
+                        }}
+                      >
+                        ✕
+                      </button>
+                      <img
+                        src={c.image}
+                        alt={c.name}
+                        style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }}
+                      />
+                      <div style={{ fontWeight: 800, fontSize: 12, color: 'var(--text-primary)' }}>{c.name}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace' }}>q: {c.query}</div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

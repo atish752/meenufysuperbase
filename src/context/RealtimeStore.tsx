@@ -491,6 +491,7 @@ export type AppState = {
   subscriptionCoupons: SubscriptionCoupon[];
   // Gemini API Keys & Support / Feedback
   geminiApiKeys: string[];
+  popularCuisines: { name: string; query: string; image: string }[];
   supportRequests: SupportRequest[];
   ownerFeedbacks: OwnerFeedback[];
   staffMembers: StaffMember[];
@@ -726,9 +727,9 @@ export function isSubscriptionActive(restaurant: RestaurantInfo | undefined): {
   const createdAt = restaurant.createdAt || Date.now();
   const renewalDate = restaurant.subscriptionRenewalDate || 0;
 
-  // 1. Free Trial Plan (21 days trial duration)
+  // 1. Free Trial Plan (14 days trial duration)
   if (plan === 'free') {
-    const trialDuration = 21 * 24 * 60 * 60 * 1000;
+    const trialDuration = 14 * 24 * 60 * 60 * 1000;
     const elapsed = Date.now() - createdAt;
     const remainingMs = trialDuration - elapsed;
     const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
@@ -1094,6 +1095,7 @@ const DEFAULT_STATE: AppState = {
     'AIzaSyE_FakeGeminiKey_Beta02',
     'AIzaSyF_FakeGeminiKey_Gamma03'
   ],
+  popularCuisines: [],
   supportRequests: [],
   ownerFeedbacks: [
     {
@@ -1190,6 +1192,9 @@ type Action =
   | { type: 'SUPER_ADMIN_UPDATE_SUBSCRIPTION'; payload: { id: string; subscriptionPlan: 'free' | 'base' | 'standard' | 'advance'; ordersPlacedThisMonth: number; subscriptionRenewalDate: number; billingCountry: 'IN' | 'global'; billingPeriod: 'monthly' | 'yearly' } }
   | { type: 'ADD_GEMINI_KEY'; payload: string }
   | { type: 'REMOVE_GEMINI_KEY'; payload: string }
+  | { type: 'SYNC_POPULAR_CUISINES'; payload: { name: string; query: string; image: string }[] }
+  | { type: 'ADD_POPULAR_CUISINE'; payload: { name: string; query: string; image: string } }
+  | { type: 'REMOVE_POPULAR_CUISINE'; payload: string }
   | { type: 'SUBMIT_SUPPORT_REQUEST'; payload: { message: string; attemptsCount: number } }
   | { type: 'REPLY_SUPPORT_REQUEST'; payload: { id: string; replyText: string } }
   | { type: 'SYNC_SUPPORT_REQUESTS'; payload: SupportRequest[] }
@@ -1525,8 +1530,8 @@ function reducer(state: AppState, action: Action): AppState {
       if (!state.admin) return state;
       const payload = action.payload || { subscriptionPlan: 'free' };
       const plan = payload.subscriptionPlan;
-      const renewalDays = plan === 'free' ? 21 : 30;
-      const renewalDate = Date.now() + renewalDays * 24 * 60 * 60 * 1000;
+      const renewalDays = plan === 'free' ? 14 : 30;
+      const renewalDate = plan === 'free' ? Date.now() + renewalDays * 24 * 60 * 60 * 1000 : 0;
 
       const newAccounts = state.restaurantAccounts.map(acc => {
         if (acc.id === state.admin?.id) {
@@ -2189,6 +2194,21 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         geminiApiKeys: state.geminiApiKeys.filter(key => key !== action.payload)
       };
+    case 'SYNC_POPULAR_CUISINES':
+      return {
+        ...state,
+        popularCuisines: action.payload || []
+      };
+    case 'ADD_POPULAR_CUISINE':
+      return {
+        ...state,
+        popularCuisines: [...state.popularCuisines, action.payload]
+      };
+    case 'REMOVE_POPULAR_CUISINE':
+      return {
+        ...state,
+        popularCuisines: state.popularCuisines.filter(c => c.query !== action.payload)
+      };
     case 'SUBMIT_SUPPORT_REQUEST': {
       const { message, attemptsCount } = action.payload;
       const newRequest: SupportRequest = {
@@ -2706,6 +2726,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Listen to popular cuisines
+    const unsubscribePopularCuisines = onValue(ref(db, 'popularCuisines'), (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const items = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as { name: string; query: string; image: string }[];
+        dispatch({
+          type: 'SYNC_POPULAR_CUISINES',
+          payload: items
+        });
+      } else {
+        dispatch({
+          type: 'SYNC_POPULAR_CUISINES',
+          payload: []
+        });
+      }
+    });
+
     // Listen to subscription coupons (global)
     const unsubscribeSubscriptionCoupons = onValue(ref(db, 'subscriptionCoupons'), (snapshot) => {
       const data = snapshot.val();
@@ -2758,6 +2795,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeConnected();
       unsubscribeAccounts();
       unsubscribeGeminiKeys();
+      unsubscribePopularCuisines();
       unsubscribeSubscriptionCoupons();
       unsubscribeFeedbacks();
       unsubscribeSupport();
@@ -3333,6 +3371,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             );
             break;
           }
+          case 'ADD_POPULAR_CUISINE': {
+            handleDbPromise(
+              set(ref(db, 'popularCuisines'), sanitizeDbData([...currentState.popularCuisines, action.payload])),
+              'Failed to add popular cuisine'
+            );
+            break;
+          }
+          case 'REMOVE_POPULAR_CUISINE': {
+            handleDbPromise(
+              set(ref(db, 'popularCuisines'), sanitizeDbData(currentState.popularCuisines.filter(c => c.query !== action.payload))),
+              'Failed to remove popular cuisine'
+            );
+            break;
+          }
           case 'TOGGLE_CUSTOMER_VIP': {
             const cust = currentState.customers.find(c => c.id === action.payload);
             if (cust && cust.phone) {
@@ -3417,8 +3469,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (currentState.admin) {
               const payload = action.payload || { subscriptionPlan: 'free' };
               const plan = payload.subscriptionPlan;
-              const renewalDays = plan === 'free' ? 21 : 30;
-              const renewalDate = Date.now() + renewalDays * 24 * 60 * 60 * 1000;
+              const renewalDays = plan === 'free' ? 14 : 30;
+              const renewalDate = plan === 'free' ? (Date.now() + renewalDays * 24 * 60 * 60 * 1000) : 0;
 
               const updates: any = {
                 hasCompletedOnboarding: true,

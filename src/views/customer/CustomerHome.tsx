@@ -406,20 +406,11 @@ export default function CustomerHome() {
             alt="Meenufy Logo" 
             style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }} 
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <MapPin size={18} color="var(--brand)" style={{ flexShrink: 0 }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {addressName}
-              </div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                {selectedCity === 'all'
-                  ? 'Radius limit: India (All)'
-                  : selectedCity === 'gps'
-                  ? 'Radius limit: Within 15 km'
-                  : `Radius limit: 15 km from ${selectedCity}`}
-              </div>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} title={addressName}>
+            <MapPin size={15} color="var(--brand)" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)' }}>
+              15 km order radius
+            </span>
           </div>
         </div>
 
@@ -672,7 +663,7 @@ export default function CustomerHome() {
               overflowX: 'auto',
               paddingBottom: 6
             }} className="hide-scrollbar">
-              {POPULAR_CUISINES.map((cuisine) => {
+              {(state.popularCuisines && state.popularCuisines.length > 0 ? state.popularCuisines : POPULAR_CUISINES).map((cuisine) => {
                 const isSelected = selectedCuisine === cuisine.query;
                 return (
                   <button

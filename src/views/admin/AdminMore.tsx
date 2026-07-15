@@ -401,6 +401,23 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [checkoutProcessing, setCheckoutProcessing] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
 
+  useEffect(() => {
+    const pendingPlan = localStorage.getItem('meenufy_pending_onboarding_payment');
+    if (pendingPlan && (pendingPlan === 'base' || pendingPlan === 'standard')) {
+      localStorage.removeItem('meenufy_pending_onboarding_payment');
+      const price = pendingPlan === 'base' ? 2500 : 4000;
+      const link = pendingPlan === 'base' ? 'https://rzp.io/rzp/EDtgzC3' : 'https://rzp.io/rzp/roRw6Dt';
+      setSelectedUpgradePlan(pendingPlan as any);
+      setSelectedBillingPeriod('monthly');
+      setUpgradePrice(price);
+      setUpgradeCurrency('₹');
+      setShowCheckout(true);
+      setCheckoutStep('awaiting_razorpay');
+      window.open(link, '_blank', 'noopener,noreferrer');
+      addToast('info', '💳 Redirecting to secure Razorpay payment. Complete the payment, then enter the Subscription ID below.');
+    }
+  }, []);
+
   const handleCancelSubscription = async () => {
     if (!state.subscriptionId) {
       addToast('error', 'No active subscription ID found to cancel.');
@@ -2658,7 +2675,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 <div style={{ marginTop: 16 }}>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Services</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#ffffff' }}>
-                    {state.subscriptionPlan === 'free' && '🎁 21-Day Free Trial — All Features Unlocked'}
+                    {state.subscriptionPlan === 'free' && '🎁 14-Day Free Trial — All Features Unlocked'}
                     {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' && '🍽️ In-Dining & Takeaway Only'}
                     {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' && '🛵 Home Delivery Only'}
                     {(state.subscriptionPlan === 'standard' || state.subscriptionPlan === 'advance') && '✅ In-Dining, Takeaway & Home Delivery'}
@@ -2855,11 +2872,11 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 const isYearly = billingPeriodToggle === 'yearly';
                 
                 const plans = state.billingCountry === 'IN' ? [
-                  { name: 'free', label: '21-Day Free Trial', price: 0, currency: '₹', desc: 'Try out all features free for 21 days', saving: 0 },
+                  { name: 'free', label: '14-Day Free Trial', price: 0, currency: '₹', desc: 'Try out all features free for 14 days', saving: 0 },
                   { name: 'base', label: 'Basic Plan', price: isYearly ? 25000 : 2500, currency: '₹', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 5000 },
                   { name: 'standard', label: 'Advance Plan', price: isYearly ? 40000 : 4000, currency: '₹', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 8000 },
                 ] : [
-                  { name: 'free', label: '21-Day Free Trial', price: 0, currency: '$', desc: 'Try out all features free for 21 days', saving: 0 },
+                  { name: 'free', label: '14-Day Free Trial', price: 0, currency: '$', desc: 'Try out all features free for 14 days', saving: 0 },
                   { name: 'base', label: 'Basic Plan', price: isYearly ? 300 : 30, currency: '$', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 60 },
                   { name: 'standard', label: 'Advance Plan', price: isYearly ? 500 : 50, currency: '$', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 100 },
                 ];
@@ -2897,7 +2914,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           {p.desc}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600, marginTop: 6 }}>
-                          {p.name === 'free' && 'Trial Period: 21 Days (All features)'}
+                          {p.name === 'free' && 'Trial Period: 14 Days (All features)'}
                           {p.name === 'base' && 'Allowed: EITHER In-Dining & Takeaway OR Home Delivery Only'}
                           {p.name === 'standard' && 'Allowed: All features (In-Dining, Takeaway, and Home Delivery)'}
                         </div>
