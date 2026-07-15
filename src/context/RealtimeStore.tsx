@@ -152,6 +152,9 @@ export type Order = {
   deliveryDistance?: number;
   deliveryBoyEarnings?: number;
   isVipCustomer?: boolean;
+  complaintRaised?: boolean;
+  complaintStatus?: string;
+  complaintReply?: string;
 };
 
 export type TableInfo = {
@@ -513,6 +516,8 @@ const DEFAULT_RESTAURANT: RestaurantInfo = {
   description: 'A premium dining destination serving the finest Indian, Continental and Asian cuisine. Every dish is crafted with love and the freshest ingredients.',
   logo: '',
   bannerImage: '',
+  rating: 0,
+  ratingsCount: 0,
   address: '42, MG Road, Koramangala, Bengaluru, Karnataka 560034',
   phone: '+91 98765 43210',
   email: 'hello@grandspice.in',
@@ -658,8 +663,8 @@ export function getActiveRestaurantInfo(state: AppState, restaurantId: string): 
       address: account.address || DEFAULT_RESTAURANT.address,
       phone: account.ownerPhone || DEFAULT_RESTAURANT.phone,
       daySpecificHours: account.daySpecificHours || DEFAULT_RESTAURANT.daySpecificHours,
-      rating: account.rating || DEFAULT_RESTAURANT.rating,
-      ratingsCount: account.ratingsCount || DEFAULT_RESTAURANT.ratingsCount,
+      rating: account.rating !== undefined ? account.rating : DEFAULT_RESTAURANT.rating,
+      ratingsCount: account.ratingsCount !== undefined ? account.ratingsCount : DEFAULT_RESTAURANT.ratingsCount,
       promoText: account.promoText || DEFAULT_RESTAURANT.promoText,
       cuisines: account.cuisines || DEFAULT_RESTAURANT.cuisines,
       // Default open hours while loading to prevent closed screen flash
@@ -1184,13 +1189,19 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'SYNC_ORDERS': {
-      const { restaurantId, orders } = action.payload;
+      const { orders } = action.payload;
+      const updatedOrders = [...state.orders];
+      orders.forEach(newOrder => {
+        const idx = updatedOrders.findIndex(o => o.id === newOrder.id);
+        if (idx >= 0) {
+          updatedOrders[idx] = newOrder;
+        } else {
+          updatedOrders.push(newOrder);
+        }
+      });
       return {
         ...state,
-        orders: [
-          ...state.orders.filter(o => o.restaurantId !== restaurantId),
-          ...orders
-        ]
+        orders: updatedOrders
       };
     }
     case 'SYNC_CUSTOMERS': {
@@ -2841,6 +2852,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAddons();
     };
   }, [db, targetRestaurantId]);
+
+  // 3. Delivery Boy direct assigned order listener for instant updates
+  useEffect(() => {
+    if (!hasFirebaseConfig || !db || !state.admin?.isDeliveryBoy) return;
+
+    const riderId = state.admin.id;
+    const rId = state.admin.restaurantId || 'admin-1';
+    
+    let unsubscribeOrder: (() => void) | null = null;
+
+    const unsubscribeRider = onValue(ref(db!, `deliveryBoys/${riderId}`), (snapshot) => {
+      const riderData = snapshot.val();
+      if (unsubscribeOrder) {
+        unsubscribeOrder();
+        unsubscribeOrder = null;
+      }
+      
+      if (riderData && riderData.assignedOrderId) {
+        const orderId = riderData.assignedOrderId;
+        unsubscribeOrder = onValue(ref(db!, `orders/${rId}/${orderId}`), (orderSnap) => {
+          const orderVal = orderSnap.val();
+          if (orderVal) {
+            dispatch({
+              type: 'SYNC_ORDERS',
+              payload: {
+                restaurantId: rId,
+                orders: [ { ...orderVal, id: orderId, restaurantId: rId } ]
+              }
+            });
+          }
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeRider();
+      if (unsubscribeOrder) unsubscribeOrder();
+    };
+  }, [db, state.admin?.id, state.admin?.isDeliveryBoy]);
 
   // Broadcast state changes to other tabs
   const wrappedDispatch = useCallback((action: Action) => {

@@ -1963,8 +1963,50 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                 disabled={placing}
                 onClick={() => {
                   if (orderType === 'delivery') {
-                    // For delivery: go to UPI payment screen
-                    setCheckoutStep('upi_payment');
+                    if (!deliveryAddress.trim()) {
+                      addToast('error', 'Please enter your delivery address.');
+                      return;
+                    }
+                    const targetLat = restaurant.latitude || 12.9348;
+                    const targetLng = restaurant.longitude || 77.6202;
+                    const maxRadius = restaurant.deliveryRadius || 10;
+                    
+                    const proceedIfInRange = (lat: number, lng: number) => {
+                      const distanceInKm = getDistanceInMeters(lat, lng, targetLat, targetLng) / 1000;
+                      if (distanceInKm <= maxRadius) {
+                        setCheckoutStep('upi_payment');
+                      } else {
+                        addToast('error', `Out of range: You are ${distanceInKm.toFixed(1)} km away. Maximum delivery radius is ${maxRadius} km.`);
+                      }
+                    };
+
+                    if (deliveryLat !== null && deliveryLng !== null) {
+                      proceedIfInRange(deliveryLat, deliveryLng);
+                    } else {
+                      setLocationStatus('verifying');
+                      if (!navigator.geolocation) {
+                        addToast('error', 'Location verification failed. Geolocation is not supported by your browser.');
+                        setLocationStatus('idle');
+                        return;
+                      }
+                      addToast('info', 'Capturing live GPS location to verify delivery range...');
+                      navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                          const clientLat = position.coords.latitude;
+                          const clientLng = position.coords.longitude;
+                          setDeliveryLat(clientLat);
+                          setDeliveryLng(clientLng);
+                          setLocationStatus('idle');
+                          proceedIfInRange(clientLat, clientLng);
+                        },
+                        (error) => {
+                          console.error(error);
+                          addToast('error', 'Live location capture is mandatory for home delivery orders. Please enable GPS.');
+                          setLocationStatus('idle');
+                        },
+                        { enableHighAccuracy: true, timeout: 8000 }
+                      );
+                    }
                   } else {
                     // In-dining / take-away: place immediately (no payment upfront)
                     triggerOrder();

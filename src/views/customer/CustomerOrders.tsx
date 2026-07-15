@@ -20,10 +20,16 @@ const STATUS_INFO: Record<OrderStatus, { label: string; desc: string; icon: any;
 };
 
 export default function CustomerOrders({ tableId }: Props) {
-  const { state, dispatch } = useStore();
+  const { state, dispatch, addToast } = useStore();
   const [activeSubTab, setActiveSubTab] = useState<'orders' | 'loyalty'>('orders');
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all' | string>('all');
   const [customDate, setCustomDate] = useState('');
+
+  // Complaint states
+  const [complaintOrder, setComplaintOrder] = useState<Order | null>(null);
+  const [complaintCategory, setComplaintCategory] = useState('Food Quality');
+  const [complaintMessage, setComplaintMessage] = useState('');
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
 
   // Loyalty states
   const [loyaltyPoints, setLoyaltyPoints] = useState<any[]>([]);
@@ -348,7 +354,7 @@ export default function CustomerOrders({ tableId }: Props) {
               </div>
             ) : (
               filteredOrders.map(order => (
-                <OrderStatusCard key={order.id} order={order} />
+                <OrderStatusCard key={order.id} order={order} onRaiseComplaint={setComplaintOrder} />
               ))
             )}
           </div>
@@ -455,11 +461,139 @@ export default function CustomerOrders({ tableId }: Props) {
           )}
         </div>
       )}
+
+      {complaintOrder && (
+        <div className="modal-backdrop" style={{ zIndex: 1200 }} onClick={e => e.target === e.currentTarget && setComplaintOrder(null)}>
+          <div className="modal-content" style={{ maxWidth: 400, padding: 24, borderRadius: 20 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              ⚠️ Raise a Complaint
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: '1.4', marginBottom: 20 }}>
+              Please select a category and provide detail. We will notify the restaurant immediately.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                  Complaint Category
+                </label>
+                <select
+                  value={complaintCategory}
+                  onChange={e => setComplaintCategory(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    outline: 'none'
+                  }}
+                >
+                  <option value="Food Quality">🍔 Food Quality</option>
+                  <option value="Missing Items">📦 Missing Items</option>
+                  <option value="Delivery Delay">🛵 Delivery Delay</option>
+                  <option value="Packaging Issue">🛍️ Packaging Issue</option>
+                  <option value="Wrong Item">❌ Wrong Item Received</option>
+                  <option value="Other">❓ Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                  Detailed Description
+                </label>
+                <textarea
+                  value={complaintMessage}
+                  onChange={e => setComplaintMessage(e.target.value)}
+                  placeholder="Describe your issue in detail here so the restaurant can investigate..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    outline: 'none',
+                    resize: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setComplaintOrder(null)}
+                className="btn btn-secondary"
+                style={{ flex: 1, height: 40, borderRadius: 20 }}
+                disabled={submittingComplaint}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!complaintMessage.trim()) {
+                    addToast('error', 'Please write a description.');
+                    return;
+                  }
+                  setSubmittingComplaint(true);
+                  try {
+                    const { ref, set, update } = await import('firebase/database');
+                    const compId = `complaint-${Date.now()}`;
+                    const rId = complaintOrder.restaurantId || 'admin-1';
+                    
+                    const newComplaint = {
+                      id: compId,
+                      orderId: complaintOrder.id,
+                      restaurantId: rId,
+                      restaurantName: getActiveRestaurantInfo(state, rId)?.name || 'this restaurant',
+                      category: complaintCategory,
+                      message: complaintMessage.trim(),
+                      status: 'pending',
+                      customerName: complaintOrder.customerName || 'Guest',
+                      customerPhone: complaintOrder.customerPhone || myPhoneIdentifier || 'No Phone',
+                      createdAt: Date.now(),
+                      replyText: ''
+                    };
+
+                    // 1. Save complaint
+                    await set(ref(db!, `complaints/${rId}/${compId}`), newComplaint);
+
+                    // 2. Mark order as having a raised complaint
+                    await update(ref(db!, `orders/${rId}/${complaintOrder.id}`), {
+                      complaintRaised: true,
+                      complaintStatus: 'Pending'
+                    });
+
+                    addToast('success', '🎉 Complaint submitted to the restaurant!');
+                    setComplaintOrder(null);
+                    setComplaintMessage('');
+                  } catch (err: any) {
+                    console.error(err);
+                    addToast('error', 'Failed to submit. Please try again.');
+                  } finally {
+                    setSubmittingComplaint(false);
+                  }
+                }}
+                className="btn btn-primary"
+                style={{ flex: 2, height: 40, borderRadius: 20 }}
+                disabled={submittingComplaint}
+              >
+                {submittingComplaint ? 'Submitting...' : 'Submit Complaint'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function OrderStatusCard({ order }: { order: Order }) {
+function OrderStatusCard({ order, onRaiseComplaint }: { order: Order; onRaiseComplaint: (order: Order) => void }) {
   const { state, dispatch, addToast } = useStore();
   const info = STATUS_INFO[order.status];
   const Icon = info.icon;
@@ -692,6 +826,49 @@ function OrderStatusCard({ order }: { order: Order }) {
               </button>
             </div>
           )}
+          {(() => {
+            const isLess24Hours = (Date.now() - (order.createdAt || 0)) < 24 * 60 * 60 * 1000;
+            if (!isLess24Hours) return null;
+            return (
+              <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
+                {order.complaintRaised ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'flex-end' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--error)', background: 'rgba(239, 68, 68, 0.1)', padding: '6px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      ⚠️ Complaint Filed ({order.complaintStatus || 'Pending'})
+                    </span>
+                    {order.complaintReply && (
+                      <div style={{ marginTop: 8, padding: 10, background: 'var(--bg-elevated)', borderRadius: 8, borderLeft: '3px solid var(--brand)', fontSize: 11, color: 'var(--text-primary)', fontStyle: 'normal', width: '100%', boxSizing: 'border-box' }}>
+                        <strong>Reply from Restaurant:</strong> "{order.complaintReply}"
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      borderRadius: 8,
+                      padding: '6px 12px',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1.5px solid rgba(239, 68, 68, 0.3)',
+                      color: 'var(--error)',
+                      cursor: 'pointer'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRaiseComplaint(order);
+                    }}
+                  >
+                    ⚠️ Raise a Complaint
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </>
       )}
     </div>

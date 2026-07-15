@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
   TrendingUp, ShoppingBag, Users, DollarSign, HelpCircle,
   Award, Activity, BarChart3, UtensilsCrossed, CreditCard, Clock
 } from 'lucide-react';
 import AdminCustomers from './AdminCustomers';
+import { db } from '../../utils/firebase';
 
 function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
@@ -21,9 +22,33 @@ export default function AdminAnalysis() {
   const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month' | 'lifetime'>('lifetime');
   const [viewBestItems, setViewBestItems] = useState(true);
   const [showDeepMealAnalysis, setShowDeepMealAnalysis] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<'kpis' | 'customers'>('kpis');
+  const [activeSubTab, setActiveSubTab] = useState<'kpis' | 'customers' | 'complaints'>('kpis');
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [loadingComplaints, setLoadingComplaints] = useState(true);
+  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   const adminRestaurantId = state.admin?.restaurantId;
+
+  useEffect(() => {
+    if (!adminRestaurantId || !db) return;
+    setLoadingComplaints(true);
+
+    import('firebase/database').then(({ ref, onValue }) => {
+      const unsubscribe = onValue(ref(db!, `complaints/${adminRestaurantId}`), (snapshot) => {
+        const data = snapshot.val();
+        const list = data ? Object.values(data) : [];
+        list.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
+        setComplaints(list);
+        setLoadingComplaints(false);
+      }, (error) => {
+        console.error('Error fetching complaints:', error);
+        setLoadingComplaints(false);
+      });
+      return () => unsubscribe();
+    });
+  }, [adminRestaurantId]);
+
   const orders = state.orders.filter(o => o.restaurantId === adminRestaurantId);
 
   const servedOrders = orders.filter(o => o.status === 'served');
@@ -450,8 +475,7 @@ export default function AdminAnalysis() {
       {/* Sub-tab Switcher: KPI Analysis vs. Customer Database */}
       <div style={{
         display: 'flex',
-        background: 'var(--bg-elevated)',
-        border: '1px solid var(--border)',
+        background: 'var(--bg-secondary)',
         borderRadius: 12,
         padding: 4,
         marginBottom: 20
@@ -490,11 +514,323 @@ export default function AdminAnalysis() {
         >
           Customer Database
         </button>
+        <button
+          onClick={() => setActiveSubTab('complaints')}
+          style={{
+            flex: 1,
+            padding: '10px 14px',
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 800,
+            background: activeSubTab === 'complaints' ? 'var(--brand)' : 'transparent',
+            color: activeSubTab === 'complaints' ? '#000000' : 'var(--text-secondary)',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6
+          }}
+        >
+          <span>Customer Feedback &amp; Complaints</span>
+          {complaints.filter(c => c.status === 'pending').length > 0 && (
+            <span style={{
+              background: 'var(--error)',
+              color: '#ffffff',
+              fontSize: 10,
+              fontWeight: 900,
+              padding: '2px 6px',
+              borderRadius: 6,
+              animation: 'pulse 1.5s infinite'
+            }}>
+              {complaints.filter(c => c.status === 'pending').length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {activeSubTab === 'customers' ? (
+      {activeSubTab === 'customers' && (
         <AdminCustomers />
-      ) : (
+      )}
+
+      {activeSubTab === 'complaints' && (
+        <div style={{ animation: 'fadeIn 0.2s ease-in-out', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ fontSize: 20, fontFamily: 'var(--font-display)', fontWeight: 800, margin: 0 }}>
+                Customer Feedback &amp; Complaints
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>
+                Track, investigate and resolve customer issues in real-time.
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--error)' }}>
+                  {complaints.filter(c => c.status === 'pending').length}
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 2 }}>Pending</div>
+              </div>
+              <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--success)' }}>
+                  {complaints.filter(c => c.status === 'resolved').length}
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 2 }}>Resolved</div>
+              </div>
+            </div>
+          </div>
+
+          {loadingComplaints ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 24, marginBottom: 8, animation: 'spin 1s linear infinite' }}>🔄</div>
+              <span>Loading complaints...</span>
+            </div>
+          ) : complaints.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 20px',
+              background: 'var(--bg-secondary)',
+              borderRadius: 16,
+              border: '1.5px dashed var(--border)',
+              marginTop: 10
+            }}>
+              <span style={{ fontSize: 40, display: 'block', marginBottom: 12 }}>🎉</span>
+              <h3 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 6px', color: 'var(--text-primary)' }}>No Complaints Filed</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                Excellent! No customer has raised a complaint for your restaurant.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {complaints.map((c) => {
+                const isPending = c.status === 'pending';
+                const dateStr = new Date(c.createdAt || Date.now()).toLocaleString();
+                const matchedOrder = state.orders.find(o => o.id === c.orderId);
+                const orderNum = c.orderId.slice(-4).toUpperCase();
+                
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      border: isPending ? '1.5px solid rgba(239, 68, 68, 0.2)' : '1px solid var(--border)',
+                      borderRadius: 16,
+                      padding: 18,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                      boxShadow: isPending ? '0 4px 12px rgba(239,68,68,0.03)' : 'none'
+                    }}
+                  >
+                    {/* Header: Category & Status */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '4px 10px', borderRadius: 8, color: 'var(--text-primary)' }}>
+                          {c.category}
+                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+                          Order #{orderNum}
+                        </span>
+                      </div>
+                      
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 900,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          background: isPending ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                          color: isPending ? 'var(--error)' : 'var(--success)'
+                        }}
+                      >
+                        {c.status}
+                      </span>
+                    </div>
+
+                    {/* Complaint Message */}
+                    <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5, background: 'var(--bg-elevated)', padding: 12, borderRadius: 10, borderLeft: '3px solid var(--brand)' }}>
+                      "{c.message}"
+                    </div>
+
+                    {/* Customer Info & Time */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, fontSize: 12, borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 4 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                          👤 {c.customerName}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          📅 {dateStr}
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <a
+                          href={`tel:${c.customerPhone}`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            color: '#fff',
+                            background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                            padding: '6px 12px',
+                            borderRadius: 8,
+                            textDecoration: 'none',
+                            boxShadow: '0 4px 10px rgba(255,125,0,0.2)'
+                          }}
+                        >
+                          📞 Call Customer ({c.customerPhone})
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Order Details Preview if matched */}
+                    {matchedOrder && (
+                      <div style={{ background: 'var(--bg-elevated)', padding: 10, borderRadius: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                        <strong>Order items:</strong> {matchedOrder.items.map(i => `${i.name} x${i.qty}`).join(', ')} (Total: ₹{matchedOrder.totalAmount})
+                      </div>
+                    )}
+
+                    {/* Resolution Section */}
+                    {!isPending ? (
+                      <div style={{ background: 'rgba(34, 197, 94, 0.04)', border: '1px solid rgba(34, 197, 94, 0.2)', padding: 12, borderRadius: 10, fontSize: 12 }}>
+                        <div style={{ color: 'var(--success)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                          ✅ Resolved
+                        </div>
+                        {c.replyText ? (
+                          <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                            <strong>Reply sent:</strong> "{c.replyText}"
+                          </div>
+                        ) : (
+                          <div style={{ color: 'var(--text-muted)' }}>
+                            Resolved without custom reply.
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                        <textarea
+                          placeholder="Write a response to the customer..."
+                          value={replyInputs[c.id] || ''}
+                          onChange={e => setReplyInputs(prev => ({ ...prev, [c.id]: e.target.value }))}
+                          rows={2}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-primary)',
+                            fontSize: 12,
+                            outline: 'none',
+                            resize: 'none',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={async () => {
+                              setResolvingId(c.id);
+                              try {
+                                const { ref, update } = await import('firebase/database');
+                                
+                                // 1. Update complaint node
+                                await update(ref(db!, `complaints/${adminRestaurantId}/${c.id}`), {
+                                  status: 'resolved',
+                                  resolvedAt: Date.now()
+                                });
+
+                                // 2. Update order node
+                                await update(ref(db!, `orders/${adminRestaurantId}/${c.orderId}`), {
+                                  complaintStatus: 'Resolved'
+                                });
+                                
+                                alert('Complaint marked as resolved.');
+                              } catch (err) {
+                                console.error(err);
+                              } finally {
+                                setResolvingId(null);
+                              }
+                            }}
+                            disabled={resolvingId === c.id}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 8,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              background: 'var(--bg-elevated)',
+                              border: '1px solid var(--border)',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Resolve Only
+                          </button>
+                          
+                          <button
+                            onClick={async () => {
+                              const replyText = replyInputs[c.id]?.trim();
+                              if (!replyText) {
+                                alert('Please write a reply message to send.');
+                                return;
+                              }
+                              setResolvingId(c.id);
+                              try {
+                                const { ref, update } = await import('firebase/database');
+                                
+                                // 1. Update complaint node
+                                await update(ref(db!, `complaints/${adminRestaurantId}/${c.id}`), {
+                                  status: 'resolved',
+                                  replyText,
+                                  resolvedAt: Date.now()
+                                });
+
+                                // 2. Update order node
+                                await update(ref(db!, `orders/${adminRestaurantId}/${c.orderId}`), {
+                                  complaintStatus: 'Resolved',
+                                  complaintReply: replyText
+                                });
+                                
+                                setReplyInputs(prev => ({ ...prev, [c.id]: '' }));
+                                alert('Response sent and complaint marked as resolved.');
+                              } catch (err) {
+                                console.error(err);
+                              } finally {
+                                setResolvingId(null);
+                              }
+                            }}
+                            disabled={resolvingId === c.id}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 8,
+                              fontSize: 11,
+                              fontWeight: 800,
+                              background: 'var(--brand)',
+                              border: 'none',
+                              color: '#000',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {resolvingId === c.id ? 'Sending...' : 'Resolve & Send Reply'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeSubTab === 'kpis' && (
         <>
           {/* Header and Time Filters */}
           <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
