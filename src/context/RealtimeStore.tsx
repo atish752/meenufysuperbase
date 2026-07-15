@@ -743,11 +743,13 @@ export function isSubscriptionActive(restaurant: RestaurantInfo | undefined): {
 
   // 1. Free Trial Plan (14 days trial duration)
   if (plan === 'free') {
+    const cAt = restaurant.createdAt || Date.now();
+    const trialRenewalDate = cAt + 13 * 24 * 60 * 60 * 1000;
     const now = Date.now();
-    if (now > renewalDate) {
+    if (now > trialRenewalDate) {
       return { active: false, reason: "The admin doesn't have any plan so you cant place an order." };
     }
-    const remainingMs = renewalDate - now;
+    const remainingMs = trialRenewalDate - now;
     const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
     return { active: true, daysRemaining };
   }
@@ -1754,7 +1756,8 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'PLACE_ORDER': {
       // Hard subscription guard — reject order if subscription is inactive
-      const _orderRestaurant = state.restaurant;
+      const orderRestId = action.payload.restaurantId || state.admin?.id || 'admin-1';
+      const _orderRestaurant = getActiveRestaurantInfo(state, orderRestId);
       const _subCheck = isSubscriptionActive(_orderRestaurant);
       if (!_subCheck.active) {
         console.warn('[PLACE_ORDER] Blocked: subscription inactive.', _subCheck.reason);
@@ -1791,7 +1794,6 @@ function reducer(state: AppState, action: Action): AppState {
         });
       }
       
-      const orderRestId = action.payload.restaurantId || state.admin?.id || 'admin-1';
       const newAccounts = state.restaurantAccounts.map(acc => {
         if (acc.id === orderRestId) {
           return {
@@ -3139,6 +3141,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'PLACE_ORDER': {
             const orderRestId = action.payload.restaurantId || restId;
+            const _orderRestaurant = getActiveRestaurantInfo(currentState, orderRestId);
+            const _subCheck = isSubscriptionActive(_orderRestaurant);
+            if (!_subCheck.active) {
+              console.warn('[Firebase PLACE_ORDER] Blocked writing to DB: subscription inactive.', _subCheck.reason);
+              break;
+            }
             handleDbPromise(
               set(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({
                 ...action.payload,

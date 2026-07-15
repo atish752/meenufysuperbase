@@ -1671,7 +1671,7 @@ export default function SuperAdminDashboard() {
                 style={{ fontSize: 13, fontWeight: 600, height: 36, padding: '4px 8px' }}
               >
                 <option value="free">Free Trial (14 Days)</option>
-                <option value="base">Basic Plan</option>
+                <option value="base">Standard Plan</option>
                 <option value="standard">Advance Plan</option>
               </select>
             </div>

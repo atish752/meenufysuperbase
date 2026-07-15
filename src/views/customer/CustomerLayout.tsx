@@ -1671,7 +1671,12 @@ export default function CustomerLayout({ tableId }: Props) {
                     style={{ padding: '10px 14px', fontSize: 13, borderRadius: 'var(--radius-md)' }}
                     onClick={() => {
                       setShowStatusModal(false);
-                      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
+                      if (activeOrder && activeOrder.restaurantId) {
+                        dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: activeOrder.restaurantId });
+                        const newUrl = `${window.location.pathname}?restaurant=${activeOrder.restaurantId}`;
+                        window.history.pushState({}, '', newUrl);
+                      }
+                      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'home' });
                       addToast('info', 'Choose add-ons from the menu! 🛒');
                     }}
                   >

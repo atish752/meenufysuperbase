@@ -1082,7 +1082,7 @@ export default function OnboardingFlow() {
                 {[
                   {
                     id: 'base',
-                    name: 'Basic Plan',
+                    name: 'Standard plan',
                     price: currency === 'INR' ? '₹2,500/mo' : '$30/mo',
                     renewal: currency === 'INR' ? '₹25,000/yr' : '$300/yr',
                     features: basePlanSelectedType === 'dining_takeaway'

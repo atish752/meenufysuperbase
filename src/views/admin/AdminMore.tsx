@@ -406,7 +406,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     if (pendingPlan && (pendingPlan === 'base' || pendingPlan === 'standard')) {
       localStorage.removeItem('meenufy_pending_onboarding_payment');
       const price = pendingPlan === 'base' ? 2500 : 4000;
-      const link = pendingPlan === 'base' ? 'https://rzp.io/rzp/EDtgzC3' : 'https://rzp.io/rzp/roRw6Dt';
+      const link = pendingPlan === 'base' ? 'https://rzp.io/rzp/tAf4cvv' : 'https://rzp.io/rzp/NJuSDUd2';
       setSelectedUpgradePlan(pendingPlan as any);
       setSelectedBillingPeriod('monthly');
       setUpgradePrice(price);
@@ -519,8 +519,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     // For Indian billing — open the authorized Razorpay subscription links directly
     if (state.billingCountry === 'IN' && billingPeriod === 'monthly') {
       const razorpayLinks: Record<string, string> = {
-        base: 'https://rzp.io/rzp/EDtgzC3',
-        standard: 'https://rzp.io/rzp/roRw6Dt',
+        base: 'https://rzp.io/rzp/tAf4cvv',
+        standard: 'https://rzp.io/rzp/NJuSDUd2',
       };
       const link = razorpayLinks[planName];
       if (link) {
@@ -2640,7 +2640,12 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           </div>
           {(() => {
             const now = Date.now();
-            const renewalDate = state.subscriptionRenewalDate || 0;
+            let renewalDate = state.subscriptionRenewalDate || 0;
+            if (state.subscriptionPlan === 'free') {
+              const matchedAcc = state.restaurantAccounts?.find(a => a.id === state.admin?.id);
+              const cAt = state.restaurant?.createdAt || matchedAcc?.createdAt || Date.now();
+              renewalDate = cAt + 13 * 24 * 60 * 60 * 1000;
+            }
             
             // Check if expired
             const isExpired = now > renewalDate;
@@ -2659,7 +2664,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             const planNameFormatted = state.subscriptionPlan === 'standard' || state.subscriptionPlan === 'advance' 
               ? 'Advance' 
               : state.subscriptionPlan === 'base'
-                ? 'Basic'
+                ? 'Standard'
                 : 'Free Trial';
 
             const renewalFormatted = isExpired
@@ -2907,11 +2912,11 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 
                 const plans = state.billingCountry === 'IN' ? [
                   { name: 'free', label: '14-Day Free Trial', price: 0, currency: '₹', desc: 'Try out all features free for 14 days', saving: 0 },
-                  { name: 'base', label: 'Basic Plan', price: isYearly ? 25000 : 2500, currency: '₹', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 5000 },
+                  { name: 'base', label: 'Standard plan', price: isYearly ? 25000 : 2500, currency: '₹', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 5000 },
                   { name: 'standard', label: 'Advance Plan', price: isYearly ? 40000 : 4000, currency: '₹', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 8000 },
                 ] : [
                   { name: 'free', label: '14-Day Free Trial', price: 0, currency: '$', desc: 'Try out all features free for 14 days', saving: 0 },
-                  { name: 'base', label: 'Basic Plan', price: isYearly ? 300 : 30, currency: '$', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 60 },
+                  { name: 'base', label: 'Standard plan', price: isYearly ? 300 : 30, currency: '$', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 60 },
                   { name: 'standard', label: 'Advance Plan', price: isYearly ? 500 : 50, currency: '$', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 100 },
                 ];
 
@@ -3756,7 +3761,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       setCheckoutProcessing(false);
                       setRazorpaySubInput('');
                       setCheckoutStep('success');
-                      addToast('success', `🎉 ${selectedUpgradePlan === 'base' ? 'Basic' : 'Advance'} Plan activated successfully!`);
+                      addToast('success', `🎉 ${selectedUpgradePlan === 'base' ? 'Standard' : 'Advance'} Plan activated successfully!`);
                     }, 800);
                   }}
                 >
@@ -3765,7 +3770,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
                 <button
                   type="button"
-                  onClick={() => window.open(selectedUpgradePlan === 'base' ? 'https://rzp.io/rzp/EDtgzC3' : 'https://rzp.io/rzp/roRw6Dt', '_blank', 'noopener,noreferrer')}
+                  onClick={() => window.open(selectedUpgradePlan === 'base' ? 'https://rzp.io/rzp/tAf4cvv' : 'https://rzp.io/rzp/NJuSDUd2', '_blank', 'noopener,noreferrer')}
                   style={{ width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 8 }}
                 >
                   🔗 Reopen Payment Page
@@ -3804,7 +3809,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                   Subscription Activated!
                 </h4>
                 <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
-                  Your plan has been upgraded to <strong style={{ textTransform: 'capitalize' }}>{selectedUpgradePlan === 'base' ? 'Basic' : selectedUpgradePlan === 'standard' ? 'Premium' : selectedUpgradePlan}</strong>. All features for your plan are now active.
+                  Your plan has been upgraded to <strong style={{ textTransform: 'capitalize' }}>{selectedUpgradePlan === 'base' ? 'Standard' : selectedUpgradePlan === 'standard' ? 'Advance' : selectedUpgradePlan}</strong>. All features for your plan are now active.
                 </p>
                 <button
                   onClick={() => setShowCheckout(false)}
