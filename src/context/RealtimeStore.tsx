@@ -739,19 +739,16 @@ export function isSubscriptionActive(restaurant: RestaurantInfo | undefined): {
   if (!restaurant) return { active: false, reason: 'Restaurant not found.' };
 
   const plan = restaurant.subscriptionPlan || 'free';
-  const createdAt = restaurant.createdAt || Date.now();
   const renewalDate = restaurant.subscriptionRenewalDate || 0;
 
   // 1. Free Trial Plan (14 days trial duration)
   if (plan === 'free') {
-    const trialDuration = 13 * 24 * 60 * 60 * 1000;
-    const elapsed = Date.now() - createdAt;
-    const remainingMs = trialDuration - elapsed;
-    const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
-
-    if (elapsed > trialDuration) {
+    const now = Date.now();
+    if (now > renewalDate) {
       return { active: false, reason: "The admin doesn't have any plan so you cant place an order." };
     }
+    const remainingMs = renewalDate - now;
+    const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
     return { active: true, daysRemaining };
   }
 
@@ -1208,6 +1205,7 @@ type Action =
   | { type: 'ADD_GEMINI_KEY'; payload: string }
   | { type: 'REMOVE_GEMINI_KEY'; payload: string }
   | { type: 'SYNC_POPULAR_CUISINES'; payload: { name: string; query: string; image: string }[] }
+  | { type: 'SET_POPULAR_CUISINES'; payload: { name: string; query: string; image: string }[] }
   | { type: 'ADD_POPULAR_CUISINE'; payload: { name: string; query: string; image: string } }
   | { type: 'REMOVE_POPULAR_CUISINE'; payload: string }
   | { type: 'SUBMIT_SUPPORT_REQUEST'; payload: { message: string; attemptsCount: number } }
@@ -2210,6 +2208,7 @@ function reducer(state: AppState, action: Action): AppState {
         geminiApiKeys: state.geminiApiKeys.filter(key => key !== action.payload)
       };
     case 'SYNC_POPULAR_CUISINES':
+    case 'SET_POPULAR_CUISINES':
       return {
         ...state,
         popularCuisines: action.payload || []
@@ -3383,6 +3382,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             handleDbPromise(
               set(ref(db, 'geminiApiKeys'), sanitizeDbData(currentState.geminiApiKeys.filter(key => key !== action.payload))),
               'Failed to remove Gemini API key'
+            );
+            break;
+          }
+          case 'SET_POPULAR_CUISINES': {
+            handleDbPromise(
+              set(ref(db, 'meenufy_config/popularCuisines'), sanitizeDbData(action.payload)),
+              'Failed to update popular cuisines list'
             );
             break;
           }

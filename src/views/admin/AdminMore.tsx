@@ -2643,15 +2643,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             const renewalDate = state.subscriptionRenewalDate || 0;
             
             // Check if expired
-            let isExpired = false;
-            if (state.subscriptionPlan === 'free') {
-              const matchedAcc = state.restaurantAccounts?.find(a => a.id === state.admin?.id);
-              const createdAt = state.restaurant?.createdAt || matchedAcc?.createdAt || Date.now();
-              const trialDuration = 14 * 24 * 60 * 60 * 1000;
-              isExpired = (now - createdAt) > trialDuration;
-            } else {
-              isExpired = now > renewalDate;
-            }
+            const isExpired = now > renewalDate;
 
             const cardBg = isExpired 
               ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)' 

@@ -137,6 +137,7 @@ export default function SuperAdminDashboard() {
   const [newCuisineQuery, setNewCuisineQuery] = useState('');
   const [newCuisineImage, setNewCuisineImage] = useState('');
   const [uploadingCuisineImage, setUploadingCuisineImage] = useState(false);
+  const [editingCuisineQuery, setEditingCuisineQuery] = useState<string | null>(null);
   const [newApiKey, setNewApiKey] = useState('');
   const [supportReplies, setSupportReplies] = useState<Record<string, string>>({});
   const [feedbackReplies, setFeedbackReplies] = useState<Record<string, string>>({});
@@ -1382,7 +1383,7 @@ export default function SuperAdminDashboard() {
             {/* Create Cuisine Item Form */}
             <div className="card" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: 20, marginBottom: 24 }}>
               <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brand)' }}>
-                🍕 Add New Cuisine Item
+                {editingCuisineQuery ? '✏️ Edit Cuisine Item' : '🍕 Add New Cuisine Item'}
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
                 <div className="input-group">
@@ -1394,7 +1395,7 @@ export default function SuperAdminDashboard() {
                     value={newCuisineName}
                     onChange={e => {
                       setNewCuisineName(e.target.value);
-                      if (!newCuisineQuery) {
+                      if (!newCuisineQuery && !editingCuisineQuery) {
                         setNewCuisineQuery(e.target.value.trim().toLowerCase());
                       }
                     }}
@@ -1454,26 +1455,67 @@ export default function SuperAdminDashboard() {
                   </div>
                 </div>
               </div>
-              <button
-                className="btn btn-primary"
-                disabled={!newCuisineName.trim() || !newCuisineQuery.trim() || !newCuisineImage}
-                onClick={() => {
-                  dispatch({
-                    type: 'ADD_POPULAR_CUISINE',
-                    payload: {
-                      name: newCuisineName.trim(),
-                      query: newCuisineQuery.trim(),
-                      image: newCuisineImage.trim()
-                    }
-                  });
-                  addToast('success', `${newCuisineName} added to Circular Cuisines list!`);
-                  setNewCuisineName('');
-                  setNewCuisineQuery('');
-                  setNewCuisineImage('');
-                }}
-              >
-                Add Cuisine Item
-              </button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {editingCuisineQuery ? (
+                  <>
+                    <button
+                      className="btn btn-primary"
+                      disabled={!newCuisineName.trim() || !newCuisineQuery.trim() || !newCuisineImage}
+                      onClick={() => {
+                        const list = [...(state.popularCuisines || [])];
+                        const idx = list.findIndex(c => c.query === editingCuisineQuery);
+                        if (idx !== -1) {
+                          list[idx] = {
+                            name: newCuisineName.trim(),
+                            query: newCuisineQuery.trim(),
+                            image: newCuisineImage.trim()
+                          };
+                          dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                          addToast('success', `${newCuisineName} updated successfully!`);
+                        }
+                        setNewCuisineName('');
+                        setNewCuisineQuery('');
+                        setNewCuisineImage('');
+                        setEditingCuisineQuery(null);
+                      }}
+                    >
+                      Save Changes
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setNewCuisineName('');
+                        setNewCuisineQuery('');
+                        setNewCuisineImage('');
+                        setEditingCuisineQuery(null);
+                      }}
+                    >
+                      Cancel Edit
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="btn btn-primary"
+                    disabled={!newCuisineName.trim() || !newCuisineQuery.trim() || !newCuisineImage}
+                    onClick={() => {
+                      dispatch({
+                        type: 'ADD_POPULAR_CUISINE',
+                        payload: {
+                          name: newCuisineName.trim(),
+                          query: newCuisineQuery.trim(),
+                          image: newCuisineImage.trim()
+                        }
+                      });
+                      addToast('success', `${newCuisineName} added to Circular Cuisines list!`);
+                      setNewCuisineName('');
+                      setNewCuisineQuery('');
+                      setNewCuisineImage('');
+                    }}
+                  >
+                    Add Cuisine Item
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Cuisines Grid */}
@@ -1486,8 +1528,8 @@ export default function SuperAdminDashboard() {
                   No popular cuisines added yet. Click "Load Defaults" to fill this section.
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 16 }}>
-                  {state.popularCuisines.map((c) => (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: 16 }}>
+                  {state.popularCuisines.map((c, index) => (
                     <div
                       key={c.query}
                       style={{
@@ -1504,6 +1546,7 @@ export default function SuperAdminDashboard() {
                       }}
                     >
                       <button
+                        title="Delete Cuisine"
                         style={{
                           position: 'absolute', top: 4, right: 4,
                           background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: '50%',
@@ -1519,13 +1562,69 @@ export default function SuperAdminDashboard() {
                       >
                         ✕
                       </button>
+                      <button
+                        title="Edit Cuisine"
+                        style={{
+                          position: 'absolute', top: 4, left: 4,
+                          background: 'rgba(59, 130, 246, 0.1)', border: 'none', borderRadius: '50%',
+                          width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#3b82f6', cursor: 'pointer', fontSize: 12
+                        }}
+                        onClick={() => {
+                          setNewCuisineName(c.name);
+                          setNewCuisineQuery(c.query);
+                          setNewCuisineImage(c.image);
+                          setEditingCuisineQuery(c.query);
+                        }}
+                      >
+                        ✏️
+                      </button>
                       <img
                         src={c.image}
                         alt={c.name}
-                        style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }}
+                        style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)', marginTop: 8 }}
                       />
                       <div style={{ fontWeight: 800, fontSize: 12, color: 'var(--text-primary)' }}>{c.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace' }}>q: {c.query}</div>
+                      
+                      {/* Rearrange position controls */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, borderTop: '1px solid var(--border)', paddingTop: 6, width: '100%', justifyContent: 'center' }}>
+                        <button
+                          disabled={index === 0}
+                          style={{
+                            background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: 4,
+                            color: 'var(--text-primary)', cursor: index === 0 ? 'not-allowed' : 'pointer', fontSize: 10, padding: '2px 6px'
+                          }}
+                          onClick={() => {
+                            const list = [...(state.popularCuisines || [])];
+                            const temp = list[index];
+                            list[index] = list[index - 1];
+                            list[index - 1] = temp;
+                            dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                          }}
+                        >
+                          ◀
+                        </button>
+                        <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 800, minWidth: 20 }}>
+                          #{index + 1}
+                        </span>
+                        <button
+                          disabled={index === state.popularCuisines.length - 1}
+                          style={{
+                            background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: 4,
+                            color: 'var(--text-primary)', cursor: index === state.popularCuisines.length - 1 ? 'not-allowed' : 'pointer', fontSize: 10, padding: '2px 6px'
+                          }}
+                          onClick={() => {
+                            const list = [...(state.popularCuisines || [])];
+                            const temp = list[index];
+                            list[index] = list[index + 1];
+                            list[index + 1] = temp;
+                            dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                          }}
+                        >
+                          ▶
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
