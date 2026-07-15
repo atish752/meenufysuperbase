@@ -1448,6 +1448,25 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                       });
                     })()}
                   </div>
+                  
+                  {/* Warning message if the selected order type is disabled */}
+                  {!orderTypeStatus.allowed && (
+                    <div style={{
+                      marginTop: 8,
+                      paddingTop: 8,
+                      borderTop: '1px solid rgba(239, 68, 68, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      color: 'var(--error)',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      lineHeight: 1.4
+                    }}>
+                      <span>❌</span>
+                      <span>{orderTypeStatus.reason}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
