@@ -636,25 +636,63 @@ export function getActiveRestaurantInfo(state: AppState, restaurantId: string): 
   if (state.admin && state.admin.restaurantId === restaurantId) {
     return state.restaurant;
   }
-  if (typeof window !== 'undefined') {
-    const urlParams = new URLSearchParams(window.location.search);
-    const activeId = urlParams.get('restaurant') || localStorage.getItem('meenufy_active_restaurant_id') || 'admin-1';
-    if (activeId === restaurantId && state.restaurant) {
-      return state.restaurant;
-    }
+
+  // Only return state.restaurant if it has finished loading and matches the requested restaurantId
+  const isLoaded = state.restaurant && state.restaurant.id === restaurantId;
+  if (isLoaded) {
+    return state.restaurant;
   }
+
+  // Fallback 1: Build basic info from preloaded restaurantAccounts (all outlets)
+  const account = state.restaurantAccounts?.find(acc => acc.id === restaurantId);
+  if (account) {
+    return {
+      ...DEFAULT_RESTAURANT,
+      id: restaurantId,
+      name: account.restaurantName || DEFAULT_RESTAURANT.name,
+      tagline: account.tagline || DEFAULT_RESTAURANT.tagline,
+      logo: account.logo || DEFAULT_RESTAURANT.logo,
+      bannerImage: account.bannerImage || DEFAULT_RESTAURANT.bannerImage,
+      posterImage: account.posterImage || DEFAULT_RESTAURANT.posterImage,
+      address: account.address || DEFAULT_RESTAURANT.address,
+      phone: account.ownerPhone || DEFAULT_RESTAURANT.phone,
+      daySpecificHours: account.daySpecificHours || DEFAULT_RESTAURANT.daySpecificHours,
+      rating: account.rating || DEFAULT_RESTAURANT.rating,
+      ratingsCount: account.ratingsCount || DEFAULT_RESTAURANT.ratingsCount,
+      promoText: account.promoText || DEFAULT_RESTAURANT.promoText,
+      cuisines: account.cuisines || DEFAULT_RESTAURANT.cuisines,
+      // Default open hours while loading to prevent closed screen flash
+      openTime: '00:00',
+      closeTime: '23:59',
+      isManualClosed: false,
+    };
+  }
+
+  // Fallback 2: Check MOCK_RESTAURANT_INFOS
   const mockInfo = MOCK_RESTAURANT_INFOS[restaurantId];
   if (mockInfo) return mockInfo;
 
+  // Fallback 3: Check orders
   const matchedOrder = state.orders.find(o => o.restaurantId === restaurantId);
   if (matchedOrder && matchedOrder.restaurantName) {
     return {
       ...DEFAULT_RESTAURANT,
       name: matchedOrder.restaurantName,
       id: restaurantId,
+      openTime: '00:00',
+      closeTime: '23:59',
+      isManualClosed: false,
     };
   }
-  return state.restaurant || MOCK_RESTAURANT_INFOS['admin-1'];
+
+  // Fallback 4: Completely open placeholder
+  return {
+    ...DEFAULT_RESTAURANT,
+    id: restaurantId,
+    openTime: '00:00',
+    closeTime: '23:59',
+    isManualClosed: false,
+  };
 }
 
 const DEFAULT_CATEGORIES: MenuCategory[] = [
@@ -2624,7 +2662,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         dispatch({
           type: 'SET_STATE',
-          payload: { restaurant: { ...stateRef.current.restaurant, ...data } }
+          payload: { restaurant: { ...stateRef.current.restaurant, ...data, id: targetRestaurantId } }
         });
       }
     });
