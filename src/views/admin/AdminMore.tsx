@@ -502,8 +502,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     // For Indian billing — open the authorized Razorpay subscription links directly
     if (state.billingCountry === 'IN' && billingPeriod === 'monthly') {
       const razorpayLinks: Record<string, string> = {
-        base: 'https://rzp.io/rzp/roRw6Dt',
-        standard: 'https://rzp.io/rzp/EDtgzC3',
+        base: 'https://rzp.io/rzp/EDtgzC3',
+        standard: 'https://rzp.io/rzp/roRw6Dt',
       };
       const link = razorpayLinks[planName];
       if (link) {
@@ -2857,11 +2857,11 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 const plans = state.billingCountry === 'IN' ? [
                   { name: 'free', label: '21-Day Free Trial', price: 0, currency: '₹', desc: 'Try out all features free for 21 days', saving: 0 },
                   { name: 'base', label: 'Basic Plan', price: isYearly ? 25000 : 2500, currency: '₹', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 5000 },
-                  { name: 'standard', label: 'Premium Plan', price: isYearly ? 40000 : 4000, currency: '₹', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 8000 },
+                  { name: 'standard', label: 'Advance Plan', price: isYearly ? 40000 : 4000, currency: '₹', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 8000 },
                 ] : [
                   { name: 'free', label: '21-Day Free Trial', price: 0, currency: '$', desc: 'Try out all features free for 21 days', saving: 0 },
                   { name: 'base', label: 'Basic Plan', price: isYearly ? 300 : 30, currency: '$', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 60 },
-                  { name: 'standard', label: 'Premium Plan', price: isYearly ? 500 : 50, currency: '$', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 100 },
+                  { name: 'standard', label: 'Advance Plan', price: isYearly ? 500 : 50, currency: '$', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 100 },
                 ];
 
                 return plans.map(p => {
@@ -3705,7 +3705,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       setCheckoutProcessing(false);
                       setRazorpaySubInput('');
                       setCheckoutStep('success');
-                      addToast('success', `🎉 ${selectedUpgradePlan === 'base' ? 'Basic' : 'Premium'} Plan activated successfully!`);
+                      addToast('success', `🎉 ${selectedUpgradePlan === 'base' ? 'Basic' : 'Advance'} Plan activated successfully!`);
                     }, 800);
                   }}
                 >
@@ -3714,7 +3714,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
                 <button
                   type="button"
-                  onClick={() => window.open(selectedUpgradePlan === 'base' ? 'https://rzp.io/rzp/roRw6Dt' : 'https://rzp.io/rzp/EDtgzC3', '_blank', 'noopener,noreferrer')}
+                  onClick={() => window.open(selectedUpgradePlan === 'base' ? 'https://rzp.io/rzp/EDtgzC3' : 'https://rzp.io/rzp/roRw6Dt', '_blank', 'noopener,noreferrer')}
                   style={{ width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 8 }}
                 >
                   🔗 Reopen Payment Page

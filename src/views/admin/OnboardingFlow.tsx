@@ -1092,7 +1092,7 @@ export default function OnboardingFlow() {
                   },
                   {
                     id: 'standard',
-                    name: 'Premium Plan',
+                    name: 'Advance Plan',
                     price: currency === 'INR' ? '₹4,000/mo' : '$50/mo',
                     renewal: currency === 'INR' ? '₹40,000/yr' : '$500/yr',
                     features: ['✅ In-Dining & QR Menus', '✅ Takeaway Orders', '✅ Home Delivery', '✅ GPS Rider Tracking', '✅ Advanced Analytics'],
