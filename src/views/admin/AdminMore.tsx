@@ -2639,119 +2639,161 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>Pricing &amp; Subscription</h3>
           </div>
           {(() => {
-            const renewalFormatted = new Date(state.subscriptionRenewalDate || Date.now()).toLocaleDateString(undefined, {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            });
+            const now = Date.now();
+            const renewalDate = state.subscriptionRenewalDate || 0;
+            
+            // Check if expired
+            let isExpired = false;
+            if (state.subscriptionPlan === 'free') {
+              const matchedAcc = state.restaurantAccounts?.find(a => a.id === state.admin?.id);
+              const createdAt = state.restaurant?.createdAt || matchedAcc?.createdAt || Date.now();
+              const trialDuration = 14 * 24 * 60 * 60 * 1000;
+              isExpired = (now - createdAt) > trialDuration;
+            } else {
+              isExpired = now > renewalDate;
+            }
+
+            const cardBg = isExpired 
+              ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)' 
+              : 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)';
+            const cardShadow = isExpired
+              ? '0 8px 24px rgba(239, 68, 68, 0.25)'
+              : '0 8px 24px rgba(255, 125, 0, 0.2)';
+            
+            const statusLabel = isExpired
+              ? (state.subscriptionPlan === 'free' ? '⚠️ Free Trial Expired / Inactive' : '⚠️ Payment Pending / Expired')
+              : 'Current Active Plan';
+
+            const planNameFormatted = state.subscriptionPlan === 'standard' || state.subscriptionPlan === 'advance' 
+              ? 'Advance' 
+              : state.subscriptionPlan === 'base'
+                ? 'Basic'
+                : 'Free Trial';
+
+            const renewalFormatted = isExpired
+              ? 'Expired / Unpaid'
+              : new Date(renewalDate).toLocaleDateString(undefined, {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                });
 
             return (
               <>
                 <div style={{
-                background: 'linear-gradient(135deg, var(--brand) 0%, #e06000 100%)',
-                borderRadius: 12,
-                padding: '20px',
-                color: '#ffffff',
-                boxShadow: '0 8px 24px rgba(255, 125, 0, 0.2)',
-                marginBottom: 20,
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  position: 'absolute',
-                  right: '-10px',
-                  bottom: '-20px',
-                  fontSize: '100px',
-                  opacity: 0.1,
-                  pointerEvents: 'none'
-                }}>⭐️</div>
-                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ffffff', fontWeight: 700 }}>Current Active Plan</div>
-                <div style={{ fontSize: 32, fontWeight: 800, marginTop: 4, fontFamily: 'var(--font-display)', textTransform: 'capitalize', color: '#ffffff' }}>
-                  {state.subscriptionPlan} Plan
-                </div>
-                
-
-                {/* Active Services */}
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Services</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#ffffff' }}>
-                    {state.subscriptionPlan === 'free' && '🎁 14-Day Free Trial — All Features Unlocked'}
-                    {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' && '🍽️ In-Dining & Takeaway Only'}
-                    {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' && '🛵 Home Delivery Only'}
-                    {(state.subscriptionPlan === 'standard' || state.subscriptionPlan === 'advance') && '✅ In-Dining, Takeaway & Home Delivery'}
+                  background: cardBg,
+                  borderRadius: 12,
+                  padding: '20px',
+                  color: '#ffffff',
+                  boxShadow: cardShadow,
+                  marginBottom: 20,
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    right: '-10px',
+                    bottom: '-20px',
+                    fontSize: '100px',
+                    opacity: 0.1,
+                    pointerEvents: 'none'
+                  }}>⭐️</div>
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ffffff', fontWeight: 700 }}>
+                    {statusLabel}
                   </div>
-                  {/* Inline service mode switcher for Basic plan */}
-                  {state.subscriptionPlan === 'base' && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            const { ref, update } = await import('firebase/database');
-                            const rId = state.admin?.restaurantId || 'admin-1';
-                            await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
-                            await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
-                            addToast('success', '✅ Switched to In-Dining & Takeaway.');
-                          } catch (err) { console.error(err); }
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '6px 8px',
-                          borderRadius: 8,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          border: 'none',
-                          background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? '#ffffff' : 'rgba(255,255,255,0.2)',
-                          color: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? '#e06000' : '#ffffff',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        🍽️ In-Dining & Takeaway
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            const { ref, update } = await import('firebase/database');
-                            const rId = state.admin?.restaurantId || 'admin-1';
-                            await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'delivery_only' });
-                            await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'delivery_only' });
-                            addToast('success', '✅ Switched to Home Delivery Only.');
-                          } catch (err) { console.error(err); }
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '6px 8px',
-                          borderRadius: 8,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          border: 'none',
-                          background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? '#ffffff' : 'rgba(255,255,255,0.2)',
-                          color: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? '#e06000' : '#ffffff',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        🛵 Home Delivery
-                      </button>
+                  <div style={{ fontSize: 32, fontWeight: 800, marginTop: 4, fontFamily: 'var(--font-display)', textTransform: 'capitalize', color: '#ffffff' }}>
+                    {planNameFormatted} Plan
+                  </div>
+
+                  {/* Active Services */}
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Active Services
                     </div>
-                  )}
-                </div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#ffffff' }}>
+                      {isExpired ? (
+                        '❌ Services Suspended — Complete payment below to activate.'
+                      ) : (
+                        <>
+                          {state.subscriptionPlan === 'free' && '🎁 14-Day Free Trial — All Features Unlocked'}
+                          {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' && '🍽️ In-Dining & Takeaway Only'}
+                          {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' && '🛵 Home Delivery Only'}
+                          {(state.subscriptionPlan === 'standard' || state.subscriptionPlan === 'advance') && '✅ In-Dining, Takeaway & Home Delivery'}
+                        </>
+                      )}
+                    </div>
+                    {/* Inline service mode switcher for Basic plan */}
+                    {!isExpired && state.subscriptionPlan === 'base' && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const { ref, update } = await import('firebase/database');
+                              const rId = state.admin?.restaurantId || 'admin-1';
+                              await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
+                              await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
+                              addToast('success', '✅ Switched to In-Dining & Takeaway.');
+                            } catch (err) { console.error(err); }
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            borderRadius: 8,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            border: 'none',
+                            background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? '#ffffff' : 'rgba(255,255,255,0.2)',
+                            color: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? '#e06000' : '#ffffff',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          🍽️ In-Dining & Takeaway
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const { ref, update } = await import('firebase/database');
+                              const rId = state.admin?.restaurantId || 'admin-1';
+                              await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'delivery_only' });
+                              await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'delivery_only' });
+                              addToast('success', '✅ Switched to Home Delivery Only.');
+                            } catch (err) { console.error(err); }
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            borderRadius: 8,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            border: 'none',
+                            background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? '#ffffff' : 'rgba(255,255,255,0.2)',
+                            color: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? '#e06000' : '#ffffff',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          🛵 Home Delivery
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
-                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.25)', paddingTop: 12 }}>
-                  <span style={{ fontSize: 11, color: '#ffffff', fontWeight: 600 }}>
-                    Billing Country: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{state.billingCountry === 'IN' ? 'India (INR)' : 'Global (USD)'}</strong>
-                  </span>
-                  <span style={{ fontSize: 11, color: '#ffffff', fontWeight: 600 }}>
-                    Billing Cycle: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{state.billingPeriod === 'yearly' ? 'Yearly (15% Off)' : 'Monthly'}</strong>
-                  </span>
-                  <span style={{ fontSize: 11, color: '#ffffff', fontWeight: 600 }}>
-                    Renews: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{renewalFormatted}</strong>
-                  </span>
-                </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.25)', paddingTop: 12 }}>
+                    <span style={{ fontSize: 11, color: '#ffffff', fontWeight: 600 }}>
+                      Billing Country: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{state.billingCountry === 'IN' ? 'India (INR)' : 'Global (USD)'}</strong>
+                    </span>
+                    <span style={{ fontSize: 11, color: '#ffffff', fontWeight: 600 }}>
+                      Billing Cycle: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{state.billingPeriod === 'yearly' ? 'Yearly (15% Off)' : 'Monthly'}</strong>
+                    </span>
+                    <span style={{ fontSize: 11, color: '#ffffff', fontWeight: 600 }}>
+                      {isExpired ? 'Status:' : 'Renews:'} <strong style={{ color: '#ffffff', fontWeight: 800 }}>{renewalFormatted}</strong>
+                    </span>
+                  </div>
 
-                {state.subscriptionPlan !== 'free' && state.subscriptionId && (
+                  {state.subscriptionPlan !== 'free' && state.subscriptionId && (
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
