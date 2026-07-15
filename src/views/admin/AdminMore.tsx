@@ -396,7 +396,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
   // Secure payment gateway checkout state
   const [showCheckout, setShowCheckout] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<'select' | 'paying' | 'success'>('select');
+  const [checkoutStep, setCheckoutStep] = useState<'select' | 'paying' | 'success' | 'awaiting_razorpay'>('select');
+  const [razorpaySubInput, setRazorpaySubInput] = useState('');
   const [checkoutProcessing, setCheckoutProcessing] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
 
@@ -497,6 +498,28 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       }
       return;
     }
+
+    // For Indian billing — open the authorized Razorpay subscription links directly
+    if (state.billingCountry === 'IN' && billingPeriod === 'monthly') {
+      const razorpayLinks: Record<string, string> = {
+        base: 'https://rzp.io/rzp/roRw6Dt',
+        standard: 'https://rzp.io/rzp/EDtgzC3',
+      };
+      const link = razorpayLinks[planName];
+      if (link) {
+        window.open(link, '_blank', 'noopener,noreferrer');
+        addToast('info', '💳 Redirecting to secure Razorpay payment. Return here and click "I Have Paid" after completing payment.');
+        // Show the "I Have Paid" button — store pending plan upgrade
+        setSelectedUpgradePlan(planName);
+        setUpgradePrice(price);
+        setUpgradeCurrency(currency);
+        setSelectedBillingPeriod(billingPeriod);
+        setShowCheckout(true);
+        setCheckoutStep('awaiting_razorpay');
+        return;
+      }
+    }
+
     setSelectedUpgradePlan(planName);
     setSelectedBillingPeriod(billingPeriod);
     setUpgradePrice(price);
@@ -2599,10 +2622,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>Pricing &amp; Subscription</h3>
           </div>
           {(() => {
-            const planLimit = state.subscriptionPlan === 'free' ? 100 : state.subscriptionPlan === 'base' ? 1000 : state.subscriptionPlan === 'standard' ? 2000 : Infinity;
-            const isUnlimited = planLimit === Infinity;
-            const usage = state.ordersPlacedThisMonth || 0;
-            const progress = isUnlimited ? 100 : Math.min(100, (usage / planLimit) * 100);
             const renewalFormatted = new Date(state.subscriptionRenewalDate || Date.now()).toLocaleDateString(undefined, {
               year: 'numeric',
               month: 'long',
@@ -2634,15 +2653,73 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                   {state.subscriptionPlan} Plan
                 </div>
                 
-                {/* Usage statistics */}
+
+                {/* Active Services */}
                 <div style={{ marginTop: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6, fontWeight: 700, color: '#ffffff' }}>
-                    <span style={{ color: '#ffffff' }}>Monthly Order Usage</span>
-                    <span style={{ color: '#ffffff' }}>{usage} / {isUnlimited ? 'Unlimited' : `${planLimit} orders`}</span>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Services</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#ffffff' }}>
+                    {state.subscriptionPlan === 'free' && '🎁 21-Day Free Trial — All Features Unlocked'}
+                    {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' && '🍽️ In-Dining & Takeaway Only'}
+                    {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' && '🛵 Home Delivery Only'}
+                    {(state.subscriptionPlan === 'standard' || state.subscriptionPlan === 'advance') && '✅ In-Dining, Takeaway & Home Delivery'}
                   </div>
-                  <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.3)', borderRadius: 4, overflow: 'hidden' }}>
-                     <div style={{ width: `${progress}%`, height: '100%', background: '#ffffff', borderRadius: 4, transition: 'width 0.3s ease' }} />
-                  </div>
+                  {/* Inline service mode switcher for Basic plan */}
+                  {state.subscriptionPlan === 'base' && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const { ref, update } = await import('firebase/database');
+                            const rId = state.admin?.restaurantId || 'admin-1';
+                            await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
+                            await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
+                            addToast('success', '✅ Switched to In-Dining & Takeaway.');
+                          } catch (err) { console.error(err); }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '6px 8px',
+                          borderRadius: 8,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          border: 'none',
+                          background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? '#ffffff' : 'rgba(255,255,255,0.2)',
+                          color: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? '#e06000' : '#ffffff',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        🍽️ In-Dining & Takeaway
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const { ref, update } = await import('firebase/database');
+                            const rId = state.admin?.restaurantId || 'admin-1';
+                            await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'delivery_only' });
+                            await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'delivery_only' });
+                            addToast('success', '✅ Switched to Home Delivery Only.');
+                          } catch (err) { console.error(err); }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '6px 8px',
+                          borderRadius: 8,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          border: 'none',
+                          background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? '#ffffff' : 'rgba(255,255,255,0.2)',
+                          color: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? '#e06000' : '#ffffff',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        🛵 Home Delivery
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.25)', paddingTop: 12 }}>
@@ -2701,163 +2778,11 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 )}
               </div>
               
-              {/* Order Limit Exceeded Alert Box */}
-              {usage >= planLimit && !isUnlimited && (
-                <div className="card" style={{
-                  background: 'rgba(245,158,11,0.1)',
-                  borderColor: 'var(--brand)',
-                  borderWidth: '1.5px',
-                  borderStyle: 'solid',
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 20,
-                  animation: 'fadeIn 0.2s ease'
-                }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--brand)', marginBottom: 6 }}>
-                    ⚠️ Monthly Order Limit Exceeded
-                  </div>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.4 }}>
-                    Your restaurant has reached its monthly order limit of <strong>{planLimit}</strong> orders. 
-                    To continue receiving customer orders, you can either recharge/upgrade your subscription or opt to continue using in negative (up to -100 orders maximum).
-                  </p>
-                  
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => {
-                        const pricingTitle = document.getElementById('upgrade-plan-section-title');
-                        pricingTitle?.scrollIntoView({ behavior: 'smooth' });
-                        addToast('info', 'Choose an upgrade plan below.');
-                      }}
-                      style={{ flex: 1, fontSize: 11, height: 32, fontWeight: 700 }}
-                    >
-                      💳 Recharge / Upgrade
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        const nextAllowNegative = !restaurantForm.allowNegativeOrders;
-                        setRestaurantForm(prev => ({ ...prev, allowNegativeOrders: nextAllowNegative }));
-                        dispatch({
-                          type: 'UPDATE_RESTAURANT',
-                          payload: { allowNegativeOrders: nextAllowNegative }
-                        });
-                        addToast('success', nextAllowNegative 
-                          ? 'Grace period negative capacity activated! (-100 orders max)' 
-                          : 'Grace period negative capacity deactivated.'
-                        );
-                      }}
-                      style={{ 
-                        flex: 1, 
-                        fontSize: 11, 
-                        height: 32,
-                        fontWeight: 700,
-                        background: restaurantForm.allowNegativeOrders ? 'rgba(34,197,94,0.15)' : undefined,
-                        borderColor: restaurantForm.allowNegativeOrders ? '#22c55e' : undefined,
-                        color: restaurantForm.allowNegativeOrders ? '#22c55e' : undefined
-                      }}
-                    >
-                      {restaurantForm.allowNegativeOrders ? '🟢 Grace Mode Enabled' : '🔴 Continue in -ve'}
-                    </button>
-                  </div>
-                </div>
-              )}
+
             </>
             );
           })()}
 
-          {state.subscriptionPlan === 'base' && (
-            <div className="card" style={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              padding: 20,
-              marginTop: 16,
-              marginBottom: 16,
-              animation: 'fadeIn 0.2s ease-in-out'
-            }}>
-              <h4 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
-                ⚙️ Basic Plan Services Mode
-              </h4>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px 0', lineHeight: 1.4 }}>
-                Under your current plan, you can enable EITHER **In-Dining &amp; Takeaway** services OR **Home Delivery** only.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: 12,
-                  borderRadius: 10,
-                  background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? 'rgba(255,125,0,0.06)' : 'var(--bg-secondary)',
-                  border: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? '1px solid var(--brand)' : '1px solid var(--border)',
-                  cursor: 'pointer'
-                }}>
-                  <input
-                    type="radio"
-                    name="basePlanType"
-                    checked={(state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway'}
-                    onChange={async () => {
-                      try {
-                        const { ref, update } = await import('firebase/database');
-                        const rId = state.admin?.restaurantId || 'admin-1';
-                        
-                        await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
-                        await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
-                        
-                        addToast('success', '✅ Services updated to In-Dining & Takeaway.');
-                      } catch (err) {
-                        console.error(err);
-                      }
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>In-Dining &amp; Takeaway Only</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Home Delivery ordering will be locked for customers.</div>
-                  </div>
-                </label>
-
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: 12,
-                  borderRadius: 10,
-                  background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? 'rgba(255,125,0,0.06)' : 'var(--bg-secondary)',
-                  border: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? '1px solid var(--brand)' : '1px solid var(--border)',
-                  cursor: 'pointer'
-                }}>
-                  <input
-                    type="radio"
-                    name="basePlanType"
-                    checked={(state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only'}
-                    onChange={async () => {
-                      try {
-                        const { ref, update } = await import('firebase/database');
-                        const rId = state.admin?.restaurantId || 'admin-1';
-                        
-                        await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'delivery_only' });
-                        await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'delivery_only' });
-                        
-                        addToast('success', '✅ Services updated to Home Delivery Only.');
-                      } catch (err) {
-                        console.error(err);
-                      }
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Home Delivery Only</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>In-Dining and Takeaway ordering will be locked for customers.</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          )}
 
           {/* Upgrade Plan Section */}
           <div style={{ marginTop: 20 }}>
@@ -3723,6 +3648,88 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 </div>
               </div>
             )}
+            {checkoutStep === 'awaiting_razorpay' && (
+              <div>
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(255,125,0,0.08) 0%, rgba(255,125,0,0.03) 100%)',
+                  border: '1.5px solid var(--brand)',
+                  borderRadius: 14,
+                  padding: 18,
+                  marginBottom: 20,
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>💳</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+                    Complete Payment on Razorpay
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    A Razorpay payment page has opened in a new tab.<br/>
+                    Complete the ₹{upgradePrice}/mo subscription there, then return here and enter your Subscription ID below.
+                  </div>
+                  <div style={{ marginTop: 14, padding: '8px 14px', background: 'rgba(255,125,0,0.1)', borderRadius: 8, fontSize: 11, color: 'var(--brand)', fontWeight: 700 }}>
+                    📧 Your Subscription ID will be in the Razorpay confirmation email (format: sub_XXXX...)
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Razorpay Subscription ID
+                  </label>
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="e.g. sub_TDfCo4FNmjJ1Tz"
+                    value={razorpaySubInput}
+                    onChange={e => setRazorpaySubInput(e.target.value.trim())}
+                    style={{ fontSize: 13, fontFamily: 'monospace' }}
+                  />
+                </div>
+
+                <button
+                  className="btn btn-primary btn-full"
+                  disabled={!razorpaySubInput.startsWith('sub_') || razorpaySubInput.length < 10 || checkoutProcessing}
+                  style={{ height: 42, fontWeight: 800, marginBottom: 10 }}
+                  onClick={() => {
+                    if (!selectedUpgradePlan) return;
+                    setCheckoutProcessing(true);
+                    // Activate the plan with the provided subscription ID
+                    setTimeout(() => {
+                      dispatch({
+                        type: 'UPDATE_SUBSCRIPTION_PLAN',
+                        payload: {
+                          planName: selectedUpgradePlan,
+                          billingPeriod: 'monthly',
+                          subscriptionId: razorpaySubInput
+                        }
+                      });
+                      setCheckoutProcessing(false);
+                      setRazorpaySubInput('');
+                      setCheckoutStep('success');
+                      addToast('success', `🎉 ${selectedUpgradePlan === 'base' ? 'Basic' : 'Premium'} Plan activated successfully!`);
+                    }, 800);
+                  }}
+                >
+                  {checkoutProcessing ? '⏳ Activating...' : '✅ I Have Paid — Activate Plan'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.open(selectedUpgradePlan === 'base' ? 'https://rzp.io/rzp/roRw6Dt' : 'https://rzp.io/rzp/EDtgzC3', '_blank', 'noopener,noreferrer')}
+                  style={{ width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 8 }}
+                >
+                  🔗 Reopen Payment Page
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setShowCheckout(false); setRazorpaySubInput(''); }}
+                  style={{ width: '100%', background: 'none', border: 'none', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', padding: '6px 0' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
 
             {checkoutStep === 'success' && (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -3746,14 +3753,14 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                   Subscription Activated!
                 </h4>
                 <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
-                  Payment of {upgradeCurrency}{upgradePrice} verified successfully. Your plan has been upgraded to <strong style={{ textTransform: 'capitalize' }}>{selectedUpgradePlan}</strong>.
+                  Your plan has been upgraded to <strong style={{ textTransform: 'capitalize' }}>{selectedUpgradePlan === 'base' ? 'Basic' : selectedUpgradePlan === 'standard' ? 'Premium' : selectedUpgradePlan}</strong>. All features for your plan are now active.
                 </p>
                 <button
                   onClick={() => setShowCheckout(false)}
                   className="btn btn-primary btn-full"
                   style={{ height: 38 }}
                 >
-                  Go Back
+                  Go to Dashboard
                 </button>
               </div>
             )}

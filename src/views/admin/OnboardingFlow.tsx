@@ -37,8 +37,8 @@ export default function OnboardingFlow() {
   const [biggestPainPoint, setBiggestPainPoint] = useState<string>('');
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<string>('');
-  const [basePlanSelectedType, setBasePlanSelectedType] = useState<'dining_takeaway' | 'delivery_only'>('dining_takeaway');
-  const [showBasePlanOptions, setShowBasePlanOptions] = useState<boolean>(false);
+  const [basePlanSelectedType, setBasePlanSelectedType] = useState<'dining_takeaway' | 'delivery_only' | 'both'>('both');
+  const [serviceModeSelected, setServiceModeSelected] = useState<boolean>(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
   // Local state object to capture user selections across screens (OnboardingState)
@@ -183,7 +183,7 @@ export default function OnboardingFlow() {
           type: 'COMPLETE_ONBOARDING',
           payload: {
             subscriptionPlan: (selectedPlan as any) || 'free',
-            basePlanSelectedType: selectedPlan === 'base' ? basePlanSelectedType : undefined
+            basePlanSelectedType: selectedPlan === 'base' && basePlanSelectedType !== 'both' ? (basePlanSelectedType as 'dining_takeaway' | 'delivery_only') : undefined
           }
         });
         console.log('Onboarding data recorded:', onboardingData);
@@ -208,16 +208,16 @@ export default function OnboardingFlow() {
           payload: {
             name: restaurantName.trim(),
             subscriptionPlan: (selectedPlan as any) || 'free',
-            basePlanSelectedType: selectedPlan === 'base' ? basePlanSelectedType : undefined,
+            basePlanSelectedType: selectedPlan === 'base' && basePlanSelectedType !== 'both' ? (basePlanSelectedType as 'dining_takeaway' | 'delivery_only') : undefined,
             subscriptionRenewalDate: Date.now() + (selectedPlan === 'free' ? 21 : 30) * 24 * 60 * 60 * 1000,
             createdAt: Date.now()
           }
         });
 
-        // Redirect away
+        // Redirect to admin dashboard
         dispatch({ type: 'SET_ADMIN_TAB', payload: 'home' });
-        window.history.pushState({}, '', '/');
-        addToast('success', `🎉 Onboarding Completed! Welcome to ${restaurantName.trim()} dashboard.`);
+        window.history.pushState({}, '', '/admin');
+        addToast('success', `🎉 Welcome to Meenufy, ${restaurantName.trim()}! Your dashboard is ready. 🚀`);
       }, 1500);
     }, 600);
   };
@@ -926,84 +926,234 @@ export default function OnboardingFlow() {
 
         {/* ── SCREEN 10: GEOLOCALIZED PRICING MATRIX (CLOSE PHASE) ── */}
         {screenIndex === 9 && (
-          <div className="anim-fade" style={{ maxWidth: 440, justifySelf: 'center' }}>
+          <div className="anim-fade" style={{ maxWidth: 460, justifySelf: 'center', width: '100%' }}>
             <h2 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800, textAlign: 'center', marginBottom: 4 }}>
-              Choose Your Plan
+              {!serviceModeSelected ? '⚡ How Will You Accept Orders?' : '🎯 Choose Your Plan'}
             </h2>
             <p style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 18 }}>
-              {detectingLocation ? 'Determining your regional currency...' : `Prices localized to ${currency === 'INR' ? 'INR (₹)' : 'USD ($)'}`}
+              {!serviceModeSelected
+                ? 'Select your primary order-accepting mode. You can change this later.'
+                : detectingLocation ? 'Determining your regional currency...' : `Prices localized to ${currency === 'INR' ? 'INR (₹)' : 'USD ($)'}`
+              }
             </p>
 
-            {/* Plan Stack */}
-            {!showBasePlanOptions ? (
+            {/* STEP A: Service Mode Selection */}
+            {!serviceModeSelected && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
                 {[
                   {
+                    id: 'dining_takeaway' as const,
+                    emoji: '🍽️',
+                    title: 'In-Dining & Takeaway',
+                    desc: 'QR scan menus, table orders, dine-in management & takeaway orders. No home delivery.',
+                    badge: 'Most Common'
+                  },
+                  {
+                    id: 'delivery_only' as const,
+                    emoji: '🛵',
+                    title: 'Home Delivery Only',
+                    desc: 'Accept delivery orders online with GPS tracking, distance-based pricing & rider management.',
+                    badge: ''
+                  },
+                  {
+                    id: 'both' as const,
+                    emoji: '🚀',
+                    title: 'All of the Above',
+                    desc: 'Full access — In-Dining, Takeaway, and Home Delivery all enabled. Best for growing restaurants.',
+                    badge: 'Premium Only'
+                  }
+                ].map(opt => {
+                  const isSelected = basePlanSelectedType === opt.id;
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => setBasePlanSelectedType(opt.id)}
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 14,
+                        background: isSelected ? 'rgba(255,125,0,0.06)' : 'rgba(255,255,255,0.02)',
+                        border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
+                        borderRadius: 14,
+                        padding: '14px 16px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {opt.badge && (
+                        <span style={{
+                          position: 'absolute', top: -9, right: 12,
+                          background: opt.id === 'both' ? 'var(--brand)' : 'rgba(255,125,0,0.15)',
+                          color: opt.id === 'both' ? '#fff' : 'var(--brand)',
+                          fontSize: 9, fontWeight: 800, padding: '2px 8px',
+                          borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}>
+                          {opt.badge}
+                        </span>
+                      )}
+                      <div style={{
+                        width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                        background: isSelected ? 'rgba(255,125,0,0.12)' : 'var(--bg-elevated)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 20, border: isSelected ? '1px solid rgba(255,125,0,0.3)' : '1px solid var(--border)',
+                        transition: 'all 0.2s ease'
+                      }}>
+                        {opt.emoji}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: isSelected ? 'var(--brand)' : 'var(--text-primary)', marginBottom: 3 }}>
+                          {opt.title}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          {opt.desc}
+                        </div>
+                      </div>
+                      <div style={{
+                        width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 2,
+                        border: isSelected ? '5px solid var(--brand)' : '2px solid var(--border)',
+                        background: isSelected ? 'var(--brand)' : 'transparent',
+                        transition: 'all 0.2s ease'
+                      }} />
+                    </div>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // 'both' forces premium plan
+                    if (basePlanSelectedType === 'both') {
+                      setSelectedPlan('standard');
+                    }
+                    setServiceModeSelected(true);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 0',
+                    borderRadius: 12,
+                    background: 'var(--brand)',
+                    border: 'none',
+                    color: '#000',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    marginTop: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  Continue to Plan Selection →
+                </button>
+              </div>
+            )}
+
+            {/* STEP B: Plan Selection (after service mode chosen) */}
+            {serviceModeSelected && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+
+                {/* Service mode summary chip */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 14px', borderRadius: 10,
+                  background: 'rgba(255,125,0,0.08)', border: '1px solid rgba(255,125,0,0.2)',
+                  marginBottom: 4
+                }}>
+                  <span style={{ fontSize: 14 }}>
+                    {basePlanSelectedType === 'dining_takeaway' ? '🍽️' : basePlanSelectedType === 'delivery_only' ? '🛵' : '🚀'}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand)' }}>
+                    {basePlanSelectedType === 'dining_takeaway' ? 'In-Dining & Takeaway selected' : basePlanSelectedType === 'delivery_only' ? 'Home Delivery Only selected' : 'All Services selected'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setServiceModeSelected(false)}
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 10, color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Change
+                  </button>
+                </div>
+
+                {[
+                  {
                     id: 'base',
-                    name: "Basic Plan",
+                    name: 'Basic Plan',
                     price: currency === 'INR' ? '₹2,500/mo' : '$30/mo',
-                    renewal: currency === 'INR' ? '₹25,000/yr' : '$300/yr equivalent',
-                    limit: "Choose EITHER In-Dining & Takeaway OR Home Delivery Only"
+                    renewal: currency === 'INR' ? '₹25,000/yr' : '$300/yr',
+                    features: basePlanSelectedType === 'dining_takeaway'
+                      ? ['✅ In-Dining & QR Menus', '✅ Takeaway Orders', '✅ Kitchen Display', '✅ Analytics', '❌ Home Delivery']
+                      : basePlanSelectedType === 'delivery_only'
+                      ? ['✅ Home Delivery Orders', '✅ GPS Tracking', '✅ Rider Management', '✅ Analytics', '❌ Dine-In / Takeaway']
+                      : [],
+                    recommended: basePlanSelectedType !== 'both',
+                    hidden: basePlanSelectedType === 'both'
                   },
                   {
                     id: 'standard',
-                    name: "Premium Plan",
+                    name: 'Premium Plan',
                     price: currency === 'INR' ? '₹4,000/mo' : '$50/mo',
-                    renewal: currency === 'INR' ? '₹40,000/yr' : '$500/yr equivalent',
-                    limit: "Full access: In-Dining, Takeaway, and Home Delivery",
+                    renewal: currency === 'INR' ? '₹40,000/yr' : '$500/yr',
+                    features: ['✅ In-Dining & QR Menus', '✅ Takeaway Orders', '✅ Home Delivery', '✅ GPS Rider Tracking', '✅ Advanced Analytics'],
+                    recommended: basePlanSelectedType === 'both',
+                    hidden: false,
                     popular: true
                   }
-                ].map(plan => {
+                ].filter(p => !p.hidden).map(plan => {
                   const isSelected = selectedPlan === plan.id;
                   return (
                     <div
                       key={plan.id}
                       onClick={() => {
                         setSelectedPlan(plan.id);
-                        if (plan.id === 'base') {
-                          setShowBasePlanOptions(true);
+                        if (plan.id !== 'base' || basePlanSelectedType === 'both') {
+                          handleNext();
                         } else {
                           handleNext();
                         }
                       }}
-                      className={plan.popular ? 'pulse-border' : ''}
                       style={{
                         position: 'relative',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
+                        background: isSelected ? 'rgba(255,125,0,0.05)' : 'rgba(255,255,255,0.02)',
+                        border: plan.recommended ? '2px solid var(--brand)' : '1px solid var(--border)',
                         borderRadius: 14,
                         padding: 16,
                         cursor: 'pointer',
                         transition: 'var(--transition)'
                       }}
                     >
-                      {plan.popular && (
+                      {plan.recommended && (
                         <span style={{
-                          position: 'absolute', top: -10, right: 14,
+                          position: 'absolute', top: -9, right: 14,
                           background: 'var(--brand)', color: '#fff',
                           fontSize: 9, fontWeight: 800, padding: '2px 8px',
                           borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.04em'
                         }}>
-                          Most Popular Choice
+                          {basePlanSelectedType === 'both' ? 'Required for All Services' : 'Recommended'}
                         </span>
                       )}
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                         <div>
                           <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 2 }}>{plan.name}</h4>
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>📄 {plan.limit}</p>
                         </div>
-
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--brand)' }}>{plan.price}</div>
                           <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>billed annually at {plan.renewal}</div>
                         </div>
                       </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {plan.features.map((f, i) => (
+                          <div key={i} style={{ fontSize: 11, color: f.startsWith('❌') ? 'var(--text-muted)' : 'var(--text-secondary)' }}>{f}</div>
+                        ))}
+                      </div>
                     </div>
                   );
                 })}
 
-                {/* Continue with Free Tier option */}
+                {/* Free trial option */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1019,100 +1169,8 @@ export default function OnboardingFlow() {
                     marginTop: 8
                   }}
                 >
-                  Start 14-Day Free Trial (Try all features free for 14 days) →
+                  Start 21-Day Free Trial (Try all features free for 21 days) →
                 </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, background: 'rgba(255,255,255,0.02)', padding: 18, borderRadius: 16, border: '1px solid var(--border)' }}>
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>Configure Basic Plan</h3>
-                <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 12px 0', lineHeight: 1.5 }}>
-                  The Basic Plan permits accepting either **In-Dining &amp; Takeaway** services OR **Home Delivery** only. Select your configuration:
-                </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: 12,
-                    borderRadius: 10,
-                    background: basePlanSelectedType === 'dining_takeaway' ? 'rgba(255,125,0,0.06)' : 'transparent',
-                    border: basePlanSelectedType === 'dining_takeaway' ? '1px solid var(--brand)' : '1px solid var(--border)',
-                    cursor: 'pointer'
-                  }}>
-                    <input
-                      type="radio"
-                      name="onboardingBaseType"
-                      checked={basePlanSelectedType === 'dining_takeaway'}
-                      onChange={() => setBasePlanSelectedType('dining_takeaway')}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>In-Dining &amp; Takeaway Only</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>Home Delivery is disabled for customers.</div>
-                    </div>
-                  </label>
-
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: 12,
-                    borderRadius: 10,
-                    background: basePlanSelectedType === 'delivery_only' ? 'rgba(255,125,0,0.06)' : 'transparent',
-                    border: basePlanSelectedType === 'delivery_only' ? '1px solid var(--brand)' : '1px solid var(--border)',
-                    cursor: 'pointer'
-                  }}>
-                    <input
-                      type="radio"
-                      name="onboardingBaseType"
-                      checked={basePlanSelectedType === 'delivery_only'}
-                      onChange={() => setBasePlanSelectedType('delivery_only')}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Home Delivery Only</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>In-Dining and Takeaway are disabled for customers.</div>
-                    </div>
-                  </label>
-                </div>
-
-                <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowBasePlanOptions(false)}
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      background: 'none',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleNext()}
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      background: 'var(--brand)',
-                      border: 'none',
-                      color: '#000',
-                      fontSize: 12,
-                      fontWeight: 800,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Confirm &amp; Proceed
-                  </button>
-                </div>
               </div>
             )}
           </div>
