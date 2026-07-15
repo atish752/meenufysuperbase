@@ -156,13 +156,13 @@ export default function SuperAdminDashboard() {
   const handleOpenManageModal = (acc: any) => {
     setSelectedAccountId(acc.id);
     setSelectedAccountEmail(acc.ownerEmail);
-    setManagePlan(acc.subscriptionPlan || 'free');
+    setManagePlan(acc.subscriptionPlan === 'advance' ? 'standard' : (acc.subscriptionPlan || 'free'));
     setManageOrdersPlaced(acc.ordersPlacedThisMonth || 0);
     setManageCountry(acc.billingCountry || 'global');
     setManageBillingPeriod(acc.billingPeriod || 'monthly');
     
     // Format renewal date for input type="date"
-    const renewalMs = acc.subscriptionRenewalDate || (acc.createdAt + 30 * 24 * 60 * 60 * 1000);
+    const renewalMs = acc.subscriptionRenewalDate || (acc.createdAt + (acc.subscriptionPlan === 'free' ? 13 : 30) * 24 * 60 * 60 * 1000);
     const dateStr = new Date(renewalMs).toISOString().split('T')[0];
     setManageRenewalDate(dateStr);
     
@@ -1367,7 +1367,7 @@ export default function SuperAdminDashboard() {
                   if (window.confirm("Are you sure you want to load default popular cuisines? This will overwrite the current list.")) {
                     import('firebase/database').then(({ ref, set, getDatabase }) => {
                       const db = getDatabase();
-                      set(ref(db, 'popularCuisines'), DEFAULT_POPULAR_CUISINES).then(() => {
+                      set(ref(db, 'meenufy_config/popularCuisines'), DEFAULT_POPULAR_CUISINES).then(() => {
                         addToast('success', 'Popular cuisines initialized to defaults!');
                       });
                     });
@@ -1571,10 +1571,9 @@ export default function SuperAdminDashboard() {
                 onChange={e => setManagePlan(e.target.value as any)}
                 style={{ fontSize: 13, fontWeight: 600, height: 36, padding: '4px 8px' }}
               >
-                <option value="free">Free Trial (100 orders/mo)</option>
-                <option value="base">Base Plan (1000 orders/mo)</option>
-                <option value="standard">Standard Plan (2000 orders/mo)</option>
-                <option value="advance">Advance Plan (Unlimited)</option>
+                <option value="free">Free Trial (14 Days)</option>
+                <option value="base">Basic Plan</option>
+                <option value="standard">Advance Plan</option>
               </select>
             </div>
 

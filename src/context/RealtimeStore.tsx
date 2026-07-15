@@ -744,7 +744,7 @@ export function isSubscriptionActive(restaurant: RestaurantInfo | undefined): {
 
   // 1. Free Trial Plan (14 days trial duration)
   if (plan === 'free') {
-    const trialDuration = 14 * 24 * 60 * 60 * 1000;
+    const trialDuration = 13 * 24 * 60 * 60 * 1000;
     const elapsed = Date.now() - createdAt;
     const remainingMs = trialDuration - elapsed;
     const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
@@ -1545,7 +1545,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (!state.admin) return state;
       const payload = action.payload || { subscriptionPlan: 'free' };
       const plan = payload.subscriptionPlan;
-      const renewalDays = plan === 'free' ? 14 : 30;
+      const renewalDays = plan === 'free' ? 13 : 30;
       const renewalDate = plan === 'free' ? Date.now() + renewalDays * 24 * 60 * 60 * 1000 : 0;
 
       const newAccounts = state.restaurantAccounts.map(acc => {
@@ -2146,7 +2146,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'UPDATE_SUBSCRIPTION_PLAN': {
       const { planName, billingPeriod, subscriptionId } = action.payload;
       const targetId = state.admin?.id || 'admin-1';
-      const days = planName === 'free' ? 14 : billingPeriod === 'yearly' ? 365 : 30;
+      const days = planName === 'free' ? 13 : billingPeriod === 'yearly' ? 365 : 30;
       const newRenewalDate = Date.now() + days * 24 * 60 * 60 * 1000;
       
       const newAccounts = state.restaurantAccounts.map(acc => {
@@ -2742,7 +2742,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen to popular cuisines
-    const unsubscribePopularCuisines = onValue(ref(db, 'popularCuisines'), (snapshot) => {
+    const unsubscribePopularCuisines = onValue(ref(db, 'meenufy_config/popularCuisines'), (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const items = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as { name: string; query: string; image: string }[];
@@ -2753,7 +2753,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Auto-initialize the database with default popular cuisines if completely empty in RTDB
         import('firebase/database').then(({ set, ref }) => {
-          set(ref(db!, 'popularCuisines'), DEFAULT_POPULAR_CUISINES);
+          set(ref(db!, 'meenufy_config/popularCuisines'), DEFAULT_POPULAR_CUISINES);
         });
       }
     });
@@ -3388,14 +3388,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'ADD_POPULAR_CUISINE': {
             handleDbPromise(
-              set(ref(db, 'popularCuisines'), sanitizeDbData([...currentState.popularCuisines, action.payload])),
+              set(ref(db, 'meenufy_config/popularCuisines'), sanitizeDbData([...currentState.popularCuisines, action.payload])),
               'Failed to add popular cuisine'
             );
             break;
           }
           case 'REMOVE_POPULAR_CUISINE': {
             handleDbPromise(
-              set(ref(db, 'popularCuisines'), sanitizeDbData(currentState.popularCuisines.filter(c => c.query !== action.payload))),
+              set(ref(db, 'meenufy_config/popularCuisines'), sanitizeDbData(currentState.popularCuisines.filter(c => c.query !== action.payload))),
               'Failed to remove popular cuisine'
             );
             break;
@@ -3484,7 +3484,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (currentState.admin) {
               const payload = action.payload || { subscriptionPlan: 'free' };
               const plan = payload.subscriptionPlan;
-              const renewalDays = plan === 'free' ? 14 : 30;
+              const renewalDays = plan === 'free' ? 13 : 30;
               const renewalDate = plan === 'free' ? (Date.now() + renewalDays * 24 * 60 * 60 * 1000) : 0;
 
               const updates: any = {
@@ -3767,7 +3767,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'UPDATE_SUBSCRIPTION_PLAN': {
             const targetId = currentState.admin?.id || 'admin-1';
             const { planName, billingPeriod, subscriptionId } = action.payload;
-            const days = planName === 'free' ? 14 : billingPeriod === 'yearly' ? 365 : 30;
+            const days = planName === 'free' ? 13 : billingPeriod === 'yearly' ? 365 : 30;
             const renewal = Date.now() + days * 24 * 60 * 60 * 1000;
             handleDbPromise(
               update(ref(db, `restaurantAccounts/${targetId}`), {

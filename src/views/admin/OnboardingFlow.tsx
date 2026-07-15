@@ -212,7 +212,7 @@ export default function OnboardingFlow() {
             name: restaurantName.trim(),
             subscriptionPlan: (selectedPlan as any) || 'free',
             basePlanSelectedType: selectedPlan === 'base' && basePlanSelectedType !== 'both' ? (basePlanSelectedType as 'dining_takeaway' | 'delivery_only') : undefined,
-            subscriptionRenewalDate: selectedPlan === 'free' ? Date.now() + 14 * 24 * 60 * 60 * 1000 : 0,
+            subscriptionRenewalDate: selectedPlan === 'free' ? Date.now() + 13 * 24 * 60 * 60 * 1000 : 0,
             createdAt: Date.now()
           }
         });

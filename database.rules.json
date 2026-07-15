@@ -91,6 +91,10 @@
     "deliveryBoys": {
       ".read": true,
       ".write": true
+    },
+    "popularCuisines": {
+      ".read": true,
+      ".write": true
     }
   }
 }
