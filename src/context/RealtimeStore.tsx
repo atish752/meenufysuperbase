@@ -1036,7 +1036,7 @@ const DEFAULT_STATE: AppState = {
   ],
   subscriptionPlan: 'free',
   ordersPlacedThisMonth: 0,
-  subscriptionRenewalDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
+  subscriptionRenewalDate: Date.now() + 13 * 24 * 60 * 60 * 1000,
   billingCountry: detectBillingCountry(),
   billingPeriod: 'monthly',
   subscriptionId: null,
@@ -1389,7 +1389,9 @@ function reducer(state: AppState, action: Action): AppState {
           activeBalance = matched.walletBalance;
           subscriptionPlan = matched.subscriptionPlan || 'free';
           ordersPlacedThisMonth = matched.ordersPlacedThisMonth || 0;
-          subscriptionRenewalDate = matched.subscriptionRenewalDate || (matched.createdAt + 30 * 24 * 60 * 60 * 1000);
+          // For free plan: fallback to 13 days from createdAt so trial ends on day 14 (inclusive)
+          const fallbackDays = (matched.subscriptionPlan || 'free') === 'free' ? 13 : 30;
+          subscriptionRenewalDate = matched.subscriptionRenewalDate || (matched.createdAt + fallbackDays * 24 * 60 * 60 * 1000);
           billingCountry = matched.billingCountry || detectBillingCountry();
           billingPeriod = matched.billingPeriod || 'monthly';
           subscriptionId = matched.subscriptionId || null;
@@ -1460,7 +1462,7 @@ function reducer(state: AppState, action: Action): AppState {
           password: action.payload.password,
           subscriptionPlan: 'free',
           ordersPlacedThisMonth: 0,
-          subscriptionRenewalDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          subscriptionRenewalDate: Date.now() + 13 * 24 * 60 * 60 * 1000, // 13 days = trial expires on day 14
           billingCountry: detectedCountry,
           billingPeriod: 'monthly',
           rating: 0,
@@ -1472,7 +1474,9 @@ function reducer(state: AppState, action: Action): AppState {
       const activeBalance = existingAccount ? existingAccount.walletBalance : state.walletBalance;
       const subscriptionPlan = existingAccount ? (existingAccount.subscriptionPlan || 'free') : state.subscriptionPlan;
       const ordersPlacedThisMonth = existingAccount ? (existingAccount.ordersPlacedThisMonth || 0) : state.ordersPlacedThisMonth;
-      const subscriptionRenewalDate = existingAccount ? (existingAccount.subscriptionRenewalDate || (Date.now() + 30 * 24 * 60 * 60 * 1000)) : state.subscriptionRenewalDate;
+      const _accPlan = existingAccount ? (existingAccount.subscriptionPlan || 'free') : 'free';
+      const _fallbackDays = _accPlan === 'free' ? 13 : 30;
+      const subscriptionRenewalDate = existingAccount ? (existingAccount.subscriptionRenewalDate || (Date.now() + _fallbackDays * 24 * 60 * 60 * 1000)) : state.subscriptionRenewalDate;
       const billingCountry = existingAccount ? (existingAccount.billingCountry || detectedCountry) : state.billingCountry;
       const billingPeriod = existingAccount ? (existingAccount.billingPeriod || 'monthly') : state.billingPeriod;
       const subscriptionId = existingAccount ? (existingAccount.subscriptionId || null) : state.subscriptionId;
@@ -1749,6 +1753,13 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'PLACE_ORDER': {
+      // Hard subscription guard — reject order if subscription is inactive
+      const _orderRestaurant = state.restaurant;
+      const _subCheck = isSubscriptionActive(_orderRestaurant);
+      if (!_subCheck.active) {
+        console.warn('[PLACE_ORDER] Blocked: subscription inactive.', _subCheck.reason);
+        return state; // drop the order silently (UI should have already blocked it)
+      }
       const newOrders = [...state.orders, action.payload];
       // Update customer records
       const customers = [...state.customers];
@@ -3715,7 +3726,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                       createdAt: existingDbAcc ? (existingDbAcc.createdAt ?? Date.now()) : Date.now(),
                       subscriptionPlan: existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free',
                       ordersPlacedThisMonth: existingDbAcc ? (existingDbAcc.ordersPlacedThisMonth ?? 0) : 0,
-                      subscriptionRenewalDate: existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
+                      subscriptionRenewalDate: (() => {
+                        const plan = existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free';
+                        const days = plan === 'free' ? 13 : 30;
+                        return existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + days * 24 * 60 * 60 * 1000)) : (Date.now() + days * 24 * 60 * 60 * 1000);
+                      })(),
                       billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
                       billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
                       hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false,
@@ -3738,7 +3753,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                       createdAt: existingDbAcc ? (existingDbAcc.createdAt ?? Date.now()) : Date.now(),
                       subscriptionPlan: existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free',
                       ordersPlacedThisMonth: existingDbAcc ? (existingDbAcc.ordersPlacedThisMonth ?? 0) : 0,
-                      subscriptionRenewalDate: existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + 30 * 24 * 60 * 60 * 1000)) : (Date.now() + 30 * 24 * 60 * 60 * 1000),
+                      subscriptionRenewalDate: (() => {
+                        const plan = existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free';
+                        const days = plan === 'free' ? 13 : 30;
+                        return existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + days * 24 * 60 * 60 * 1000)) : (Date.now() + days * 24 * 60 * 60 * 1000);
+                      })(),
                       billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
                       billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
                       hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false,

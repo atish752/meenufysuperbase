@@ -721,6 +721,14 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       addToast('error', '❌ The restaurant is currently closed. No new orders can be placed.');
       return;
     }
+
+    // Hard subscription guard — double-check even if UI already shows the block
+    const _subCheck = isSubscriptionActive(restaurant);
+    if (!_subCheck.active) {
+      addToast('error', '❌ This restaurant\'s subscription has expired. Orders cannot be placed until the plan is renewed.');
+      return;
+    }
+
     if (!activeTableId) { addToast('error', 'No table selected.'); return; }
     if (state.cart.length === 0) { addToast('error', 'Cart is empty.'); return; }
 
