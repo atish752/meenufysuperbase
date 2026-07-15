@@ -37,6 +37,8 @@ export default function OnboardingFlow() {
   const [biggestPainPoint, setBiggestPainPoint] = useState<string>('');
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [basePlanSelectedType, setBasePlanSelectedType] = useState<'dining_takeaway' | 'delivery_only'>('dining_takeaway');
+  const [showBasePlanOptions, setShowBasePlanOptions] = useState<boolean>(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
   // Local state object to capture user selections across screens (OnboardingState)
@@ -177,7 +179,13 @@ export default function OnboardingFlow() {
       setTimeout(() => {
         // Complete onboarding session state updates
         localStorage.setItem('meenufy_has_completed_onboarding', 'true');
-        dispatch({ type: 'COMPLETE_ONBOARDING' });
+        dispatch({
+          type: 'COMPLETE_ONBOARDING',
+          payload: {
+            subscriptionPlan: (selectedPlan as any) || 'free',
+            basePlanSelectedType: selectedPlan === 'base' ? basePlanSelectedType : undefined
+          }
+        });
         console.log('Onboarding data recorded:', onboardingData);
         
         // Auto-login a default admin if not already logged in
@@ -197,7 +205,13 @@ export default function OnboardingFlow() {
         // Save restaurant name to database state
         dispatch({
           type: 'UPDATE_RESTAURANT',
-          payload: { name: restaurantName.trim() }
+          payload: {
+            name: restaurantName.trim(),
+            subscriptionPlan: (selectedPlan as any) || 'free',
+            basePlanSelectedType: selectedPlan === 'base' ? basePlanSelectedType : undefined,
+            subscriptionRenewalDate: Date.now() + (selectedPlan === 'free' ? 21 : 30) * 24 * 60 * 60 * 1000,
+            createdAt: Date.now()
+          }
         });
 
         // Redirect away
@@ -921,93 +935,186 @@ export default function OnboardingFlow() {
             </p>
 
             {/* Plan Stack */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-              {[
-                {
-                  id: 'base',
-                  name: "Base Plan",
-                  price: currency === 'INR' ? '₹1,499/mo' : '$20/mo',
-                  renewal: currency === 'INR' ? '₹15,290/yr' : '$200/yr equivalent',
-                  limit: "1,000 orders / mo"
-                },
-                {
-                  id: 'standard',
-                  name: "Standard Plan",
-                  price: currency === 'INR' ? '₹2,499/mo' : '$35/mo',
-                  renewal: currency === 'INR' ? '₹25,490/yr' : '$350/yr equivalent',
-                  limit: "2,000 orders / mo",
-                  popular: true
-                },
-                {
-                  id: 'advance',
-                  name: "Advance Plan",
-                  price: currency === 'INR' ? '₹3,999/mo' : '$50/mo',
-                  renewal: currency === 'INR' ? '₹40,790/yr' : '$500/yr equivalent',
-                  limit: "Unlimited orders + Priority Support"
-                }
-              ].map(plan => {
-                const isSelected = selectedPlan === plan.id;
-                return (
-                  <div
-                    key={plan.id}
-                    onClick={() => {
-                      setSelectedPlan(plan.id);
-                      handleNext();
-                    }}
-                    className={plan.popular ? 'pulse-border' : ''}
-                    style={{
-                      position: 'relative',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
-                      borderRadius: 14,
-                      padding: 16,
-                      cursor: 'pointer',
-                      transition: 'var(--transition)'
-                    }}
-                  >
-                    {plan.popular && (
-                      <span style={{
-                        position: 'absolute', top: -10, right: 14,
-                        background: 'var(--brand)', color: '#fff',
-                        fontSize: 9, fontWeight: 800, padding: '2px 8px',
-                        borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.04em'
-                      }}>
-                        Most Popular Choice
-                      </span>
-                    )}
+            {!showBasePlanOptions ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                {[
+                  {
+                    id: 'base',
+                    name: "Basic Plan",
+                    price: currency === 'INR' ? '₹2,500/mo' : '$30/mo',
+                    renewal: currency === 'INR' ? '₹25,000/yr' : '$300/yr equivalent',
+                    limit: "Choose EITHER In-Dining & Takeaway OR Home Delivery Only"
+                  },
+                  {
+                    id: 'standard',
+                    name: "Premium Plan",
+                    price: currency === 'INR' ? '₹4,000/mo' : '$50/mo',
+                    renewal: currency === 'INR' ? '₹40,000/yr' : '$500/yr equivalent',
+                    limit: "Full access: In-Dining, Takeaway, and Home Delivery",
+                    popular: true
+                  }
+                ].map(plan => {
+                  const isSelected = selectedPlan === plan.id;
+                  return (
+                    <div
+                      key={plan.id}
+                      onClick={() => {
+                        setSelectedPlan(plan.id);
+                        if (plan.id === 'base') {
+                          setShowBasePlanOptions(true);
+                        } else {
+                          handleNext();
+                        }
+                      }}
+                      className={plan.popular ? 'pulse-border' : ''}
+                      style={{
+                        position: 'relative',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: isSelected ? '2px solid var(--brand)' : '1px solid var(--border)',
+                        borderRadius: 14,
+                        padding: 16,
+                        cursor: 'pointer',
+                        transition: 'var(--transition)'
+                      }}
+                    >
+                      {plan.popular && (
+                        <span style={{
+                          position: 'absolute', top: -10, right: 14,
+                          background: 'var(--brand)', color: '#fff',
+                          fontSize: 9, fontWeight: 800, padding: '2px 8px',
+                          borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}>
+                          Most Popular Choice
+                        </span>
+                      )}
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 2 }}>{plan.name}</h4>
-                        <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>📄 Limits: {plan.limit}</p>
-                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 2 }}>{plan.name}</h4>
+                          <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>📄 {plan.limit}</p>
+                        </div>
 
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--brand)' }}>{plan.price}</div>
-                        <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>billed annually at {plan.renewal}</div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--brand)' }}>{plan.price}</div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>billed annually at {plan.renewal}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
 
-            {/* Continue with Free Tier option */}
-            <button
-              onClick={() => {
-                setSelectedPlan('free');
-                handleNext();
-              }}
-              style={{
-                width: '100%',
-                background: 'none', border: 'none',
-                color: 'var(--text-secondary)',
-                fontSize: 12, cursor: 'pointer',
-                textAlign: 'center', padding: '8px 0', textDecoration: 'underline'
-              }}
-            >
-              Continue with Free Tier (100 orders/month cap) →
-            </button>
+                {/* Continue with Free Tier option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPlan('free');
+                    handleNext();
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'none', border: 'none',
+                    color: 'var(--text-secondary)',
+                    fontSize: 12, cursor: 'pointer',
+                    textAlign: 'center', padding: '8px 0', textDecoration: 'underline',
+                    marginTop: 8
+                  }}
+                >
+                  Start 14-Day Free Trial (Try all features free for 14 days) →
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, background: 'rgba(255,255,255,0.02)', padding: 18, borderRadius: 16, border: '1px solid var(--border)' }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>Configure Basic Plan</h3>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 12px 0', lineHeight: 1.5 }}>
+                  The Basic Plan permits accepting either **In-Dining &amp; Takeaway** services OR **Home Delivery** only. Select your configuration:
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: 12,
+                    borderRadius: 10,
+                    background: basePlanSelectedType === 'dining_takeaway' ? 'rgba(255,125,0,0.06)' : 'transparent',
+                    border: basePlanSelectedType === 'dining_takeaway' ? '1px solid var(--brand)' : '1px solid var(--border)',
+                    cursor: 'pointer'
+                  }}>
+                    <input
+                      type="radio"
+                      name="onboardingBaseType"
+                      checked={basePlanSelectedType === 'dining_takeaway'}
+                      onChange={() => setBasePlanSelectedType('dining_takeaway')}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>In-Dining &amp; Takeaway Only</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>Home Delivery is disabled for customers.</div>
+                    </div>
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: 12,
+                    borderRadius: 10,
+                    background: basePlanSelectedType === 'delivery_only' ? 'rgba(255,125,0,0.06)' : 'transparent',
+                    border: basePlanSelectedType === 'delivery_only' ? '1px solid var(--brand)' : '1px solid var(--border)',
+                    cursor: 'pointer'
+                  }}>
+                    <input
+                      type="radio"
+                      name="onboardingBaseType"
+                      checked={basePlanSelectedType === 'delivery_only'}
+                      onChange={() => setBasePlanSelectedType('delivery_only')}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Home Delivery Only</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>In-Dining and Takeaway are disabled for customers.</div>
+                    </div>
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowBasePlanOptions(false)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      background: 'none',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNext()}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      background: 'var(--brand)',
+                      border: 'none',
+                      color: '#000',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Confirm &amp; Proceed
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

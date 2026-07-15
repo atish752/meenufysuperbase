@@ -5,7 +5,7 @@ import {
   MessageSquare, Smartphone, Send, Download, QrCode, ExternalLink,
   CreditCard, Printer, Users, Palette, X, HelpCircle
 } from 'lucide-react';
-import { auth, googleProvider, hasFirebaseConfig } from '../../utils/firebase';
+import { auth, googleProvider, hasFirebaseConfig, db } from '../../utils/firebase';
 import { signInWithPopup } from 'firebase/auth';
 import { connectBluetoothPrinter, disconnectBluetoothPrinter, printThermalReceipt } from '../../utils/printReceipt';
 
@@ -2768,6 +2768,97 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             );
           })()}
 
+          {state.subscriptionPlan === 'base' && (
+            <div className="card" style={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              padding: 20,
+              marginTop: 16,
+              marginBottom: 16,
+              animation: 'fadeIn 0.2s ease-in-out'
+            }}>
+              <h4 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
+                ⚙️ Basic Plan Services Mode
+              </h4>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px 0', lineHeight: 1.4 }}>
+                Under your current plan, you can enable EITHER **In-Dining &amp; Takeaway** services OR **Home Delivery** only.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: 12,
+                  borderRadius: 10,
+                  background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? 'rgba(255,125,0,0.06)' : 'var(--bg-secondary)',
+                  border: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' ? '1px solid var(--brand)' : '1px solid var(--border)',
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="radio"
+                    name="basePlanType"
+                    checked={(state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway'}
+                    onChange={async () => {
+                      try {
+                        const { ref, update } = await import('firebase/database');
+                        const rId = state.admin?.restaurantId || 'admin-1';
+                        
+                        await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
+                        await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
+                        
+                        addToast('success', '✅ Services updated to In-Dining & Takeaway.');
+                      } catch (err) {
+                        console.error(err);
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>In-Dining &amp; Takeaway Only</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Home Delivery ordering will be locked for customers.</div>
+                  </div>
+                </label>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: 12,
+                  borderRadius: 10,
+                  background: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? 'rgba(255,125,0,0.06)' : 'var(--bg-secondary)',
+                  border: (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' ? '1px solid var(--brand)' : '1px solid var(--border)',
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="radio"
+                    name="basePlanType"
+                    checked={(state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only'}
+                    onChange={async () => {
+                      try {
+                        const { ref, update } = await import('firebase/database');
+                        const rId = state.admin?.restaurantId || 'admin-1';
+                        
+                        await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'delivery_only' });
+                        await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'delivery_only' });
+                        
+                        addToast('success', '✅ Services updated to Home Delivery Only.');
+                      } catch (err) {
+                        console.error(err);
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Home Delivery Only</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>In-Dining and Takeaway ordering will be locked for customers.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Upgrade Plan Section */}
           <div style={{ marginTop: 20 }}>
             <h4 id="upgrade-plan-section-title" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
@@ -2839,15 +2930,13 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 const isYearly = billingPeriodToggle === 'yearly';
                 
                 const plans = state.billingCountry === 'IN' ? [
-                  { name: 'free', label: 'Free Trial', price: 0, currency: '₹', limit: 100, desc: 'For small cafes and testing', saving: 0 },
-                  { name: 'base', label: 'Base Plan', price: isYearly ? 15290 : 1499, currency: '₹', limit: 1000, desc: 'For growing eateries', saving: 2698 },
-                  { name: 'standard', label: 'Standard Plan', price: isYearly ? 25490 : 2499, currency: '₹', limit: 2000, desc: 'For busy outlets', saving: 4498 },
-                  { name: 'advance', label: 'Advance Plan', price: isYearly ? 40790 : 3999, currency: '₹', limit: Infinity, desc: 'Unlimited scale & priority support', saving: 7198 },
+                  { name: 'free', label: '21-Day Free Trial', price: 0, currency: '₹', desc: 'Try out all features free for 21 days', saving: 0 },
+                  { name: 'base', label: 'Basic Plan', price: isYearly ? 25000 : 2500, currency: '₹', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 5000 },
+                  { name: 'standard', label: 'Premium Plan', price: isYearly ? 40000 : 4000, currency: '₹', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 8000 },
                 ] : [
-                  { name: 'free', label: 'Free Trial', price: 0, currency: '$', limit: 100, desc: 'For small cafes and testing', saving: 0 },
-                  { name: 'base', label: 'Base Plan', price: isYearly ? 204 : 20, currency: '$', limit: 1000, desc: 'For growing eateries', saving: 36 },
-                  { name: 'standard', label: 'Standard Plan', price: isYearly ? 357 : 35, currency: '$', limit: 2000, desc: 'For busy outlets', saving: 63 },
-                  { name: 'advance', label: 'Advance Plan', price: isYearly ? 510 : 50, currency: '$', limit: Infinity, desc: 'Unlimited scale & priority support', saving: 90 },
+                  { name: 'free', label: '21-Day Free Trial', price: 0, currency: '$', desc: 'Try out all features free for 21 days', saving: 0 },
+                  { name: 'base', label: 'Basic Plan', price: isYearly ? 300 : 30, currency: '$', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 60 },
+                  { name: 'standard', label: 'Premium Plan', price: isYearly ? 500 : 50, currency: '$', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 100 },
                 ];
 
                 return plans.map(p => {
@@ -2883,7 +2972,9 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           {p.desc}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600, marginTop: 6 }}>
-                          Order Limit: {p.limit === Infinity ? 'Unlimited orders/month' : `${p.limit} orders/month`}
+                          {p.name === 'free' && 'Trial Period: 21 Days (All features)'}
+                          {p.name === 'base' && 'Allowed: EITHER In-Dining & Takeaway OR Home Delivery Only'}
+                          {p.name === 'standard' && 'Allowed: All features (In-Dining, Takeaway, and Home Delivery)'}
                         </div>
                       </div>
 

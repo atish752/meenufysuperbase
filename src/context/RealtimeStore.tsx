@@ -152,9 +152,14 @@ export type Order = {
   deliveryDistance?: number;
   deliveryBoyEarnings?: number;
   isVipCustomer?: boolean;
-  complaintRaised?: boolean;
-  complaintStatus?: string;
-  complaintReply?: string;
+  complaint?: {
+    category: string;
+    message: string;
+    status: 'pending' | 'resolved';
+    createdAt: number;
+    replyText?: string;
+    resolvedAt?: number;
+  };
 };
 
 export type TableInfo = {
@@ -223,6 +228,8 @@ export type RestaurantInfo = {
   overlayLogoOnMeals?: boolean;
   cuisines?: string;
   rating?: number;
+  basePlanSelectedType?: 'dining_takeaway' | 'delivery_only';
+  createdAt?: number;
   isManualClosed?: boolean;
   subscriptionId?: string | null;
   deliveryEnabled?: boolean;
@@ -335,6 +342,7 @@ export type RestaurantAccount = {
   subscriptionRenewalDate?: number;
   billingCountry?: 'IN' | 'global';
   billingPeriod?: 'monthly' | 'yearly';
+  basePlanSelectedType?: 'dining_takeaway' | 'delivery_only';
   hasCompletedOnboarding?: boolean;
   subscriptionId?: string | null;
   latitude?: number;
@@ -667,6 +675,10 @@ export function getActiveRestaurantInfo(state: AppState, restaurantId: string): 
       ratingsCount: account.ratingsCount !== undefined ? account.ratingsCount : DEFAULT_RESTAURANT.ratingsCount,
       promoText: account.promoText || DEFAULT_RESTAURANT.promoText,
       cuisines: account.cuisines || DEFAULT_RESTAURANT.cuisines,
+      subscriptionPlan: account.subscriptionPlan || 'free',
+      subscriptionRenewalDate: account.subscriptionRenewalDate || 0,
+      basePlanSelectedType: account.basePlanSelectedType || 'dining_takeaway',
+      createdAt: account.createdAt,
       // Default open hours while loading to prevent closed screen flash
       openTime: '00:00',
       closeTime: '23:59',
@@ -699,6 +711,77 @@ export function getActiveRestaurantInfo(state: AppState, restaurantId: string): 
     closeTime: '23:59',
     isManualClosed: false,
   };
+}
+
+export function isSubscriptionActive(restaurant: RestaurantInfo | undefined): {
+  active: boolean;
+  reason?: string;
+  daysRemaining?: number;
+  graceDaysRemaining?: number;
+  isGracePeriod?: boolean;
+} {
+  if (!restaurant) return { active: false, reason: 'Restaurant not found.' };
+
+  const plan = restaurant.subscriptionPlan || 'free';
+  const createdAt = restaurant.createdAt || Date.now();
+  const renewalDate = restaurant.subscriptionRenewalDate || 0;
+
+  // 1. Free Trial Plan (21 days trial duration)
+  if (plan === 'free') {
+    const trialDuration = 21 * 24 * 60 * 60 * 1000;
+    const elapsed = Date.now() - createdAt;
+    const remainingMs = trialDuration - elapsed;
+    const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+
+    if (elapsed > trialDuration) {
+      return { active: false, reason: "The admin doesn't have any plan so you cant place an order." };
+    }
+    return { active: true, daysRemaining };
+  }
+
+  // 2. Paid Plans (base or standard)
+  const now = Date.now();
+  if (now <= renewalDate) {
+    const remainingMs = renewalDate - now;
+    const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+    return { active: true, daysRemaining };
+  }
+
+  // 3. Grace Period Check (7 days grace period to extend)
+  const gracePeriod = 7 * 24 * 60 * 60 * 1000;
+  const graceExpiry = renewalDate + gracePeriod;
+
+  if (now > graceExpiry) {
+    return { active: false, reason: "The admin doesn't have any plan so you cant place an order." };
+  }
+
+  const graceRemainingMs = graceExpiry - now;
+  const graceDaysRemaining = Math.ceil(graceRemainingMs / (24 * 60 * 60 * 1000));
+  return { active: true, isGracePeriod: true, graceDaysRemaining };
+}
+
+export function isOrderTypeAllowed(
+  orderType: 'in-dining' | 'take-away' | 'delivery',
+  restaurant: RestaurantInfo | undefined
+): { allowed: boolean; reason?: string } {
+  if (!restaurant) return { allowed: false, reason: 'Restaurant not found.' };
+
+  const plan = restaurant.subscriptionPlan || 'free';
+  
+  if (plan === 'base') {
+    const selectedType = restaurant.basePlanSelectedType || 'dining_takeaway';
+    if (selectedType === 'delivery_only') {
+      if (orderType !== 'delivery') {
+        return { allowed: false, reason: 'This restaurant only accepts Home Delivery orders under its current subscription plan.' };
+      }
+    } else if (selectedType === 'dining_takeaway') {
+      if (orderType === 'delivery') {
+        return { allowed: false, reason: 'Home Delivery is disabled for this restaurant under its current subscription plan.' };
+      }
+    }
+  }
+
+  return { allowed: true };
 }
 
 const DEFAULT_CATEGORIES: MenuCategory[] = [
@@ -1133,7 +1216,7 @@ type Action =
   | { type: 'SET_MANUAL_CLOSED'; payload: boolean }
   | { type: 'SET_TABLE_STATUS'; payload: Partial<TableInfo> & { id: string } }
   | { type: 'CLEAR_ALL_CUSTOMERS' }
-  | { type: 'COMPLETE_ONBOARDING' }
+  | { type: 'COMPLETE_ONBOARDING'; payload?: { subscriptionPlan: 'free' | 'base' | 'standard'; basePlanSelectedType?: 'dining_takeaway' | 'delivery_only' } }
   | { type: 'MARK_ONBOARDING_PENDING' }
   | { type: 'SYNC_STAFF_MEMBERS'; payload: StaffMember[] }
   | { type: 'ADD_STAFF_MEMBER'; payload: StaffMember }
@@ -1440,15 +1523,35 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'COMPLETE_ONBOARDING': {
       if (!state.admin) return state;
+      const payload = action.payload || { subscriptionPlan: 'free' };
+      const plan = payload.subscriptionPlan;
+      const renewalDays = plan === 'free' ? 21 : 30;
+      const renewalDate = Date.now() + renewalDays * 24 * 60 * 60 * 1000;
+
       const newAccounts = state.restaurantAccounts.map(acc => {
         if (acc.id === state.admin?.id) {
-          return { ...acc, hasCompletedOnboarding: true };
+          return {
+            ...acc,
+            hasCompletedOnboarding: true,
+            subscriptionPlan: plan,
+            subscriptionRenewalDate: renewalDate,
+            createdAt: Date.now(),
+            basePlanSelectedType: payload.basePlanSelectedType || 'dining_takeaway'
+          };
         }
         return acc;
       });
+
       return {
         ...state,
-        restaurantAccounts: newAccounts
+        restaurantAccounts: newAccounts,
+        restaurant: state.restaurant ? {
+          ...state.restaurant,
+          subscriptionPlan: plan,
+          subscriptionRenewalDate: renewalDate,
+          createdAt: Date.now(),
+          basePlanSelectedType: payload.basePlanSelectedType || 'dining_takeaway'
+        } : state.restaurant
       };
     }
     case 'MARK_ONBOARDING_PENDING': {
@@ -3312,9 +3415,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'COMPLETE_ONBOARDING': {
             if (currentState.admin) {
-              update(ref(db, `restaurantAccounts/${currentState.admin.id}`), {
-                hasCompletedOnboarding: true
-              }).catch(() => {});
+              const payload = action.payload || { subscriptionPlan: 'free' };
+              const plan = payload.subscriptionPlan;
+              const renewalDays = plan === 'free' ? 21 : 30;
+              const renewalDate = Date.now() + renewalDays * 24 * 60 * 60 * 1000;
+
+              const updates: any = {
+                hasCompletedOnboarding: true,
+                subscriptionPlan: plan,
+                subscriptionRenewalDate: renewalDate,
+                createdAt: Date.now()
+              };
+
+              if (payload.basePlanSelectedType) {
+                updates.basePlanSelectedType = payload.basePlanSelectedType;
+              }
+
+              update(ref(db, `restaurantAccounts/${currentState.admin.id}`), updates).catch(() => {});
+              
+              const restId = currentState.admin.restaurantId;
+              if (restId) {
+                update(ref(db, `restaurants/${restId}`), updates).catch(() => {});
+              }
             }
             break;
           }

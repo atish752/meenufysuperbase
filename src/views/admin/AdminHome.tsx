@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useStore } from '../../context/RealtimeStore';
+import { useStore, isSubscriptionActive } from '../../context/RealtimeStore';
 import type { Order, OrderStatus, Coupon, OrderItem, MenuItem, MenuItemVariant } from '../../context/RealtimeStore';
 import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, Edit2 } from 'lucide-react';
 import { triggerNotification } from '../../utils/notifications';
@@ -137,6 +137,12 @@ export default function AdminHome() {
   };
 
   const handlePlaceManualOrder = () => {
+    const subStatus = isSubscriptionActive(state.restaurant);
+    if (!subStatus.active) {
+      addToast('error', `❌ Cannot place order: ${subStatus.reason || "The admin doesn't have any plan so you cant place an order."}`);
+      return;
+    }
+
     if (manualOrderItems.length === 0) {
       addToast('error', '❌ Please select at least one dish for the order.');
       return;

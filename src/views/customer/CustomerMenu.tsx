@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useStore, useTranslation, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
+import { useStore, useTranslation, getActiveRestaurantId, getActiveRestaurantInfo, isSubscriptionActive } from '../../context/RealtimeStore';
 import type { MenuItem } from '../../context/RealtimeStore';
 import { Search, X } from 'lucide-react';
 
@@ -376,13 +376,10 @@ export default function CustomerMenu() {
     setVariantQty(1);
   };
 
-  const plan = restaurant.subscriptionPlan || 'free';
-  const usage = restaurant.ordersPlacedThisMonth || 0;
-  const limit = plan === 'free' ? 100 : plan === 'base' ? 1000 : plan === 'standard' ? 2000 : Infinity;
-  const allowNegative = restaurant.allowNegativeOrders || false;
-
-  const isLimitExceeded = usage >= limit + 100 || (usage >= limit && !allowNegative);
-  const isHardLimitReached = usage >= limit + 100;
+  const subStatus = isSubscriptionActive(restaurant);
+  const isLimitExceeded = !subStatus.active;
+  const isHardLimitReached = !subStatus.active;
+  const limitMessage = subStatus.reason || "The admin doesn't have any plan so you cant place an order.";
 
   // Get counts of active/available items in each category to filter out empty ones
   const categoryItemCounts = state.menuItems.reduce((acc, item) => {
@@ -749,10 +746,7 @@ export default function CustomerMenu() {
           boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
           flexShrink: 0,
         }}>
-          {isHardLimitReached
-            ? '⚠️ Ordering is temporarily unavailable: waiting for the restaurant owner to recharge us...'
-            : '⚠️ Ordering is temporarily unavailable as this restaurant has reached its monthly order capacity limit.'
-          }
+          {limitMessage}
         </div>
       )}
 

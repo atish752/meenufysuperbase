@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useStore } from '../../context/RealtimeStore';
+import { useEffect, useRef, useState } from 'react';
+import { useStore, isSubscriptionActive } from '../../context/RealtimeStore';
 import type { OrderStatus } from '../../context/RealtimeStore';
 import { hasFirebaseConfig } from '../../utils/firebase';
 import { triggerNotification } from '../../utils/notifications';
@@ -18,6 +18,68 @@ import AdminNotificationBell from '../../components/AdminNotificationBell';
 
 export default function AdminLayout() {
   const { state, dispatch, addToast } = useStore();
+
+  const [expiryWarning, setExpiryWarning] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    actionLabel: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!state.isAdminLoggedIn || !state.restaurant || state.admin?.isDeliveryBoy || state.admin?.isSuperAdmin) return;
+
+    const todayStr = new Date().toDateString();
+    const lastPopupShownDate = localStorage.getItem('meenufy_last_expiry_popup_shown_date');
+    if (lastPopupShownDate === todayStr) return;
+
+    const subStatus = isSubscriptionActive(state.restaurant);
+    const plan = state.restaurant.subscriptionPlan || 'free';
+
+    if (!subStatus.active) {
+      setExpiryWarning({
+        show: true,
+        title: "⚠️ Subscription Locked",
+        message: "Your subscription has expired and customer ordering is locked. Please choose a plan and make a payment to restore ordering.",
+        actionLabel: "Renew / Choose Plan"
+      });
+      localStorage.setItem('meenufy_last_expiry_popup_shown_date', todayStr);
+      return;
+    }
+
+    if (plan === 'free' && subStatus.daysRemaining !== undefined && subStatus.daysRemaining <= 3) {
+      setExpiryWarning({
+        show: true,
+        title: `⏳ Free Trial Ending: ${subStatus.daysRemaining} Day(s) Left`,
+        message: `Your free trial carries every feature but will automatically expire in ${subStatus.daysRemaining} day(s). Choose a paid plan to keep ordering active!`,
+        actionLabel: "View Paid Plans"
+      });
+      localStorage.setItem('meenufy_last_expiry_popup_shown_date', todayStr);
+      return;
+    }
+
+    if (subStatus.isGracePeriod && subStatus.graceDaysRemaining !== undefined) {
+      setExpiryWarning({
+        show: true,
+        title: `⚠️ Payment Grace Period: ${subStatus.graceDaysRemaining} Day(s) Left`,
+        message: `Your plan has expired! You have ${subStatus.graceDaysRemaining} day(s) left to extend your payment. Pay now or customer ordering will be locked.`,
+        actionLabel: "Pay & Extend"
+      });
+      localStorage.setItem('meenufy_last_expiry_popup_shown_date', todayStr);
+      return;
+    }
+
+    if (plan !== 'free' && subStatus.daysRemaining !== undefined && subStatus.daysRemaining <= 3) {
+      setExpiryWarning({
+        show: true,
+        title: `⏳ Subscription Expiring in ${subStatus.daysRemaining} Day(s)`,
+        message: `Your paid plan will expire in ${subStatus.daysRemaining} day(s). Pay to extend your subscription and avoid entering the grace period.`,
+        actionLabel: "Make Payment"
+      });
+      localStorage.setItem('meenufy_last_expiry_popup_shown_date', todayStr);
+      return;
+    }
+  }, [state.isAdminLoggedIn, state.restaurant, state.admin]);
 
   // Notification watchers refs
   const prevOrdersRef = useRef<Record<string, { status: OrderStatus; paymentStatus: 'pending' | 'waiting_confirmation' | 'paid' }>>({});
@@ -274,6 +336,60 @@ export default function AdminLayout() {
       >
         <AdminNotificationBell />
       </div>
+
+      {expiryWarning && expiryWarning.show && (
+        <div className="modal-backdrop" style={{ zIndex: 10000 }}>
+          <div className="modal-content" style={{ maxWidth: 380, padding: 24, borderRadius: 20, textAlign: 'center' }}>
+            <div style={{ fontSize: 44, marginBottom: 12 }}>{expiryWarning.title.split(' ')[0] || '⚠️'}</div>
+            <h3 style={{ fontSize: 18, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 8 }}>
+              {expiryWarning.title}
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+              {expiryWarning.message}
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={() => {
+                  setExpiryWarning(null);
+                  dispatch({ type: 'SET_ADMIN_TAB', payload: 'more' });
+                }}
+                style={{
+                  width: '100%',
+                  height: 40,
+                  borderRadius: 20,
+                  background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                  color: '#000',
+                  border: 'none',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(255,125,0,0.2)'
+                }}
+              >
+                {expiryWarning.actionLabel}
+              </button>
+              
+              <button
+                onClick={() => setExpiryWarning(null)}
+                style={{
+                  width: '100%',
+                  height: 36,
+                  borderRadius: 18,
+                  background: 'none',
+                  color: 'var(--text-muted)',
+                  border: 'none',
+                  fontWeight: 500,
+                  fontSize: 12,
+                  cursor: 'pointer'
+                }}
+              >
+                Remind Me Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
   TrendingUp, ShoppingBag, Users, DollarSign, HelpCircle,
@@ -23,33 +23,24 @@ export default function AdminAnalysis() {
   const [viewBestItems, setViewBestItems] = useState(true);
   const [showDeepMealAnalysis, setShowDeepMealAnalysis] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'kpis' | 'customers' | 'complaints'>('kpis');
-  const [complaints, setComplaints] = useState<any[]>([]);
-  const [loadingComplaints, setLoadingComplaints] = useState(true);
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   const adminRestaurantId = state.admin?.restaurantId;
-
-  useEffect(() => {
-    if (!adminRestaurantId || !db) return;
-    setLoadingComplaints(true);
-
-    import('firebase/database').then(({ ref, onValue }) => {
-      const unsubscribe = onValue(ref(db!, `complaints/${adminRestaurantId}`), (snapshot) => {
-        const data = snapshot.val();
-        const list = data ? Object.values(data) : [];
-        list.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
-        setComplaints(list);
-        setLoadingComplaints(false);
-      }, (error) => {
-        console.error('Error fetching complaints:', error);
-        setLoadingComplaints(false);
-      });
-      return () => unsubscribe();
-    });
-  }, [adminRestaurantId]);
-
   const orders = state.orders.filter(o => o.restaurantId === adminRestaurantId);
+
+  const complaints = orders
+    .filter(o => o.complaint)
+    .map(o => ({
+      ...o.complaint!,
+      orderId: o.id,
+      customerName: o.customerName || 'Guest',
+      customerPhone: o.customerPhone || 'No Phone',
+      id: o.id
+    }))
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  const loadingComplaints = false;
 
   const servedOrders = orders.filter(o => o.status === 'served');
   const today = new Date();
@@ -739,18 +730,17 @@ export default function AdminAnalysis() {
                               setResolvingId(c.id);
                               try {
                                 const { ref, update } = await import('firebase/database');
-                                
-                                // 1. Update complaint node
-                                await update(ref(db!, `complaints/${adminRestaurantId}/${c.id}`), {
-                                  status: 'resolved',
-                                  resolvedAt: Date.now()
-                                });
-
-                                // 2. Update order node
-                                await update(ref(db!, `orders/${adminRestaurantId}/${c.orderId}`), {
-                                  complaintStatus: 'Resolved'
-                                });
-                                
+                                const matchedOrder = state.orders.find(o => o.id === c.orderId);
+                                if (matchedOrder && matchedOrder.complaint) {
+                                  const updatedComplaint = {
+                                    ...matchedOrder.complaint,
+                                    status: 'resolved' as const,
+                                    resolvedAt: Date.now()
+                                  };
+                                  await update(ref(db!, `orders/${adminRestaurantId}/${c.orderId}`), {
+                                    complaint: updatedComplaint
+                                  });
+                                }
                                 alert('Complaint marked as resolved.');
                               } catch (err) {
                                 console.error(err);
@@ -783,20 +773,18 @@ export default function AdminAnalysis() {
                               setResolvingId(c.id);
                               try {
                                 const { ref, update } = await import('firebase/database');
-                                
-                                // 1. Update complaint node
-                                await update(ref(db!, `complaints/${adminRestaurantId}/${c.id}`), {
-                                  status: 'resolved',
-                                  replyText,
-                                  resolvedAt: Date.now()
-                                });
-
-                                // 2. Update order node
-                                await update(ref(db!, `orders/${adminRestaurantId}/${c.orderId}`), {
-                                  complaintStatus: 'Resolved',
-                                  complaintReply: replyText
-                                });
-                                
+                                const matchedOrder = state.orders.find(o => o.id === c.orderId);
+                                if (matchedOrder && matchedOrder.complaint) {
+                                  const updatedComplaint = {
+                                    ...matchedOrder.complaint,
+                                    status: 'resolved' as const,
+                                    replyText,
+                                    resolvedAt: Date.now()
+                                  };
+                                  await update(ref(db!, `orders/${adminRestaurantId}/${c.orderId}`), {
+                                    complaint: updatedComplaint
+                                  });
+                                }
                                 setReplyInputs(prev => ({ ...prev, [c.id]: '' }));
                                 alert('Response sent and complaint marked as resolved.');
                               } catch (err) {

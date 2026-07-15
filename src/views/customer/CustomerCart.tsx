@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useStore, getActiveRestaurantInfo, getActiveRestaurantId } from '../../context/RealtimeStore';
+import { useStore, getActiveRestaurantInfo, getActiveRestaurantId, isSubscriptionActive, isOrderTypeAllowed } from '../../context/RealtimeStore';
 import type { Order, Coupon } from '../../context/RealtimeStore';
 import { ShoppingBag, Trash2, ArrowRight, ChevronUp, MapPin, Check, X, Loader2 } from 'lucide-react';
 import { hasFirebaseConfig, auth, googleProvider } from '../../utils/firebase';
@@ -126,13 +126,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
   const restaurantId = getActiveRestaurantId(state);
   const restaurant = getActiveRestaurantInfo(state, restaurantId);
 
-  const plan = restaurant.subscriptionPlan || 'free';
-  const usage = restaurant.ordersPlacedThisMonth || 0;
-  const limit = plan === 'free' ? 100 : plan === 'base' ? 1000 : plan === 'standard' ? 2000 : Infinity;
-  const allowNegative = restaurant.allowNegativeOrders || false;
 
-  const isLimitExceeded = usage >= limit + 100 || (usage >= limit && !allowNegative);
-  const isHardLimitReached = usage >= limit + 100;
 
   const [open, setOpen] = useState(false);
   const [googleUser, setGoogleUser] = useState<{ name: string; email: string; phone: string } | null>(() => {
@@ -217,6 +211,13 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
     if ((isViewOnly && restaurant.deliveryEnabled) || restaurant.deliveryEnabled) return 'delivery';
     return 'take-away';
   });
+
+  const subStatus = isSubscriptionActive(restaurant);
+  const orderTypeStatus = isOrderTypeAllowed(orderType, restaurant);
+  const isLimitExceeded = !subStatus.active || !orderTypeStatus.allowed;
+  const limitMessage = !subStatus.active 
+    ? (subStatus.reason || "The admin doesn't have any plan so you cant place an order.")
+    : (orderTypeStatus.reason || "This order type is disabled for this restaurant.");
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'confirm' | 'upi_payment'>('cart');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
@@ -1667,10 +1668,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                     border: '1px solid rgba(239, 68, 68, 0.25)',
                     textAlign: 'center'
                   }}>
-                    {isHardLimitReached 
-                      ? '⚠️ Checkout is temporarily unavailable: waiting for the restaurant owner to recharge us...'
-                      : '⚠️ Checkout is temporarily unavailable as this restaurant has reached its monthly order capacity limit. Please contact the administrator.'
-                    }
+                    {limitMessage}
                   </div>
                   <button
                     className="btn btn-secondary btn-full btn-lg"

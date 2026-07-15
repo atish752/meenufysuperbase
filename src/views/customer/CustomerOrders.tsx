@@ -542,31 +542,20 @@ export default function CustomerOrders({ tableId }: Props) {
                   }
                   setSubmittingComplaint(true);
                   try {
-                    const { ref, set, update } = await import('firebase/database');
-                    const compId = `complaint-${Date.now()}`;
+                    const { ref, update } = await import('firebase/database');
                     const rId = complaintOrder.restaurantId || 'admin-1';
                     
-                    const newComplaint = {
-                      id: compId,
-                      orderId: complaintOrder.id,
-                      restaurantId: rId,
-                      restaurantName: getActiveRestaurantInfo(state, rId)?.name || 'this restaurant',
+                    const complaintData = {
                       category: complaintCategory,
                       message: complaintMessage.trim(),
-                      status: 'pending',
-                      customerName: complaintOrder.customerName || 'Guest',
-                      customerPhone: complaintOrder.customerPhone || myPhoneIdentifier || 'No Phone',
+                      status: 'pending' as const,
                       createdAt: Date.now(),
                       replyText: ''
                     };
 
-                    // 1. Save complaint
-                    await set(ref(db!, `complaints/${rId}/${compId}`), newComplaint);
-
-                    // 2. Mark order as having a raised complaint
+                    // Save complaint directly under the order object to ensure write permission succeeds
                     await update(ref(db!, `orders/${rId}/${complaintOrder.id}`), {
-                      complaintRaised: true,
-                      complaintStatus: 'Pending'
+                      complaint: complaintData
                     });
 
                     addToast('success', '🎉 Complaint submitted to the restaurant!');
@@ -831,14 +820,14 @@ function OrderStatusCard({ order, onRaiseComplaint }: { order: Order; onRaiseCom
             if (!isLess24Hours) return null;
             return (
               <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
-                {order.complaintRaised ? (
+                {order.complaint ? (
                   <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'flex-end' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--error)', background: 'rgba(239, 68, 68, 0.1)', padding: '6px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      ⚠️ Complaint Filed ({order.complaintStatus || 'Pending'})
+                      ⚠️ Complaint Filed ({order.complaint.status === 'pending' ? 'Pending' : 'Resolved'})
                     </span>
-                    {order.complaintReply && (
+                    {order.complaint.replyText && (
                       <div style={{ marginTop: 8, padding: 10, background: 'var(--bg-elevated)', borderRadius: 8, borderLeft: '3px solid var(--brand)', fontSize: 11, color: 'var(--text-primary)', fontStyle: 'normal', width: '100%', boxSizing: 'border-box' }}>
-                        <strong>Reply from Restaurant:</strong> "{order.complaintReply}"
+                        <strong>Reply from Restaurant:</strong> "{order.complaint.replyText}"
                       </div>
                     )}
                   </div>
