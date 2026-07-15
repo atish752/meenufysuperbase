@@ -106,6 +106,7 @@ export type OrderItem = {
     optionName: string;
     price: number;
   }[];
+  restaurantId?: string;
 };
 
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'bill_pay' | 'served' | 'cancelled';
@@ -1728,6 +1729,7 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'ADD_TO_CART': {
+      const itemRestaurantId = action.payload.restaurantId || getActiveRestaurantId(state);
       const payloadKey = (action.payload.addons || []).map(a => a.optionId).sort().join(',');
       const existing = state.cart.findIndex(i => 
         i.menuItemId === action.payload.menuItemId && 
@@ -1736,10 +1738,10 @@ function reducer(state: AppState, action: Action): AppState {
       );
       if (existing >= 0) {
         const cart = [...state.cart];
-        cart[existing] = { ...cart[existing], qty: cart[existing].qty + action.payload.qty };
+        cart[existing] = { ...cart[existing], qty: cart[existing].qty + action.payload.qty, restaurantId: itemRestaurantId };
         return { ...state, cart };
       }
-      return { ...state, cart: [...state.cart, action.payload] };
+      return { ...state, cart: [...state.cart, { ...action.payload, restaurantId: itemRestaurantId }] };
     }
     case 'REMOVE_FROM_CART': {
       const targetId = typeof action.payload === 'string' ? action.payload : action.payload.menuItemId;

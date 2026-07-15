@@ -281,6 +281,11 @@ export default function CustomerMenu() {
   const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
   const [variantQty, setVariantQty] = useState(1);
+  const [cartConflictItem, setCartConflictItem] = useState<{
+    item: MenuItem;
+    actionType: 'add' | 'increment';
+    incrementArgs?: { name: string; price: number };
+  } | null>(null);
   // Tracks which category section is visible while scrolling in "all" mode
   const [scrollActiveCat, setScrollActiveCat] = useState<string>('');
   const mealsScrollRef = useRef<HTMLDivElement>(null);
@@ -451,19 +456,19 @@ export default function CustomerMenu() {
     return (a.rank || 0) - (b.rank || 0);
   });
 
-  const checkAndClearCartForDifferentRestaurant = (itemId: string): boolean => {
+  const checkAndClearCartForDifferentRestaurant = (
+    item: MenuItem,
+    actionType: 'add' | 'increment',
+    incrementArgs?: { name: string; price: number }
+  ): boolean => {
     const cartItem = state.cart[0];
     if (cartItem) {
-      const firstCartItemInfo = state.menuItems.find(i => i.id === cartItem.menuItemId);
-      const currentItemInfo = state.menuItems.find(i => i.id === itemId);
-      if (firstCartItemInfo && currentItemInfo && firstCartItemInfo.restaurantId !== currentItemInfo.restaurantId) {
-        const confirmClear = window.confirm("Your cart contains items from another restaurant. Would you like to clear your cart to add items from this restaurant?");
-        if (confirmClear) {
-          dispatch({ type: 'CLEAR_CART' });
-          return true;
-        } else {
-          return false;
-        }
+      const cartItemRestId = cartItem.restaurantId;
+      const targetRestId = item.restaurantId || restaurantId;
+
+      if (cartItemRestId && cartItemRestId !== targetRestId) {
+        setCartConflictItem({ item, actionType, incrementArgs });
+        return false;
       }
     }
     return true;
@@ -477,7 +482,7 @@ export default function CustomerMenu() {
       );
       return;
     }
-    if (!checkAndClearCartForDifferentRestaurant(item.id)) return;
+    if (!checkAndClearCartForDifferentRestaurant(item, 'add')) return;
     if (item.variants && item.variants.length > 0) {
       handleOpenVariantModal(item);
       return;
@@ -490,7 +495,7 @@ export default function CustomerMenu() {
       return;
     }
 
-    dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: item.id, name: item.name, price: item.price, qty: 1 } });
+    dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: item.id, name: item.name, price: item.price, qty: 1, restaurantId: item.restaurantId || restaurantId } });
     addToast('success', `${item.name} added to cart!`);
   };
 
@@ -508,7 +513,7 @@ export default function CustomerMenu() {
     }
     const item = state.menuItems.find(i => i.id === itemId);
     if (!item) return;
-    if (!checkAndClearCartForDifferentRestaurant(itemId)) return;
+    if (!checkAndClearCartForDifferentRestaurant(item, 'increment', { name, price })) return;
     if (item.variants && item.variants.length > 0) {
       handleOpenVariantModal(item);
       return;
@@ -521,7 +526,7 @@ export default function CustomerMenu() {
       return;
     }
 
-    dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: itemId, name, price, qty: 1 } });
+    dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: itemId, name, price, qty: 1, restaurantId: item.restaurantId || restaurantId } });
   };
 
   const handleDecrement = (itemId: string) => {
@@ -1734,6 +1739,125 @@ export default function CustomerMenu() {
           </div>
         </div>
       )}
+
+      {cartConflictItem && (() => {
+        const cartItem = state.cart[0];
+        const prevRestName = state.restaurantAccounts?.find(acc => acc.id === cartItem.restaurantId)?.restaurantName || 'another restaurant';
+        const currentRestName = restaurant?.name || 'this restaurant';
+
+        return (
+          <div className="modal-backdrop" style={{ zIndex: 1200 }}>
+            <div className="modal-content" style={{ maxWidth: 360, padding: 24, borderRadius: 20, textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🛒</div>
+              <h3 style={{ fontSize: 18, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 8 }}>
+                Replace Cart Items?
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+                Your cart contains items from <strong>{prevRestName}</strong>. 
+                Would you like to clear the cart to add items from <strong>{currentRestName}</strong>, 
+                or go back to <strong>{prevRestName}</strong>?
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  onClick={() => {
+                    // 1. Clear cart
+                    dispatch({ type: 'CLEAR_CART' });
+
+                    // 2. Perform the deferred action
+                    const { item, actionType, incrementArgs } = cartConflictItem;
+                    if (actionType === 'add') {
+                      if (item.variants && item.variants.length > 0) {
+                        handleOpenVariantModal(item);
+                      } else {
+                        const applicable = getApplicableAddons(item);
+                        if (applicable.length > 0) {
+                          setAddonModalItem({ item, qty: 1 });
+                          setSelectedAddonOptions({});
+                        } else {
+                          dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: item.id, name: item.name, price: item.price, qty: 1, restaurantId: item.restaurantId || restaurantId } });
+                          addToast('success', `${item.name} added to cart!`);
+                        }
+                      }
+                    } else if (actionType === 'increment' && incrementArgs) {
+                      if (item.variants && item.variants.length > 0) {
+                        handleOpenVariantModal(item);
+                      } else {
+                        const applicable = getApplicableAddons(item);
+                        if (applicable.length > 0) {
+                          setAddonModalItem({ item, qty: 1 });
+                          setSelectedAddonOptions({});
+                        } else {
+                          dispatch({ type: 'ADD_TO_CART', payload: { menuItemId: item.id, name: incrementArgs.name, price: incrementArgs.price, qty: 1, restaurantId: item.restaurantId || restaurantId } });
+                        }
+                      }
+                    }
+                    setCartConflictItem(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    height: 40,
+                    borderRadius: 20,
+                    background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                    color: '#000',
+                    border: 'none',
+                    fontWeight: 800,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(255,125,0,0.2)'
+                  }}
+                >
+                  Clear Cart &amp; Add Item
+                </button>
+
+                <button
+                  onClick={() => {
+                    // Go back to the previous restaurant:
+                    const prevRestId = cartItem.restaurantId;
+                    if (prevRestId) {
+                      dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: prevRestId });
+                      const newUrl = `${window.location.pathname}?restaurant=${prevRestId}`;
+                      window.history.pushState({}, '', newUrl);
+                    }
+                    setCartConflictItem(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    height: 40,
+                    borderRadius: 20,
+                    background: 'var(--bg-elevated)',
+                    color: 'var(--text-primary)',
+                    border: '1.5px solid var(--border)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Go Back to {prevRestName}
+                </button>
+
+                <button
+                  onClick={() => setCartConflictItem(null)}
+                  style={{
+                    width: '100%',
+                    height: 36,
+                    borderRadius: 18,
+                    background: 'none',
+                    color: 'var(--text-muted)',
+                    border: 'none',
+                    fontWeight: 500,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    marginTop: 4
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
