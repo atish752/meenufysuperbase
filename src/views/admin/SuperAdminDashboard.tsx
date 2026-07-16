@@ -20,6 +20,50 @@ const DEFAULT_POPULAR_CUISINES = [
   { name: 'Manchurian', query: 'manchurian', image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=150&auto=format&fit=crop&q=60' }
 ];
 
+function compressImage(dataUrl: string, maxWidth: number = 180, maxHeight: number = 180, quality: number = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+      resolve(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.src = dataUrl;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressed);
+    };
+    img.onerror = (err) => {
+      reject(err);
+    };
+  });
+}
+
 const getPlanBadge = (plan: string) => {
   const planColors: Record<string, { bg: string; color: string; border: string }> = {
     free: { bg: 'rgba(107, 114, 128, 0.12)', color: '#9ca3af', border: '1px solid rgba(107, 114, 128, 0.3)' },
@@ -152,6 +196,37 @@ export default function SuperAdminDashboard() {
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT_ADMIN' });
     addToast('info', 'Super Admin logged out.');
+  };
+
+  const [optimizingImages, setOptimizingImages] = useState(false);
+
+  const handleOptimizeCuisines = async () => {
+    if (!state.popularCuisines || state.popularCuisines.length === 0) return;
+    setOptimizingImages(true);
+    try {
+      const newList = [];
+      let count = 0;
+      for (const c of state.popularCuisines) {
+        if (c.image && c.image.startsWith('data:image/')) {
+          const compressed = await compressImage(c.image, 120, 120, 0.7);
+          newList.push({ ...c, image: compressed });
+          count++;
+        } else {
+          newList.push(c);
+        }
+      }
+      if (count > 0) {
+        dispatch({ type: 'SET_POPULAR_CUISINES', payload: newList });
+        addToast('success', `Optimized & compressed ${count} cuisine images!`);
+      } else {
+        addToast('info', 'All cuisine images are already optimized!');
+      }
+    } catch (err) {
+      console.error(err);
+      addToast('error', 'Failed to optimize images.');
+    } finally {
+      setOptimizingImages(false);
+    }
   };
 
   const handleOpenManageModal = (acc: any) => {
@@ -1434,9 +1509,19 @@ export default function SuperAdminDashboard() {
                           const reader = new FileReader();
                           reader.readAsDataURL(files[0]);
                           reader.onload = (event) => {
-                            setNewCuisineImage(event.target?.result as string);
-                            setUploadingCuisineImage(false);
-                            addToast('success', 'Image uploaded successfully!');
+                            const raw = event.target?.result as string;
+                            compressImage(raw, 120, 120, 0.7)
+                              .then(compressed => {
+                                setNewCuisineImage(compressed);
+                                setUploadingCuisineImage(false);
+                                addToast('success', 'Image uploaded and optimized successfully!');
+                              })
+                              .catch(err => {
+                                console.error(err);
+                                setNewCuisineImage(raw);
+                                setUploadingCuisineImage(false);
+                                addToast('success', 'Image uploaded successfully!');
+                              });
                           };
                         } catch (err) {
                           console.error(err);
@@ -1465,13 +1550,26 @@ export default function SuperAdminDashboard() {
                         const list = [...(state.popularCuisines || [])];
                         const idx = list.findIndex(c => c.query === editingCuisineQuery);
                         if (idx !== -1) {
-                          list[idx] = {
-                            name: newCuisineName.trim(),
-                            query: newCuisineQuery.trim(),
-                            image: newCuisineImage.trim()
-                          };
-                          dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
-                          addToast('success', `${newCuisineName} updated successfully!`);
+                          compressImage(newCuisineImage.trim(), 120, 120, 0.7)
+                            .then(compressed => {
+                              list[idx] = {
+                                name: newCuisineName.trim(),
+                                query: newCuisineQuery.trim(),
+                                image: compressed
+                              };
+                              dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                              addToast('success', `${newCuisineName} updated and optimized successfully!`);
+                            })
+                            .catch(err => {
+                              console.error(err);
+                              list[idx] = {
+                                name: newCuisineName.trim(),
+                                query: newCuisineQuery.trim(),
+                                image: newCuisineImage.trim()
+                              };
+                              dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                              addToast('success', `${newCuisineName} updated successfully!`);
+                            });
                         }
                         setNewCuisineName('');
                         setNewCuisineQuery('');
@@ -1498,18 +1596,35 @@ export default function SuperAdminDashboard() {
                     className="btn btn-primary"
                     disabled={!newCuisineName.trim() || !newCuisineQuery.trim() || !newCuisineImage}
                     onClick={() => {
-                      dispatch({
-                        type: 'ADD_POPULAR_CUISINE',
-                        payload: {
-                          name: newCuisineName.trim(),
-                          query: newCuisineQuery.trim(),
-                          image: newCuisineImage.trim()
-                        }
-                      });
-                      addToast('success', `${newCuisineName} added to Circular Cuisines list!`);
-                      setNewCuisineName('');
-                      setNewCuisineQuery('');
-                      setNewCuisineImage('');
+                      compressImage(newCuisineImage.trim(), 120, 120, 0.7)
+                        .then(compressed => {
+                          dispatch({
+                            type: 'ADD_POPULAR_CUISINE',
+                            payload: {
+                              name: newCuisineName.trim(),
+                              query: newCuisineQuery.trim(),
+                              image: compressed
+                            }
+                          });
+                          addToast('success', `${newCuisineName} added and optimized successfully!`);
+                        })
+                        .catch(err => {
+                          console.error(err);
+                          dispatch({
+                            type: 'ADD_POPULAR_CUISINE',
+                            payload: {
+                              name: newCuisineName.trim(),
+                              query: newCuisineQuery.trim(),
+                              image: newCuisineImage.trim()
+                            }
+                          });
+                          addToast('success', `${newCuisineName} added successfully!`);
+                        })
+                        .finally(() => {
+                          setNewCuisineName('');
+                          setNewCuisineQuery('');
+                          setNewCuisineImage('');
+                        });
                     }}
                   >
                     Add Cuisine Item
@@ -1520,9 +1635,20 @@ export default function SuperAdminDashboard() {
 
             {/* Cuisines Grid */}
             <div className="card" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: 16 }}>
-              <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 14 }}>
-                Active Circular Cuisines ({state.popularCuisines?.length || 0})
-              </h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', margin: 0 }}>
+                  Active Circular Cuisines ({state.popularCuisines?.length || 0})
+                </h4>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={optimizingImages || !state.popularCuisines || state.popularCuisines.length === 0}
+                  onClick={handleOptimizeCuisines}
+                  style={{ fontSize: 11, padding: '4px 10px', height: 28, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  {optimizingImages ? '⏳ Optimizing...' : '⚡ Optimize & Compress Existing Images (~10KB each)'}
+                </button>
+              </div>
               {(!state.popularCuisines || state.popularCuisines.length === 0) ? (
                 <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-secondary)' }}>
                   No popular cuisines added yet. Click "Load Defaults" to fill this section.
