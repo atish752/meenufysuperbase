@@ -21,45 +21,54 @@ const DEFAULT_POPULAR_CUISINES = [
 ];
 
 function compressImage(dataUrl: string, maxWidth: number = 180, maxHeight: number = 180, quality: number = 0.7): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+  return new Promise((resolve) => {
+    if (!dataUrl) {
       resolve(dataUrl);
       return;
     }
     const img = new Image();
+    if (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.src = dataUrl;
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
+      try {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
 
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
         }
-      } else {
-        if (height > maxHeight) {
-          width = Math.round((width * maxHeight) / height);
-          height = maxHeight;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
         }
-      }
 
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      } catch (err) {
+        console.warn('Canvas compression fallback due to error:', err);
         resolve(dataUrl);
-        return;
       }
-
-      ctx.drawImage(img, 0, 0, width, height);
-      const compressed = canvas.toDataURL('image/jpeg', quality);
-      resolve(compressed);
     };
     img.onerror = (err) => {
-      reject(err);
+      console.warn('Failed to load image for compression fallback:', err);
+      resolve(dataUrl);
     };
   });
 }
@@ -207,10 +216,14 @@ export default function SuperAdminDashboard() {
       const newList = [];
       let count = 0;
       for (const c of state.popularCuisines) {
-        if (c.image && c.image.startsWith('data:image/')) {
+        if (c.image) {
           const compressed = await compressImage(c.image, 120, 120, 0.7);
-          newList.push({ ...c, image: compressed });
-          count++;
+          if (compressed !== c.image) {
+            newList.push({ ...c, image: compressed });
+            count++;
+          } else {
+            newList.push(c);
+          }
         } else {
           newList.push(c);
         }
