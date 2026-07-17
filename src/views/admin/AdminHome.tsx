@@ -191,16 +191,14 @@ export default function AdminHome() {
   };
 
   const [isTabularView, setIsTabularView] = useState(() => {
-    return typeof window !== 'undefined' && localStorage.getItem('meenufy_admin_orders_tabular_view') === 'true';
+    if (typeof window === 'undefined') return false;
+    const saved = localStorage.getItem('meenufy_admin_orders_tabular_view');
+    if (saved !== null) {
+      return saved === 'true';
+    }
+    // Default: Tabular view on mobile (width < 768), Kanban on desktop
+    return window.innerWidth < 768;
   });
-
-  const toggleTabularView = () => {
-    setIsTabularView(prev => {
-      const next = !prev;
-      localStorage.setItem('meenufy_admin_orders_tabular_view', String(next));
-      return next;
-    });
-  };
 
   const [showHistory, setShowHistory] = useState(false);
   const [historyTimeFilter, setHistoryTimeFilter] = useState<'today' | 'week' | 'month' | 'choose' | 'lifetime'>('today');
@@ -740,15 +738,46 @@ export default function AdminHome() {
 
       {/* Page Header */}
       <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontFamily: 'var(--font-display)', fontWeight: 900, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '-0.02em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <h1 
+            onClick={() => setShowHistory(false)}
+            style={{ 
+              fontSize: 24, 
+              fontFamily: 'var(--font-display)', 
+              fontWeight: 900, 
+              color: !showHistory ? 'var(--brand)' : 'var(--text-muted)', 
+              textTransform: 'uppercase', 
+              letterSpacing: '-0.02em',
+              margin: 0,
+              cursor: 'pointer'
+            }}
+          >
             Orders Board
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            Manage your daily restaurant flow
-          </p>
+
+          <button
+            onClick={() => setShowHistory(prev => !prev)}
+            style={{
+              height: 32,
+              borderRadius: 8,
+              fontSize: 11,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: showHistory ? 'var(--brand)' : 'var(--bg-elevated)',
+              border: showHistory ? '1.5px solid var(--brand)' : '1px solid var(--border)',
+              color: showHistory ? '#ffffff' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: '0 12px',
+              transition: 'all 0.2s'
+            }}
+          >
+            📜 History
+          </button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, width: '100%', justifyContent: 'flex-start' }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-start' }}>
           {/* Open / Close Restaurant Toggle */}
           <button
             onClick={() => {
@@ -781,68 +810,65 @@ export default function AdminHome() {
             {state.restaurant.isManualClosed ? 'CLOSED' : 'OPEN'}
           </button>
 
-          {/* Place Manual Order Button */}
-          <button
-            onClick={() => setShowManualOrderModal(true)}
-            className="btn btn-primary"
-            style={{
-              height: 32,
-              borderRadius: 8,
-              fontSize: 11,
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: '0 8px',
-              cursor: 'pointer'
-            }}
-          >
-            ➕ Order
-          </button>
-
-          {/* History Toggle Button */}
-          <button
-            onClick={() => setShowHistory(prev => !prev)}
-            className="btn btn-secondary"
-            style={{
-              height: 32,
-              borderRadius: 8,
-              fontSize: 11,
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              background: showHistory ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-              border: showHistory ? '1.5px solid var(--brand)' : '1px solid var(--border)',
-              color: showHistory ? 'var(--brand)' : 'var(--text-primary)',
-              cursor: 'pointer',
-              padding: '0 8px'
-            }}
-          >
-            📜 {showHistory ? 'Active' : 'History'}
-          </button>
-
-          {/* Tabular View Switcher Button */}
-          <button
-            onClick={toggleTabularView}
-            className="btn btn-secondary"
-            style={{
-              height: 32,
-              borderRadius: 8,
-              fontSize: 11,
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              background: isTabularView ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-              border: isTabularView ? '1.5px solid var(--brand)' : '1px solid var(--border)',
-              color: isTabularView ? 'var(--brand)' : 'var(--text-primary)',
-              cursor: 'pointer',
-              padding: '0 8px'
-            }}
-          >
-            📋 {isTabularView ? 'Kanban' : 'Tabular'}
-          </button>
+          {/* Tabular vs Kanban Switcher Segmented Control */}
+          <div style={{
+            display: 'flex',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            padding: 2,
+            gap: 2,
+            alignItems: 'center',
+            height: 32,
+            flexShrink: 0
+          }}>
+            <button
+              onClick={() => {
+                setIsTabularView(true);
+                localStorage.setItem('meenufy_admin_orders_tabular_view', 'true');
+              }}
+              style={{
+                height: '100%',
+                padding: '0 12px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+                background: isTabularView ? 'var(--brand)' : 'transparent',
+                color: isTabularView ? '#ffffff' : 'var(--text-secondary)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              📋 Tabular
+            </button>
+            <button
+              onClick={() => {
+                setIsTabularView(false);
+                localStorage.setItem('meenufy_admin_orders_tabular_view', 'false');
+              }}
+              style={{
+                height: '100%',
+                padding: '0 12px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+                background: !isTabularView ? 'var(--brand)' : 'transparent',
+                color: !isTabularView ? '#ffffff' : 'var(--text-secondary)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              📊 Kanban
+            </button>
+          </div>
 
           {/* Subscription Plan Display - Clickable */}
           {!state.admin?.isStaff && (
@@ -1647,6 +1673,45 @@ export default function AdminHome() {
           </div>
         </div>
       )}
+      {/* Floating Manual Order Button (+ Order) */}
+      {!showHistory && (
+        <button
+          onClick={() => setShowManualOrderModal(true)}
+          style={{
+            position: 'fixed',
+            bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+            right: 20,
+            zIndex: 99,
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            background: 'rgba(255, 125, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            color: '#ffffff',
+            border: '1.5px solid rgba(255, 255, 255, 0.25)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            transition: 'all 0.2s',
+          }}
+          title="Place Manual Order"
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(255, 125, 0, 1)';
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(255, 125, 0, 0.85)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          ➕
+        </button>
+      )}
+
       {/* Manual Order Placement Modal */}
       {showManualOrderModal && (
         <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) { setShowManualOrderModal(false); resetManualOrderForm(); } }} style={{ zIndex: 1200 }}>

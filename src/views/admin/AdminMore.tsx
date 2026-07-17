@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import {
-  Store, Phone, Mail, Clock, MapPin, Save, LogOut,
+  Store, Save, LogOut,
   MessageSquare, Smartphone, Send, Download, QrCode, ExternalLink,
-  CreditCard, Printer, Users, Palette, X, HelpCircle
+  CreditCard, Printer, Users
 } from 'lucide-react';
 import { auth, googleProvider, hasFirebaseConfig, db } from '../../utils/firebase';
 import { signInWithPopup } from 'firebase/auth';
@@ -173,65 +173,12 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
-  const [activeInfo, setActiveInfo] = useState<string | null>(null);
+  const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('menu');
 
   useEffect(() => {
     setRestaurantForm({ ...state.restaurant });
     setTableCount(state.restaurant.tableCount || 0);
   }, [state.restaurant]);
-
-  // Customer Menu Theme States
-  const [showThemeModal, setShowThemeModal] = useState(false);
-  const [themeForm, setThemeForm] = useState({
-    primaryBg: '',
-    itemName: '',
-    itemDesc: '',
-    addToCartBg: '',
-    addToCartText: '',
-    bestsellerBg: '',
-    bestsellerText: '',
-  });
-
-  const openThemeModal = () => {
-    setThemeForm({
-      primaryBg: state.customerMenuTheme?.primaryBg || '',
-      itemName: state.customerMenuTheme?.itemName || '',
-      itemDesc: state.customerMenuTheme?.itemDesc || '',
-      addToCartBg: state.customerMenuTheme?.addToCartBg || '',
-      addToCartText: state.customerMenuTheme?.addToCartText || '',
-      bestsellerBg: state.customerMenuTheme?.bestsellerBg || '',
-      bestsellerText: state.customerMenuTheme?.bestsellerText || '',
-    });
-    setShowThemeModal(true);
-  };
-
-  const handleSaveThemeColors = () => {
-    dispatch({
-      type: 'UPDATE_CUSTOMER_THEME_COLORS',
-      payload: themeForm
-    });
-    addToast('success', 'Customer menu theme colors updated! 🎨');
-    setShowThemeModal(false);
-  };
-
-  const handleResetThemeColors = () => {
-    const cleared = {
-      primaryBg: '',
-      itemName: '',
-      itemDesc: '',
-      addToCartBg: '',
-      addToCartText: '',
-      bestsellerBg: '',
-      bestsellerText: '',
-    };
-    setThemeForm(cleared);
-    dispatch({
-      type: 'UPDATE_CUSTOMER_THEME_COLORS',
-      payload: cleared
-    });
-    addToast('info', 'Customer menu theme reset to system defaults.');
-    setShowThemeModal(false);
-  };
 
   // Staff state hooks
   const [staffName, setStaffName] = useState('');
@@ -1230,883 +1177,685 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       {(isOnlyOutlet || activeSection === 'outlet') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           
-          {/* Box 0: Delivery & UPI Payment Configuration */}
-          <div className="card" style={{ padding: '16px' }}>
-            <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🏠 Delivery & UPI Payment Settings
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Enable delivery toggle */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Home Delivery</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Allow customers to order for home delivery from the app</div>
-                </div>
+          {outletSubSection === 'menu' ? (
+            <div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Select a settings section to customize your outlet:</p>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 12,
+                marginBottom: 20
+              }}>
                 <button
-                  type="button"
-                  onClick={() => setRestaurantForm(prev => ({ ...prev, deliveryEnabled: !prev.deliveryEnabled }))}
+                  onClick={() => setOutletSubSection('delivery')}
+                  className="btn btn-secondary"
                   style={{
-                    width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                    background: restaurantForm.deliveryEnabled ? 'var(--brand)' : 'var(--border)',
-                    position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px 16px',
+                    gap: 10,
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    color: 'var(--text-primary)',
+                    minHeight: 110
                   }}
                 >
-                  <div style={{
-                    position: 'absolute', top: 3, left: restaurantForm.deliveryEnabled ? 22 : 3,
-                    width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                    transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
-                  }} />
+                  <span style={{ fontSize: 24 }}>🏠</span>
+                  <span style={{ fontSize: 13, fontWeight: 800 }}>Home Delivery</span>
+                </button>
+
+                <button
+                  onClick={() => setOutletSubSection('upi')}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px 16px',
+                    gap: 10,
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    color: 'var(--text-primary)',
+                    minHeight: 110
+                  }}
+                >
+                  <span style={{ fontSize: 24 }}>💳</span>
+                  <span style={{ fontSize: 13, fontWeight: 800 }}>UPI ID & QR Code</span>
+                </button>
+
+                <button
+                  onClick={() => setOutletSubSection('customization')}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px 16px',
+                    gap: 10,
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    color: 'var(--text-primary)',
+                    minHeight: 110
+                  }}
+                >
+                  <span style={{ fontSize: 24 }}>🎨</span>
+                  <span style={{ fontSize: 13, fontWeight: 800 }}>Additional Customization</span>
+                </button>
+
+                <button
+                  onClick={() => setOutletSubSection('info')}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px 16px',
+                    gap: 10,
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    color: 'var(--text-primary)',
+                    minHeight: 110
+                  }}
+                >
+                  <span style={{ fontSize: 24 }}>ℹ️</span>
+                  <span style={{ fontSize: 13, fontWeight: 800 }}>Outlet Information</span>
+                </button>
+
+                <button
+                  onClick={() => setOutletSubSection('logo_image')}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px 16px',
+                    gap: 10,
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    color: 'var(--text-primary)',
+                    minHeight: 110
+                  }}
+                >
+                  <span style={{ fontSize: 24 }}>🖼️</span>
+                  <span style={{ fontSize: 13, fontWeight: 800 }}>Logo & Image</span>
                 </button>
               </div>
-
-              {restaurantForm.deliveryEnabled && (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
-                    {/* Delivery Radius */}
-                    <div className="input-group">
-                      <label className="input-label">Delivery Radius (KM)</label>
-                      <input
-                        className="input"
-                        type="number"
-                        min={1}
-                        max={100}
-                        value={restaurantForm.deliveryRadius || 10}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, deliveryRadius: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-
-                    {/* Standard Delivery Charge */}
-                    <div className="input-group">
-                      <label className="input-label">Standard Delivery Charge (₹)</label>
-                      <input
-                        className="input"
-                        type="number"
-                        min={0}
-                        value={restaurantForm.deliveryCharge !== undefined ? restaurantForm.deliveryCharge : 40}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, deliveryCharge: parseFloat(e.target.value) || 0 })}
-                        placeholder="e.g. 40"
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 10 }}>
-                    <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10 }}>Free Delivery Criteria</h4>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <div className="input-group">
-                        <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Distance Limit (KM)</label>
-                        <input
-                          className="input"
-                          type="number"
-                          min={0}
-                          value={restaurantForm.freeDeliveryDistance || ''}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryDistance: parseFloat(e.target.value) || 0 })}
-                          placeholder="e.g. 5"
-                        />
-                      </div>
-                      
-                      <div className="input-group">
-                        <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Min Order Amount (₹)</label>
-                        <input
-                          className="input"
-                          type="number"
-                          min={0}
-                          value={restaurantForm.freeDeliveryMinAmount || ''}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryMinAmount: parseFloat(e.target.value) || 0 })}
-                          placeholder="e.g. 500"
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-                      {/* Distance Criteria Toggle */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Free Delivery by Distance</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Waive fee if customer is within the distance limit</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setRestaurantForm(prev => ({ ...prev, freeDeliveryDistanceEnabled: prev.freeDeliveryDistanceEnabled !== undefined ? !prev.freeDeliveryDistanceEnabled : false }))}
-                          style={{
-                            width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
-                            background: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 'var(--brand)' : 'var(--border)',
-                            position: 'relative', transition: 'background 0.2s', flexShrink: 0
-                          }}
-                        >
-                          <div style={{
-                            position: 'absolute', top: 2, left: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 20 : 2,
-                            width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                            transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                          }} />
-                        </button>
-                      </div>
-
-                      {/* Order Amount Criteria Toggle */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Free Delivery by Min Amount</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Waive fee if order subtotal exceeds the minimum amount</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setRestaurantForm(prev => ({ ...prev, freeDeliveryMinAmountEnabled: prev.freeDeliveryMinAmountEnabled !== undefined ? !prev.freeDeliveryMinAmountEnabled : false }))}
-                          style={{
-                            width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
-                            background: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 'var(--brand)' : 'var(--border)',
-                            position: 'relative', transition: 'background 0.2s', flexShrink: 0
-                          }}
-                        >
-                          <div style={{
-                            position: 'absolute', top: 2, left: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 20 : 2,
-                            width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                            transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                          }} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* ── UPI Payment Settings ── */}
-              <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 14 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>📱 UPI QR Code Configuration</h4>
-                
-                <div className="input-group">
-                  <label className="input-label">UPI ID</label>
-                  <div className="input-icon-wrap">
-                    <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>@</span>
-                    <input className="input" type="text" placeholder="e.g. merchant@okaxis"
-                      value={restaurantForm.upiId || ''}
-                      onChange={e => setRestaurantForm({ ...restaurantForm, upiId: e.target.value })} />
-                  </div>
-                </div>
-
-                {/* UPI QR Code upload */}
-                <div className="input-group" style={{ marginTop: 12 }}>
-                  <label className="input-label">UPI QR Code Image</label>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 6 }}>
-                    {restaurantForm.upiQrCode ? (
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <div style={{ width: 80, height: 80, background: '#ffffff', padding: 4, borderRadius: 8, border: '1px solid var(--border)' }}>
-                          <img src={restaurantForm.upiQrCode} alt="UPI QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setRestaurantForm(prev => ({ ...prev, upiQrCode: undefined }))}
-                          style={{
-                            position: 'absolute', top: -6, right: -6, width: 20, height: 20,
-                            borderRadius: '50%', background: 'var(--error)', border: 'none',
-                            color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 900,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                          }}
-                        >×</button>
-                      </div>
-                    ) : (
-                      <div style={{
-                        width: 80, height: 80, border: '2px dashed var(--border)', borderRadius: 8,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexDirection: 'column', gap: 4, color: 'var(--text-muted)', flexShrink: 0
-                      }}>
-                        <span style={{ fontSize: 22 }}>📷</span>
-                        <span style={{ fontSize: 9, fontWeight: 600 }}>No QR</span>
-                      </div>
-                    )}
-                    <div style={{ flex: 1 }}>
-                      <input
-                        type="file"
-                        id="upi-qr-upload-input"
-                        accept="image/*"
-                        onChange={handleUpiQrUpload}
-                        style={{ display: 'none' }}
-                      />
-                      <label
-                        htmlFor="upi-qr-upload-input"
-                        className="btn btn-secondary"
-                        style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 10, fontSize: 12, padding: '0 14px', width: '100%' }}
-                      >
-                        {uploadingUpiQr ? 'Uploading...' : '📁 Upload QR Code Image'}
-                      </label>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.4 }}>
-                        Upload your UPI QR code image. Customers will scan this to pay for home delivery orders.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
-                <Save size={15} /> Save Delivery & UPI Settings
-              </button>
             </div>
-          </div>
+          ) : (
+            <div>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setOutletSubSection('menu')}
+                style={{
+                  marginBottom: 16,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontWeight: 700,
+                  borderRadius: 8,
+                  padding: '6px 12px'
+                }}
+              >
+                ← Back to Settings Menu
+              </button>
 
-          {/* Box 1: Additional Customization */}
-          <div className="card" style={{ padding: '16px' }}>
-            <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>Additional Customization</h3>
-            
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '16px',
-            }}>
-              {/* 1. Menu Theme Switcher */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: 14,
-                gap: 8,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Menu Theme</h4>
-                    <button
-                      type="button"
-                      onClick={() => setActiveInfo(prev => prev === 'theme' ? null : 'theme')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        color: activeInfo === 'theme' ? 'var(--brand)' : 'var(--text-muted)',
-                      }}
-                      title="Learn more"
-                    >
-                      <HelpCircle size={15} />
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={openThemeModal}
-                    className="btn btn-secondary btn-sm"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, height: 32, borderRadius: 8 }}
-                  >
-                    🎨 Customize
-                  </button>
-                </div>
-                {activeInfo === 'theme' && (
-                  <p style={{
-                    fontSize: 11,
-                    color: 'var(--text-secondary)',
-                    background: 'rgba(255, 125, 0, 0.05)',
-                    borderLeft: '2.5px solid var(--brand)',
-                    padding: '6px 8px',
-                    margin: '4px 0 0 0',
-                    borderRadius: '0 4px 4px 0',
-                    lineHeight: '1.4',
-                    animation: 'fadeIn 0.2s ease',
-                  }}>
-                    Allows you to customize colors (website background, items, buttons) for the digital menu viewed by customers.
-                  </p>
-                )}
-              </div>
-
-              {/* 2. Customer Must Login Toggle */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: 14,
-                gap: 8,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Customer Must Login</h4>
-                    <button
-                      type="button"
-                      onClick={() => setActiveInfo(prev => prev === 'login' ? null : 'login')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        color: activeInfo === 'login' ? 'var(--brand)' : 'var(--text-muted)',
-                      }}
-                      title="Learn more"
-                    >
-                      <HelpCircle size={15} />
-                    </button>
-                  </div>
-                  <div 
-                    className={`toggle ${restaurantForm.mustLoginBeforeOrder ? 'on' : ''}`}
-                    onClick={() => setRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="toggle-thumb" />
-                  </div>
-                </div>
-                {activeInfo === 'login' && (
-                  <p style={{
-                    fontSize: 11,
-                    color: 'var(--text-secondary)',
-                    background: 'rgba(255, 125, 0, 0.05)',
-                    borderLeft: '2.5px solid var(--brand)',
-                    padding: '6px 8px',
-                    margin: '4px 0 0 0',
-                    borderRadius: '0 4px 4px 0',
-                    lineHeight: '1.4',
-                    animation: 'fadeIn 0.2s ease',
-                  }}>
-                    Forces customers to sign in (via Google or Phone) before they can add items to cart and place their order.
-                  </p>
-                )}
-              </div>
-
-              {/* 3. Overlay Logo on Meals Toggle */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: 14,
-                gap: 8,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Overlay Logo on Meals</h4>
-                    <button
-                      type="button"
-                      onClick={() => setActiveInfo(prev => prev === 'logo' ? null : 'logo')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        color: activeInfo === 'logo' ? 'var(--brand)' : 'var(--text-muted)',
-                      }}
-                      title="Learn more"
-                    >
-                      <HelpCircle size={15} />
-                    </button>
-                  </div>
-                  <div 
-                    className={`toggle ${restaurantForm.overlayLogoOnMeals ? 'on' : ''}`}
-                    onClick={() => setRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="toggle-thumb" />
-                  </div>
-                </div>
-                {activeInfo === 'logo' && (
-                  <p style={{
-                    fontSize: 11,
-                    color: 'var(--text-secondary)',
-                    background: 'rgba(255, 125, 0, 0.05)',
-                    borderLeft: '2.5px solid var(--brand)',
-                    padding: '6px 8px',
-                    margin: '4px 0 0 0',
-                    borderRadius: '0 4px 4px 0',
-                    lineHeight: '1.4',
-                    animation: 'fadeIn 0.2s ease',
-                  }}>
-                    Displays the restaurant's logo as a watermark overlay on top of all food and meal images in the customer menu.
-                  </p>
-                )}
-              </div>
-
-              {/* 4. Live Location Ordering Settings */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: 14,
-                gap: 8,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Live Location Verification</h4>
-                    <button
-                      type="button"
-                      onClick={() => setActiveInfo(prev => prev === 'location' ? null : 'location')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        color: activeInfo === 'location' ? 'var(--brand)' : 'var(--text-muted)',
-                      }}
-                      title="Learn more"
-                    >
-                      <HelpCircle size={15} />
-                    </button>
-                  </div>
-                  <div 
-                    className={`toggle ${restaurantForm.locationVerificationEnabled ? 'on' : ''}`}
-                    onClick={() => setRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: !prev.locationVerificationEnabled }))}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="toggle-thumb" />
-                  </div>
-                </div>
-                {activeInfo === 'location' && (
-                  <p style={{
-                    fontSize: 11,
-                    color: 'var(--text-secondary)',
-                    background: 'rgba(255, 125, 0, 0.05)',
-                    borderLeft: '2.5px solid var(--brand)',
-                    padding: '6px 8px',
-                    margin: '4px 0 0 0',
-                    borderRadius: '0 4px 4px 0',
-                    lineHeight: '1.4',
-                    animation: 'fadeIn 0.2s ease',
-                  }}>
-                    Ensures that only customers physically inside or near your restaurant's GPS coordinates can place orders.
-                  </p>
-                )}
-
-                {restaurantForm.locationVerificationEnabled && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12, animation: 'fadeIn 0.2s ease', borderLeft: '3px solid var(--brand)', paddingLeft: 12 }}>
-                    <div className="input-group">
-                      <label className="input-label">Google Maps Link</label>
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Paste share link (will auto-extract coordinates)"
-                        value={restaurantForm.googleMapsUrl || ''}
-                        onChange={e => {
-                          const url = e.target.value;
-                          const parsed = parseCoordsFromGmaps(url);
-                          if (parsed) {
-                            setRestaurantForm(prev => ({
-                              ...prev,
-                              googleMapsUrl: url,
-                              latitude: parseFloat(parsed.lat.toFixed(6)),
-                              longitude: parseFloat(parsed.lng.toFixed(6)),
-                            }));
-                            addToast('success', '✨ Coordinates auto-extracted!');
-                          } else {
-                            setRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                      <div className="input-group" style={{ flex: 1 }}>
-                        <label className="input-label">Latitude</label>
-                        <input
-                          className="input"
-                          type="number"
-                          step="any"
-                          placeholder="e.g. 12.9348"
-                          value={restaurantForm.latitude ?? ''}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
-                        />
-                      </div>
-                      <div className="input-group" style={{ flex: 1 }}>
-                        <label className="input-label">Longitude</label>
-                        <input
-                          className="input"
-                          type="number"
-                          step="any"
-                          placeholder="e.g. 77.6202"
-                          value={restaurantForm.longitude ?? ''}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
-                        />
+              {/* 1. Home Delivery Sub-section */}
+              {outletSubSection === 'delivery' && (
+                <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
+                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    🏠 Home Delivery Configuration
+                  </h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Home Delivery</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Allow customers to order for home delivery from the app</div>
                       </div>
                       <button
                         type="button"
-                        className="btn btn-secondary"
-                        onClick={handleCaptureCurrentLocation}
-                        disabled={capturingLocation}
+                        onClick={() => setRestaurantForm(prev => ({ ...prev, deliveryEnabled: !prev.deliveryEnabled }))}
                         style={{
-                          padding: '10px 12px', border: '1px solid var(--border)',
-                          color: 'var(--text-primary)', height: 38, display: 'flex', alignItems: 'center', gap: 6
+                          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                          background: restaurantForm.deliveryEnabled ? 'var(--brand)' : 'var(--border)',
+                          position: 'relative', transition: 'background 0.2s', flexShrink: 0
                         }}
                       >
-                        {capturingLocation ? 'Capturing...' : 'Use My GPS'}
+                        <div style={{
+                          position: 'absolute', top: 3, left: restaurantForm.deliveryEnabled ? 22 : 3,
+                          width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                          transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
+                        }} />
                       </button>
                     </div>
 
-                    <div className="input-group">
-                      <label className="input-label">Allowed Perimeter Radius (meters)</label>
-                      <input
-                        className="input"
-                        type="number"
-                        min={10} max={1000}
-                        placeholder="e.g. 50"
-                        value={restaurantForm.verificationRadius ?? 50}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Box 2: Outlet Information */}
-          <div className="card" style={{ padding: '16px' }}>
-            <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>Outlet Information</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="input-group">
-                <label className="input-label">Restaurant Name</label>
-                <div className="input-icon-wrap">
-                  <Store size={15} className="input-icon" />
-                  <input className="input" type="text" value={restaurantForm.name}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, name: e.target.value })} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div className="input-group" style={{ flex: 1 }}>
-                  <label className="input-label">Opens At</label>
-                  <div className="input-icon-wrap">
-                    <Clock size={15} className="input-icon" />
-                    <input className="input" type="time" value={restaurantForm.openTime}
-                      onChange={e => setRestaurantForm({ ...restaurantForm, openTime: e.target.value })} />
-                  </div>
-                </div>
-                <div className="input-group" style={{ flex: 1 }}>
-                  <label className="input-label">Closes At</label>
-                  <div className="input-icon-wrap">
-                    <Clock size={15} className="input-icon" />
-                    <input className="input" type="time" value={restaurantForm.closeTime}
-                      onChange={e => setRestaurantForm({ ...restaurantForm, closeTime: e.target.value })} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Day-Specific Custom Hours */}
-              <div style={{ marginTop: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  🗓️ Day-Specific Custom Hours (Optional)
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
-                    const customHours = (restaurantForm as any).daySpecificHours?.[day] || { openTime: '', closeTime: '', closed: false };
-                    const isEnabled = !!((restaurantForm as any).daySpecificHours?.[day]);
-                    
-                    return (
-                      <div key={day} style={{ display: 'flex', flexDirection: 'column', gap: 6, borderBottom: '1px solid var(--border-dim)', paddingBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {restaurantForm.deliveryEnabled && (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+                          <div className="input-group">
+                            <label className="input-label">Delivery Radius (KM)</label>
                             <input
-                              type="checkbox"
-                              checked={isEnabled}
-                              onChange={e => {
-                                const newHours = { ...(restaurantForm as any).daySpecificHours };
-                                if (e.target.checked) {
-                                  newHours[day] = { openTime: restaurantForm.openTime || '11:00', closeTime: restaurantForm.closeTime || '22:00', closed: false };
-                                } else {
-                                  delete newHours[day];
-                                }
-                                setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
-                              }}
-                              style={{ accentColor: 'var(--brand)' }}
+                              className="input"
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={restaurantForm.deliveryRadius || 10}
+                              onChange={e => setRestaurantForm({ ...restaurantForm, deliveryRadius: parseFloat(e.target.value) || 0 })}
                             />
-                            {day}
-                          </label>
-                          {isEnabled && (
-                            <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <input
-                                type="checkbox"
-                                checked={!!customHours.closed}
-                                onChange={e => {
-                                  const newHours = { ...(restaurantForm as any).daySpecificHours };
-                                  newHours[day] = { ...customHours, closed: e.target.checked };
-                                  setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
-                                }}
-                                style={{ accentColor: 'var(--error)' }}
-                              />
-                              Mark Closed
-                            </label>
-                          )}
+                          </div>
+
+                          <div className="input-group">
+                            <label className="input-label">Standard Delivery Charge (₹)</label>
+                            <input
+                              className="input"
+                              type="number"
+                              min={0}
+                              value={restaurantForm.deliveryCharge !== undefined ? restaurantForm.deliveryCharge : 40}
+                              onChange={e => setRestaurantForm({ ...restaurantForm, deliveryCharge: parseFloat(e.target.value) || 0 })}
+                              placeholder="e.g. 40"
+                            />
+                          </div>
                         </div>
-                        {isEnabled && !customHours.closed && (
-                          <div style={{ display: 'flex', gap: 10, marginLeft: 20 }}>
-                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-                              <label style={{ fontSize: 10, color: 'var(--text-muted)' }}>Opens At</label>
+
+                        <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 10 }}>
+                          <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10 }}>Free Delivery Criteria</h4>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <div className="input-group">
+                              <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Distance Limit (KM)</label>
                               <input
                                 className="input"
-                                type="time"
-                                value={customHours.openTime}
-                                onChange={e => {
-                                  const newHours = { ...(restaurantForm as any).daySpecificHours };
-                                  newHours[day] = { ...customHours, openTime: e.target.value };
-                                  setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
-                                }}
-                                style={{ height: 32, padding: '4px 8px', fontSize: 12 }}
+                                type="number"
+                                min={0}
+                                value={restaurantForm.freeDeliveryDistance || ''}
+                                onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryDistance: parseFloat(e.target.value) || 0 })}
+                                placeholder="e.g. 5"
                               />
                             </div>
-                            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-                              <label style={{ fontSize: 10, color: 'var(--text-muted)' }}>Closes At</label>
+                            
+                            <div className="input-group">
+                              <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Min Order Amount (₹)</label>
                               <input
                                 className="input"
-                                type="time"
-                                value={customHours.closeTime}
-                                onChange={e => {
-                                  const newHours = { ...(restaurantForm as any).daySpecificHours };
-                                  newHours[day] = { ...customHours, closeTime: e.target.value };
-                                  setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
-                                }}
-                                style={{ height: 32, padding: '4px 8px', fontSize: 12 }}
+                                type="number"
+                                min={0}
+                                value={restaurantForm.freeDeliveryMinAmount || ''}
+                                onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryMinAmount: parseFloat(e.target.value) || 0 })}
+                                placeholder="e.g. 500"
                               />
                             </div>
                           </div>
-                        )}
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Free Delivery by Distance</div>
+                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Waive fee if customer is within the distance limit</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setRestaurantForm(prev => ({ ...prev, freeDeliveryDistanceEnabled: prev.freeDeliveryDistanceEnabled !== undefined ? !prev.freeDeliveryDistanceEnabled : false }))}
+                                style={{
+                                  width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
+                                  background: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 'var(--brand)' : 'var(--border)',
+                                  position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                                }}
+                              >
+                                <div style={{
+                                  position: 'absolute', top: 2, left: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 20 : 2,
+                                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                                  transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                }} />
+                              </button>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Free Delivery by Min Amount</div>
+                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Waive fee if order subtotal exceeds the minimum amount</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setRestaurantForm(prev => ({ ...prev, freeDeliveryMinAmountEnabled: prev.freeDeliveryMinAmountEnabled !== undefined ? !prev.freeDeliveryMinAmountEnabled : false }))}
+                                style={{
+                                  width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
+                                  background: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 'var(--brand)' : 'var(--border)',
+                                  position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                                }}
+                              >
+                                <div style={{
+                                  position: 'absolute', top: 2, left: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 20 : 2,
+                                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                                  transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                }} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
+                      <Save size={15} /> Save Delivery Settings
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. UPI ID & QR Code Sub-section */}
+              {outletSubSection === 'upi' && (
+                <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
+                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    💳 UPI ID & QR Code Settings
+                  </h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div className="input-group">
+                      <label className="input-label">UPI ID</label>
+                      <div className="input-icon-wrap">
+                        <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>@</span>
+                        <input className="input" type="text" placeholder="e.g. restaurant@upi"
+                          value={restaurantForm.upiId || ''}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, upiId: e.target.value })} />
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Address</label>
-                <div className="input-icon-wrap">
-                  <MapPin size={15} className="input-icon" />
-                  <input className="input" type="text" value={restaurantForm.address}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, address: e.target.value })} />
-                </div>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Phone Number</label>
-                <div className="input-icon-wrap">
-                  <Phone size={15} className="input-icon" />
-                  <input className="input" type="tel" value={restaurantForm.phone}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, phone: e.target.value })} />
-                </div>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Email</label>
-                <div className="input-icon-wrap">
-                  <Mail size={15} className="input-icon" />
-                  <input className="input" type="email" value={restaurantForm.email}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, email: e.target.value })} />
-                </div>
-              </div>
+                    </div>
 
+                    <div className="input-group">
+                      <label className="input-label">UPI QR Code Image</label>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <input
+                            type="file"
+                            id="upi-qr-upload-input"
+                            accept="image/*"
+                            onChange={handleUpiQrUpload}
+                            style={{ display: 'none' }}
+                          />
+                          <label
+                            htmlFor="upi-qr-upload-input"
+                            className="btn btn-secondary btn-full"
+                            style={{
+                              height: 38,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              borderRadius: 10,
+                              fontSize: 12
+                            }}
+                          >
+                            {uploadingUpiQr ? 'Uploading...' : '📁 Upload QR Code Image'}
+                          </label>
+                        </div>
+                      </div>
+                    </div>
 
-              <div className="input-group">
-                <label className="input-label">FSSAI License Number</label>
-                <div className="input-icon-wrap">
-                  <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>🛡️</span>
-                  <input className="input" type="text" placeholder="14-digit FSSAI number" value={restaurantForm.fssai || ''}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, fssai: e.target.value })} />
-                </div>
-              </div>
-              <div className="input-group">
-                <label className="input-label">GST Number</label>
-                <div className="input-icon-wrap">
-                  <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>📜</span>
-                  <input className="input" type="text" placeholder="15-digit GSTIN" value={restaurantForm.gst || ''}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, gst: e.target.value })} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div className="input-group" style={{ flex: 1 }}>
-                  <label className="input-label">Rating (out of 5)</label>
-                  <input
-                    className="input"
-                    type="number"
-                    step="0.1"
-                    min="1"
-                    max="5"
-                    placeholder="e.g. 4.6"
-                    value={restaurantForm.rating !== undefined ? restaurantForm.rating : ''}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, rating: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="input-group" style={{ flex: 1 }}>
-                  <label className="input-label">Ratings Count (Number of raters)</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min="0"
-                    placeholder="e.g. 5485"
-                    value={restaurantForm.ratingsCount !== undefined ? restaurantForm.ratingsCount : ''}
-                    onChange={e => setRestaurantForm({ ...restaurantForm, ratingsCount: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">Custom Promotional Banner Text (Attract Customers)</label>
-                <textarea
-                  className="input"
-                  rows={2}
-                  maxLength={120}
-                  placeholder="e.g. Best Biryani in Delhi! Flat 20% OFF on all orders this week."
-                  value={restaurantForm.promoText || ''}
-                  onChange={e => setRestaurantForm({ ...restaurantForm, promoText: e.target.value })}
-                  style={{ resize: 'vertical' }}
-                />
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>* Displays at the top of your card on the home screen (Maximum 2 lines / 120 characters)</span>
-              </div>
-
-
-              {/* Logo Settings */}
-              <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Restaurant Logo Settings</h4>
-                <div className="input-group" style={{ marginBottom: 12 }}>
-                  <label className="input-label">Logo Image URL / Upload</label>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <input
-                      className="input"
-                      type="text"
-                      placeholder="Paste image URL or upload photo below"
-                      value={restaurantForm.logo || ''}
-                      onChange={e => setRestaurantForm({ ...restaurantForm, logo: e.target.value })}
-                      style={{ flex: 1 }}
-                    />
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="file"
-                        id="logo-upload-input"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        style={{ display: 'none' }}
-                      />
-                      <label
-                        htmlFor="logo-upload-input"
-                        className="btn btn-secondary"
-                        style={{
-                          height: 38,
-                          display: 'inline-flex',
+                    {restaurantForm.upiQrCode && (
+                      <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
+                        <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>QR Code Preview</label>
+                        <div style={{
+                          margin: '0 auto',
+                          width: 150,
+                          height: 150,
+                          borderRadius: 8,
+                          border: '2px solid var(--brand)',
+                          background: '#fff',
+                          display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          borderRadius: 10,
-                          fontSize: 12,
-                          padding: '0 12px'
-                        }}
-                      >
-                        {uploadingLogo ? 'Uploading...' : '📁 Upload Photo'}
-                      </label>
-                    </div>
+                          padding: 6
+                        }}>
+                          <img src={restaurantForm.upiQrCode} alt="UPI QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        </div>
+                        <button
+                          onClick={() => setRestaurantForm(prev => ({ ...prev, upiQrCode: undefined }))}
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: 'var(--error)', marginTop: 8, fontSize: 11 }}
+                        >
+                          Remove QR Code
+                        </button>
+                      </div>
+                    )}
+
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
+                      <Save size={15} /> Save UPI Settings
+                    </button>
                   </div>
                 </div>
-                
-                {restaurantForm.logo && (
-                  <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
-                    <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Logo Preview</label>
-                    <div style={{
-                      margin: '0 auto',
-                      width: 80,
-                      height: 80,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      border: '2px solid var(--brand)',
-                      background: 'var(--bg-elevated)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <img
-                        src={restaurantForm.logo}
-                        alt="Logo Preview"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
 
-              {/* Restaurant Profile Image Settings */}
-              <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)', marginBottom: 12 }}>Restaurant Profile Image</h4>
-                <div className="input-group" style={{ marginBottom: 12 }}>
-                  <label className="input-label">Profile Image (will be shown in the browsing list as a square)</label>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <input
-                      className="input"
-                      type="text"
-                      placeholder="Paste image URL or upload photo below"
-                      value={restaurantForm.posterImage || ''}
-                      onChange={e => setRestaurantForm({ ...restaurantForm, posterImage: e.target.value, posterRatio: '1:1' })}
-                      style={{ flex: 1 }}
-                    />
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="file"
-                        id="poster-upload-input"
-                        accept="image/*"
-                        onChange={handlePosterUpload}
-                        style={{ display: 'none' }}
-                      />
-                      <label
-                        htmlFor="poster-upload-input"
-                        className="btn btn-secondary"
-                        style={{
-                          height: 38,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          borderRadius: 10,
-                          fontSize: 12,
-                          padding: '0 12px'
-                        }}
+              {/* 3. Additional Customization Sub-section */}
+              {outletSubSection === 'customization' && (
+                <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
+                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>🎨 Additional Customization</h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* Customer Must Login */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Customer Must Login</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Force sign in before checking out</div>
+                      </div>
+                      <div 
+                        className={`toggle ${restaurantForm.mustLoginBeforeOrder ? 'on' : ''}`}
+                        onClick={() => setRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
+                        style={{ cursor: 'pointer' }}
                       >
-                        {uploadingPoster ? 'Uploading...' : '📁 Upload Photo'}
-                      </label>
+                        <div className="toggle-thumb" />
+                      </div>
                     </div>
+
+                    {/* Overlay Logo on Meals */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Overlay Logo on Meals</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Show restaurant logo watermark overlay on meal photos</div>
+                      </div>
+                      <div 
+                        className={`toggle ${restaurantForm.overlayLogoOnMeals ? 'on' : ''}`}
+                        onClick={() => setRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className="toggle-thumb" />
+                      </div>
+                    </div>
+
+                    {/* Live Location Verification */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Live Location Verification</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Customers must be at coordinates to place order</div>
+                      </div>
+                      <div 
+                        className={`toggle ${restaurantForm.locationVerificationEnabled ? 'on' : ''}`}
+                        onClick={() => setRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: !prev.locationVerificationEnabled }))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className="toggle-thumb" />
+                      </div>
+                    </div>
+
+                    {restaurantForm.locationVerificationEnabled && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12, borderLeft: '3px solid var(--brand)', paddingLeft: 12 }}>
+                        <div className="input-group">
+                          <label className="input-label">Google Maps Link</label>
+                          <input
+                            className="input"
+                            type="text"
+                            placeholder="Paste share link"
+                            value={restaurantForm.googleMapsUrl || ''}
+                            onChange={e => {
+                              const url = e.target.value;
+                              const parsed = parseCoordsFromGmaps(url);
+                              if (parsed) {
+                                setRestaurantForm(prev => ({
+                                  ...prev,
+                                  googleMapsUrl: url,
+                                  latitude: parseFloat(parsed.lat.toFixed(6)),
+                                  longitude: parseFloat(parsed.lng.toFixed(6)),
+                                }));
+                                addToast('success', 'Coordinates auto-extracted!');
+                              } else {
+                                setRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
+                              }
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                          <div className="input-group" style={{ flex: 1 }}>
+                            <label className="input-label">Latitude</label>
+                            <input
+                              className="input"
+                              type="number"
+                              step="any"
+                              value={restaurantForm.latitude ?? ''}
+                              onChange={e => setRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
+                            />
+                          </div>
+                          <div className="input-group" style={{ flex: 1 }}>
+                            <label className="input-label">Longitude</label>
+                            <input
+                              className="input"
+                              type="number"
+                              step="any"
+                              value={restaurantForm.longitude ?? ''}
+                              onChange={e => setRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={handleCaptureCurrentLocation}
+                            disabled={capturingLocation}
+                            style={{ height: 38, padding: '0 12px' }}
+                          >
+                            {capturingLocation ? '...' : 'GPS'}
+                          </button>
+                        </div>
+
+                        <div className="input-group">
+                          <label className="input-label">Allowed Perimeter Radius (meters)</label>
+                          <input
+                            className="input"
+                            type="number"
+                            value={restaurantForm.verificationRadius ?? 50}
+                            onChange={e => setRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
+                      <Save size={15} /> Save Customization
+                    </button>
                   </div>
                 </div>
-                
-                {restaurantForm.posterImage && (
-                  <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
-                    <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>Profile Image Preview (Square)</label>
-                    <div style={{
-                      margin: '0 auto',
-                      width: 120,
-                      height: 120,
-                      borderRadius: 12,
-                      overflow: 'hidden',
-                      border: '2px solid var(--brand)',
-                      background: 'var(--bg-elevated)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <img
-                        src={restaurantForm.posterImage}
-                        alt="Profile Preview"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
 
-              <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 16 }}>
-                <Save size={15} /> Save Changes
-              </button>
+              {/* 4. Outlet Information Sub-section */}
+              {outletSubSection === 'info' && (
+                <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
+                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>ℹ️ Outlet Information</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div className="input-group">
+                      <label className="input-label">Restaurant Name</label>
+                      <div className="input-icon-wrap">
+                        <Store size={15} className="input-icon" />
+                        <input className="input" type="text" value={restaurantForm.name}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, name: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div className="input-group" style={{ flex: 1 }}>
+                        <label className="input-label">Opens At</label>
+                        <input className="input" type="time" value={restaurantForm.openTime}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, openTime: e.target.value })} />
+                      </div>
+                      <div className="input-group" style={{ flex: 1 }}>
+                        <label className="input-label">Closes At</label>
+                        <input className="input" type="time" value={restaurantForm.closeTime}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, closeTime: e.target.value })} />
+                      </div>
+                    </div>
+
+                    {/* Day-Specific Hours */}
+                    <div style={{ marginTop: 8, marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand)', marginBottom: 6, textTransform: 'uppercase' }}>Custom Daily Hours</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
+                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
+                          const customHours = (restaurantForm as any).daySpecificHours?.[day] || { openTime: '', closeTime: '', closed: false };
+                          const isEnabled = !!((restaurantForm as any).daySpecificHours?.[day]);
+                          
+                          return (
+                            <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
+                              <label style={{ fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isEnabled}
+                                  onChange={e => {
+                                    const newHours = { ...(restaurantForm as any).daySpecificHours };
+                                    if (e.target.checked) {
+                                      newHours[day] = { openTime: restaurantForm.openTime || '11:00', closeTime: restaurantForm.closeTime || '22:00', closed: false };
+                                    } else {
+                                      delete newHours[day];
+                                    }
+                                    setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                  }}
+                                  style={{ accentColor: 'var(--brand)' }}
+                                />
+                                {day}
+                              </label>
+                              {isEnabled && (
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                  <input
+                                    type="time"
+                                    value={customHours.openTime}
+                                    onChange={e => {
+                                      const newHours = { ...(restaurantForm as any).daySpecificHours };
+                                      newHours[day] = { ...customHours, openTime: e.target.value };
+                                      setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                    }}
+                                    style={{ height: 26, fontSize: 11, padding: '2px 4px' }}
+                                  />
+                                  <span>–</span>
+                                  <input
+                                    type="time"
+                                    value={customHours.closeTime}
+                                    onChange={e => {
+                                      const newHours = { ...(restaurantForm as any).daySpecificHours };
+                                      newHours[day] = { ...customHours, closeTime: e.target.value };
+                                      setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                    }}
+                                    style={{ height: 26, fontSize: 11, padding: '2px 4px' }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">Address</label>
+                      <input className="input" type="text" value={restaurantForm.address}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, address: e.target.value })} />
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">Phone Number</label>
+                      <input className="input" type="tel" value={restaurantForm.phone}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, phone: e.target.value })} />
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">Email</label>
+                      <input className="input" type="email" value={restaurantForm.email}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, email: e.target.value })} />
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">FSSAI License Number</label>
+                      <input className="input" type="text" value={restaurantForm.fssai || ''}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, fssai: e.target.value })} />
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">GST Number</label>
+                      <input className="input" type="text" value={restaurantForm.gst || ''}
+                        onChange={e => setRestaurantForm({ ...restaurantForm, gst: e.target.value })} />
+                    </div>
+
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
+                      <Save size={15} /> Save Info Details
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 5. Logo & Image Sub-section */}
+              {outletSubSection === 'logo_image' && (
+                <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
+                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>🖼️ Logo & Image Settings</h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* Logo */}
+                    <div className="input-group">
+                      <label className="input-label">Restaurant Logo</label>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <input
+                          type="file"
+                          id="logo-upload-input"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          style={{ display: 'none' }}
+                        />
+                        <label htmlFor="logo-upload-input" className="btn btn-secondary btn-full" style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12 }}>
+                          {uploadingLogo ? 'Uploading...' : '📁 Upload Restaurant Logo'}
+                        </label>
+                      </div>
+                    </div>
+
+                    {restaurantForm.logo && (
+                      <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                        <img src={restaurantForm.logo} alt="Logo" style={{ width: 80, height: 80, borderRadius: '50%', border: '2px solid var(--brand)', objectFit: 'cover' }} />
+                      </div>
+                    )}
+
+                    {/* Profile Photo */}
+                    <div className="input-group">
+                      <label className="input-label">Restaurant Poster Image (Visible in browsing list)</label>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <input
+                          type="file"
+                          id="poster-upload-input"
+                          accept="image/*"
+                          onChange={handlePosterUpload}
+                          style={{ display: 'none' }}
+                        />
+                        <label htmlFor="poster-upload-input" className="btn btn-secondary btn-full" style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12 }}>
+                          {uploadingPoster ? 'Uploading...' : '📁 Upload Poster Image'}
+                        </label>
+                      </div>
+                    </div>
+
+                    {restaurantForm.posterImage && (
+                      <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                        <img src={restaurantForm.posterImage} alt="Poster" style={{ width: 120, height: 120, borderRadius: 12, border: '2px solid var(--brand)', objectFit: 'cover' }} />
+                      </div>
+                    )}
+
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
+                      <Save size={15} /> Save Logo & Poster
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-
+          )}
         </div>
       )}
 
@@ -3825,325 +3574,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         </div>
       )}
 
-      {/* Customer Menu Theme Customizer Modal */}
-      {showThemeModal && (
-        <div className="modal-backdrop" onClick={() => setShowThemeModal(false)} style={{ zIndex: 1100 }}>
-          <div className="modal-content" style={{ maxWidth: 540, padding: 24, position: 'relative' }} onClick={e => e.stopPropagation()}>
-            
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Palette size={20} style={{ color: 'var(--brand)' }} />
-                <h3 style={{ fontSize: 16, fontFamily: 'var(--font-display)', fontWeight: 800, margin: 0 }}>
-                  Customize Customer Menu Theme
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowThemeModal(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '65vh', overflowY: 'auto', paddingRight: 4 }}>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                
-                {/* Inputs Column */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  
-                  <div className="input-group">
-                    <label className="input-label" style={{ fontSize: 11 }}>Primary Accent (e.g. active tab line, borders)</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="color"
-                        value={themeForm.primaryBg || '#FF7D00'}
-                        onChange={e => setThemeForm({ ...themeForm, primaryBg: e.target.value })}
-                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                      />
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Default (#FF7D00)"
-                        value={themeForm.primaryBg}
-                        onChange={e => setThemeForm({ ...themeForm, primaryBg: e.target.value })}
-                        style={{ flex: 1, height: 34, fontSize: 12 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label" style={{ fontSize: 11 }}>Dish Name Text Color</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="color"
-                        value={themeForm.itemName || '#111111'}
-                        onChange={e => setThemeForm({ ...themeForm, itemName: e.target.value })}
-                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                      />
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Default (#111111)"
-                        value={themeForm.itemName}
-                        onChange={e => setThemeForm({ ...themeForm, itemName: e.target.value })}
-                        style={{ flex: 1, height: 34, fontSize: 12 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label" style={{ fontSize: 11 }}>Dish Description Text Color</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="color"
-                        value={themeForm.itemDesc || '#666666'}
-                        onChange={e => setThemeForm({ ...themeForm, itemDesc: e.target.value })}
-                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                      />
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Default (#666666)"
-                        value={themeForm.itemDesc}
-                        onChange={e => setThemeForm({ ...themeForm, itemDesc: e.target.value })}
-                        style={{ flex: 1, height: 34, fontSize: 12 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label" style={{ fontSize: 11 }}>Add to Cart Button BG</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="color"
-                        value={themeForm.addToCartBg || '#FF7D00'}
-                        onChange={e => setThemeForm({ ...themeForm, addToCartBg: e.target.value })}
-                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                      />
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Default (#FF7D00)"
-                        value={themeForm.addToCartBg}
-                        onChange={e => setThemeForm({ ...themeForm, addToCartBg: e.target.value })}
-                        style={{ flex: 1, height: 34, fontSize: 12 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label" style={{ fontSize: 11 }}>Add to Cart Button Text</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="color"
-                        value={themeForm.addToCartText || '#FFFFFF'}
-                        onChange={e => setThemeForm({ ...themeForm, addToCartText: e.target.value })}
-                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                      />
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Default (#FFFFFF)"
-                        value={themeForm.addToCartText}
-                        onChange={e => setThemeForm({ ...themeForm, addToCartText: e.target.value })}
-                        style={{ flex: 1, height: 34, fontSize: 12 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label" style={{ fontSize: 11 }}>Bestseller Badge BG</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="color"
-                        value={themeForm.bestsellerBg || '#FF7D00'}
-                        onChange={e => setThemeForm({ ...themeForm, bestsellerBg: e.target.value })}
-                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                      />
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Default (#FF7D00)"
-                        value={themeForm.bestsellerBg}
-                        onChange={e => setThemeForm({ ...themeForm, bestsellerBg: e.target.value })}
-                        style={{ flex: 1, height: 34, fontSize: 12 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label" style={{ fontSize: 11 }}>Bestseller Badge Text</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="color"
-                        value={themeForm.bestsellerText || '#FFFFFF'}
-                        onChange={e => setThemeForm({ ...themeForm, bestsellerText: e.target.value })}
-                        style={{ width: 34, height: 34, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                      />
-                      <input
-                        className="input"
-                        type="text"
-                        placeholder="Default (#FFFFFF)"
-                        value={themeForm.bestsellerText}
-                        onChange={e => setThemeForm({ ...themeForm, bestsellerText: e.target.value })}
-                        style={{ flex: 1, height: 34, fontSize: 12 }}
-                      />
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Preview Column */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--bg-elevated)', borderRadius: 12, padding: 14, border: '1px solid var(--border)' }}>
-                  <h4 style={{ fontSize: 12, fontWeight: 700, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>✨ Live Preview</span>
-                  </h4>
-                  
-                  {/* Category Indicator Preview */}
-                  <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 6, fontSize: 12 }}>
-                    <div style={{ 
-                      color: themeForm.primaryBg || 'var(--brand)', 
-                      fontWeight: 700, 
-                      paddingBottom: 4, 
-                      borderBottom: `2px solid ${themeForm.primaryBg || 'var(--brand)'}` 
-                    }}>
-                      Bestsellers
-                    </div>
-                    <div style={{ color: 'var(--text-muted)' }}>Main Course</div>
-                  </div>
-
-                  {/* Item Card Preview */}
-                  <div style={{ 
-                    background: '#fff', 
-                    borderRadius: 12, 
-                    border: '1px solid #e5e7eb', 
-                    padding: 12, 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: 8,
-                    marginTop: 8,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, paddingRight: 8 }}>
-                        
-                        {/* Bestseller Badge */}
-                        <div>
-                          <span style={{
-                            background: themeForm.bestsellerBg || '#FF7D00',
-                            color: themeForm.bestsellerText || '#FFFFFF',
-                            fontSize: '9px',
-                            fontWeight: 800,
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                          }}>
-                            ★ Bestseller
-                          </span>
-                        </div>
-
-                        {/* Dish Name */}
-                        <div style={{ 
-                          fontSize: 13, 
-                          fontWeight: 700, 
-                          color: themeForm.itemName || '#111111' 
-                        }}>
-                          Crispy Paneer Slider
-                        </div>
-
-                        {/* Dish Description */}
-                        <div style={{ 
-                          fontSize: 10, 
-                          color: themeForm.itemDesc || '#666666',
-                          lineHeight: 1.3
-                        }}>
-                          Spicy battered paneer patty with cabbage slaw and sriracha mayo.
-                        </div>
-
-                      </div>
-
-                      {/* Dish Photo Placeholder */}
-                      <div style={{ width: 68, height: 68, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                        <span style={{ fontSize: 24 }}>🍔</span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                      <div style={{ fontWeight: 800, fontSize: 13, color: '#111111' }}>
-                        $9.99
-                      </div>
-                      
-                      {/* Add Button */}
-                      <button style={{
-                        background: themeForm.addToCartBg || '#FF7D00',
-                        color: themeForm.addToCartText || '#FFFFFF',
-                        border: 'none',
-                        borderRadius: 6,
-                        padding: '4px 10px',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        cursor: 'default',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4
-                      }}>
-                        Add +
-                      </button>
-
-                    </div>
-                  </div>
-
-                  {/* Help note */}
-                  <div style={{ display: 'flex', gap: 6, marginTop: 'auto', background: 'rgba(255, 125, 0, 0.05)', borderRadius: 8, padding: 8, border: '1px solid rgba(255, 125, 0, 0.1)' }}>
-                    <HelpCircle size={14} style={{ color: 'var(--brand)', flexShrink: 0, marginTop: 1 }} />
-                    <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                      Colors entered above will apply to the public customer menu instantly upon saving. Use HEX color codes or pick via selector.
-                    </p>
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 20 }}>
-              <button
-                type="button"
-                onClick={handleResetThemeColors}
-                className="btn btn-secondary"
-                style={{ color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)', fontSize: 12 }}
-              >
-                Reset to System Defaults
-              </button>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setShowThemeModal(false)}
-                  className="btn btn-secondary"
-                  style={{ fontSize: 12 }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveThemeColors}
-                  className="btn btn-primary"
-                  style={{ fontSize: 12, fontWeight: 700 }}
-                >
-                  Save Theme Colors
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
     </div>
   );
 }

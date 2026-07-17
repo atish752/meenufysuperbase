@@ -212,7 +212,7 @@ export default function AdminMenu() {
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
-  const [subTab, setSubTab] = useState<'meals' | 'addons'>('meals');
+  const [subTab, setSubTab] = useState<'meals' | 'addons' | 'category'>('meals');
   const [expandedTargetCats, setExpandedTargetCats] = useState<string[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [showAddonModal, setShowAddonModal] = useState(false);
@@ -239,7 +239,7 @@ export default function AdminMenu() {
     linkedMealId: '',
   });
   const [newItem, setNewItem] = useState<Omit<MenuItem, 'id'>>(EMPTY_ITEM);
-  const [showCatModal, setShowCatModal] = useState(false);
+
   const [showOthersMenu, setShowOthersMenu] = useState(false);
   const [bulkAiLoading, setBulkAiLoading] = useState(false);
   const [bulkAiProgress, setBulkAiProgress] = useState({ current: 0, total: 0 });
@@ -884,7 +884,6 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     if (!newCat.name) { addToast('error', 'Enter a category name.'); return; }
     dispatch({ type: 'ADD_CATEGORY', payload: { id: `cat-${Date.now()}`, name: newCat.name, icon: newCat.icon } });
     addToast('success', 'Category added!');
-    setShowCatModal(false);
     setNewCat({ name: '', icon: '🍽️' });
   };
 
@@ -1125,7 +1124,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             borderBottom: subTab === 'meals' ? '2px solid var(--brand)' : '2px solid transparent',
           }}
         >
-          Meals & Categories
+          Meals
         </button>
         <button
           onClick={() => setSubTab('addons')}
@@ -1139,9 +1138,21 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
         >
           Add-ons ({adminAddons.length})
         </button>
+        <button
+          onClick={() => setSubTab('category')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 14, fontWeight: subTab === 'category' ? 700 : 500,
+            color: subTab === 'category' ? 'var(--brand)' : 'var(--text-primary)',
+            padding: '8px 4px',
+            borderBottom: subTab === 'category' ? '2px solid var(--brand)' : '2px solid transparent',
+          }}
+        >
+          Category ({adminCategories.length})
+        </button>
       </div>
 
-      {subTab === 'meals' ? (
+      {subTab === 'meals' && (
         <>
 
       {/* Row of Settings Buttons & Categories wrapped between two horizontal lines */}
@@ -1183,14 +1194,6 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             <Sparkles size={13} /> AI Menu Extractor
           </button>
 
-          {/* Manage Categories Button */}
-          <button
-            onClick={() => setShowCatModal(true)}
-            className="btn btn-secondary"
-            style={{ height: 32, display: 'flex', alignItems: 'center', gap: 5, borderRadius: 10, fontSize: 11, padding: '0 10px' }}
-          >
-            <Tag size={13} /> Manage Categories
-          </button>
 
           {/* Others Button with Dropdown */}
           <div style={{ position: 'relative' }}>
@@ -1547,7 +1550,9 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
         })}
       </div>
       </>
-      ) : (
+      )}
+
+      {subTab === 'addons' && (
         <div>
           {/* Search & Actions Bar */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
@@ -1745,6 +1750,176 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {subTab === 'category' && (
+        <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, background: 'var(--bg-secondary)', padding: 24, borderRadius: 16, border: '1px solid var(--border)', animation: 'fadeIn 0.2s ease-in-out' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <h2 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800 }}>
+              {managingCatMeals ? 'Manage Category Meals' : 'Manage Categories'}
+            </h2>
+          </div>
+
+          {managingCatMeals ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  onClick={() => {
+                    setManagingCatMeals(null);
+                    setCatMealsSearch('');
+                  }}
+                  style={{ padding: '4px 10px', fontSize: 11 }}
+                >
+                  ← Back to Categories
+                </button>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  Category: {managingCatMeals.icon} {managingCatMeals.name}
+                </span>
+              </div>
+
+              <div className="search-box" style={{ marginBottom: 12, position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Search meals..."
+                  value={catMealsSearch}
+                  onChange={e => setCatMealsSearch(e.target.value)}
+                  style={{ paddingLeft: 34, height: 36, fontSize: 12, width: '100%' }}
+                />
+              </div>
+
+              <div style={{ maxHeight: '50vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
+                {adminMenuItems
+                  .filter(item => !catMealsSearch || item.name.toLowerCase().includes(catMealsSearch.toLowerCase()))
+                  .map(item => {
+                    const isChecked = item.category === managingCatMeals.id || 
+                      (item.categories && item.categories.includes(managingCatMeals.id));
+
+                    return (
+                      <div 
+                        key={item.id} 
+                        onClick={() => {
+                          let newCategories = item.categories || [];
+                          let newCategory = item.category;
+
+                          if (isChecked) {
+                            newCategories = newCategories.filter(id => id !== managingCatMeals.id);
+                            if (item.category === managingCatMeals.id) {
+                              newCategory = newCategories[0] || '';
+                            }
+                          } else {
+                            if (!newCategories.includes(managingCatMeals.id)) {
+                              newCategories = [...newCategories, managingCatMeals.id];
+                            }
+                            if (!newCategory) {
+                              newCategory = managingCatMeals.id;
+                            }
+                          }
+
+                          dispatch({
+                            type: 'UPDATE_MENU_ITEM',
+                            payload: {
+                              ...item,
+                              category: newCategory,
+                              categories: newCategories
+                            }
+                          });
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          padding: '10px 14px',
+                          background: isChecked ? 'rgba(249, 115, 22, 0.05)' : 'var(--bg-elevated)',
+                          border: isChecked ? '1px solid rgba(249, 115, 22, 0.25)' : '1px solid var(--border)',
+                          borderRadius: 10,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        <input 
+                          type="checkbox" 
+                          checked={!!isChecked} 
+                          readOnly 
+                          style={{ accentColor: 'var(--brand)', cursor: 'pointer' }}
+                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🍽️</div>
+                          )}
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{item.name}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>₹{item.price}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* List of current categories */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                <label className="input-label" style={{ marginBottom: 4 }}>Existing Categories ({adminCategories.length})</label>
+                {adminCategories.length === 0 ? (
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>No categories created yet.</p>
+                ) : (
+                  adminCategories.map(cat => {
+                    const isDeleting = deletingCatId === cat.id;
+                    return (
+                      <CategoryRow 
+                        key={cat.id} 
+                        cat={cat} 
+                        onUpdate={(updatedCat) => {
+                          dispatch({ type: 'UPDATE_CATEGORY', payload: updatedCat });
+                          addToast('success', 'Category updated successfully! 📝');
+                        }} 
+                        onDelete={handleDeleteCategoryClick}
+                        isDeleting={isDeleting}
+                        onManageMeals={() => setManagingCatMeals(cat)}
+                      />
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Add New Category form */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18, marginTop: 12 }}>
+                <label className="input-label" style={{ fontWeight: 700, marginBottom: 12 }}>➕ Create New Category</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input 
+                    className="input" 
+                    type="text" 
+                    placeholder="🍕"
+                    value={newCat.icon} 
+                    onChange={e => setNewCat({ ...newCat, icon: e.target.value })} 
+                    style={{ width: 44, textAlign: 'center', fontSize: 16, padding: '6px 0' }} 
+                  />
+                  <input 
+                    className="input" 
+                    type="text" 
+                    placeholder="e.g. Starters"
+                    value={newCat.name} 
+                    onChange={e => setNewCat({ ...newCat, name: e.target.value })} 
+                    style={{ flex: 1, padding: '6px 12px' }} 
+                  />
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={handleAddCategory}
+                    style={{ padding: '0 16px', height: 38 }}
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -2220,179 +2395,6 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
         </div>
       )}
 
-      {/* Manage Categories Modal */}
-      {showCatModal && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowCatModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 460, minHeight: 400, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-                {managingCatMeals ? 'Manage Category Meals' : 'Manage Categories'}
-              </h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowCatModal(false)}><X size={18} /></button>
-            </div>
-
-            {managingCatMeals ? (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <button 
-                    className="btn btn-secondary btn-sm" 
-                    onClick={() => {
-                      setManagingCatMeals(null);
-                      setCatMealsSearch('');
-                    }}
-                    style={{ padding: '4px 10px', fontSize: 11 }}
-                  >
-                    ← Back to Categories
-                  </button>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    Category: {managingCatMeals.icon} {managingCatMeals.name}
-                  </span>
-                </div>
-
-                <div className="search-box" style={{ marginBottom: 12, position: 'relative' }}>
-                  <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder="Search meals..."
-                    value={catMealsSearch}
-                    onChange={e => setCatMealsSearch(e.target.value)}
-                    style={{ paddingLeft: 34, height: 36, fontSize: 12, width: '100%' }}
-                  />
-                </div>
-
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
-                  {adminMenuItems
-                    .filter(item => !catMealsSearch || item.name.toLowerCase().includes(catMealsSearch.toLowerCase()))
-                    .map(item => {
-                      const isChecked = item.category === managingCatMeals.id || 
-                        (item.categories && item.categories.includes(managingCatMeals.id));
-
-                      return (
-                        <div 
-                          key={item.id} 
-                          onClick={() => {
-                            let newCategories = item.categories || [];
-                            let newCategory = item.category;
-
-                            if (isChecked) {
-                              newCategories = newCategories.filter(id => id !== managingCatMeals.id);
-                              if (item.category === managingCatMeals.id) {
-                                newCategory = newCategories[0] || '';
-                              }
-                            } else {
-                              if (!newCategories.includes(managingCatMeals.id)) {
-                                newCategories = [...newCategories, managingCatMeals.id];
-                              }
-                              if (!newCategory) {
-                                newCategory = managingCatMeals.id;
-                              }
-                            }
-
-                            dispatch({
-                              type: 'UPDATE_MENU_ITEM',
-                              payload: {
-                                ...item,
-                                category: newCategory,
-                                categories: newCategories
-                              }
-                            });
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            padding: '10px 14px',
-                            background: isChecked ? 'rgba(249, 115, 22, 0.05)' : 'var(--bg-elevated)',
-                            border: isChecked ? '1px solid rgba(249, 115, 22, 0.25)' : '1px solid var(--border)',
-                            borderRadius: 10,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s'
-                          }}
-                        >
-                          <input 
-                            type="checkbox" 
-                            checked={!!isChecked} 
-                            readOnly 
-                            style={{ accentColor: 'var(--brand)', cursor: 'pointer' }}
-                          />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                            {item.image ? (
-                              <img src={item.image} alt={item.name} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🍽️</div>
-                            )}
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{item.name}</span>
-                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>₹{item.price}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* List of current categories */}
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20, paddingRight: 4 }}>
-                  <label className="input-label" style={{ marginBottom: 4 }}>Existing Categories ({adminCategories.length})</label>
-                  {adminCategories.length === 0 ? (
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>No categories created yet.</p>
-                  ) : (
-                    adminCategories.map(cat => {
-                      const isDeleting = deletingCatId === cat.id;
-                      return (
-                        <CategoryRow 
-                          key={cat.id} 
-                          cat={cat} 
-                          onUpdate={(updatedCat) => {
-                            dispatch({ type: 'UPDATE_CATEGORY', payload: updatedCat });
-                            addToast('success', 'Category updated successfully! 📝');
-                          }} 
-                          onDelete={handleDeleteCategoryClick}
-                          isDeleting={isDeleting}
-                          onManageMeals={() => setManagingCatMeals(cat)}
-                        />
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Add New Category form */}
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18, marginTop: 'auto' }}>
-                  <label className="input-label" style={{ fontWeight: 700, marginBottom: 12 }}>➕ Create New Category</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input 
-                      className="input" 
-                      type="text" 
-                      placeholder="🍕"
-                      value={newCat.icon} 
-                      onChange={e => setNewCat({ ...newCat, icon: e.target.value })} 
-                      style={{ width: 44, textAlign: 'center', fontSize: 16, padding: '6px 0' }} 
-                    />
-                    <input 
-                      className="input" 
-                      type="text" 
-                      placeholder="e.g. Starters"
-                      value={newCat.name} 
-                      onChange={e => setNewCat({ ...newCat, name: e.target.value })} 
-                      style={{ flex: 1, padding: '6px 12px' }} 
-                    />
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={handleAddCategory}
-                      style={{ padding: '0 16px', height: 38 }}
-                    >
-                      Create
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Schedule Meals Modal */}
       {showScheduleModal && (
