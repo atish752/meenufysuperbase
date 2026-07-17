@@ -1157,12 +1157,49 @@ export default function CustomerHome() {
       {/* 1. First-Time City Selector Popup Modal */}
       {showFirstTimeCityModal && (
         <div className="modal-backdrop" style={{ zIndex: 1200, background: 'rgba(10, 10, 10, 0.95)', backdropFilter: 'blur(16px)' }}>
-          <div className="modal-content" style={{ maxWidth: 380, padding: 24, borderRadius: 18, border: '1px solid var(--border)', textAlign: 'center' }}>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>🍕</div>
-            <h3 style={{ fontSize: 18, fontWeight: 900, fontFamily: 'var(--font-display)', color: '#fff', marginBottom: 6 }}>
-              Welcome to Meenufy!
+          <div className="modal-content" style={{ maxWidth: 380, padding: 24, borderRadius: 18, border: '1px solid #e5e7eb', textAlign: 'center', background: '#ffffff', color: '#000000' }}>
+            {/* 3D-shaded food items marquee scrolling from right to left */}
+            <div style={{
+              overflow: 'hidden',
+              width: '100%',
+              background: 'rgba(255, 125, 0, 0.05)',
+              borderRadius: 14,
+              padding: '12px 0',
+              marginBottom: 16,
+              border: '1px solid rgba(255, 125, 0, 0.15)',
+              position: 'relative'
+            }}>
+              <div style={{
+                display: 'flex',
+                gap: '24px',
+                width: 'max-content',
+                animation: 'marqueeScroll 15s linear infinite'
+              }}>
+                <span className="floating-food-1" style={{ fontSize: 32, display: 'inline-block' }}>🍔</span>
+                <span className="floating-food-2" style={{ fontSize: 32, display: 'inline-block' }}>🍕</span>
+                <span className="floating-food-3" style={{ fontSize: 32, display: 'inline-block' }}>🌮</span>
+                <span className="floating-food-4" style={{ fontSize: 32, display: 'inline-block' }}>🍣</span>
+                <span className="floating-food-5" style={{ fontSize: 32, display: 'inline-block' }}>🍰</span>
+                <span className="floating-food-6" style={{ fontSize: 32, display: 'inline-block' }}>🍩</span>
+                <span className="floating-food-7" style={{ fontSize: 32, display: 'inline-block' }}>🍟</span>
+                <span className="floating-food-8" style={{ fontSize: 32, display: 'inline-block' }}>🍜</span>
+                
+                {/* Duplicate set for seamless infinite loop */}
+                <span className="floating-food-1" style={{ fontSize: 32, display: 'inline-block' }}>🍔</span>
+                <span className="floating-food-2" style={{ fontSize: 32, display: 'inline-block' }}>🍕</span>
+                <span className="floating-food-3" style={{ fontSize: 32, display: 'inline-block' }}>🌮</span>
+                <span className="floating-food-4" style={{ fontSize: 32, display: 'inline-block' }}>🍣</span>
+                <span className="floating-food-5" style={{ fontSize: 32, display: 'inline-block' }}>🍰</span>
+                <span className="floating-food-6" style={{ fontSize: 32, display: 'inline-block' }}>🍩</span>
+                <span className="floating-food-7" style={{ fontSize: 32, display: 'inline-block' }}>🍟</span>
+                <span className="floating-food-8" style={{ fontSize: 32, display: 'inline-block' }}>🍜</span>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'var(--font-display)', color: '#000000', marginBottom: 6 }}>
+              Welcome to Meenufy
             </h3>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: 20 }}>
+            <p style={{ fontSize: 12, color: '#4b5563', lineHeight: '1.4', marginBottom: 20 }}>
               Choose a city to explore delicious cuisines, or enable GPS to find restaurants nearby.
             </p>
 

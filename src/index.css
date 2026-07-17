@@ -1092,3 +1092,24 @@ input, textarea, select {
   40% { background: rgba(34, 197, 94, 0.6); border-color: rgba(34, 197, 94, 0.9); box-shadow: 0 0 6px rgba(34, 197, 94, 0.8); }
   70% { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.4); }
 }
+
+/* First-time City Selector 3D Food Marquee Animations */
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes floatUpAndDown {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(6deg); }
+}
+
+.floating-food-1 { animation: floatUpAndDown 2.5s ease-in-out infinite; }
+.floating-food-2 { animation: floatUpAndDown 3.2s ease-in-out infinite 0.3s; }
+.floating-food-3 { animation: floatUpAndDown 2.8s ease-in-out infinite 0.7s; }
+.floating-food-4 { animation: floatUpAndDown 3.5s ease-in-out infinite 1.1s; }
+.floating-food-5 { animation: floatUpAndDown 2.6s ease-in-out infinite 0.2s; }
+.floating-food-6 { animation: floatUpAndDown 3.1s ease-in-out infinite 0.6s; }
+.floating-food-7 { animation: floatUpAndDown 2.9s ease-in-out infinite 1s; }
+.floating-food-8 { animation: floatUpAndDown 3.4s ease-in-out infinite 1.4s; }
+
