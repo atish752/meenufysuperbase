@@ -284,13 +284,6 @@ export default function CustomerMenu() {
     setVisibleCount(10);
   }, [restaurantId, selectedCat, search, vegOnly, nonVegOnly]);
 
-  useEffect(() => {
-    if (visibleCount >= state.menuItems.length) return;
-    const timer = setTimeout(() => {
-      setVisibleCount(prev => prev + 20);
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [visibleCount, state.menuItems.length]);
   const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
   const [variantQty, setVariantQty] = useState(1);
@@ -451,6 +444,14 @@ export default function CustomerMenu() {
 
   const visibleItems = sortedItems.slice(0, visibleCount);
 
+  useEffect(() => {
+    if (visibleCount >= sortedItems.length) return;
+    const timer = setTimeout(() => {
+      setVisibleCount(prev => prev + 20);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [visibleCount, sortedItems.length]);
+
   const checkAndClearCartForDifferentRestaurant = (
     item: MenuItem,
     actionType: 'add' | 'increment',
@@ -556,6 +557,7 @@ export default function CustomerMenu() {
   // Scroll handler to highlight categories as the user scrolls in "All" mode
   const handleMealsScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (selectedCat !== 'all') return;
+    if (visibleItems.length < sortedItems.length) return; // Skip scroll updates during progressive loading
     const container = e.currentTarget;
 
     // If scrolled to top, highlight "All"
