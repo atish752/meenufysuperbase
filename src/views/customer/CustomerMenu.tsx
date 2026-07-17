@@ -277,7 +277,20 @@ export default function CustomerMenu() {
   const [vegOnly, setVegOnly] = useState(false);
   const [nonVegOnly, setNonVegOnly] = useState(false);
   const [sortBy] = useState<'popular' | 'low-high' | 'high-low'>('popular');
+  const [visibleCount, setVisibleCount] = useState(10);
 
+  useEffect(() => {
+    // Reset visible count when restaurant or category filters change
+    setVisibleCount(10);
+  }, [restaurantId, selectedCat, search, vegOnly, nonVegOnly]);
+
+  useEffect(() => {
+    if (visibleCount >= state.menuItems.length) return;
+    const timer = setTimeout(() => {
+      setVisibleCount(prev => prev + 20);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [visibleCount, state.menuItems.length]);
   const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
   const [variantQty, setVariantQty] = useState(1);
@@ -452,6 +465,8 @@ export default function CustomerMenu() {
     if (!a.isFeatured && b.isFeatured) return 1;
     return (a.rank || 0) - (b.rank || 0);
   });
+
+  const visibleItems = sortedItems.slice(0, visibleCount);
 
   const checkAndClearCartForDifferentRestaurant = (
     item: MenuItem,
@@ -1074,7 +1089,7 @@ export default function CustomerMenu() {
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {sortedItems.map(item => (
+                {visibleItems.map(item => (
                   <MealCard key={item.id} item={item} qty={getCartQty(item.id)} {...cardProps} />
                 ))}
               </div>
@@ -1083,7 +1098,8 @@ export default function CustomerMenu() {
             <>
               {(selectedCat === 'all' ? restaurantCategories : restaurantCategories.filter(c => c && c.id === selectedCat)).map(cat => {
                 if (!cat) return null;
-                const catItems = sortedItems.filter(i => i && (i.category === cat.id || (i.categories && Array.isArray(i.categories) && i.categories.includes(cat.id))));
+                const totalCatItemsCount = sortedItems.filter(i => i && (i.category === cat.id || (i.categories && Array.isArray(i.categories) && i.categories.includes(cat.id)))).length;
+                const catItems = visibleItems.filter(i => i && (i.category === cat.id || (i.categories && Array.isArray(i.categories) && i.categories.includes(cat.id))));
                 if (catItems.length === 0) return null;
                 return (
                   <div key={cat.id} data-catid={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1120,7 +1136,7 @@ export default function CustomerMenu() {
                         textTransform: 'uppercase',
                         letterSpacing: '0.04em'
                       }}>
-                        {catItems.length} {catItems.length === 1 ? 'item' : 'items'}
+                        {totalCatItemsCount} {totalCatItemsCount === 1 ? 'item' : 'items'}
                       </span>
                     </div>
 
@@ -1137,12 +1153,20 @@ export default function CustomerMenu() {
               {(() => {
                 if (selectedCat !== 'all') return null;
                 const knownCatIds = new Set(restaurantCategories.filter(c => c && c.id).map(c => c.id));
-                const uncategorized = sortedItems.filter(i =>
+                const totalUncategorizedCount = sortedItems.filter(i =>
+                  i &&
+                  !knownCatIds.has(i.category) &&
+                  (!i.categories || !Array.isArray(i.categories) || i.categories.every(cId => !knownCatIds.has(cId)))
+                ).length;
+                if (totalUncategorizedCount === 0) return null;
+
+                const uncategorizedItems = visibleItems.filter(i =>
                   i &&
                   !knownCatIds.has(i.category) &&
                   (!i.categories || !Array.isArray(i.categories) || i.categories.every(cId => !knownCatIds.has(cId)))
                 );
-                if (uncategorized.length === 0) return null;
+                if (uncategorizedItems.length === 0) return null;
+
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div style={{
@@ -1156,11 +1180,11 @@ export default function CustomerMenu() {
                         <span>🍽️ All Items</span>
                       </h2>
                       <span style={{ fontSize: 9, fontWeight: 800, color: '#000', background: 'var(--brand)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        {uncategorized.length} {uncategorized.length === 1 ? 'item' : 'items'}
+                        {totalUncategorizedCount} {totalUncategorizedCount === 1 ? 'item' : 'items'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {uncategorized.map(item => (
+                      {uncategorizedItems.map(item => (
                         <MealCard key={item.id} item={item} qty={getCartQty(item.id)} {...cardProps} />
                       ))}
                     </div>
