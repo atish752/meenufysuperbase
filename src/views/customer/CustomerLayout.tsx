@@ -214,9 +214,25 @@ export default function CustomerLayout({ tableId }: Props) {
   // Retrieve current user's phone identifier or guest fallback ID from localStorage
   const myPhoneIdentifier = localStorage.getItem('meenufy_customer_phone') || localStorage.getItem('meenufy_customer_guest_id') || '';
 
-  // Find active orders chronologically ONLY for this customer (ignores other table guests/strangers)
+  // Reliably match orders placed by THIS session.
+  // Strategy 1 (primary): match by order IDs we wrote to localStorage at placement time.
+  //   → Works for QR, browse, guest, delivery — any scenario.
+  // Strategy 2 (fallback): match by phone OR tableId for older orders that predate the ID list.
+  const mySessionOrderIds: string[] = (() => {
+    try { return JSON.parse(localStorage.getItem('meenufy_my_order_ids') || '[]'); } catch { return []; }
+  })();
+
   const activeOrders = state.orders
-    .filter(o => (o.tableId === tableId || o.orderType === 'delivery') && !['served', 'cancelled'].includes(o.status) && o.customerPhone === myPhoneIdentifier)
+    .filter(o => {
+      if (['served', 'cancelled'].includes(o.status)) return false;
+      // Primary: session ID list (written at order placement — covers all order types)
+      if (mySessionOrderIds.includes(o.id)) return true;
+      // Fallback: phone match (for orders placed before the ID list was introduced)
+      if (myPhoneIdentifier && o.customerPhone === myPhoneIdentifier) return true;
+      // Fallback: tableId match for QR scanned in-dining without phone
+      if (tableId && o.tableId === tableId && !o.customerPhone) return true;
+      return false;
+    })
     .sort((a, b) => a.createdAt - b.createdAt);
 
   const activeOrder = activeOrders[selectedActiveOrderIndex] || activeOrders[0];

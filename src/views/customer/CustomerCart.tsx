@@ -821,6 +821,17 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
     dispatch({ type: 'CLEAR_CART' });
     dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'orders' });
 
+    // ── Track this order ID in localStorage for reliable live-status matching ──
+    // CustomerLayout uses this list to show the floating status capsule regardless
+    // of tableId / phone matching edge cases (QR vs browse, guest vs logged-in).
+    try {
+      const existing = JSON.parse(localStorage.getItem('meenufy_my_order_ids') || '[]') as string[];
+      existing.push(order.id);
+      // Keep only the last 20 order IDs to avoid unbounded growth
+      const trimmed = existing.slice(-20);
+      localStorage.setItem('meenufy_my_order_ids', JSON.stringify(trimmed));
+    } catch {}
+
     // Prompt for push notifications after order — only if not yet decided
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       setTimeout(() => setShowNotifPrompt(true), 800);
@@ -2452,7 +2463,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10, lineHeight: 1.3 }}>
               Get Live Order Updates!
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 28 }}>
+            <div style={{ fontSize: 13, color: '#e8e8e8', lineHeight: 1.6, marginBottom: 28 }}>
               Allow notifications so we can ping you the moment your food is being prepared, ready to serve, or out for delivery — right on your phone!
             </div>
 
