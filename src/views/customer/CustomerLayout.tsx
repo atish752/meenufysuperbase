@@ -54,7 +54,7 @@ import CustomerMore from './CustomerMore';
 import CustomerBottomNav from './CustomerBottomNav';
 import CustomerCart from './CustomerCart';
 import { ShoppingBag, Clock, ChefHat, Truck, Check, X, MapPin, ChevronUp, Star, CreditCard, Coins, QrCode, ArrowLeft } from 'lucide-react';
-import { playChime, triggerNotification } from '../../utils/notifications';
+import { triggerNotification } from '../../utils/notifications';
 
 type Props = { tableId: string };
 
@@ -80,11 +80,6 @@ export default function CustomerLayout({ tableId }: Props) {
       return [];
     }
   });
-
-  // Consent state for native Web Notifications
-  const [notificationPermission, setNotificationPermission] = useState(() => 
-    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'denied'
-  );
 
   const [callingWaiter, setCallingWaiter] = useState(false);
 
@@ -161,17 +156,6 @@ export default function CustomerLayout({ tableId }: Props) {
     );
   };
 
-  const handleRequestPermission = () => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      Notification.requestPermission().then((perm) => {
-        setNotificationPermission(perm);
-        if (perm === 'granted') {
-          addToast('success', '🔔 Notifications enabled successfully!');
-          playChime();
-        }
-      });
-    }
-  };
 
   const urlParams = new URLSearchParams(window.location.search);
   const isViewOnly = urlParams.get('viewOnly') === 'true';
@@ -775,41 +759,7 @@ export default function CustomerLayout({ tableId }: Props) {
           <span>⚠️ Demo Mode (Firebase Offline): Restart local server to save changes.</span>
         </div>
       )}
-      {notificationPermission === 'default' && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(255,125,0,0.15) 0%, rgba(255,125,0,0.05) 100%)',
-          borderBottom: '1px solid var(--border-brand)',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          animation: 'slideInDown 0.3s ease',
-          zIndex: 400,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 20 }}>🔔</span>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Live Updates Available</div>
-              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 1 }}>Enable notifications to know when your food is ready!</div>
-            </div>
-          </div>
-          <button 
-            onClick={handleRequestPermission}
-            className="btn btn-primary"
-            style={{
-              padding: '6px 12px',
-              fontSize: 11,
-              background: 'var(--brand)',
-              color: '#ffffff',
-              fontWeight: 800,
-              borderRadius: 6,
-            }}
-          >
-            Enable
-          </button>
-        </div>
-      )}
+
 
       {/* Page */}
       <div style={{
