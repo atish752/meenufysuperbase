@@ -304,22 +304,33 @@ export default function CustomerMenu() {
     '✨ Crafting your delicious experience...',
   ];
 
-  const [isTimedOut, setIsTimedOut] = useState(false);
+  // Permanently latch — once items load for this restaurant, the full-screen loader
+  // can NEVER come back even if state momentarily changes (e.g. Firebase re-syncs).
+  const hasLoadedOnce = useRef(false);
+  const hasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
+  const hasCategories = state.categories.some(c => c && c.restaurantId === restaurantId);
 
+  // Reset the latch only when the restaurant actually changes
+  const prevRestaurantId = useRef(restaurantId);
+  if (prevRestaurantId.current !== restaurantId) {
+    prevRestaurantId.current = restaurantId;
+    hasLoadedOnce.current = false;
+  }
+  if (hasItems && hasCategories) {
+    hasLoadedOnce.current = true;
+  }
+
+  // Fallback: if items haven't arrived after 3s, unlock anyway  
+  const [isTimedOut, setIsTimedOut] = useState(false);
   useEffect(() => {
     setIsTimedOut(false);
-    const timer = setTimeout(() => {
-      setIsTimedOut(true);
-    }, 2500);
+    const timer = setTimeout(() => setIsTimedOut(true), 3000);
     return () => clearTimeout(timer);
   }, [restaurantId]);
 
-  const hasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
-  const hasCategories = state.categories.some(c => c && c.restaurantId === restaurantId);
-  const isLoading = (!hasItems || !hasCategories) && !isTimedOut;
+  const isLoading = !hasLoadedOnce.current && !isTimedOut;
 
   const [loadingMessage, setLoadingMessage] = useState('🍳 Warming up the grills...');
-
   useEffect(() => {
     if (!isLoading) return;
     let msgIdx = 0;

@@ -2,7 +2,7 @@
 // MEENUFY REALTIME STORE
 // Cross-tab state sync via BroadcastChannel + localStorage
 // ============================================================
-import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useState } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { db, auth, hasFirebaseConfig } from '../utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { 
@@ -2706,7 +2706,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const targetRestaurantId = getActiveRestaurantId(state);
+  // CRITICAL: useMemo so targetRestaurantId only changes when the ACTUAL restaurant changes.
+  // Previously this was computed inline, causing it to recompute on every state update
+  // (e.g. every orders sync, waiterRequest, etc.), which tore down and rebuilt ALL Firebase
+  // listeners on every dispatch — causing menu items to briefly clear and the customer menu
+  // to flash/vanish repeatedly especially for large menus like Hideout Cafe (150+ items).
+  const targetRestaurantId = useMemo(() => {
+    const urlParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('restaurant') : null;
+    return urlParam || state.activeCustomerRestaurantId || state.admin?.restaurantId || 'admin-1';
+  }, [state.activeCustomerRestaurantId, state.admin?.restaurantId]);
 
   // 1. Global Firebase sync listeners (Subscribed once on app load)
   useEffect(() => {
