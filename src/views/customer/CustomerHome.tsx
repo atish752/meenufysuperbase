@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
-import { Search, MapPin, Star, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
+import { Search, Star, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
 import { db } from '../../utils/firebase';
 import { ref, get } from 'firebase/database';
 
@@ -405,7 +405,7 @@ export default function CustomerHome() {
     }}>
       {/* Location Header */}
       <div style={{
-        padding: '16px 20px',
+        padding: '8px 12px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -413,43 +413,68 @@ export default function CustomerHome() {
         borderBottom: '1px solid var(--border)',
         position: 'sticky',
         top: 0,
-        zIndex: 30
+        zIndex: 30,
+        gap: 6
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} title={addressName}>
           <img 
             src={customerTheme === 'light' ? '/meenufy_logo_transparent.png' : '/meenufy_logo_white.png'} 
             alt="Meenufy Logo" 
-            style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }} 
+            style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }} 
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} title={addressName}>
-            <MapPin size={15} color="var(--brand)" style={{ flexShrink: 0 }} />
-            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)' }}>
-              15 km order radius
-            </span>
-          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Restaurateur Dashboard Redirect Button */}
+        <button
+          onClick={() => {
+            window.location.href = '/admin';
+          }}
+          style={{
+            padding: '5px 10px',
+            fontSize: '11px',
+            fontWeight: 800,
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+            color: '#ffffff',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            boxShadow: '0 2px 8px rgba(255, 125, 0, 0.2)',
+            transition: 'opacity 0.2s',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+        >
+          <span>👨‍🍳</span>
+          <span>Restaurateur</span>
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <select
             value={selectedCity}
             onChange={e => handleCityChange(e.target.value)}
             style={{
-              padding: '6px 10px',
-              fontSize: 11,
+              padding: '5px 8px',
+              fontSize: '11px',
               fontWeight: 700,
-              borderRadius: 8,
+              borderRadius: '8px',
               background: 'var(--bg-primary)',
               color: 'var(--text-primary)',
               border: '1px solid var(--border)',
               cursor: 'pointer',
               outline: 'none',
-              maxWidth: 130
+              maxWidth: 90,
+              textOverflow: 'ellipsis'
             }}
           >
-            <option value="gps">📍 GPS Location</option>
-            <option value="all">🇮🇳 India (All)</option>
+            <option value="gps">📍 GPS</option>
+            <option value="all">🇮🇳 All</option>
             {CITIES.map(c => (
-              <option key={c.name} value={c.name}>🌆 {c.name}</option>
+              <option key={c.name} value={c.name}>{c.name}</option>
             ))}
           </select>
 
@@ -459,13 +484,15 @@ export default function CustomerHome() {
               background: 'var(--bg-primary)',
               border: '1px solid var(--border)',
               borderRadius: 8,
-              padding: '6px 10px',
-              cursor: 'pointer',
-              fontSize: 12,
-              display: 'inline-flex',
+              width: 28,
+              height: 28,
+              display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              height: 29
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              padding: 0,
+              flexShrink: 0
             }}
             title="Toggle Light/Dark Theme"
           >
@@ -483,12 +510,18 @@ export default function CustomerHome() {
                 fontWeight: 800,
                 border: '1px solid var(--brand)',
                 borderRadius: 8,
-                padding: '6px 12px',
+                width: 28,
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                padding: 0,
+                flexShrink: 0
               }}
+              title="Refresh GPS Coordinates"
             >
-              {gpsLoading ? 'Locating...' : 'Refresh'}
+              {gpsLoading ? '⏳' : '🔄'}
             </button>
           )}
         </div>
@@ -1003,13 +1036,12 @@ export default function CustomerHome() {
                             padding: '6px 14px',
                             lineHeight: '1.4',
                             textAlign: 'left',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
+                            whiteSpace: 'nowrap',
                             overflow: 'hidden',
+                            textOverflow: 'ellipsis',
                             borderBottom: '1px solid rgba(255,255,255,0.15)',
                           }}>
-                            📢 {acc.promoText}
+                            📢 {acc.promoText.length > 50 ? acc.promoText.substring(0, 50) + '...' : acc.promoText}
                           </div>
                         )}
 
@@ -1251,7 +1283,7 @@ export default function CustomerHome() {
                       transition: 'all 0.2s'
                     }}
                   >
-                    🌆 {c.name}
+                    {c.name}
                   </button>
                 ))}
               </div>
