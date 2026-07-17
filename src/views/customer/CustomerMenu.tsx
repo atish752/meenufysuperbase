@@ -303,12 +303,6 @@ export default function CustomerMenu() {
   const [scrollActiveCat, setScrollActiveCat] = useState<string>('');
   const mealsScrollRef = useRef<HTMLDivElement>(null);
 
-  const [showLoader, setShowLoader] = useState(() => {
-    // Start with no loader if data already pre-fetched into state
-    return false;
-  });
-  const [loadingMessage, setLoadingMessage] = useState('🍳 Warming up the grills...');
-
   const MESSAGES = [
     '🍳 Warming up the griddle...',
     '🥦 Gathering the freshest ingredients...',
@@ -317,42 +311,31 @@ export default function CustomerMenu() {
     '✨ Crafting your delicious experience...',
   ];
 
-  useEffect(() => {
-    // Check immediately — data may have been pre-fetched before this component mounted
-    const hasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
-    if (hasItems) {
-      setShowLoader(false);
-      return;
-    }
+  const [isTimedOut, setIsTimedOut] = useState(false);
 
-    // Data not yet available — show loader and poll
-    setShowLoader(true);
+  useEffect(() => {
+    setIsTimedOut(false);
+    const timer = setTimeout(() => {
+      setIsTimedOut(true);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [restaurantId]);
+
+  const hasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
+  const hasCategories = state.categories.some(c => c && c.restaurantId === restaurantId);
+  const isLoading = (!hasItems || !hasCategories) && !isTimedOut;
+
+  const [loadingMessage, setLoadingMessage] = useState('🍳 Warming up the grills...');
+
+  useEffect(() => {
+    if (!isLoading) return;
     let msgIdx = 0;
     const msgInterval = setInterval(() => {
       msgIdx = (msgIdx + 1) % MESSAGES.length;
       setLoadingMessage(MESSAGES[msgIdx]);
     }, 1800);
-
-    const checkTimer = setInterval(() => {
-      const currentHasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
-      if (currentHasItems) {
-        setShowLoader(false);
-        clearInterval(checkTimer);
-      }
-    }, 100);
-
-    // Max 3s fallback — show what we have
-    const maxTimer = setTimeout(() => {
-      setShowLoader(false);
-      clearInterval(checkTimer);
-    }, 3000);
-
-    return () => {
-      clearInterval(msgInterval);
-      clearInterval(checkTimer);
-      clearTimeout(maxTimer);
-    };
-  }, [restaurantId, state.menuItems.length]);
+    return () => clearInterval(msgInterval);
+  }, [isLoading]);
 
   const [addonModalItem, setAddonModalItem] = useState<{
     item: MenuItem;
@@ -631,7 +614,7 @@ export default function CustomerMenu() {
       flexDirection: 'column',
       height: '100%',
     }}>
-      {showLoader && (
+      {isLoading && (
         <div style={{
           position: 'fixed',
           inset: 0,
