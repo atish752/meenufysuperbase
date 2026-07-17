@@ -204,7 +204,7 @@ export default function CustomerLayout({ tableId }: Props) {
     if (isViewOnly && !restaurant?.deliveryEnabled) {
       dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'home' });
     }
-  }, [tableId, isViewOnly, state.restaurantAccounts]);
+  }, [tableId, isViewOnly, state.restaurantAccounts, state.activeCustomerRestaurantId]);
 
   useEffect(() => {
     const rId = urlParams.get('restaurant') || getActiveRestaurantId(state);
@@ -212,7 +212,7 @@ export default function CustomerLayout({ tableId }: Props) {
     if (isViewOnly && !restaurant?.deliveryEnabled && state.customerTab !== 'home') {
       dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'home' });
     }
-  }, [isViewOnly, state.customerTab, state.restaurantAccounts]);
+  }, [isViewOnly, state.customerTab, state.restaurantAccounts, state.activeCustomerRestaurantId]);
 
   // Track the REAL viewport height via window.innerHeight (100dvh is unreliable on Android Chrome)
   // and expose it as --app-height CSS variable for the container to use.

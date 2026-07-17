@@ -215,7 +215,7 @@ export default function CustomerHome() {
     dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: restaurantId });
     const newUrl = `${window.location.pathname}?restaurant=${restaurantId}`;
     window.history.pushState({}, '', newUrl);
-    dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
+    dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'home' });
 
     // Pre-fetch menu items AND categories atomically in background
     const alreadyHasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
