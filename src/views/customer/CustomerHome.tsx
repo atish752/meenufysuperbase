@@ -80,6 +80,9 @@ export default function CustomerHome() {
   const [selectedCity, setSelectedCity] = useState<string>(() => {
     return localStorage.getItem('meenufy_customer_selected_city') || 'gps';
   });
+  const [showSwitchRestModal, setShowSwitchRestModal] = useState(false);
+  const [pendingRestId, setPendingRestId] = useState<string | null>(null);
+  const [cartRestId, setCartRestId] = useState<string | null>(null);
 
   const [customerTheme, setCustomerTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('meenufy_customer_theme') as 'light' | 'dark') || 'light';
@@ -208,37 +211,13 @@ export default function CustomerHome() {
     );
   };
 
-  const handleOpenRestaurant = (restaurantId: string) => {
-    // Check if cart has items from a different restaurant
-    if (state.cart && state.cart.length > 0) {
-      const firstCartItem = state.cart[0];
-      const cartRestId = firstCartItem.restaurantId || localStorage.getItem('meenufy_active_restaurant_id');
-      if (cartRestId && cartRestId !== restaurantId) {
-        const confirmSwitch = window.confirm(
-          "🛒 You have items from another restaurant in your cart.\n\n" +
-          "Click OK to clear your cart and browse this restaurant, or Cancel to return to the current restaurant's menu."
-        );
-        if (confirmSwitch) {
-          dispatch({ type: 'CLEAR_CART' });
-        } else {
-          // Open current restaurant menu tab
-          dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: cartRestId });
-          const prevUrl = `${window.location.pathname}?restaurant=${cartRestId}`;
-          window.history.pushState({}, '', prevUrl);
-          dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
-          return;
-        }
-      }
-    }
-
-    // Switch view IMMEDIATELY — don't block on network requests
+  const openRestaurantDirectly = (restaurantId: string) => {
     dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: restaurantId });
     const newUrl = `${window.location.pathname}?restaurant=${restaurantId}`;
     window.history.pushState({}, '', newUrl);
+    dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
 
     // Pre-fetch menu items AND categories atomically in background
-    // Dispatched as SYNC_MENU_DATA so both land in state simultaneously,
-    // eliminating the race condition that shows only 'All' in the sidebar.
     const alreadyHasItems = state.menuItems.some(i => i && i.restaurantId === restaurantId);
     const alreadyHasCats = state.categories.some(c => c && c.restaurantId === restaurantId);
 
@@ -269,6 +248,22 @@ export default function CustomerHome() {
         // Fallback: onValue listeners in RealtimeStore will populate data
       });
     }
+  };
+
+  const handleOpenRestaurant = (restaurantId: string) => {
+    // Check if cart has items from a different restaurant
+    if (state.cart && state.cart.length > 0) {
+      const firstCartItem = state.cart[0];
+      const activeCartId = firstCartItem.restaurantId || localStorage.getItem('meenufy_active_restaurant_id');
+      if (activeCartId && activeCartId !== restaurantId) {
+        setPendingRestId(restaurantId);
+        setCartRestId(activeCartId);
+        setShowSwitchRestModal(true);
+        return;
+      }
+    }
+
+    openRestaurantDirectly(restaurantId);
   };
 
   // Filter & calculate active restaurants nearby (within 15 km limit)
@@ -1401,6 +1396,90 @@ export default function CustomerHome() {
             >
               🟢 Open Restaurant & Order Now
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Switch Restaurant Confirmation Glassmorph Modal */}
+      {showSwitchRestModal && (
+        <div className="modal-backdrop" style={{ 
+          zIndex: 1300, 
+          background: 'rgba(10, 10, 10, 0.75)', 
+          backdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0
+        }}>
+          <div className="modal-content" style={{ 
+            maxWidth: 360, 
+            padding: 24, 
+            borderRadius: 20, 
+            border: '1px solid rgba(255, 255, 255, 0.1)', 
+            background: 'rgba(20, 20, 20, 0.85)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4)',
+            textAlign: 'center',
+            color: '#fff',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🛒</div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 10, fontFamily: 'var(--font-display)' }}>
+              Switch Restaurant?
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: 24 }}>
+              You have items from another restaurant in your cart. Switching will clear your current cart.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={() => {
+                  dispatch({ type: 'CLEAR_CART' });
+                  if (pendingRestId) openRestaurantDirectly(pendingRestId);
+                  setShowSwitchRestModal(false);
+                }}
+                className="btn"
+                style={{ 
+                  background: 'var(--brand)', 
+                  color: '#000', 
+                  fontWeight: 800, 
+                  height: 42, 
+                  borderRadius: 10,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                Clear Cart & Browse
+              </button>
+              <button
+                onClick={() => {
+                  if (cartRestId) openRestaurantDirectly(cartRestId);
+                  setShowSwitchRestModal(false);
+                }}
+                className="btn"
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.08)', 
+                  color: '#fff', 
+                  fontWeight: 700, 
+                  height: 42, 
+                  borderRadius: 10,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                Go Back to Current Restro
+              </button>
+            </div>
           </div>
         </div>
       )}

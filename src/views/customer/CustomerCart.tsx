@@ -1459,6 +1459,56 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                     })()}
                   </div>
                   
+                  {/* Option to choose table number horizontally inside Order Type box */}
+                  {orderType !== 'delivery' && !hasTableInUrl && (
+                    <div style={{ marginTop: 14 }}>
+                      <label className="input-label" style={{ fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>
+                        Select Table Number
+                      </label>
+                      <div style={{
+                        display: 'flex',
+                        gap: 6,
+                        overflowX: 'auto',
+                        paddingBottom: 4
+                      }} className="hide-scrollbar">
+                        {(() => {
+                          const tablesList = state.tables && state.tables.length > 0 
+                            ? state.tables 
+                            : Array.from({ length: 8 }, (_, i) => ({ id: `table-${i+1}`, number: i+1 }));
+                          
+                          return tablesList.map(t => {
+                            const isSelected = selectedTableId === t.id;
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setSelectedTableId(t.id)}
+                                style={{
+                                  minWidth: 36,
+                                  height: 36,
+                                  borderRadius: 8,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  border: isSelected ? '2px solid var(--border-brand)' : '1px solid var(--border)',
+                                  background: isSelected ? 'var(--brand-dim)' : 'var(--bg-primary)',
+                                  color: isSelected ? 'var(--brand)' : 'var(--text-primary)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0
+                                }}
+                              >
+                                {t.number}
+                              </button>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Warning message if the selected order type is disabled */}
                   {!orderTypeStatus.allowed && (
                     <div style={{
@@ -1477,49 +1527,6 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                       <span>{orderTypeStatus.reason}</span>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Direct Order Table Selector */}
-              {orderType !== 'delivery' && !hasTableInUrl && (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  marginBottom: 16,
-                  padding: '12px 14px',
-                  background: 'var(--bg-elevated)',
-                  borderRadius: 12,
-                  border: '1px solid var(--border)'
-                }}>
-                  <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>
-                    Select Table Number
-                  </label>
-                  <select
-                    className="input"
-                    value={selectedTableId}
-                    onChange={e => setSelectedTableId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: 40,
-                      borderRadius: 10,
-                      padding: '0 12px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="">-- Choose Your Table Number --</option>
-                    {(state.tables || []).map(t => (
-                      <option key={t.id} value={t.id}>
-                        Table {t.number} {t.label ? `(${t.label})` : ''} (Max {t.capacity} Guests)
-                      </option>
-                    ))}
-                  </select>
                 </div>
               )}
 
