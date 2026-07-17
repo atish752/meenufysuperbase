@@ -115,7 +115,14 @@ const loadLeaflet = (): Promise<any> => {
 export default function CustomerCart({ tableId }: { tableId?: string }) {
   const { state, dispatch, addToast } = useStore();
   
-  const activeTableId = tableId || new URLSearchParams(window.location.search).get('table') || state.customerTableId || 'table-1';
+  const hasTableInUrl = !!new URLSearchParams(window.location.search).get('table');
+  const [selectedTableId, setSelectedTableId] = useState(() => {
+    return tableId || new URLSearchParams(window.location.search).get('table') || state.customerTableId || '';
+  });
+
+  const activeTableId = hasTableInUrl
+    ? (new URLSearchParams(window.location.search).get('table') || 'table-1')
+    : (selectedTableId || 'table-1');
 
   useEffect(() => {
     if (activeTableId && state.customerTableId !== activeTableId) {
@@ -729,7 +736,10 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       return;
     }
 
-    if (!activeTableId) { addToast('error', 'No table selected.'); return; }
+    if (orderType !== 'delivery' && !hasTableInUrl && !selectedTableId) {
+      addToast('error', '❌ Please select your table number to place the order.');
+      return;
+    }
     if (state.cart.length === 0) { addToast('error', 'Cart is empty.'); return; }
 
     const isLoginRequired = restaurant.mustLoginBeforeOrder || orderType === 'delivery';
@@ -1467,6 +1477,49 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                       <span>{orderTypeStatus.reason}</span>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Direct Order Table Selector */}
+              {orderType !== 'delivery' && !hasTableInUrl && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  marginBottom: 16,
+                  padding: '12px 14px',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: 12,
+                  border: '1px solid var(--border)'
+                }}>
+                  <label className="input-label" style={{ fontWeight: 700, margin: 0 }}>
+                    Select Table Number
+                  </label>
+                  <select
+                    className="input"
+                    value={selectedTableId}
+                    onChange={e => setSelectedTableId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: 40,
+                      borderRadius: 10,
+                      padding: '0 12px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="">-- Choose Your Table Number --</option>
+                    {(state.tables || []).map(t => (
+                      <option key={t.id} value={t.id}>
+                        Table {t.number} {t.label ? `(${t.label})` : ''} (Max {t.capacity} Guests)
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 

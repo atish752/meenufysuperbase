@@ -26,6 +26,12 @@ export interface OnboardingState {
   restaurantName: string;
 }
 
+const ONBOARDING_CITIES = [
+  'Mumbai', 'Bangalore', 'Patna', 'Delhi', 'Siwan', 'Kolkata', 'Chennai', 
+  'Hyderabad', 'Ahmedabad', 'Pune', 'Surat', 'Kanpur', 'Jaipur', 'Lucknow', 
+  'Nagpur', 'Indore', 'Amritsar'
+];
+
 export default function OnboardingFlow() {
   const { state, dispatch, addToast } = useStore();
   const [screenIndex, setScreenIndex] = useState(0);
@@ -36,6 +42,8 @@ export default function OnboardingFlow() {
   const [tableCount, setTableCount] = useState<number>(12);
   const [biggestPainPoint, setBiggestPainPoint] = useState<string>('');
   const [restaurantName, setRestaurantName] = useState<string>('');
+  const [onboardingCity, setOnboardingCity] = useState<string>('Mumbai');
+  const [customCity, setCustomCity] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [basePlanSelectedType, setBasePlanSelectedType] = useState<'dining_takeaway' | 'delivery_only' | 'both'>('both');
   const [serviceModeSelected, setServiceModeSelected] = useState<boolean>(false);
@@ -205,11 +213,14 @@ export default function OnboardingFlow() {
           dispatch({ type: 'LOGIN_ADMIN', payload: mockAdminUser });
         }
 
-        // Save restaurant name to database state
+        const finalCity = onboardingCity === 'custom' ? customCity.trim() : onboardingCity;
+
+        // Save restaurant name and city address to database state
         dispatch({
           type: 'UPDATE_RESTAURANT',
           payload: {
             name: restaurantName.trim(),
+            address: finalCity || 'India',
             subscriptionPlan: (selectedPlan as any) || 'free',
             basePlanSelectedType: selectedPlan === 'base' && basePlanSelectedType !== 'both' ? (basePlanSelectedType as 'dining_takeaway' | 'delivery_only') : undefined,
             subscriptionRenewalDate: selectedPlan === 'free' ? Date.now() + 13 * 24 * 60 * 60 * 1000 : 0,
@@ -1214,6 +1225,60 @@ export default function OnboardingFlow() {
                     }}
                   />
                 </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600 }}>
+                    Select City
+                  </label>
+                  <select
+                    className="input"
+                    value={onboardingCity}
+                    onChange={e => setOnboardingCity(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: 48,
+                      borderRadius: 12,
+                      padding: '0 16px',
+                      fontSize: 14,
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {ONBOARDING_CITIES.map(city => (
+                      <option key={city} value={city} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>{city}</option>
+                    ))}
+                    <option value="custom" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Other (Write Custom City)</option>
+                  </select>
+                </div>
+
+                {onboardingCity === 'custom' && (
+                  <div style={{ marginBottom: 24 }}>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600 }}>
+                      Write Custom City Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      className="input"
+                      placeholder="e.g. Siwan"
+                      value={customCity}
+                      onChange={e => setCustomCity(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: 48,
+                        borderRadius: 12,
+                        padding: '0 16px',
+                        fontSize: 14,
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                  </div>
+                )}
 
                 <button
                   type="submit"

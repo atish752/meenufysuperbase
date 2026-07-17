@@ -2741,17 +2741,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const isUrlAdmin = typeof window !== 'undefined' && window.location.search.includes('view=admin');
+    const isLocalAdmin = (() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return !!s.isAdminLoggedIn; } catch { return false; } })();
+    const isAdminMode = isUrlAdmin || isLocalAdmin;
+
     // Listen to Gemini API keys
-    const unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as string[];
-        dispatch({
-          type: 'SET_STATE',
-          payload: { geminiApiKeys: keys }
-        });
-      }
-    });
+    let unsubscribeGeminiKeys = () => {};
+    if (isAdminMode) {
+      unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as string[];
+          dispatch({
+            type: 'SET_STATE',
+            payload: { geminiApiKeys: keys }
+          });
+        }
+      });
+    }
 
     // Listen to popular cuisines
     const unsubscribePopularCuisines = onValue(ref(db, 'meenufy_config/popularCuisines'), (snapshot) => {
@@ -2771,16 +2778,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen to subscription coupons (global)
-    const unsubscribeSubscriptionCoupons = onValue(ref(db, 'subscriptionCoupons'), (snapshot) => {
-      const data = snapshot.val();
-      const items: SubscriptionCoupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as SubscriptionCoupon[] : [];
-      dispatch({ type: 'SYNC_SUBSCRIPTION_COUPONS', payload: items });
-    });
-
-
-    const isUrlAdmin = typeof window !== 'undefined' && window.location.search.includes('view=admin');
-    const isLocalAdmin = (() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return !!s.isAdminLoggedIn; } catch { return false; } })();
-    const isAdminMode = isUrlAdmin || isLocalAdmin;
+    let unsubscribeSubscriptionCoupons = () => {};
+    if (isAdminMode) {
+      unsubscribeSubscriptionCoupons = onValue(ref(db, 'subscriptionCoupons'), (snapshot) => {
+        const data = snapshot.val();
+        const items: SubscriptionCoupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as SubscriptionCoupon[] : [];
+        dispatch({ type: 'SYNC_SUBSCRIPTION_COUPONS', payload: items });
+      });
+    }
 
     // Listen to ownerFeedbacks (global — for super admin to receive all feedback)
     let unsubscribeFeedbacks = () => {};
@@ -2805,18 +2810,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Listen to staffMembers (for login authentication and permissions)
-    const unsubscribeStaff = onValue(ref(db, 'staffMembers'), (snapshot) => {
-      const data = snapshot.val();
-      const staff: StaffMember[] = data ? Object.values(data) as StaffMember[] : [];
-      dispatch({ type: 'SYNC_STAFF_MEMBERS', payload: staff });
-    });
+    let unsubscribeStaff = () => {};
+    if (isAdminMode) {
+      unsubscribeStaff = onValue(ref(db, 'staffMembers'), (snapshot) => {
+        const data = snapshot.val();
+        const staff: StaffMember[] = data ? Object.values(data) as StaffMember[] : [];
+        dispatch({ type: 'SYNC_STAFF_MEMBERS', payload: staff });
+      });
+    }
 
     // Listen to delivery riders
-    const unsubscribeDeliveryBoys = onValue(ref(db, 'deliveryBoys'), (snapshot) => {
-      const data = snapshot.val();
-      const boys: DeliveryBoy[] = data ? Object.values(data) as DeliveryBoy[] : [];
-      dispatch({ type: 'SYNC_DELIVERY_BOYS', payload: boys });
-    });
+    let unsubscribeDeliveryBoys = () => {};
+    if (isAdminMode) {
+      unsubscribeDeliveryBoys = onValue(ref(db, 'deliveryBoys'), (snapshot) => {
+        const data = snapshot.val();
+        const boys: DeliveryBoy[] = data ? Object.values(data) as DeliveryBoy[] : [];
+        dispatch({ type: 'SYNC_DELIVERY_BOYS', payload: boys });
+      });
+    }
 
     return () => {
       unsubscribeConnected();

@@ -49,6 +49,18 @@ const CITIES = [
   { name: 'Patna', lat: 25.5941, lon: 85.1376 },
   { name: 'Delhi', lat: 28.7041, lon: 77.1025 },
   { name: 'Siwan', lat: 26.2196, lon: 84.3567 },
+  { name: 'Kolkata', lat: 22.5726, lon: 88.3639 },
+  { name: 'Chennai', lat: 13.0827, lon: 80.2707 },
+  { name: 'Hyderabad', lat: 17.3850, lon: 78.4867 },
+  { name: 'Ahmedabad', lat: 23.0225, lon: 72.5714 },
+  { name: 'Pune', lat: 18.5204, lon: 73.8567 },
+  { name: 'Surat', lat: 21.1702, lon: 72.8311 },
+  { name: 'Kanpur', lat: 26.4499, lon: 80.3319 },
+  { name: 'Jaipur', lat: 26.9124, lon: 75.7873 },
+  { name: 'Lucknow', lat: 26.8467, lon: 80.9462 },
+  { name: 'Nagpur', lat: 21.1458, lon: 79.0882 },
+  { name: 'Indore', lat: 22.7196, lon: 75.8577 },
+  { name: 'Amritsar', lat: 31.6340, lon: 74.8723 },
 ];
 
 export default function CustomerHome() {
@@ -197,6 +209,28 @@ export default function CustomerHome() {
   };
 
   const handleOpenRestaurant = (restaurantId: string) => {
+    // Check if cart has items from a different restaurant
+    if (state.cart && state.cart.length > 0) {
+      const firstCartItem = state.cart[0];
+      const cartRestId = firstCartItem.restaurantId || localStorage.getItem('meenufy_active_restaurant_id');
+      if (cartRestId && cartRestId !== restaurantId) {
+        const confirmSwitch = window.confirm(
+          "🛒 You have items from another restaurant in your cart.\n\n" +
+          "Click OK to clear your cart and browse this restaurant, or Cancel to return to the current restaurant's menu."
+        );
+        if (confirmSwitch) {
+          dispatch({ type: 'CLEAR_CART' });
+        } else {
+          // Open current restaurant menu tab
+          dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: cartRestId });
+          const prevUrl = `${window.location.pathname}?restaurant=${cartRestId}`;
+          window.history.pushState({}, '', prevUrl);
+          dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
+          return;
+        }
+      }
+    }
+
     // Switch view IMMEDIATELY — don't block on network requests
     dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: restaurantId });
     const newUrl = `${window.location.pathname}?restaurant=${restaurantId}`;
@@ -280,7 +314,8 @@ export default function CustomerHome() {
 
   // Fetch meals from all nearby restaurants in parallel when coordinates are active
   useEffect(() => {
-    if (!coords || processedRestaurants.length === 0) {
+    const q = selectedCuisine || searchQuery.trim().toLowerCase();
+    if (!q || !coords || processedRestaurants.length === 0) {
       setNearbyMeals([]);
       return;
     }
