@@ -127,8 +127,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
   const getStaffLimit = (plan: string) => {
     switch (plan) {
-      case 'base': return 1;
-      case 'standard': return 3;
+      case 'base': return 3; // "Standard plan"
+      case 'standard': return 6; // "Advance Plan"
       case 'advance': return 6;
       case 'free':
       default:
@@ -139,8 +139,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
   const getDeliveryBoyLimit = (plan: string) => {
     switch (plan) {
-      case 'base': return 5;
-      case 'standard': return 7;
+      case 'base': return 7; // "Standard plan"
+      case 'standard': return 15; // "Advance Plan"
       case 'advance': return 15;
       case 'free':
       default:

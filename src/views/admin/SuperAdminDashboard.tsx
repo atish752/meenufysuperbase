@@ -20,7 +20,7 @@ const DEFAULT_POPULAR_CUISINES = [
   { name: 'Manchurian', query: 'manchurian', image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=150&auto=format&fit=crop&q=60' }
 ];
 
-function compressImage(dataUrl: string, maxWidth: number = 180, maxHeight: number = 180, quality: number = 0.7): Promise<string> {
+function compressImage(dataUrl: string, maxWidth: number = 500, maxHeight: number = 500, quality: number = 0.9): Promise<string> {
   return new Promise((resolve) => {
     if (!dataUrl) {
       resolve(dataUrl);
@@ -217,7 +217,7 @@ export default function SuperAdminDashboard() {
       let count = 0;
       for (const c of state.popularCuisines) {
         if (c.image) {
-          const compressed = await compressImage(c.image, 280, 280, 0.88);
+          const compressed = await compressImage(c.image, 500, 500, 0.9);
           if (compressed !== c.image) {
             newList.push({ ...c, image: compressed });
             count++;
@@ -1523,7 +1523,7 @@ export default function SuperAdminDashboard() {
                           reader.readAsDataURL(files[0]);
                           reader.onload = (event) => {
                             const raw = event.target?.result as string;
-                            compressImage(raw, 280, 280, 0.88)
+                            compressImage(raw, 500, 500, 0.9)
                               .then(compressed => {
                                 setNewCuisineImage(compressed);
                                 setUploadingCuisineImage(false);
@@ -1563,7 +1563,7 @@ export default function SuperAdminDashboard() {
                         const list = [...(state.popularCuisines || [])];
                         const idx = list.findIndex(c => c.query === editingCuisineQuery);
                         if (idx !== -1) {
-                          compressImage(newCuisineImage.trim(), 280, 280, 0.88)
+                          compressImage(newCuisineImage.trim(), 500, 500, 0.9)
                             .then(compressed => {
                               list[idx] = {
                                 name: newCuisineName.trim(),
@@ -1609,7 +1609,7 @@ export default function SuperAdminDashboard() {
                     className="btn btn-primary"
                     disabled={!newCuisineName.trim() || !newCuisineQuery.trim() || !newCuisineImage}
                     onClick={() => {
-                      compressImage(newCuisineImage.trim(), 280, 280, 0.88)
+                      compressImage(newCuisineImage.trim(), 500, 500, 0.9)
                         .then(compressed => {
                           dispatch({
                             type: 'ADD_POPULAR_CUISINE',
