@@ -741,10 +741,10 @@ export function isSubscriptionActive(restaurant: RestaurantInfo | undefined): {
   const plan = restaurant.subscriptionPlan || 'free';
   const renewalDate = restaurant.subscriptionRenewalDate || 0;
 
-  // 1. Free Trial Plan (14 days trial duration)
+  // 1. Free Trial Plan (30 days trial duration)
   if (plan === 'free') {
     const cAt = restaurant.createdAt || Date.now();
-    const trialRenewalDate = cAt + 13 * 24 * 60 * 60 * 1000;
+    const trialRenewalDate = cAt + 29 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     if (now > trialRenewalDate) {
       return { active: false, reason: "The admin doesn't have any plan so you cant place an order." };
@@ -1038,7 +1038,7 @@ const DEFAULT_STATE: AppState = {
   ],
   subscriptionPlan: 'free',
   ordersPlacedThisMonth: 0,
-  subscriptionRenewalDate: Date.now() + 13 * 24 * 60 * 60 * 1000,
+  subscriptionRenewalDate: Date.now() + 29 * 24 * 60 * 60 * 1000,
   billingCountry: detectBillingCountry(),
   billingPeriod: 'monthly',
   subscriptionId: null,
@@ -1109,7 +1109,7 @@ const DEFAULT_STATE: AppState = {
     'AIzaSyE_FakeGeminiKey_Beta02',
     'AIzaSyF_FakeGeminiKey_Gamma03'
   ],
-  popularCuisines: [],
+  popularCuisines: DEFAULT_POPULAR_CUISINES,
   supportRequests: [],
   ownerFeedbacks: [
     {
@@ -1464,7 +1464,7 @@ function reducer(state: AppState, action: Action): AppState {
           password: action.payload.password,
           subscriptionPlan: 'free',
           ordersPlacedThisMonth: 0,
-          subscriptionRenewalDate: Date.now() + 13 * 24 * 60 * 60 * 1000, // 13 days = trial expires on day 14
+          subscriptionRenewalDate: Date.now() + 29 * 24 * 60 * 60 * 1000, // 29 days = trial expires on day 30
           billingCountry: detectedCountry,
           billingPeriod: 'monthly',
           rating: 0,

@@ -136,7 +136,6 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
 
 
   const [open, setOpen] = useState(false);
-  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const [googleUser, setGoogleUser] = useState<{ name: string; email: string; phone: string } | null>(() => {
     try {
       const rawGoogle = localStorage.getItem('meenufy_customer_google_user');
@@ -832,10 +831,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       localStorage.setItem('meenufy_my_order_ids', JSON.stringify(trimmed));
     } catch {}
 
-    // Prompt for push notifications after order — only if not yet decided
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-      setTimeout(() => setShowNotifPrompt(true), 800);
-    }
+    // Prompt for push notifications disabled for now
 
     // Increment coupon usageCount so one-time and limited coupons track properly
     if (appliedCoupon) {
@@ -2424,94 +2420,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
         </div>
       )}
 
-      {/* Post-Order Notification Prompt — Glassmorphism */}
-      {showNotifPrompt && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 2000,
-            background: 'rgba(0,0,0,0.72)',
-            backdropFilter: 'blur(14px)',
-            WebkitBackdropFilter: 'blur(14px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '0 20px',
-            animation: 'fadeIn 0.25s ease',
-          }}
-        >
-          <div style={{
-            background: 'rgba(20,20,20,0.85)',
-            border: '1px solid rgba(255,125,0,0.35)',
-            borderRadius: 24,
-            padding: '32px 24px',
-            maxWidth: 360,
-            width: '100%',
-            boxShadow: '0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04) inset',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            textAlign: 'center',
-            animation: 'fadeInScale 0.3s ease',
-          }}>
-            {/* Icon */}
-            <div style={{
-              width: 72, height: 72, borderRadius: '50%',
-              background: 'radial-gradient(circle at center, rgba(255,125,0,0.25) 0%, rgba(255,125,0,0.05) 100%)',
-              border: '1.5px solid rgba(255,125,0,0.45)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 20px',
-              fontSize: 32,
-            }}>🔔</div>
 
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10, lineHeight: 1.3 }}>
-              Get Live Order Updates!
-            </div>
-            <div style={{ fontSize: 13, color: '#e8e8e8', lineHeight: 1.6, marginBottom: 28 }}>
-              Allow notifications so we can ping you the moment your food is being prepared, ready to serve, or out for delivery — right on your phone!
-            </div>
-
-            {/* Buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button
-                onClick={() => {
-                  setShowNotifPrompt(false);
-                  if (typeof window !== 'undefined' && 'Notification' in window) {
-                    Notification.requestPermission().then((perm) => {
-                      if (perm === 'granted') {
-                        addToast('success', '🔔 You\'ll now get live updates on your order!');
-                      }
-                    });
-                  }
-                }}
-                style={{
-                  width: '100%', padding: '14px 0',
-                  background: 'linear-gradient(135deg, #ff7d00 0%, #e65c00 100%)',
-                  color: '#fff', border: 'none', borderRadius: 12,
-                  fontSize: 15, fontWeight: 800, cursor: 'pointer',
-                  boxShadow: '0 4px 20px rgba(255,125,0,0.4)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  transition: 'opacity 0.2s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-              >
-                <span>🔔</span> Yes, Notify Me!
-              </button>
-              <button
-                onClick={() => setShowNotifPrompt(false)}
-                style={{
-                  width: '100%', padding: '13px 0',
-                  background: 'rgba(255,255,255,0.06)',
-                  color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                  transition: 'background 0.2s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-              >
-                Maybe Later
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

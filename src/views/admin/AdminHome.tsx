@@ -899,29 +899,7 @@ export default function AdminHome() {
             </button>
           )}
 
-          {/* Theme switcher */}
-          <button
-            onClick={() => {
-              dispatch({ type: 'TOGGLE_ADMIN_THEME' });
-              addToast('success', `Theme switched to ${state.adminTheme === 'light' ? 'Dark' : 'Light'}!`);
-            }}
-            style={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: 14,
-              transition: 'var(--transition)',
-            }}
-            title="Toggle Theme"
-          >
-            {state.adminTheme === 'light' ? '🌙' : '☀️'}
-          </button>
+
 
           {/* Coupons & Offers Button */}
           <button

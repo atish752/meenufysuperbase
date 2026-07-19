@@ -44,23 +44,7 @@ const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1504674900247-0877df9c
 const DEFAULT_LOGO = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100&auto=format&fit=crop&q=60';
 
 const CITIES = [
-  { name: 'Mumbai', lat: 19.0760, lon: 72.8777 },
-  { name: 'Bangalore', lat: 12.9716, lon: 77.5946 },
-  { name: 'Patna', lat: 25.5941, lon: 85.1376 },
-  { name: 'Delhi', lat: 28.7041, lon: 77.1025 },
-  { name: 'Siwan', lat: 26.2196, lon: 84.3567 },
-  { name: 'Kolkata', lat: 22.5726, lon: 88.3639 },
-  { name: 'Chennai', lat: 13.0827, lon: 80.2707 },
-  { name: 'Hyderabad', lat: 17.3850, lon: 78.4867 },
-  { name: 'Ahmedabad', lat: 23.0225, lon: 72.5714 },
-  { name: 'Pune', lat: 18.5204, lon: 73.8567 },
-  { name: 'Surat', lat: 21.1702, lon: 72.8311 },
-  { name: 'Kanpur', lat: 26.4499, lon: 80.3319 },
-  { name: 'Jaipur', lat: 26.9124, lon: 75.7873 },
-  { name: 'Lucknow', lat: 26.8467, lon: 80.9462 },
-  { name: 'Nagpur', lat: 21.1458, lon: 79.0882 },
-  { name: 'Indore', lat: 22.7196, lon: 75.8577 },
-  { name: 'Amritsar', lat: 31.6340, lon: 74.8723 },
+  { name: 'Patna', lat: 25.5941, lon: 85.1376 }
 ];
 
 export default function CustomerHome() {
@@ -71,14 +55,14 @@ export default function CustomerHome() {
   // Geolocation states - loaded from localStorage to persist state across view/menu toggles
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(() => {
     const saved = localStorage.getItem('meenufy_customer_coords');
-    return saved ? JSON.parse(saved) : null;
+    return saved ? JSON.parse(saved) : { latitude: 25.5941, longitude: 85.1376 };
   });
   const [gpsLoading, setGpsLoading] = useState(false);
   const [addressName, setAddressName] = useState(() => {
-    return localStorage.getItem('meenufy_customer_address_name') || 'Location Disabled';
+    return localStorage.getItem('meenufy_customer_address_name') || 'City: Patna';
   });
   const [selectedCity, setSelectedCity] = useState<string>(() => {
-    return localStorage.getItem('meenufy_customer_selected_city') || 'gps';
+    return localStorage.getItem('meenufy_customer_selected_city') || 'Patna';
   });
   const [showSwitchRestModal, setShowSwitchRestModal] = useState(false);
   const [pendingRestId, setPendingRestId] = useState<string | null>(null);
@@ -405,7 +389,7 @@ export default function CustomerHome() {
     }}>
       {/* Location Header */}
       <div style={{
-        padding: '8px 12px',
+        padding: '8px 10px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -416,50 +400,53 @@ export default function CustomerHome() {
         zIndex: 30,
         gap: 6
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} title={addressName}>
+        {/* Left Side: Logo and Title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }} title={addressName}>
           <img 
             src={customerTheme === 'light' ? '/meenufy_logo_transparent.png' : '/meenufy_logo_white.png'} 
             alt="Meenufy Logo" 
-            style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }} 
+            style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }} 
           />
+          <span style={{ fontSize: 17, fontWeight: 900, color: 'var(--brand)', fontFamily: 'var(--font-display)', letterSpacing: '-0.3px', display: 'inline-block' }}>Meenufy</span>
         </div>
 
-        {/* Restaurateur Dashboard Redirect Button */}
-        <button
-          onClick={() => {
-            window.location.href = '/admin';
-          }}
-          style={{
-            padding: '5px 10px',
-            fontSize: '11px',
-            fontWeight: 800,
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
-            color: '#ffffff',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            boxShadow: '0 2px 8px rgba(255, 125, 0, 0.2)',
-            transition: 'opacity 0.2s',
-            whiteSpace: 'nowrap',
-            flexShrink: 0
-          }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-        >
-          <span>👨‍🍳</span>
-          <span>Restaurateur</span>
-        </button>
+        {/* Right Side Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
+          {/* Restaurateur Dashboard Redirect Button */}
+          <button
+            onClick={() => {
+              window.location.href = '/admin';
+            }}
+            style={{
+              padding: '5px 8px',
+              fontSize: '10px',
+              fontWeight: 800,
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+              color: '#ffffff',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+              boxShadow: '0 2px 8px rgba(255, 125, 0, 0.2)',
+              transition: 'opacity 0.2s',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            <span>👨‍🍳</span>
+            <span>Restaurateur</span>
+          </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <select
             value={selectedCity}
             onChange={e => handleCityChange(e.target.value)}
             style={{
-              padding: '5px 8px',
-              fontSize: '11px',
+              padding: '5px 6px',
+              fontSize: '10px',
               fontWeight: 700,
               borderRadius: '8px',
               background: 'var(--bg-primary)',
@@ -467,12 +454,11 @@ export default function CustomerHome() {
               border: '1px solid var(--border)',
               cursor: 'pointer',
               outline: 'none',
-              maxWidth: 90,
-              textOverflow: 'ellipsis'
+              maxWidth: 75,
+              textOverflow: 'ellipsis',
+              flexShrink: 0
             }}
           >
-            <option value="gps">📍 GPS</option>
-            <option value="all">🇮🇳 All</option>
             {CITIES.map(c => (
               <option key={c.name} value={c.name}>{c.name}</option>
             ))}
@@ -498,32 +484,6 @@ export default function CustomerHome() {
           >
             {customerTheme === 'light' ? '🌙' : '☀️'}
           </button>
-
-          {selectedCity === 'gps' && (
-            <button
-              onClick={handleRequestGps}
-              disabled={gpsLoading}
-              style={{
-                background: 'rgba(249, 115, 22, 0.1)',
-                color: 'var(--brand)',
-                fontSize: 11,
-                fontWeight: 800,
-                border: '1px solid var(--brand)',
-                borderRadius: 8,
-                width: 28,
-                height: 28,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                padding: 0,
-                flexShrink: 0
-              }}
-              title="Refresh GPS Coordinates"
-            >
-              {gpsLoading ? '⏳' : '🔄'}
-            </button>
-          )}
         </div>
       </div>
 

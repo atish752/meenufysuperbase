@@ -324,16 +324,45 @@ export default function AdminLayout() {
         {state.newOrderAlert && (!state.admin?.isStaff || state.admin.permissions?.includes('orders')) && <NewOrderAlert order={state.newOrderAlert} />}
       </div>
 
-      {/* Global Notification Bell — floats over all tabs (mobile) */}
+      {/* Global Admin Header Controls (Top Right) */}
       <div
-        className="mobile-only"
         style={{
           position: 'fixed',
           top: 'calc(16px + env(safe-area-inset-top, 0px))',
           right: 16,
           zIndex: 9990,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10
         }}
       >
+        {/* Theme switcher */}
+        <button
+          onClick={() => {
+            dispatch({ type: 'TOGGLE_ADMIN_THEME' });
+            addToast('success', `Theme switched to ${state.adminTheme === 'light' ? 'Dark' : 'Light'}!`);
+          }}
+          style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontSize: 14,
+            transition: 'var(--transition)',
+            color: 'var(--text-primary)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}
+          title="Toggle Theme"
+        >
+          {state.adminTheme === 'light' ? '🌙' : '☀️'}
+        </button>
+
+        {/* Global Notification Bell */}
         <AdminNotificationBell />
       </div>
 

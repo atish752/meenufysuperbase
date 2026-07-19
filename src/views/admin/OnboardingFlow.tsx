@@ -223,7 +223,7 @@ export default function OnboardingFlow() {
             address: finalCity || 'India',
             subscriptionPlan: (selectedPlan as any) || 'free',
             basePlanSelectedType: selectedPlan === 'base' && basePlanSelectedType !== 'both' ? (basePlanSelectedType as 'dining_takeaway' | 'delivery_only') : undefined,
-            subscriptionRenewalDate: selectedPlan === 'free' ? Date.now() + 13 * 24 * 60 * 60 * 1000 : 0,
+            subscriptionRenewalDate: selectedPlan === 'free' ? Date.now() + 29 * 24 * 60 * 60 * 1000 : 0,
             createdAt: Date.now()
           }
         });
@@ -1183,7 +1183,7 @@ export default function OnboardingFlow() {
                     marginTop: 8
                   }}
                 >
-                  Start 14-Day Free Trial (Try all features free for 14 days) →
+                  Start 30-Day Free Trial (Try all features free for 30 days) →
                 </button>
               </div>
             )}

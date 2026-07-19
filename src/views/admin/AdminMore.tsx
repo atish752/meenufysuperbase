@@ -173,7 +173,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
-  const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('menu');
+  const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
 
   useEffect(() => {
     setRestaurantForm({ ...state.restaurant });
@@ -710,10 +710,10 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         }
       });
 
-      // Special View-Only Menu QR Code
+      // Restaurant Menu QR Code (For Flyers & Pamphlets)
       const viewOnlyCanvas = viewOnlyQRRef.current;
       if (viewOnlyCanvas) {
-        const viewOnlyUrl = `${window.location.origin}/?view=customer&viewOnly=true&restaurant=${state.admin?.restaurantId || 'admin-1'}`;
+        const viewOnlyUrl = `${window.location.origin}/?restaurant=${state.admin?.restaurantId || 'admin-1'}`;
         QRCode.toCanvas(viewOnlyCanvas, viewOnlyUrl, {
           width: 180,
           color: { dark: '#FFFFFF', light: '#0D0D0D' },
@@ -1177,148 +1177,50 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       {(isOnlyOutlet || activeSection === 'outlet') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           
-          {outletSubSection === 'menu' ? (
-            <div>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Select a settings section to customize your outlet:</p>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: 12,
-                marginBottom: 20
-              }}>
+          {/* Sub-sections grid - horizontally styled at the top */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+            gap: 10,
+            marginBottom: 20
+          }}>
+            {[
+              { id: 'delivery', label: 'Home Delivery', icon: '🏠' },
+              { id: 'upi', label: 'UPI ID & QR Code', icon: '💳' },
+              { id: 'customization', label: 'Additional Customization', icon: '🎨' },
+              { id: 'info', label: 'Outlet Information', icon: 'ℹ️' },
+              { id: 'logo_image', label: 'Logo & Image', icon: '🖼️' },
+            ].map(sub => {
+              const isActive = outletSubSection === sub.id;
+              return (
                 <button
-                  onClick={() => setOutletSubSection('delivery')}
-                  className="btn btn-secondary"
+                  key={sub.id}
+                  type="button"
+                  onClick={() => setOutletSubSection(sub.id as any)}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '24px 16px',
-                    gap: 10,
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
+                    padding: '12px 8px',
+                    gap: 8,
+                    background: isActive ? 'var(--brand-dim)' : 'var(--bg-elevated)',
+                    border: isActive ? '2px solid var(--brand)' : '1px solid var(--border)',
                     borderRadius: 12,
                     cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    color: 'var(--text-primary)',
-                    minHeight: 110
+                    transition: 'var(--transition)',
+                    color: isActive ? 'var(--brand)' : 'var(--text-secondary)',
+                    boxShadow: isActive ? 'var(--shadow-brand)' : 'none',
                   }}
                 >
-                  <span style={{ fontSize: 24 }}>🏠</span>
-                  <span style={{ fontSize: 13, fontWeight: 800 }}>Home Delivery</span>
+                  <span style={{ fontSize: 18 }}>{sub.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: isActive ? 800 : 600, textAlign: 'center' }}>{sub.label}</span>
                 </button>
+              );
+            })}
+          </div>
 
-                <button
-                  onClick={() => setOutletSubSection('upi')}
-                  className="btn btn-secondary"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '24px 16px',
-                    gap: 10,
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 12,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    color: 'var(--text-primary)',
-                    minHeight: 110
-                  }}
-                >
-                  <span style={{ fontSize: 24 }}>💳</span>
-                  <span style={{ fontSize: 13, fontWeight: 800 }}>UPI ID & QR Code</span>
-                </button>
-
-                <button
-                  onClick={() => setOutletSubSection('customization')}
-                  className="btn btn-secondary"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '24px 16px',
-                    gap: 10,
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 12,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    color: 'var(--text-primary)',
-                    minHeight: 110
-                  }}
-                >
-                  <span style={{ fontSize: 24 }}>🎨</span>
-                  <span style={{ fontSize: 13, fontWeight: 800 }}>Additional Customization</span>
-                </button>
-
-                <button
-                  onClick={() => setOutletSubSection('info')}
-                  className="btn btn-secondary"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '24px 16px',
-                    gap: 10,
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 12,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    color: 'var(--text-primary)',
-                    minHeight: 110
-                  }}
-                >
-                  <span style={{ fontSize: 24 }}>ℹ️</span>
-                  <span style={{ fontSize: 13, fontWeight: 800 }}>Outlet Information</span>
-                </button>
-
-                <button
-                  onClick={() => setOutletSubSection('logo_image')}
-                  className="btn btn-secondary"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '24px 16px',
-                    gap: 10,
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 12,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    color: 'var(--text-primary)',
-                    minHeight: 110
-                  }}
-                >
-                  <span style={{ fontSize: 24 }}>🖼️</span>
-                  <span style={{ fontSize: 13, fontWeight: 800 }}>Logo & Image</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setOutletSubSection('menu')}
-                style={{
-                  marginBottom: 16,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  padding: '6px 12px'
-                }}
-              >
-                ← Back to Settings Menu
-              </button>
+          <div>
 
               {/* 1. Home Delivery Sub-section */}
               {outletSubSection === 'delivery' && (
@@ -1855,7 +1757,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 </div>
               )}
             </div>
-          )}
         </div>
       )}
 
@@ -2237,7 +2138,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             </div>
           </div>
 
-          {/* SPECIAL VIEW-ONLY MENU QR CODE */}
+          {/* RESTAURANT MENU QR CODE (FOR FLYERS & SOCIAL MEDIA) */}
           <div style={{
             background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.06) 0%, rgba(234, 88, 12, 0.01) 100%)',
             border: '1px solid rgba(249, 115, 22, 0.25)',
@@ -2253,15 +2154,15 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           }}>
             <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ea580c' }}>
-                <span style={{ fontSize: 16 }}>👁️</span>
-                <h4 style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>Special View-Only Menu QR Code</h4>
+                <span style={{ fontSize: 16 }}>📱</span>
+                <h4 style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>Restaurant Menu QR Code</h4>
               </div>
               <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
-                <strong>Flyer & Social Media QR:</strong> Allows customers to browse your menu items and photos without ordering or calling waitstaff. Do not place on dining tables.
+                <strong>Flyer & Social Media QR:</strong> Allow customers to browse and order directly from their phone. Perfect for pamphlets, banners, and social media flyers.
               </p>
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <a
-                  href={`${window.location.origin}/?view=customer&viewOnly=true&restaurant=${state.admin?.restaurantId || 'admin-1'}`}
+                  href={`${window.location.origin}/?restaurant=${state.admin?.restaurantId || 'admin-1'}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-secondary btn-sm"
@@ -2274,7 +2175,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                     const canvas = viewOnlyQRRef.current;
                     if (canvas) {
                       const link = document.createElement('a');
-                      link.download = `${state.restaurant.name || 'restaurant'}_View_Only_Menu_QR.png`;
+                      link.download = `${state.restaurant.name || 'restaurant'}_Menu_QR.png`;
                       link.href = canvas.toDataURL('image/png');
                       link.click();
                     }
@@ -2393,7 +2294,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             if (state.subscriptionPlan === 'free') {
               const matchedAcc = state.restaurantAccounts?.find(a => a.id === state.admin?.id);
               const cAt = state.restaurant?.createdAt || matchedAcc?.createdAt || Date.now();
-              renewalDate = cAt + 13 * 24 * 60 * 60 * 1000;
+              renewalDate = cAt + 29 * 24 * 60 * 60 * 1000;
             }
             
             // Check if expired
@@ -2461,7 +2362,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         '❌ Services Suspended — Complete payment below to activate.'
                       ) : (
                         <>
-                          {state.subscriptionPlan === 'free' && '🎁 14-Day Free Trial — All Features Unlocked'}
+                          {state.subscriptionPlan === 'free' && '🎁 30-Day Free Trial — All Features Unlocked'}
                           {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'dining_takeaway' && '🍽️ In-Dining & Takeaway Only'}
                           {state.subscriptionPlan === 'base' && (state.restaurant?.basePlanSelectedType || 'dining_takeaway') === 'delivery_only' && '🛵 Home Delivery Only'}
                           {(state.subscriptionPlan === 'standard' || state.subscriptionPlan === 'advance') && '✅ In-Dining, Takeaway & Home Delivery'}
@@ -2535,7 +2436,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       Billing Cycle: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{state.billingPeriod === 'yearly' ? 'Yearly (15% Off)' : 'Monthly'}</strong>
                     </span>
                     <span style={{ fontSize: 11, color: '#ffffff', fontWeight: 600 }}>
-                      {isExpired ? 'Status:' : 'Renews:'} <strong style={{ color: '#ffffff', fontWeight: 800 }}>{renewalFormatted}</strong>
+                      {isExpired ? 'Status:' : (state.subscriptionPlan === 'free' ? 'Trial Ends:' : 'Renews:')} <strong style={{ color: '#ffffff', fontWeight: 800 }}>{renewalFormatted}</strong>
                     </span>
                   </div>
 
@@ -2660,11 +2561,11 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 const isYearly = billingPeriodToggle === 'yearly';
                 
                 const plans = state.billingCountry === 'IN' ? [
-                  { name: 'free', label: '14-Day Free Trial', price: 0, currency: '₹', desc: 'Try out all features free for 14 days', saving: 0 },
+                  { name: 'free', label: '30-Day Free Trial', price: 0, currency: '₹', desc: 'Try out all features free for 30 days', saving: 0 },
                   { name: 'base', label: 'Standard plan', price: isYearly ? 25000 : 2500, currency: '₹', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 5000 },
                   { name: 'standard', label: 'Advance Plan', price: isYearly ? 40000 : 4000, currency: '₹', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 8000 },
                 ] : [
-                  { name: 'free', label: '14-Day Free Trial', price: 0, currency: '$', desc: 'Try out all features free for 14 days', saving: 0 },
+                  { name: 'free', label: '30-Day Free Trial', price: 0, currency: '$', desc: 'Try out all features free for 30 days', saving: 0 },
                   { name: 'base', label: 'Standard plan', price: isYearly ? 300 : 30, currency: '$', desc: 'Choose EITHER In-Dining & Takeaway OR Home Delivery Only', saving: 60 },
                   { name: 'standard', label: 'Advance Plan', price: isYearly ? 500 : 50, currency: '$', desc: 'Full access: In-Dining, Takeaway, and Home Delivery', saving: 100 },
                 ];
@@ -2702,7 +2603,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           {p.desc}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600, marginTop: 6 }}>
-                          {p.name === 'free' && 'Trial Period: 14 Days (All features)'}
+                          {p.name === 'free' && 'Trial Period: 30 Days (All features)'}
                           {p.name === 'base' && 'Allowed: EITHER In-Dining & Takeaway OR Home Delivery Only'}
                           {p.name === 'standard' && 'Allowed: All features (In-Dining, Takeaway, and Home Delivery)'}
                         </div>
