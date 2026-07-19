@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import { Search, Star, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
 import { db } from '../../utils/firebase';
@@ -84,8 +84,27 @@ export default function CustomerHome() {
   // Filters
   const [sortBy, setSortBy] = useState<'distance' | 'rating' | 'none'>('none');
 
+  // Track whether Firebase has sent real restaurant accounts (used to show skeleton vs empty)
+  const [accountsReady, setAccountsReady] = useState(() => {
+    // If fast cache exists, accounts are already real from first render
+    try {
+      const cache = localStorage.getItem('meenufy_accounts_cache');
+      return !!cache && JSON.parse(cache).length > 0;
+    } catch {
+      return false;
+    }
+  });
+
   const [showFirstTimeCityModal, setShowFirstTimeCityModal] = useState(() => {
-    return !localStorage.getItem('meenufy_first_time_city_selected');
+    // Auto-dismiss if already have location data — no need to gate returning users
+    if (localStorage.getItem('meenufy_first_time_city_selected')) return false;
+    // Also auto-dismiss if coords already set (default Patna)
+    const savedCoords = localStorage.getItem('meenufy_customer_coords');
+    if (savedCoords) {
+      localStorage.setItem('meenufy_first_time_city_selected', 'true');
+      return false;
+    }
+    return false; // Only Patna available — always auto-select
   });
   const [selectedDeal, setSelectedDeal] = useState<any | null>(null);
   // Use global state coupons directly so they persist across navigation
@@ -251,45 +270,60 @@ export default function CustomerHome() {
   };
 
   // Filter & calculate active restaurants nearby (within 15 km limit)
+  // useMemo prevents expensive Haversine recalculation on every Firebase push (orders, pings, etc.)
   const allAccounts = state.restaurantAccounts || [];
-  const activeRestaurants = allAccounts.filter(acc => acc.status === 'active');
+  const activeRestaurants = useMemo(() => allAccounts.filter(acc => acc.status === 'active'), [allAccounts]);
 
-  const processedRestaurants = activeRestaurants
-    .map(acc => {
-      const rLat = acc.latitude || 12.9348;
-      const rLon = acc.longitude || 77.6202;
-      const uLat = coords?.latitude || 12.9348;
-      const uLon = coords?.longitude || 77.6202;
+  // Track when Firebase has delivered real accounts (vs. mock DEFAULT_STATE data)
+  useEffect(() => {
+    // Real accounts have real latitude/longitude (not mock Bengaluru 12.9348)
+    const hasRealAccounts = allAccounts.some(acc =>
+      acc.latitude && acc.latitude !== 12.9348 ||
+      acc.longitude && acc.longitude !== 77.6202
+    );
+    // OR if we have accounts and any account cache (already validated real)
+    const hasCacheFlag = !!localStorage.getItem('meenufy_accounts_cache');
+    if (hasRealAccounts || hasCacheFlag) setAccountsReady(true);
+  }, [allAccounts]);
 
-      const distance = calculateDistance(uLat, uLon, rLat, rLon);
-      return {
-        ...acc,
-        distance,
-      };
-    })
-    .filter(acc => {
-      // 1. If Global mode is selected, we bypass the 15km distance check!
-      if (selectedCity === 'all') {
+  const processedRestaurants = useMemo(() => {
+    return activeRestaurants
+      .map(acc => {
+        const rLat = acc.latitude || 12.9348;
+        const rLon = acc.longitude || 77.6202;
+        const uLat = coords?.latitude || 12.9348;
+        const uLon = coords?.longitude || 77.6202;
+
+        const distance = calculateDistance(uLat, uLon, rLat, rLon);
+        return {
+          ...acc,
+          distance,
+        };
+      })
+      .filter(acc => {
+        // 1. If Global mode is selected, we bypass the 15km distance check!
+        if (selectedCity === 'all') {
+          const matchesSearch = searchQuery.trim() === '' || 
+            acc.restaurantName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (acc.cuisines && acc.cuisines.toLowerCase().includes(searchQuery.toLowerCase()));
+          return matchesSearch;
+        }
+
+        // 2. Haversine 15 Kilometer radius limit or city address fallback
+        if (!coords) return false;
+        const isNearby = acc.distance <= 15;
+        const isAddressMatch = selectedCity !== 'all' && selectedCity !== 'gps' && 
+                               !!acc.address && acc.address.toLowerCase().includes(selectedCity.toLowerCase());
+        if (!isNearby && !isAddressMatch) return false;
+
+        // 3. Search query filter
         const matchesSearch = searchQuery.trim() === '' || 
           acc.restaurantName.toLowerCase().includes(searchQuery.toLowerCase()) || 
           (acc.cuisines && acc.cuisines.toLowerCase().includes(searchQuery.toLowerCase()));
+
         return matchesSearch;
-      }
-
-      // 2. Haversine 15 Kilometer radius limit or city address fallback
-      if (!coords) return false;
-      const isNearby = acc.distance <= 15;
-      const isAddressMatch = selectedCity !== 'all' && selectedCity !== 'gps' && 
-                             !!acc.address && acc.address.toLowerCase().includes(selectedCity.toLowerCase());
-      if (!isNearby && !isAddressMatch) return false;
-
-      // 3. Search query filter
-      const matchesSearch = searchQuery.trim() === '' || 
-        acc.restaurantName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (acc.cuisines && acc.cuisines.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      return matchesSearch;
-    });
+      });
+  }, [activeRestaurants, coords, selectedCity, searchQuery]);
 
   // Fetch meals from all nearby restaurants in parallel when coordinates are active
   useEffect(() => {
@@ -969,17 +1003,61 @@ export default function CustomerHome() {
                 </h3>
 
                 {processedRestaurants.length === 0 ? (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '40px 20px',
-                    background: 'var(--bg-elevated)',
-                    borderRadius: 12,
-                    border: '1px dashed var(--border)'
-                  }}>
-                    <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
-                      No restaurants found within 15 km.
-                    </p>
-                  </div>
+                  accountsReady ? (
+                    /* Real accounts loaded but no matches in this city */
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '40px 20px',
+                      background: 'var(--bg-elevated)',
+                      borderRadius: 12,
+                      border: '1px dashed var(--border)'
+                    }}>
+                      <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+                        No restaurants found within 15 km.
+                      </p>
+                    </div>
+                  ) : (
+                    /* Firebase loading — show animated skeleton cards */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                      <style>{`
+                        @keyframes shimmer {
+                          0% { background-position: -400px 0; }
+                          100% { background-position: 400px 0; }
+                        }
+                        .skeleton-shine {
+                          background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%);
+                          background-size: 800px 100%;
+                          animation: shimmer 1.4s infinite linear;
+                          border-radius: 8px;
+                        }
+                      `}</style>
+                      {[1, 2, 3].map(i => (
+                        <div key={i} style={{
+                          background: 'var(--bg-elevated)',
+                          borderRadius: 16,
+                          overflow: 'hidden',
+                          border: '1px solid var(--border)',
+                          boxShadow: '0 2px 12px rgba(0,0,0,0.06)'
+                        }}>
+                          <div style={{ display: 'flex', height: 125 }}>
+                            <div className="skeleton-shine" style={{ width: 125, flexShrink: 0 }} />
+                            <div style={{ flex: 1, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              <div className="skeleton-shine" style={{ height: 20, width: '65%' }} />
+                              <div className="skeleton-shine" style={{ height: 12, width: '45%' }} />
+                              <div className="skeleton-shine" style={{ height: 12, width: '80%' }} />
+                              <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
+                                <div className="skeleton-shine" style={{ height: 20, width: 60 }} />
+                                <div className="skeleton-shine" style={{ height: 20, width: 48 }} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', margin: 0, paddingBottom: 8 }}>
+                        🔄 Loading nearby restaurants...
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                     {processedRestaurants.map(acc => (

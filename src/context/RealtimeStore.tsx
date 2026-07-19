@@ -1399,6 +1399,12 @@ function reducer(state: AppState, action: Action): AppState {
           subscriptionId = matched.subscriptionId || null;
         }
       }
+
+      // ── Fast cache: persist real accounts separately so next page load is instant ──
+      try {
+        localStorage.setItem('meenufy_accounts_cache', JSON.stringify(accounts));
+      } catch {}
+
       return {
         ...state,
         restaurantAccounts: accounts,
@@ -2357,7 +2363,19 @@ const CHANNEL_NAME = 'meenufy_realtime';
 function loadState(): Partial<AppState> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
+    // ── Fast bootstrap: pre-load real restaurant accounts from dedicated cache ──
+    // This makes the customer home restaurant list appear INSTANTLY on every visit
+    // instead of waiting 1-5 seconds for Firebase to respond.
+    let fastAccounts: RestaurantAccount[] | null = null;
+    try {
+      const fastRaw = localStorage.getItem('meenufy_accounts_cache');
+      if (fastRaw) fastAccounts = JSON.parse(fastRaw);
+    } catch {}
+
+    if (!raw) {
+      if (fastAccounts && fastAccounts.length > 0) return { restaurantAccounts: fastAccounts };
+      return {};
+    }
     const parsed = JSON.parse(raw) as Partial<AppState>;
 
     // ── Step 1: Detect the admin's old dynamic ID (if any) ───────────────────────
@@ -2453,6 +2471,12 @@ function loadState(): Partial<AppState> {
       }
     }
 
+    // Merge fast accounts cache — gives priority to dedicated cache over
+    // potentially stale full-state accounts, ensuring real restaurants load fast
+    if (fastAccounts && fastAccounts.length > 0) {
+      parsed.restaurantAccounts = fastAccounts;
+    }
+
     return parsed;
   } catch {
     return {};
@@ -2485,11 +2509,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
-    const interval = setInterval(handleUrlChange, 500);
+    // Removed: setInterval polling every 500ms was causing 2 unnecessary re-renders/second
     return () => {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('hashchange', handleUrlChange);
-      clearInterval(interval);
     };
   }, [urlSearch]);
 
@@ -2523,9 +2546,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const isBroadcasting = useRef(false);
 
-  // Save to localStorage on state change
+  // Debounced save to localStorage — prevents blocking main thread on every dispatch
+  // (e.g. every Firebase realtime update, order sync, waiter ping)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    saveState(state);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveState(state);
+    }, 800);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, [state]);
 
   // ── Firebase Auth State Listener ──────────────────────────────────────────────
