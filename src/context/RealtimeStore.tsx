@@ -521,6 +521,7 @@ export type AppState = {
   customerTheme: 'dark' | 'light';
   customerMenuTheme: CustomerMenuTheme;
   deferredPrompt?: any;
+  accountsFromDb: boolean;
 };
 
 export type CustomerMenuTheme = {
@@ -1150,6 +1151,7 @@ const DEFAULT_STATE: AppState = {
     bestsellerText: '',
   },
   deferredPrompt: null,
+  accountsFromDb: false,
 };
 
 // ─── Actions ─────────────────────────────────────────────────
@@ -1414,7 +1416,8 @@ function reducer(state: AppState, action: Action): AppState {
         subscriptionRenewalDate,
         billingCountry,
         billingPeriod,
-        subscriptionId
+        subscriptionId,
+        accountsFromDb: true
       };
     }
     case 'SET_ADMIN_TAB': return { ...state, adminTab: action.payload };
@@ -2227,11 +2230,16 @@ function reducer(state: AppState, action: Action): AppState {
         geminiApiKeys: state.geminiApiKeys.filter(key => key !== action.payload)
       };
     case 'SYNC_POPULAR_CUISINES':
-    case 'SET_POPULAR_CUISINES':
+    case 'SET_POPULAR_CUISINES': {
+      const cuisines = action.payload || [];
+      try {
+        localStorage.setItem('meenufy_cuisines_cache', JSON.stringify(cuisines));
+      } catch {}
       return {
         ...state,
-        popularCuisines: action.payload || []
+        popularCuisines: cuisines
       };
+    }
     case 'ADD_POPULAR_CUISINE':
       return {
         ...state,
@@ -2363,18 +2371,25 @@ const CHANNEL_NAME = 'meenufy_realtime';
 function loadState(): Partial<AppState> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    // ── Fast bootstrap: pre-load real restaurant accounts from dedicated cache ──
-    // This makes the customer home restaurant list appear INSTANTLY on every visit
-    // instead of waiting 1-5 seconds for Firebase to respond.
     let fastAccounts: RestaurantAccount[] | null = null;
+    let fastCuisines: any[] | null = null;
     try {
       const fastRaw = localStorage.getItem('meenufy_accounts_cache');
       if (fastRaw) fastAccounts = JSON.parse(fastRaw);
     } catch {}
+    try {
+      const cuisinesRaw = localStorage.getItem('meenufy_cuisines_cache');
+      if (cuisinesRaw) fastCuisines = JSON.parse(cuisinesRaw);
+    } catch {}
 
     if (!raw) {
-      if (fastAccounts && fastAccounts.length > 0) return { restaurantAccounts: fastAccounts };
-      return {};
+      const initialPartial: Partial<AppState> = {};
+      if (fastAccounts && fastAccounts.length > 0) {
+        initialPartial.restaurantAccounts = fastAccounts;
+        initialPartial.accountsFromDb = true;
+      }
+      if (fastCuisines && fastCuisines.length > 0) initialPartial.popularCuisines = fastCuisines;
+      return initialPartial;
     }
     const parsed = JSON.parse(raw) as Partial<AppState>;
 
@@ -2475,6 +2490,10 @@ function loadState(): Partial<AppState> {
     // potentially stale full-state accounts, ensuring real restaurants load fast
     if (fastAccounts && fastAccounts.length > 0) {
       parsed.restaurantAccounts = fastAccounts;
+      parsed.accountsFromDb = true;
+    }
+    if (fastCuisines && fastCuisines.length > 0) {
+      parsed.popularCuisines = fastCuisines;
     }
 
     return parsed;

@@ -212,7 +212,7 @@ export default function AdminMenu() {
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
-  const [subTab, setSubTab] = useState<'meals' | 'addons' | 'category'>('meals');
+  const [subTab, setSubTab] = useState<'meals' | 'addons' | 'category' | 'other'>('meals');
   const [expandedTargetCats, setExpandedTargetCats] = useState<string[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [showAddonModal, setShowAddonModal] = useState(false);
@@ -240,7 +240,7 @@ export default function AdminMenu() {
   });
   const [newItem, setNewItem] = useState<Omit<MenuItem, 'id'>>(EMPTY_ITEM);
 
-  const [showOthersMenu, setShowOthersMenu] = useState(false);
+
   const [bulkAiLoading, setBulkAiLoading] = useState(false);
   const [bulkAiProgress, setBulkAiProgress] = useState({ current: 0, total: 0 });
   const [newCat, setNewCat] = useState({ name: '', icon: '🍽️' });
@@ -1113,7 +1113,25 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
       </div>
 
       {/* Tabs Selector */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+      <div 
+        className="tabs-container-scroll"
+        style={{ 
+          display: 'flex', 
+          gap: 16, 
+          marginBottom: 16, 
+          borderBottom: '1px solid var(--border)', 
+          paddingBottom: 0,
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+        }}
+      >
+        <style>{`
+          .tabs-container-scroll::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
         <button
           onClick={() => setSubTab('meals')}
           style={{
@@ -1122,6 +1140,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             color: subTab === 'meals' ? 'var(--brand)' : 'var(--text-primary)',
             padding: '8px 4px',
             borderBottom: subTab === 'meals' ? '2px solid var(--brand)' : '2px solid transparent',
+            flexShrink: 0
           }}
         >
           Meals
@@ -1134,6 +1153,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             color: subTab === 'addons' ? 'var(--brand)' : 'var(--text-primary)',
             padding: '8px 4px',
             borderBottom: subTab === 'addons' ? '2px solid var(--brand)' : '2px solid transparent',
+            flexShrink: 0
           }}
         >
           Add-ons ({adminAddons.length})
@@ -1146,9 +1166,23 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
             color: subTab === 'category' ? 'var(--brand)' : 'var(--text-primary)',
             padding: '8px 4px',
             borderBottom: subTab === 'category' ? '2px solid var(--brand)' : '2px solid transparent',
+            flexShrink: 0
           }}
         >
           Category ({adminCategories.length})
+        </button>
+        <button
+          onClick={() => setSubTab('other')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 14, fontWeight: subTab === 'other' ? 700 : 500,
+            color: subTab === 'other' ? 'var(--brand)' : 'var(--text-primary)',
+            padding: '8px 4px',
+            borderBottom: subTab === 'other' ? '2px solid var(--brand)' : '2px solid transparent',
+            flexShrink: 0
+          }}
+        >
+          ⚙️ Other
         </button>
       </div>
 
@@ -1195,177 +1229,7 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
           </button>
 
 
-          {/* Others Button with Dropdown */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowOthersMenu(v => !v)}
-              className="btn btn-secondary"
-              style={{ height: 32, display: 'flex', alignItems: 'center', gap: 5, borderRadius: 10, fontSize: 11, padding: '0 10px' }}
-            >
-              ⚙️ Others
-            </button>
-            {showOthersMenu && (
-              <>
-                {/* Backdrop */}
-                <div
-                  style={{ position: 'fixed', inset: 0, zIndex: 99 }}
-                  onClick={() => setShowOthersMenu(false)}
-                />
-                {/* Dropdown Panel */}
-                <div style={{
-                  position: 'absolute',
-                  top: 38,
-                  right: 0,
-                  zIndex: 100,
-                  background: 'var(--bg-glass)',
-                  backdropFilter: 'blur(20px)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 14,
-                  boxShadow: 'var(--shadow-xl)',
-                  minWidth: 230,
-                  overflow: 'hidden',
-                  padding: '6px 0'
-                }}>
-                  <div style={{ padding: '8px 14px 6px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Bulk Actions
-                  </div>
-                  {/* Unfeatured All */}
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Remove ALL meals from featured/bestseller? This cannot be undone.')) {
-                        dispatch({ type: 'UNFEATURED_ALL_ITEMS' });
-                        addToast('success', '✅ All meals removed from featured.');
-                        setShowOthersMenu(false);
-                      }
-                    }}
-                    style={{
-                      width: '100%', textAlign: 'left',
-                      padding: '9px 14px',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      transition: 'background 0.15s'
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                  >
-                    ⭐ Remove All from Featured
-                  </button>
-                  {/* Mark All Available */}
-                  <button
-                    onClick={() => {
-                      const restId = state.admin?.restaurantId || 'admin-1';
-                      adminMenuItems.forEach(item => {
-                        if (!item.isAvailable) dispatch({ type: 'UPDATE_MENU_ITEM', payload: { ...item, isAvailable: true } });
-                      });
-                      if (!restId) return;
-                      addToast('success', '✅ All meals marked as available.');
-                      setShowOthersMenu(false);
-                    }}
-                    style={{
-                      width: '100%', textAlign: 'left',
-                      padding: '9px 14px',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                  >
-                    ✅ Mark All as Available
-                  </button>
-                  {/* Mark All Unavailable */}
-                  <button
-                    onClick={() => {
-                      adminMenuItems.forEach(item => {
-                        if (item.isAvailable) dispatch({ type: 'UPDATE_MENU_ITEM', payload: { ...item, isAvailable: false } });
-                      });
-                      addToast('info', 'All meals marked as unavailable.');
-                      setShowOthersMenu(false);
-                    }}
-                    style={{
-                      width: '100%', textAlign: 'left',
-                      padding: '9px 14px',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                  >
-                    🚫 Mark All as Unavailable
-                  </button>
-                  {/* Bulk AI Descriptions */}
-                  <button
-                    onClick={() => {
-                      setShowOthersMenu(false);
-                      handleBulkAiDescriptions();
-                    }}
-                    style={{
-                      width: '100%', textAlign: 'left',
-                      padding: '9px 14px',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: 600,
-                      color: 'var(--brand)',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                  >
-                    ✨ Add AI Descriptions
-                  </button>
-                  {/* Delete Empty Categories */}
-                  <button
-                    onClick={() => {
-                      setShowOthersMenu(false);
-                      handleDeleteEmptyCategories();
-                    }}
-                    style={{
-                      width: '100%', textAlign: 'left',
-                      padding: '9px 14px',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                  >
-                    🗑️ Delete Empty Categories
-                  </button>
-                  {/* Divider */}
-                  <div style={{ height: 1, background: 'var(--border)', margin: '4px 14px' }} />
-                  {/* Delete All */}
-                  <button
-                    onClick={() => {
-                      if (window.confirm('⚠️ PERMANENTLY delete ALL menu items and ALL categories? This CANNOT be undone!')) {
-                        if (window.confirm('Are you absolutely sure? All menu data will be lost!')) {
-                          dispatch({ type: 'DELETE_ALL_MENU_ITEMS' });
-                          addToast('info', 'All menu items and categories deleted.');
-                          setShowOthersMenu(false);
-                        }
-                      }
-                    }}
-                    style={{
-                      width: '100%', textAlign: 'left',
-                      padding: '9px 14px',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: 700,
-                      color: 'var(--error)',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                  >
-                    🗑️ Delete All Menu Items
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+
         </div>
 
         {/* Categories Row */}
@@ -1920,6 +1784,169 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {subTab === 'other' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'fadeIn 0.2s ease-in-out' }}>
+          <div className="card" style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20
+          }}>
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-display)', margin: '0 0 4px', color: 'var(--text-primary)' }}>
+                ⚙️ Menu Settings & Bulk Actions
+              </h3>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                Perform batch updates and management tasks across your entire menu.
+              </p>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
+              {/* Quick Actions */}
+              <div className="card" style={{ padding: 16, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bulk Availability</span>
+                
+                {/* Mark All Available */}
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    const restId = state.admin?.restaurantId || 'admin-1';
+                    adminMenuItems.forEach(item => {
+                      if (!item.isAvailable) dispatch({ type: 'UPDATE_MENU_ITEM', payload: { ...item, isAvailable: true } });
+                    });
+                    if (!restId) return;
+                    addToast('success', '✅ All meals marked as available.');
+                  }}
+                  style={{ justifyContent: 'flex-start', fontSize: 12, height: 36, width: '100%' }}
+                >
+                  ✅ Mark All Available
+                </button>
+
+                {/* Mark All Unavailable */}
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    adminMenuItems.forEach(item => {
+                      if (item.isAvailable) dispatch({ type: 'UPDATE_MENU_ITEM', payload: { ...item, isAvailable: false } });
+                    });
+                    addToast('info', 'All meals marked as unavailable.');
+                  }}
+                  style={{ justifyContent: 'flex-start', fontSize: 12, height: 36, width: '100%' }}
+                >
+                  🚫 Mark All Unavailable
+                </button>
+              </div>
+
+              {/* Meal Features & Descriptions */}
+              <div className="card" style={{ padding: 16, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Meal Details</span>
+
+                {/* Bulk AI Descriptions */}
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleBulkAiDescriptions}
+                  style={{ justifyContent: 'flex-start', fontSize: 12, height: 36, width: '100%' }}
+                >
+                  ✨ Add AI Descriptions
+                </button>
+
+                {/* Unfeatured All */}
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    if (window.confirm('Remove ALL meals from featured/bestseller? This cannot be undone.')) {
+                      dispatch({ type: 'UNFEATURED_ALL_ITEMS' });
+                      addToast('success', '✅ All meals removed from featured.');
+                    }
+                  }}
+                  style={{ justifyContent: 'flex-start', fontSize: 12, height: 36, width: '100%' }}
+                >
+                  ⭐ Remove All Featured
+                </button>
+              </div>
+
+              {/* Nutrition Value Bulk Action Card */}
+              <div className="card" style={{ padding: 16, background: 'var(--bg-elevated)', border: '1px solid rgba(249, 115, 22, 0.3)', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 4px 12px rgba(249,115,22,0.05)' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  🥗 Nutrition & Health
+                </span>
+
+                {/* Add Nutritional Value to All Meals */}
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    if (window.confirm('Add calculated nutritional values (as per serving) to ALL meals in your menu? This will overwrite existing values.')) {
+                      let count = 0;
+                      adminMenuItems.forEach(item => {
+                        const calculatedNutrition = generateNutritionForMeal(item.name);
+                        const updatedItem = {
+                          ...item,
+                          nutrition: {
+                            ...calculatedNutrition,
+                            enabled: true
+                          }
+                        };
+                        dispatch({ type: 'UPDATE_MENU_ITEM', payload: updatedItem });
+                        count++;
+                      });
+                      addToast('success', `🥗 Successfully added nutritional values (per serving) to ${count} meals!`);
+                    }
+                  }}
+                  style={{ 
+                    justifyContent: 'flex-start', 
+                    fontSize: 12, 
+                    height: 36, 
+                    width: '100%', 
+                    borderColor: 'rgba(249, 115, 22, 0.4)', 
+                    background: 'rgba(249, 115, 22, 0.05)',
+                    color: 'var(--brand)',
+                    fontWeight: 700
+                  }}
+                >
+                  🥗 Add Nutrition to All (Serving)
+                </button>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                  Generates customized calories, carbs, protein, fats, and sugar values (per serving) based on item names.
+                </span>
+              </div>
+
+              {/* Cleanup Actions */}
+              <div className="card" style={{ padding: 16, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cleanup</span>
+
+                {/* Delete Empty Categories */}
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleDeleteEmptyCategories}
+                  style={{ justifyContent: 'flex-start', fontSize: 12, height: 36, width: '100%' }}
+                >
+                  🗑️ Delete Empty Categories
+                </button>
+
+                {/* Delete All Menu Items */}
+                <button
+                  className="btn btn-danger"
+                  onClick={() => {
+                    if (window.confirm('⚠️ PERMANENTLY delete ALL menu items and ALL categories? This CANNOT be undone!')) {
+                      if (window.confirm('Are you absolutely sure? All menu data will be lost!')) {
+                        dispatch({ type: 'DELETE_ALL_MENU_ITEMS' });
+                        addToast('info', 'All menu items and categories deleted.');
+                      }
+                    }
+                  }}
+                  style={{ justifyContent: 'flex-start', fontSize: 12, height: 36, width: '100%' }}
+                >
+                  🗑️ Delete All Menu Items
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

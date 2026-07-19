@@ -84,16 +84,8 @@ export default function CustomerHome() {
   // Filters
   const [sortBy, setSortBy] = useState<'distance' | 'rating' | 'none'>('none');
 
-  // Track whether Firebase has sent real restaurant accounts (used to show skeleton vs empty)
-  const [accountsReady, setAccountsReady] = useState(() => {
-    // If fast cache exists, accounts are already real from first render
-    try {
-      const cache = localStorage.getItem('meenufy_accounts_cache');
-      return !!cache && JSON.parse(cache).length > 0;
-    } catch {
-      return false;
-    }
-  });
+  // Whether Firebase has sent real restaurant accounts (used to show skeleton vs empty)
+  const accountsReady = state.accountsFromDb;
 
   const [showFirstTimeCityModal, setShowFirstTimeCityModal] = useState(() => {
     // Auto-dismiss if already have location data — no need to gate returning users
@@ -274,17 +266,7 @@ export default function CustomerHome() {
   const allAccounts = state.restaurantAccounts || [];
   const activeRestaurants = useMemo(() => allAccounts.filter(acc => acc.status === 'active'), [allAccounts]);
 
-  // Track when Firebase has delivered real accounts (vs. mock DEFAULT_STATE data)
-  useEffect(() => {
-    // Real accounts have real latitude/longitude (not mock Bengaluru 12.9348)
-    const hasRealAccounts = allAccounts.some(acc =>
-      acc.latitude && acc.latitude !== 12.9348 ||
-      acc.longitude && acc.longitude !== 77.6202
-    );
-    // OR if we have accounts and any account cache (already validated real)
-    const hasCacheFlag = !!localStorage.getItem('meenufy_accounts_cache');
-    if (hasRealAccounts || hasCacheFlag) setAccountsReady(true);
-  }, [allAccounts]);
+
 
   const processedRestaurants = useMemo(() => {
     return activeRestaurants

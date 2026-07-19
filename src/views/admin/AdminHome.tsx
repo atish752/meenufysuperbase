@@ -1,12 +1,40 @@
 import { useEffect, useState } from 'react';
 import { useStore, isSubscriptionActive } from '../../context/RealtimeStore';
 import type { Order, OrderStatus, Coupon, OrderItem, MenuItem, MenuItemVariant } from '../../context/RealtimeStore';
-import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, Edit2 } from 'lucide-react';
+import { Clock, Check, ChefHat, Utensils, CreditCard, Coins, X, QrCode, Wrench, Printer, Calendar, Search, Edit2, Loader2 } from 'lucide-react';
 import { triggerNotification } from '../../utils/notifications';
 import { printThermalReceipt } from '../../utils/printReceipt';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { hasFirebaseConfig, db } from '../../utils/firebase';
+
+const loadLeaflet = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    if ((window as any).L) {
+      resolve((window as any).L);
+      return;
+    }
+
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.async = true;
+    script.onload = () => {
+      resolve((window as any).L);
+    };
+    script.onerror = (err) => {
+      reject(err);
+    };
+    document.body.appendChild(script);
+  });
+};
 
 
 
@@ -61,8 +89,8 @@ export default function AdminHome() {
   const [showManualOrderModal, setShowManualOrderModal] = useState(false);
   const [manualOrderName, setManualOrderName] = useState('');
   const [manualOrderPhone, setManualOrderPhone] = useState('');
-  const [manualOrderType, setManualOrderType] = useState<'in-dining' | 'take-away'>('in-dining');
-  const [manualOrderTableId, setManualOrderTableId] = useState('');
+  const [manualOrderType, setManualOrderType] = useState<'in-dining' | 'take-away' | 'delivery'>('in-dining');
+  const [manualOrderTableId, setManualOrderTableId] = useState('n/a');
   const [manualOrderTableNumber, setManualOrderTableNumber] = useState(0);
   const [manualOrderNote, setManualOrderNote] = useState('');
   const [manualOrderPaymentMethod, setManualOrderPaymentMethod] = useState<'upi' | 'card' | 'cash'>('cash');
@@ -70,6 +98,115 @@ export default function AdminHome() {
   const [manualOrderItems, setManualOrderItems] = useState<OrderItem[]>([]);
   const [manualSearchQuery, setManualSearchQuery] = useState('');
   const [manualSelectedCategory, setManualSelectedCategory] = useState('all');
+
+  // Manual Delivery details
+  const [manualOrderDeliveryAddress, setManualOrderDeliveryAddress] = useState('');
+  const [manualOrderDeliveryLat, setManualOrderDeliveryLat] = useState<number | undefined>(undefined);
+  const [manualOrderDeliveryLng, setManualOrderDeliveryLng] = useState<number | undefined>(undefined);
+
+  // Map variables
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapLat, setMapLat] = useState(25.5941);
+  const [mapLng, setMapLng] = useState(85.1376);
+
+  // Set default coordinates to restaurant's position if available
+  useEffect(() => {
+    if (state.restaurant?.latitude && state.restaurant?.longitude) {
+      setMapLat(state.restaurant.latitude);
+      setMapLng(state.restaurant.longitude);
+    }
+  }, [state.restaurant]);
+
+  // Leaflet map initializer for manual delivery order pinning
+  useEffect(() => {
+    if (!showMapModal) return;
+
+    let activeMap: any = null;
+    let marker: any = null;
+
+    loadLeaflet()
+      .then((L) => {
+        const mapContainer = document.getElementById('manual-delivery-pin-map');
+        if (!mapContainer) return;
+
+        // Initialize Map
+        activeMap = L.map('manual-delivery-pin-map', {
+          zoomControl: true,
+          scrollWheelZoom: true
+        }).setView([mapLat, mapLng], 15);
+
+        // Add Tile Layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(activeMap);
+
+        // Add Draggable Marker
+        marker = L.marker([mapLat, mapLng], {
+          draggable: true
+        }).addTo(activeMap);
+
+        // Marker dragend listener
+        marker.on('dragend', () => {
+          const pos = marker.getLatLng();
+          setMapLat(pos.lat);
+          setMapLng(pos.lng);
+        });
+
+        // Click on map to place marker
+        activeMap.on('click', (e: any) => {
+          marker.setLatLng(e.latlng);
+          setMapLat(e.latlng.lat);
+          setMapLng(e.latlng.lng);
+        });
+
+        // Fix Leaflet sizing bug (requires invalidating size after render)
+        setTimeout(() => {
+          if (activeMap) activeMap.invalidateSize();
+        }, 300);
+      })
+      .catch((err) => {
+        console.error('Leaflet loading failed:', err);
+        addToast('error', 'Failed to load interactive map. Please input address/link manually.');
+      });
+
+    return () => {
+      if (activeMap) {
+        activeMap.off();
+        activeMap.remove();
+      }
+    };
+  }, [showMapModal]);
+
+  const handleConfirmMapLocation = () => {
+    setMapLoading(true);
+    setManualOrderDeliveryLat(mapLat);
+    setManualOrderDeliveryLng(mapLng);
+
+    // Call reverse geocoder
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${mapLat}&lon=${mapLng}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.display_name) {
+          setManualOrderDeliveryAddress(`${data.display_name} (Map URL: https://maps.google.com/?q=${mapLat},${mapLng})`);
+          addToast('success', 'Location pinned and address updated! 📍');
+        } else {
+          setManualOrderDeliveryAddress(`https://maps.google.com/?q=${mapLat},${mapLng}`);
+          addToast('success', 'GPS coordinates pinned! 📍');
+        }
+        setShowMapModal(false);
+      })
+      .catch(err => {
+        console.error('Reverse geocode error:', err);
+        setManualOrderDeliveryAddress(`https://maps.google.com/?q=${mapLat},${mapLng}`);
+        addToast('success', 'GPS coordinates pinned! 📍');
+        setShowMapModal(false);
+      })
+      .finally(() => {
+        setMapLoading(false);
+      });
+  };
 
   const handleAddManualItem = (item: MenuItem, variant?: MenuItemVariant) => {
     setManualOrderItems(prev => {
@@ -126,7 +263,7 @@ export default function AdminHome() {
     setManualOrderName('');
     setManualOrderPhone('');
     setManualOrderType('in-dining');
-    setManualOrderTableId('');
+    setManualOrderTableId('n/a');
     setManualOrderTableNumber(0);
     setManualOrderNote('');
     setManualOrderPaymentMethod('cash');
@@ -134,6 +271,9 @@ export default function AdminHome() {
     setManualOrderItems([]);
     setManualSearchQuery('');
     setManualSelectedCategory('all');
+    setManualOrderDeliveryAddress('');
+    setManualOrderDeliveryLat(undefined);
+    setManualOrderDeliveryLng(undefined);
   };
 
   const handlePlaceManualOrder = () => {
@@ -148,8 +288,13 @@ export default function AdminHome() {
       return;
     }
     
-    if (manualOrderType === 'in-dining' && !manualOrderTableId) {
-      addToast('error', '❌ Please select a table for In-Dining orders.');
+    if (manualOrderType === 'in-dining' && (!manualOrderTableId || manualOrderTableId === 'n/a')) {
+      // Allow passing 'n/a' as default without erroring, but if they explicitly need a table, we can just allow 'n/a' as a valid choice (meaning no table).
+      // So no validation error is needed for table selection anymore since "N/A" is the default and valid!
+    }
+
+    if (manualOrderType === 'delivery' && !manualOrderDeliveryAddress.trim()) {
+      addToast('error', '❌ Please enter a delivery location link or choose it on the map.');
       return;
     }
 
@@ -164,8 +309,8 @@ export default function AdminHome() {
 
     const newOrder: Order = {
       id: orderId,
-      tableNumber: manualOrderType === 'take-away' ? 0 : manualOrderTableNumber,
-      tableId: manualOrderType === 'take-away' ? '' : manualOrderTableId,
+      tableNumber: manualOrderType === 'in-dining' && manualOrderTableId !== 'n/a' ? manualOrderTableNumber : 0,
+      tableId: manualOrderType === 'in-dining' && manualOrderTableId !== 'n/a' ? manualOrderTableId : '',
       restaurantId: state.admin?.restaurantId || 'admin-1',
       restaurantName: state.restaurant.name,
       customerName: manualOrderName.trim() || 'Guest (Manual)',
@@ -182,6 +327,10 @@ export default function AdminHome() {
       pointsRedeemed: 0,
       isManualOrder: true,
       isVipCustomer: isVipCustomer,
+      orderType: manualOrderType,
+      deliveryAddress: manualOrderType === 'delivery' ? manualOrderDeliveryAddress.trim() : undefined,
+      deliveryLat: manualOrderType === 'delivery' ? manualOrderDeliveryLat : undefined,
+      deliveryLng: manualOrderType === 'delivery' ? manualOrderDeliveryLng : undefined,
     };
 
     dispatch({ type: 'PLACE_ORDER', payload: newOrder });
@@ -1761,41 +1910,75 @@ export default function AdminHome() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Order Type</label>
-                      <select
-                        value={manualOrderType}
-                        onChange={e => setManualOrderType(e.target.value as any)}
-                        className="input"
-                        style={{ height: 36, padding: '0 10px', fontSize: 12, width: '100%', background: 'var(--bg-primary)' }}
-                      >
-                        <option value="in-dining">🪑 In-Dining</option>
-                        <option value="take-away">🛍️ Take-Away</option>
-                      </select>
-                    </div>
-
-                    {manualOrderType === 'in-dining' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div>
-                        <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Select Table</label>
+                        <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Order Type</label>
                         <select
-                          value={manualOrderTableId}
+                          value={manualOrderType}
                           onChange={e => {
-                            const tblId = e.target.value;
-                            setManualOrderTableId(tblId);
-                            const tbl = state.tables.find(t => t.id === tblId);
-                            setManualOrderTableNumber(tbl ? tbl.number : 0);
+                            const val = e.target.value as any;
+                            setManualOrderType(val);
+                            if (val !== 'in-dining') {
+                              setManualOrderTableId('n/a');
+                              setManualOrderTableNumber(0);
+                            }
                           }}
                           className="input"
                           style={{ height: 36, padding: '0 10px', fontSize: 12, width: '100%', background: 'var(--bg-primary)' }}
                         >
-                          <option value="">-- Choose Table --</option>
-                          {state.tables.map(t => (
-                            <option key={t.id} value={t.id}>
-                              Table {t.number} ({t.label})
-                            </option>
-                          ))}
+                          <option value="in-dining">🪑 In-Dining</option>
+                          <option value="take-away">🛍️ Take-Away</option>
+                          <option value="delivery">🛵 Home Delivery</option>
                         </select>
+                      </div>
+
+                      {manualOrderType === 'in-dining' && (
+                        <div>
+                          <label className="input-label" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Select Table</label>
+                          <select
+                            value={manualOrderTableId}
+                            onChange={e => {
+                              const tblId = e.target.value;
+                              setManualOrderTableId(tblId);
+                              const tbl = state.tables.find(t => t.id === tblId);
+                              setManualOrderTableNumber(tbl ? tbl.number : 0);
+                            }}
+                            className="input"
+                            style={{ height: 36, padding: '0 10px', fontSize: 12, width: '100%', background: 'var(--bg-primary)' }}
+                          >
+                            <option value="n/a">N/A</option>
+                            {state.tables.map(t => (
+                              <option key={t.id} value={t.id}>
+                                Table {t.number} ({t.label})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {manualOrderType === 'delivery' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label className="input-label" style={{ fontSize: 11, margin: 0 }}>Delivery Address & Location Link *</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowMapModal(true)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '2px 8px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4, height: 'auto' }}
+                          >
+                            📍 Pin on Map
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Enter location URL (e.g. Google Maps) or address details..."
+                          value={manualOrderDeliveryAddress}
+                          onChange={e => setManualOrderDeliveryAddress(e.target.value)}
+                          className="input"
+                          style={{ height: 36, padding: '0 10px', fontSize: 11.5, width: '100%' }}
+                        />
                       </div>
                     )}
                   </div>
@@ -2029,6 +2212,83 @@ export default function AdminHome() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMapModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1300,
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'fadeIn 0.2s ease',
+          padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: 24,
+            padding: '24px', width: '100%', maxWidth: 440,
+            border: '1px solid var(--border-elevated)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            display: 'flex', flexDirection: 'column', gap: 16
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 18 }}>📍</span>
+                <span style={{ fontSize: 15, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '-0.02em' }}>Pin Delivery Location</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMapModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 2 }}>
+              Drag the marker or click on the map to pin the exact delivery location.
+            </div>
+
+            <div style={{ position: 'relative', width: '100%' }}>
+              <div 
+                id="manual-delivery-pin-map" 
+                style={{ 
+                  width: '100%', 
+                  height: 320, 
+                  borderRadius: 14, 
+                  border: '1px solid var(--border)', 
+                  overflow: 'hidden',
+                  background: 'var(--bg-elevated)'
+                }} 
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary btn-full" 
+                onClick={() => setShowMapModal(false)}
+                style={{ height: 42, fontSize: 13, fontWeight: 700 }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary btn-full"
+                onClick={handleConfirmMapLocation}
+                disabled={mapLoading}
+                style={{ height: 42, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                {mapLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={14} />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Pin Location</span>
+                )}
+              </button>
             </div>
           </div>
         </div>

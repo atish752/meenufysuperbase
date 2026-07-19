@@ -340,31 +340,6 @@ export default function AdminLayout() {
         {/* Global Notification Bell */}
         <AdminNotificationBell />
 
-        {/* Theme switcher */}
-        <button
-          onClick={() => {
-            dispatch({ type: 'TOGGLE_ADMIN_THEME' });
-            addToast('success', `Theme switched to ${state.adminTheme === 'light' ? 'Dark' : 'Light'}!`);
-          }}
-          style={{
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            width: 32,
-            height: 32,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            fontSize: 14,
-            transition: 'var(--transition)',
-            color: 'var(--text-primary)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-          }}
-          title="Toggle Theme"
-        >
-          {state.adminTheme === 'light' ? '🌙' : '☀️'}
-        </button>
       </div>
 
       {expiryWarning && expiryWarning.show && (

@@ -129,7 +129,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     switch (plan) {
       case 'base': return 1;
       case 'standard': return 3;
-      case 'advance': return 5;
+      case 'advance': return 6;
       case 'free':
       default:
         return 0;
@@ -140,8 +140,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const getDeliveryBoyLimit = (plan: string) => {
     switch (plan) {
       case 'base': return 5;
-      case 'standard': return 10;
-      case 'advance': return Infinity;
+      case 'standard': return 7;
+      case 'advance': return 15;
       case 'free':
       default:
         return 2;
