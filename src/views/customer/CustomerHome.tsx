@@ -695,9 +695,23 @@ export default function CustomerHome() {
                       overflow: 'hidden',
                       border: isSelected ? '3px solid var(--brand)' : '1px solid var(--border)',
                       boxShadow: isSelected ? 'var(--shadow-brand)' : 'none',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}>
-                      <img src={cuisine.image} alt={cuisine.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img
+                        src={cuisine.image}
+                        alt={cuisine.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          transform: `scale(${1 - (cuisine.zoom || 0) / 100})`,
+                          transformOrigin: 'center'
+                        }}
+                      />
                     </div>
                     <span style={{
                       fontSize: 11,
@@ -1117,7 +1131,14 @@ export default function CustomerHome() {
                 }}>
                   "Your favourite restaurant, one tap away."
                 </p>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                <p style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  margin: '8px 0 0',
+                  lineHeight: 1.6,
+                  opacity: 0.9
+                }}>
                   Browse menus · Scan QR codes · Order at the table · Track in real-time
                 </p>
                 <div style={{

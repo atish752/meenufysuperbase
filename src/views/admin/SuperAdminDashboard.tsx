@@ -1662,6 +1662,56 @@ export default function SuperAdminDashboard() {
                   {optimizingImages ? '⏳ Optimizing...' : '⚡ Optimize & Compress Existing Images (~10KB each)'}
                 </button>
               </div>
+              
+              {state.popularCuisines && state.popularCuisines.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  marginBottom: 16
+                }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>🌐 Zoom Out All Images:</span>
+                  <select
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (window.confirm(`Are you sure you want to set the zoom size of all cuisines to ${val}%?`)) {
+                        const list = state.popularCuisines.map(item => ({ ...item, zoom: val }));
+                        dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                        addToast('success', `Zoom size set to ${val}% for all cuisines!`);
+                      }
+                    }}
+                    defaultValue=""
+                    style={{
+                      fontSize: '11px',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      background: 'var(--bg-elevated)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="" disabled>Select zoom size...</option>
+                    <option value={0}>0% (Normal)</option>
+                    <option value={5}>5% Zoom Out</option>
+                    <option value={10}>10% Zoom Out</option>
+                    <option value={15}>15% Zoom Out</option>
+                    <option value={20}>20% Zoom Out</option>
+                    <option value={25}>25% Zoom Out</option>
+                    <option value={30}>30% Zoom Out</option>
+                    <option value={35}>35% Zoom Out</option>
+                    <option value={40}>40% Zoom Out</option>
+                    <option value={45}>45% Zoom Out</option>
+                    <option value={50}>50% Zoom Out</option>
+                  </select>
+                </div>
+              )}
+
               {(!state.popularCuisines || state.popularCuisines.length === 0) ? (
                 <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-secondary)' }}>
                   No popular cuisines added yet. Click "Load Defaults" to fill this section.
@@ -1718,13 +1768,63 @@ export default function SuperAdminDashboard() {
                       >
                         ✏️
                       </button>
-                      <img
-                        src={c.image}
-                        alt={c.name}
-                        style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)', marginTop: 8 }}
-                      />
+                      <div style={{
+                        width: 50, height: 50, borderRadius: '50%',
+                        border: '1px solid var(--border)', overflow: 'hidden',
+                        background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        marginTop: 8
+                      }}>
+                        <img
+                          src={c.image}
+                          alt={c.name}
+                          style={{
+                            width: '100%', height: '100%', objectFit: 'cover',
+                            transform: `scale(${1 - (c.zoom || 0) / 100})`,
+                            transformOrigin: 'center'
+                          }}
+                        />
+                      </div>
                       <div style={{ fontWeight: 800, fontSize: 12, color: 'var(--text-primary)' }}>{c.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace' }}>q: {c.query}</div>
+                      
+                      <div style={{ width: '100%', marginTop: 2 }}>
+                        <select
+                          value={c.zoom || 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            const list = state.popularCuisines.map((item, idx) => {
+                              if (idx === index) {
+                                return { ...item, zoom: val };
+                              }
+                              return item;
+                            });
+                            dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                          }}
+                          style={{
+                            width: '100%',
+                            fontSize: '9px',
+                            padding: '2px 4px',
+                            borderRadius: '4px',
+                            background: 'var(--bg-primary)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border)',
+                            cursor: 'pointer',
+                            outline: 'none'
+                          }}
+                        >
+                          <option value={0}>0% Normal</option>
+                          <option value={5}>5% Zoom Out</option>
+                          <option value={10}>10% Zoom Out</option>
+                          <option value={15}>15% Zoom Out</option>
+                          <option value={20}>20% Zoom Out</option>
+                          <option value={25}>25% Zoom Out</option>
+                          <option value={30}>30% Zoom Out</option>
+                          <option value={35}>35% Zoom Out</option>
+                          <option value={40}>40% Zoom Out</option>
+                          <option value={45}>45% Zoom Out</option>
+                          <option value={50}>50% Zoom Out</option>
+                        </select>
+                      </div>
                       
                       {/* Rearrange position controls */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, borderTop: '1px solid var(--border)', paddingTop: 6, width: '100%', justifyContent: 'center' }}>

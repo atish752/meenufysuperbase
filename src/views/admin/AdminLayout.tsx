@@ -332,10 +332,14 @@ export default function AdminLayout() {
           right: 16,
           zIndex: 9990,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           gap: 10
         }}
       >
+        {/* Global Notification Bell */}
+        <AdminNotificationBell />
+
         {/* Theme switcher */}
         <button
           onClick={() => {
@@ -361,9 +365,6 @@ export default function AdminLayout() {
         >
           {state.adminTheme === 'light' ? '🌙' : '☀️'}
         </button>
-
-        {/* Global Notification Bell */}
-        <AdminNotificationBell />
       </div>
 
       {expiryWarning && expiryWarning.show && (

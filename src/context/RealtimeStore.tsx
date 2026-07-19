@@ -506,7 +506,7 @@ export type AppState = {
   subscriptionCoupons: SubscriptionCoupon[];
   // Gemini API Keys & Support / Feedback
   geminiApiKeys: string[];
-  popularCuisines: { name: string; query: string; image: string }[];
+  popularCuisines: { name: string; query: string; image: string; zoom?: number }[];
   supportRequests: SupportRequest[];
   ownerFeedbacks: OwnerFeedback[];
   staffMembers: StaffMember[];
@@ -1206,9 +1206,9 @@ type Action =
   | { type: 'SUPER_ADMIN_UPDATE_SUBSCRIPTION'; payload: { id: string; subscriptionPlan: 'free' | 'base' | 'standard' | 'advance'; ordersPlacedThisMonth: number; subscriptionRenewalDate: number; billingCountry: 'IN' | 'global'; billingPeriod: 'monthly' | 'yearly' } }
   | { type: 'ADD_GEMINI_KEY'; payload: string }
   | { type: 'REMOVE_GEMINI_KEY'; payload: string }
-  | { type: 'SYNC_POPULAR_CUISINES'; payload: { name: string; query: string; image: string }[] }
-  | { type: 'SET_POPULAR_CUISINES'; payload: { name: string; query: string; image: string }[] }
-  | { type: 'ADD_POPULAR_CUISINE'; payload: { name: string; query: string; image: string } }
+  | { type: 'SYNC_POPULAR_CUISINES'; payload: { name: string; query: string; image: string; zoom?: number }[] }
+  | { type: 'SET_POPULAR_CUISINES'; payload: { name: string; query: string; image: string; zoom?: number }[] }
+  | { type: 'ADD_POPULAR_CUISINE'; payload: { name: string; query: string; image: string; zoom?: number } }
   | { type: 'REMOVE_POPULAR_CUISINE'; payload: string }
   | { type: 'SUBMIT_SUPPORT_REQUEST'; payload: { message: string; attemptsCount: number } }
   | { type: 'REPLY_SUPPORT_REQUEST'; payload: { id: string; replyText: string } }
