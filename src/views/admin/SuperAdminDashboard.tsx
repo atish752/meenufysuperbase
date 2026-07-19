@@ -217,7 +217,7 @@ export default function SuperAdminDashboard() {
       let count = 0;
       for (const c of state.popularCuisines) {
         if (c.image) {
-          const compressed = await compressImage(c.image, 120, 120, 0.7);
+          const compressed = await compressImage(c.image, 180, 180, 0.85);
           if (compressed !== c.image) {
             newList.push({ ...c, image: compressed });
             count++;
@@ -1523,7 +1523,7 @@ export default function SuperAdminDashboard() {
                           reader.readAsDataURL(files[0]);
                           reader.onload = (event) => {
                             const raw = event.target?.result as string;
-                            compressImage(raw, 120, 120, 0.7)
+                            compressImage(raw, 180, 180, 0.85)
                               .then(compressed => {
                                 setNewCuisineImage(compressed);
                                 setUploadingCuisineImage(false);
@@ -1563,7 +1563,7 @@ export default function SuperAdminDashboard() {
                         const list = [...(state.popularCuisines || [])];
                         const idx = list.findIndex(c => c.query === editingCuisineQuery);
                         if (idx !== -1) {
-                          compressImage(newCuisineImage.trim(), 120, 120, 0.7)
+                          compressImage(newCuisineImage.trim(), 180, 180, 0.85)
                             .then(compressed => {
                               list[idx] = {
                                 name: newCuisineName.trim(),
@@ -1609,7 +1609,7 @@ export default function SuperAdminDashboard() {
                     className="btn btn-primary"
                     disabled={!newCuisineName.trim() || !newCuisineQuery.trim() || !newCuisineImage}
                     onClick={() => {
-                      compressImage(newCuisineImage.trim(), 120, 120, 0.7)
+                      compressImage(newCuisineImage.trim(), 180, 180, 0.85)
                         .then(compressed => {
                           dispatch({
                             type: 'ADD_POPULAR_CUISINE',
@@ -1659,7 +1659,7 @@ export default function SuperAdminDashboard() {
                   onClick={handleOptimizeCuisines}
                   style={{ fontSize: 11, padding: '4px 10px', height: 28, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                 >
-                  {optimizingImages ? '⏳ Optimizing...' : '⚡ Optimize & Compress Existing Images (~10KB each)'}
+                  {optimizingImages ? '⏳ Optimizing...' : '⚡ Optimize & Compress Existing Images (~20KB each)'}
                 </button>
               </div>
               

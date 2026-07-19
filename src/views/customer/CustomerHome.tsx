@@ -1131,34 +1131,44 @@ export default function CustomerHome() {
                 }}>
                   "Your favourite restaurant, one tap away."
                 </p>
-                <p style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  margin: '8px 0 0',
-                  lineHeight: 1.6,
-                  opacity: 0.9
-                }}>
-                  Browse menus · Scan QR codes · Order at the table · Track in real-time
-                </p>
+                {/* Sub-section styled in the QR code box theme from the screenshot */}
                 <div style={{
+                  background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.06) 0%, rgba(234, 88, 12, 0.01) 100%)',
+                  border: '1px solid rgba(249, 115, 22, 0.25)',
+                  borderRadius: 12,
+                  padding: '12px 16px',
                   marginTop: 16,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: 20,
-                  flexWrap: 'wrap'
+                  boxShadow: '0 2px 8px rgba(249,115,22,0.03)',
+                  textAlign: 'center'
                 }}>
-                  {['🚀 Instant Menus', '💳 Easy Ordering', '🔔 Live Updates', '⭐ Trusted by restaurants'].map(feat => (
-                    <span key={feat} style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: 'var(--brand)',
-                      background: 'rgba(249,115,22,0.1)',
-                      padding: '4px 10px',
-                      borderRadius: 99,
-                      border: '1px solid rgba(249,115,22,0.2)'
-                    }}>{feat}</span>
-                  ))}
+                  <p style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    margin: '0 0 12px',
+                    lineHeight: 1.6,
+                    opacity: 0.95
+                  }}>
+                    Browse menus · Scan QR codes · Order at the table · Track in real-time
+                  </p>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: 12,
+                    flexWrap: 'wrap'
+                  }}>
+                    {['🚀 Instant Menus', '💳 Easy Ordering', '🔔 Live Updates'].map(feat => (
+                      <span key={feat} style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: 'var(--brand)',
+                        background: 'rgba(249,115,22,0.1)',
+                        padding: '4px 10px',
+                        borderRadius: 99,
+                        border: '1px solid rgba(249,115,22,0.2)'
+                      }}>{feat}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </>
