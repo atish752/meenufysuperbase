@@ -1674,7 +1674,7 @@ export default function SuperAdminDashboard() {
                   padding: '8px 12px',
                   marginBottom: 16
                 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>🌐 Zoom Out All Images:</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>🌐 Zoom In All Images:</span>
                   <select
                     onChange={(e) => {
                       const val = parseInt(e.target.value);
@@ -1698,16 +1698,16 @@ export default function SuperAdminDashboard() {
                   >
                     <option value="" disabled>Select zoom size...</option>
                     <option value={0}>0% (Normal)</option>
-                    <option value={5}>5% Zoom Out</option>
-                    <option value={10}>10% Zoom Out</option>
-                    <option value={15}>15% Zoom Out</option>
-                    <option value={20}>20% Zoom Out</option>
-                    <option value={25}>25% Zoom Out</option>
-                    <option value={30}>30% Zoom Out</option>
-                    <option value={35}>35% Zoom Out</option>
-                    <option value={40}>40% Zoom Out</option>
-                    <option value={45}>45% Zoom Out</option>
-                    <option value={50}>50% Zoom Out</option>
+                    <option value={5}>5% Zoom In</option>
+                    <option value={10}>10% Zoom In</option>
+                    <option value={15}>15% Zoom In</option>
+                    <option value={20}>20% Zoom In</option>
+                    <option value={25}>25% Zoom In</option>
+                    <option value={30}>30% Zoom In</option>
+                    <option value={35}>35% Zoom In</option>
+                    <option value={40}>40% Zoom In</option>
+                    <option value={45}>45% Zoom In</option>
+                    <option value={50}>50% Zoom In</option>
                   </select>
                 </div>
               )}
@@ -1779,7 +1779,7 @@ export default function SuperAdminDashboard() {
                           alt={c.name}
                           style={{
                             width: '100%', height: '100%', objectFit: 'cover',
-                            transform: `scale(${1 - (c.zoom || 0) / 100})`,
+                            transform: `scale(${1 + (c.zoom || 0) / 100})`,
                             transformOrigin: 'center'
                           }}
                         />
@@ -1813,16 +1813,16 @@ export default function SuperAdminDashboard() {
                           }}
                         >
                           <option value={0}>0% Normal</option>
-                          <option value={5}>5% Zoom Out</option>
-                          <option value={10}>10% Zoom Out</option>
-                          <option value={15}>15% Zoom Out</option>
-                          <option value={20}>20% Zoom Out</option>
-                          <option value={25}>25% Zoom Out</option>
-                          <option value={30}>30% Zoom Out</option>
-                          <option value={35}>35% Zoom Out</option>
-                          <option value={40}>40% Zoom Out</option>
-                          <option value={45}>45% Zoom Out</option>
-                          <option value={50}>50% Zoom Out</option>
+                          <option value={5}>5% Zoom In</option>
+                          <option value={10}>10% Zoom In</option>
+                          <option value={15}>15% Zoom In</option>
+                          <option value={20}>20% Zoom In</option>
+                          <option value={25}>25% Zoom In</option>
+                          <option value={30}>30% Zoom In</option>
+                          <option value={35}>35% Zoom In</option>
+                          <option value={40}>40% Zoom In</option>
+                          <option value={45}>45% Zoom In</option>
+                          <option value={50}>50% Zoom In</option>
                         </select>
                       </div>
                       
