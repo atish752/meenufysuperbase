@@ -733,7 +733,7 @@ export default function CustomerLayout({ tableId }: Props) {
       display: 'flex', flexDirection: 'column',
       height: 'var(--app-height, 100dvh)',
       width: '100%',
-      background: 'var(--customer-bg-override, var(--bg-primary))',
+      background: state.customerTab === 'home' ? 'var(--bg-primary)' : 'var(--customer-bg-override, var(--bg-primary))',
       maxWidth: 480, margin: '0 auto', position: 'relative',
       overflow: 'hidden',
     }}>
@@ -790,6 +790,7 @@ export default function CustomerLayout({ tableId }: Props) {
         paddingBottom: (state.customerTab === 'menu' && state.activeCustomerRestaurantId) ? 0 : 'calc(100px + env(safe-area-inset-bottom, 0px))',
         display: 'flex',
         flexDirection: 'column',
+        background: state.customerTab === 'home' ? 'var(--bg-primary)' : 'transparent',
       }}>
         {renderTab()}
       </div>

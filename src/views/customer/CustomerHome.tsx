@@ -1106,10 +1106,11 @@ export default function CustomerHome() {
               <div style={{
                 margin: '32px 20px 0',
                 padding: '28px 20px',
-                background: 'linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(234,88,12,0.06) 100%)',
-                border: '1px solid rgba(249,115,22,0.2)',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
                 borderRadius: 20,
                 textAlign: 'center',
+                boxShadow: 'var(--shadow-sm)'
               }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🍽️</div>
                 <div style={{
@@ -1133,12 +1134,11 @@ export default function CustomerHome() {
                 </p>
                 {/* Sub-section styled in the QR code box theme from the screenshot */}
                 <div style={{
-                  background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.06) 0%, rgba(234, 88, 12, 0.01) 100%)',
-                  border: '1px solid rgba(249, 115, 22, 0.25)',
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
                   borderRadius: 12,
                   padding: '12px 16px',
                   marginTop: 16,
-                  boxShadow: '0 2px 8px rgba(249,115,22,0.03)',
                   textAlign: 'center'
                 }}>
                   <p style={{
