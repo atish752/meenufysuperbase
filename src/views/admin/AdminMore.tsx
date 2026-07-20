@@ -301,7 +301,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         const base64Src = event.target?.result as string;
         
         // Enforce square (1:1) crop for the profile image
-        const cropped = await cropImageSource(base64Src, '1:1');
+        const cropped = await cropImageSource(base64Src, '1:1', 1200, 300);
         setRestaurantForm(prev => ({ ...prev, posterImage: cropped, posterRatio: '1:1' }));
         addToast('success', 'Profile image uploaded & cropped to square successfully! 📸');
       };

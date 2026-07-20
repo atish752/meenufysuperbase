@@ -1118,9 +1118,18 @@ export default function CustomerHome() {
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', flex: 1 }}>
-                          {/* Left Side: Restaurant Profile Image */}
-                          <div style={{ width: 125, height: 125, position: 'relative', background: 'rgba(0,0,0,0.15)', flexShrink: 0, borderTopLeftRadius: acc.promoText ? 0 : 16, borderBottomLeftRadius: 16, overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', padding: 12, gap: 12, alignItems: 'center' }}>
+                          {/* Left Side: Restaurant Profile Image (Perfect Square with Curved Corners) */}
+                          <div style={{
+                            width: 100,
+                            height: 100,
+                            borderRadius: 12,
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            background: 'rgba(0,0,0,0.15)',
+                            position: 'relative',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                          }}>
                             <img
                               src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
                               alt={acc.restaurantName}
@@ -1129,7 +1138,15 @@ export default function CustomerHome() {
                           </div>
 
                           {/* Right Side: Details */}
-                          <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', minWidth: 0 }}>
+                          <div style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            minHeight: 100,
+                            position: 'relative',
+                            minWidth: 0
+                          }}>
                             <div>
                               {/* Header with Logo on Top Right */}
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
