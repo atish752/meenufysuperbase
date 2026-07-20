@@ -687,7 +687,46 @@ export default function CustomerHome() {
               overflowX: 'auto',
               paddingBottom: 6
             }} className="hide-scrollbar">
-              {(state.popularCuisines || []).map((cuisine) => {
+              {!state.cuisinesFromDb ? (
+                /* Animated circular skeletons for cuisines during cold start */
+                <>
+                  <style>{`
+                    @keyframes shimmer {
+                      0% { background-position: -400px 0; }
+                      100% { background-position: 400px 0; }
+                    }
+                    .skeleton-shine {
+                      background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%);
+                      background-size: 800px 100%;
+                      animation: shimmer 1.4s infinite linear;
+                    }
+                  `}</style>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div
+                      key={`skeleton-cuisine-${i}`}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 6,
+                        flexShrink: 0
+                      }}
+                    >
+                      <div className="skeleton-shine" style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: '50%',
+                        border: '1px solid var(--border)'
+                      }} />
+                      <div className="skeleton-shine" style={{
+                        width: 40,
+                        height: 10,
+                        borderRadius: 4
+                      }} />
+                    </div>
+                  ))}
+                </>
+              ) : (state.popularCuisines || []).map((cuisine) => {
                 const isSelected = selectedCuisine === cuisine.query;
                 return (
                   <button

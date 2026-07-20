@@ -522,6 +522,7 @@ export type AppState = {
   customerMenuTheme: CustomerMenuTheme;
   deferredPrompt?: any;
   accountsFromDb: boolean;
+  cuisinesFromDb: boolean;
 };
 
 export type CustomerMenuTheme = {
@@ -1110,7 +1111,7 @@ const DEFAULT_STATE: AppState = {
     'AIzaSyE_FakeGeminiKey_Beta02',
     'AIzaSyF_FakeGeminiKey_Gamma03'
   ],
-  popularCuisines: DEFAULT_POPULAR_CUISINES,
+  popularCuisines: [],
   supportRequests: [],
   ownerFeedbacks: [
     {
@@ -1152,6 +1153,7 @@ const DEFAULT_STATE: AppState = {
   },
   deferredPrompt: null,
   accountsFromDb: false,
+  cuisinesFromDb: false,
 };
 
 // ─── Actions ─────────────────────────────────────────────────
@@ -2237,7 +2239,8 @@ function reducer(state: AppState, action: Action): AppState {
       } catch {}
       return {
         ...state,
-        popularCuisines: cuisines
+        popularCuisines: cuisines,
+        cuisinesFromDb: true
       };
     }
     case 'ADD_POPULAR_CUISINE':
@@ -2388,7 +2391,10 @@ function loadState(): Partial<AppState> {
         initialPartial.restaurantAccounts = fastAccounts;
         initialPartial.accountsFromDb = true;
       }
-      if (fastCuisines && fastCuisines.length > 0) initialPartial.popularCuisines = fastCuisines;
+      if (fastCuisines && fastCuisines.length > 0) {
+        initialPartial.popularCuisines = fastCuisines;
+        initialPartial.cuisinesFromDb = true;
+      }
       return initialPartial;
     }
     const parsed = JSON.parse(raw) as Partial<AppState>;
@@ -2494,6 +2500,7 @@ function loadState(): Partial<AppState> {
     }
     if (fastCuisines && fastCuisines.length > 0) {
       parsed.popularCuisines = fastCuisines;
+      parsed.cuisinesFromDb = true;
     }
 
     return parsed;
