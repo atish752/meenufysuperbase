@@ -1064,45 +1064,39 @@ export default function CustomerHome() {
                       </p>
                     </div>
                   ) : (
-                    /* Firebase loading — show animated skeleton cards */
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      <style>{`
-                        @keyframes shimmer {
-                          0% { background-position: -400px 0; }
-                          100% { background-position: 400px 0; }
-                        }
-                        .skeleton-shine {
-                          background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%);
-                          background-size: 800px 100%;
-                          animation: shimmer 1.4s infinite linear;
-                          border-radius: 8px;
-                        }
-                      `}</style>
-                      {[1, 2, 3].map(i => (
-                        <div key={i} style={{
-                          background: 'var(--bg-elevated)',
-                          borderRadius: 16,
-                          overflow: 'hidden',
-                          border: '1px solid var(--border)',
-                          boxShadow: '0 2px 12px rgba(0,0,0,0.06)'
-                        }}>
-                          <div style={{ display: 'flex', height: 125 }}>
-                            <div className="skeleton-shine" style={{ width: 125, flexShrink: 0 }} />
-                            <div style={{ flex: 1, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                              <div className="skeleton-shine" style={{ height: 20, width: '65%' }} />
-                              <div className="skeleton-shine" style={{ height: 12, width: '45%' }} />
-                              <div className="skeleton-shine" style={{ height: 12, width: '80%' }} />
-                              <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
-                                <div className="skeleton-shine" style={{ height: 20, width: 60 }} />
-                                <div className="skeleton-shine" style={{ height: 20, width: 48 }} />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', margin: 0, paddingBottom: 8 }}>
-                        🔄 Loading nearby restaurants...
-                      </p>
+                    /* Firebase loading — show easy friendly loading card */
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(234,88,12,0.04) 100%)',
+                      border: '1.5px dashed rgba(249,115,22,0.35)',
+                      borderRadius: 20,
+                      padding: '36px 20px',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 14,
+                      margin: '10px 0'
+                    }}>
+                      <div style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        border: '4px solid rgba(249,115,22,0.2)',
+                        borderTopColor: '#ea580c',
+                        animation: 'spin 0.8s linear infinite'
+                      }} />
+                      <div>
+                        <h3 style={{ fontSize: 17, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', margin: 0, marginBottom: 6 }}>
+                          ✨ First time visiting?
+                        </h3>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5, maxWidth: 340 }}>
+                          Setting up live menus for the first time... This will take a few seconds! 🍲
+                        </p>
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', background: 'rgba(249,115,22,0.12)', padding: '6px 16px', borderRadius: 12 }}>
+                        ⚡ Connecting to nearby restaurants...
+                      </div>
                     </div>
                   )
                 ) : (
