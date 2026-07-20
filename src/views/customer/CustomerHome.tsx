@@ -1118,32 +1118,41 @@ export default function CustomerHome() {
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', padding: 12, gap: 12, alignItems: 'center' }}>
-                          {/* Left Side: Restaurant Profile Image (Perfect Square with Curved Corners) */}
+                        <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                          {/* Left Side: Restaurant Profile Image (Stretches to edges) */}
                           <div style={{
-                            width: 100,
-                            height: 100,
-                            borderRadius: 12,
-                            overflow: 'hidden',
-                            flexShrink: 0,
-                            background: 'rgba(0,0,0,0.15)',
+                            width: 135,
                             position: 'relative',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                            background: 'rgba(0,0,0,0.15)',
+                            flexShrink: 0,
+                            borderTopLeftRadius: acc.promoText ? 4 : 16,
+                            borderBottomLeftRadius: 16,
+                            borderTopRightRadius: 4,
+                            borderBottomRightRadius: 4,
+                            overflow: 'hidden',
+                            alignSelf: 'stretch'
                           }}>
                             <img
                               src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
                               alt={acc.restaurantName}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
                             />
                           </div>
 
                           {/* Right Side: Details */}
                           <div style={{
                             flex: 1,
+                            padding: '12px 14px 12px 12px',
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
-                            minHeight: 100,
+                            minHeight: 110,
                             position: 'relative',
                             minWidth: 0
                           }}>
