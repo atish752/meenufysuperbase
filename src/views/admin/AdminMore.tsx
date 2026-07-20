@@ -1708,6 +1708,82 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         onChange={e => setRestaurantForm({ ...restaurantForm, gst: e.target.value })} />
                     </div>
 
+                    {/* Outlet Location & GPS Coordinates */}
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, marginTop: 6 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        📍 Outlet Location &amp; Map Coordinates
+                      </div>
+                      
+                      <div className="input-group" style={{ marginBottom: 10 }}>
+                        <label className="input-label">Google Maps Link (Paste share link to auto-extract GPS)</label>
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder="e.g. https://maps.app.goo.gl/..."
+                          value={restaurantForm.googleMapsUrl || ''}
+                          onChange={e => {
+                            const url = e.target.value;
+                            const parsed = parseCoordsFromGmaps(url);
+                            if (parsed) {
+                              setRestaurantForm(prev => ({
+                                ...prev,
+                                googleMapsUrl: url,
+                                latitude: parseFloat(parsed.lat.toFixed(6)),
+                                longitude: parseFloat(parsed.lng.toFixed(6)),
+                              }));
+                              addToast('success', '✨ Coordinates auto-extracted from Google Maps link!');
+                            } else {
+                              setRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 10 }}>
+                        <div className="input-group" style={{ flex: 1 }}>
+                          <label className="input-label">Latitude</label>
+                          <input
+                            className="input"
+                            type="number"
+                            step="any"
+                            placeholder="e.g. 12.9348"
+                            value={restaurantForm.latitude ?? ''}
+                            onChange={e => setRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
+                          />
+                        </div>
+                        <div className="input-group" style={{ flex: 1 }}>
+                          <label className="input-label">Longitude</label>
+                          <input
+                            className="input"
+                            type="number"
+                            step="any"
+                            placeholder="e.g. 77.6202"
+                            value={restaurantForm.longitude ?? ''}
+                            onChange={e => setRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={handleCaptureCurrentLocation}
+                          disabled={capturingLocation}
+                          style={{ height: 38, padding: '0 12px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          {capturingLocation ? '🔄 GPS...' : '📡 Capture GPS'}
+                        </button>
+                      </div>
+
+                      <div className="input-group">
+                        <label className="input-label">Allowed Radius for Order Verification (meters)</label>
+                        <input
+                          className="input"
+                          type="number"
+                          value={restaurantForm.verificationRadius ?? 50}
+                          onChange={e => setRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
+                        />
+                      </div>
+                    </div>
+
                     <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
                       <Save size={15} /> Save Info Details
                     </button>

@@ -144,6 +144,7 @@ export type Order = {
   updatedAt: number;
   paymentMethod?: 'upi' | 'card' | 'cash';
   paymentStatus?: 'pending' | 'waiting_confirmation' | 'paid';
+  paymentConfirmedByAdmin?: boolean;
   ratings?: Record<string, number>;
   pointsEarned?: number;
   pointsRedeemed?: number;
@@ -1106,6 +1107,8 @@ type Action =
   | { type: 'LOGOUT_ADMIN' }
   | { type: 'UPDATE_RESTAURANT'; payload: Partial<RestaurantInfo> }
   | { type: 'TOGGLE_RESTAURANT_LISTING'; payload: { id: string; isListedOnHome: boolean } }
+  | { type: 'CONFIRM_ORDER_PAYMENT'; payload: { orderId: string; restaurantId?: string } }
+  | { type: 'SYNC_SINGLE_ORDER_REALTIME'; payload: Order }
   | { type: 'ADD_MENU_ITEM'; payload: MenuItem }
   | { type: 'UPDATE_MENU_ITEM'; payload: MenuItem }
   | { type: 'DELETE_MENU_ITEM'; payload: string }
@@ -1674,6 +1677,32 @@ function reducer(state: AppState, action: Action): AppState {
         restaurantAccounts: state.restaurantAccounts.map(acc =>
           acc.id === id ? { ...acc, isListedOnHome } : acc
         )
+      };
+    }
+    case 'CONFIRM_ORDER_PAYMENT': {
+      const { orderId } = action.payload;
+      return {
+        ...state,
+        orders: state.orders.map(o =>
+          o.id === orderId
+            ? { ...o, paymentStatus: 'paid', paymentConfirmedByAdmin: true, status: o.status === 'pending' ? 'preparing' : o.status, updatedAt: Date.now() }
+            : o
+        )
+      };
+    }
+    case 'SYNC_SINGLE_ORDER_REALTIME': {
+      const newOrder = action.payload;
+      const exists = state.orders.some(o => o.id === newOrder.id);
+      const updatedOrders = exists
+        ? state.orders.map(o => o.id === newOrder.id ? { ...o, ...newOrder } : o)
+        : [newOrder, ...state.orders];
+      
+      const isTargetAdmin = state.admin && !newOrder.isManualOrder && newOrder.restaurantId === (state.admin.restaurantId || state.admin.id);
+
+      return {
+        ...state,
+        orders: updatedOrders,
+        ...(isTargetAdmin && !exists ? { newOrderAlert: newOrder } : {})
       };
     }
     case 'SET_MANUAL_CLOSED': return { ...state, restaurant: { ...state.restaurant, isManualClosed: action.payload } };
@@ -3027,6 +3056,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
+    // ⚡ Instant Child Added & Child Changed listeners for orders (<10ms latency)
+    const { onChildAdded, onChildChanged } = require('firebase/database');
+    const ordersRef = ref(db, `orders/${targetRestaurantId}`);
+    const unsubscribeChildAdded = onChildAdded(ordersRef, (snapshot: any) => {
+      const val = snapshot.val();
+      if (val && snapshot.key) {
+        const singleOrder: Order = { ...val, id: snapshot.key, restaurantId: val.restaurantId || targetRestaurantId };
+        dispatch({ type: 'SYNC_SINGLE_ORDER_REALTIME', payload: singleOrder });
+      }
+    });
+    const unsubscribeChildChanged = onChildChanged(ordersRef, (snapshot: any) => {
+      const val = snapshot.val();
+      if (val && snapshot.key) {
+        const singleOrder: Order = { ...val, id: snapshot.key, restaurantId: val.restaurantId || targetRestaurantId };
+        dispatch({ type: 'SYNC_SINGLE_ORDER_REALTIME', payload: singleOrder });
+      }
+    });
+
     // Listen to waiterRequests
     const unsubscribeWaiter = onValue(ref(db, `waiterRequests/${targetRestaurantId}`), (snapshot) => {
       const data = snapshot.val();
@@ -3106,6 +3153,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeMenu();
       unsubscribeCat();
       unsubscribeOrder();
+      if (unsubscribeChildAdded) unsubscribeChildAdded();
+      if (unsubscribeChildChanged) unsubscribeChildChanged();
       unsubscribeWaiter();
       unsubscribeTables();
       unsubscribeSchedules();
@@ -3804,6 +3853,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             handleDbPromise(
               update(ref(db, `restaurantAccounts/${id}`), { isListedOnHome }),
               'Failed to update restaurant home listing status'
+            );
+            break;
+          }
+          case 'CONFIRM_ORDER_PAYMENT': {
+            const { orderId, restaurantId } = action.payload;
+            const targetId = restaurantId || restId;
+            handleDbPromise(
+              update(ref(db, `orders/${targetId}/${orderId}`), {
+                paymentStatus: 'paid',
+                paymentConfirmedByAdmin: true,
+                status: 'preparing',
+                updatedAt: Date.now()
+              }),
+              'Failed to confirm order payment'
             );
             break;
           }
