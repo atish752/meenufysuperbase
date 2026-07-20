@@ -1259,40 +1259,78 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
                     </div>
                   )}
                 </div>
-              ) : (restaurant.mustLoginBeforeOrder || orderType === 'delivery') ? (
+              ) : (restaurant.mustLoginBeforeOrder || orderType === 'delivery') && !googleUser && !customerPhone.trim() ? (
                 <div style={{
                   background: 'var(--bg-elevated)',
-                  border: '1px dashed var(--border-brand)',
+                  border: '1px solid var(--border-brand)',
                   borderRadius: 16,
                   padding: '20px 16px',
                   textAlign: 'center',
                   marginBottom: 16
                 }}>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>🔒</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>Sign in Required</div>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 14 }}>
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>🔒</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>Sign in to Place Order</div>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
                     {orderType === 'delivery' 
-                      ? 'You must sign in to place a home delivery order.' 
-                      : 'This restaurant requires you to sign in before placing orders.'}
+                      ? 'Home delivery orders require account verification for live tracking.' 
+                      : 'This restaurant requires sign-in before placing orders.'}
                   </p>
-                  <button
-                    onClick={() => {
-                      setOpen(false);
-                      dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'more' });
-                      addToast('info', 'Please sign in or sign up here! 🔑');
-                    }}
-                    className="btn"
-                    type="button"
-                    style={{
-                      background: 'var(--brand)',
-                      color: '#000000',
-                      border: 'none',
-                      fontSize: 12, fontWeight: 800, padding: '8px 16px', borderRadius: 99,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Sign In / Sign Up
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={signingIn}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: 12,
+                        background: '#ffffff',
+                        color: '#000000',
+                        border: '1px solid #e5e7eb',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                      </svg>
+                      <span>{signingIn ? 'Signing in...' : 'Sign in with Google'}</span>
+                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0' }}>
+                      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>or enter details</span>
+                      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input
+                        className="input"
+                        type="tel"
+                        placeholder="Phone Number *"
+                        value={customerPhone}
+                        onChange={handlePhoneChange}
+                        style={{ height: 38, fontSize: 12 }}
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Your Name *"
+                        value={customerName}
+                        onChange={e => setCustomerName(e.target.value)}
+                        style={{ height: 38, fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
