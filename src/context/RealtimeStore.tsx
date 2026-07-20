@@ -668,43 +668,38 @@ export const MOCK_RESTAURANT_INFOS: Record<string, RestaurantInfo> = {
 };
 
 export function getActiveRestaurantInfo(state: AppState, restaurantId: string): RestaurantInfo {
-  if (state.admin && state.admin.restaurantId === restaurantId) {
-    return state.restaurant;
-  }
-
-  // Only return state.restaurant if it has finished loading and matches the requested restaurantId
-  const isLoaded = state.restaurant && state.restaurant.id === restaurantId;
-  if (isLoaded) {
-    return state.restaurant;
-  }
-
-  // Fallback 1: Build basic info from preloaded restaurantAccounts (all outlets)
+  // Primary Source of Truth: Find account from state.restaurantAccounts (realtime Firebase DB node)
   const account = state.restaurantAccounts?.find(acc => acc.id === restaurantId);
+  const baseRest = (state.restaurant && state.restaurant.id === restaurantId) ? state.restaurant : DEFAULT_RESTAURANT;
+
   if (account) {
     return {
-      ...DEFAULT_RESTAURANT,
+      ...baseRest,
       id: restaurantId,
-      name: account.restaurantName || DEFAULT_RESTAURANT.name,
-      tagline: account.tagline || DEFAULT_RESTAURANT.tagline,
-      logo: account.logo || DEFAULT_RESTAURANT.logo,
-      bannerImage: account.bannerImage || DEFAULT_RESTAURANT.bannerImage,
-      posterImage: account.posterImage || DEFAULT_RESTAURANT.posterImage,
-      address: account.address || DEFAULT_RESTAURANT.address,
-      phone: account.ownerPhone || DEFAULT_RESTAURANT.phone,
-      daySpecificHours: account.daySpecificHours || DEFAULT_RESTAURANT.daySpecificHours,
-      rating: account.rating !== undefined ? account.rating : DEFAULT_RESTAURANT.rating,
-      ratingsCount: account.ratingsCount !== undefined ? account.ratingsCount : DEFAULT_RESTAURANT.ratingsCount,
-      promoText: account.promoText || DEFAULT_RESTAURANT.promoText,
-      cuisines: account.cuisines || DEFAULT_RESTAURANT.cuisines,
-      subscriptionPlan: account.subscriptionPlan || 'free',
-      subscriptionRenewalDate: account.subscriptionRenewalDate || 0,
-      basePlanSelectedType: account.basePlanSelectedType || 'dining_takeaway',
-      createdAt: account.createdAt,
-      // Default open hours while loading to prevent closed screen flash
-      openTime: '00:00',
-      closeTime: '23:59',
-      isManualClosed: false,
+      name: account.restaurantName || baseRest.name || DEFAULT_RESTAURANT.name,
+      tagline: account.tagline || baseRest.tagline || DEFAULT_RESTAURANT.tagline,
+      logo: account.logo || baseRest.logo || DEFAULT_RESTAURANT.logo,
+      bannerImage: account.bannerImage || baseRest.bannerImage || DEFAULT_RESTAURANT.bannerImage,
+      posterImage: account.posterImage || baseRest.posterImage || DEFAULT_RESTAURANT.posterImage,
+      address: account.address || baseRest.address || DEFAULT_RESTAURANT.address,
+      phone: account.ownerPhone || baseRest.phone || DEFAULT_RESTAURANT.phone,
+      daySpecificHours: account.daySpecificHours || baseRest.daySpecificHours || DEFAULT_RESTAURANT.daySpecificHours,
+      rating: account.rating !== undefined ? account.rating : baseRest.rating,
+      ratingsCount: account.ratingsCount !== undefined ? account.ratingsCount : baseRest.ratingsCount,
+      promoText: account.promoText !== undefined ? account.promoText : baseRest.promoText,
+      cuisines: account.cuisines || baseRest.cuisines || DEFAULT_RESTAURANT.cuisines,
+      subscriptionPlan: account.subscriptionPlan || baseRest.subscriptionPlan || 'free',
+      subscriptionRenewalDate: account.subscriptionRenewalDate || baseRest.subscriptionRenewalDate || 0,
+      basePlanSelectedType: account.basePlanSelectedType || baseRest.basePlanSelectedType || 'dining_takeaway',
+      createdAt: account.createdAt || baseRest.createdAt || Date.now(),
+      openTime: baseRest.openTime || '00:00',
+      closeTime: baseRest.closeTime || '23:59',
+      isManualClosed: baseRest.isManualClosed || false,
     };
+  }
+
+  if (state.restaurant && state.restaurant.id === restaurantId) {
+    return state.restaurant;
   }
 
   // Fallback 2: Check MOCK_RESTAURANT_INFOS
@@ -759,10 +754,11 @@ export function isSubscriptionActive(restaurant: RestaurantInfo | undefined): {
     return { active: true, daysRemaining };
   }
 
-  // 2. Paid Plans (base or standard)
+  // 2. Paid Plans (base, standard, advanced, enterprise, etc.)
   const now = Date.now();
-  if (now <= renewalDate) {
-    const remainingMs = renewalDate - now;
+  const validRenewalDate = renewalDate > 0 ? renewalDate : (now + 365 * 24 * 60 * 60 * 1000);
+  if (now <= validRenewalDate) {
+    const remainingMs = validRenewalDate - now;
     const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
     return { active: true, daysRemaining };
   }
@@ -3817,6 +3813,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (action.payload.posterImage) accountUpdates.posterImage = action.payload.posterImage;
             if (action.payload.ratingsCount !== undefined) accountUpdates.ratingsCount = action.payload.ratingsCount;
             if (action.payload.promoText !== undefined) accountUpdates.promoText = action.payload.promoText;
+            if (action.payload.subscriptionPlan) accountUpdates.subscriptionPlan = action.payload.subscriptionPlan;
+            if (action.payload.subscriptionRenewalDate !== undefined) accountUpdates.subscriptionRenewalDate = action.payload.subscriptionRenewalDate;
+            if (action.payload.basePlanSelectedType) accountUpdates.basePlanSelectedType = action.payload.basePlanSelectedType;
             
             if (Object.keys(accountUpdates).length > 0) {
               update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)
