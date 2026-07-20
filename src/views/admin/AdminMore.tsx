@@ -283,12 +283,12 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       reader.readAsDataURL(file);
       reader.onload = async (event) => {
         const base64Src = event.target?.result as string;
-
         
         // Logo is always cropped to 1:1 ratio
         const cropped = await cropImageSource(base64Src, '1:1');
         setRestaurantForm(prev => ({ ...prev, logo: cropped }));
-        addToast('success', 'Logo uploaded & cropped to 1:1 successfully! 📸');
+        dispatch({ type: 'UPDATE_RESTAURANT', payload: { logo: cropped } });
+        addToast('success', '✨ Restaurant logo uploaded & saved live to cloud! 📸');
       };
     } catch (err: any) {
       console.error(err);
@@ -317,11 +317,12 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         // Enforce square (1:1) crop for the profile image
         const cropped = await cropImageSource(base64Src, '1:1', 1200, 300);
         setRestaurantForm(prev => ({ ...prev, posterImage: cropped, posterRatio: '1:1' }));
-        addToast('success', 'Profile image uploaded & cropped to square successfully! 📸');
+        dispatch({ type: 'UPDATE_RESTAURANT', payload: { posterImage: cropped, posterRatio: '1:1' } });
+        addToast('success', '✨ Restaurant poster image uploaded & saved live to cloud! 📸');
       };
     } catch (err: any) {
       console.error(err);
-      addToast('error', `❌ Profile image upload failed: ${err.message || err}`);
+      addToast('error', `❌ Poster upload failed: ${err.message || err}`);
     } finally {
       setUploadingPoster(false);
     }
@@ -738,8 +739,10 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   }, [activeSection, state.tables]);
 
   const handleSaveRestaurant = () => {
-    dispatch({ type: 'UPDATE_RESTAURANT', payload: restaurantForm });
-    addToast('success', 'Restaurant settings saved!');
+    const currentName = restaurantForm.name || activeAccount?.restaurantName || state.restaurant.name;
+    const payloadToSave = { ...restaurantForm, name: currentName };
+    dispatch({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
+    addToast('success', '✨ Restaurant settings saved!');
   };
 
   const handleCaptureCurrentLocation = () => {
@@ -1188,7 +1191,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       )}
 
       {/* Outlet Settings */}
-      {(isOnlyOutlet || activeSection === 'outlet') && (
+      {isOnlyOutlet && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           
           {/* Sub-sections grid - horizontally styled at the top */}
