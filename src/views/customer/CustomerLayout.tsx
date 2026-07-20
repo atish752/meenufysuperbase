@@ -225,12 +225,10 @@ export default function CustomerLayout({ tableId }: Props) {
   const activeOrders = state.orders
     .filter(o => {
       if (['served', 'cancelled'].includes(o.status)) return false;
-      // Primary: session ID list (written at order placement — covers all order types)
+      // Primary: session ID list (written at order placement)
       if (mySessionOrderIds.includes(o.id)) return true;
-      // Fallback: phone match (for orders placed before the ID list was introduced)
+      // Fallback: phone match (for logged-in user or verified phone)
       if (myPhoneIdentifier && o.customerPhone === myPhoneIdentifier) return true;
-      // Fallback: tableId match for QR scanned in-dining without phone
-      if (tableId && o.tableId === tableId && !o.customerPhone) return true;
       return false;
     })
     .sort((a, b) => a.createdAt - b.createdAt);

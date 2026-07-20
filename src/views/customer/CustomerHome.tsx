@@ -1106,7 +1106,7 @@ export default function CustomerHome() {
                     </div>
                   )
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {processedRestaurants.map(acc => (
                       <div
                         key={acc.id}
@@ -1114,24 +1114,21 @@ export default function CustomerHome() {
                         style={{
                           display: 'flex',
                           flexDirection: 'column',
-                          background: 'linear-gradient(135deg, #F97316 0%, #EA580C 80%, #C2410C 100%)',
+                          background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
                           border: 'none',
-                          borderTopLeftRadius: 4,
-                          borderBottomLeftRadius: 16,
-                          borderTopRightRadius: 4,
-                          borderBottomRightRadius: 4,
+                          borderRadius: 16,
                           overflow: 'hidden',
                           cursor: 'pointer',
-                          boxShadow: '0 4px 16px rgba(249,115,22,0.35)',
+                          boxShadow: '0 4px 16px rgba(234, 88, 12, 0.3)',
                           transition: 'transform 0.2s, box-shadow 0.2s'
                         }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(249,115,22,0.45)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(249,115,22,0.35)'; }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(234, 88, 12, 0.4)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(234, 88, 12, 0.3)'; }}
                       >
-                        {/* Orange Promotional Banner at the top of the card */}
+                        {/* Top Promo Text Banner */}
                         {acc.promoText && (
                           <div style={{
-                            background: 'rgba(0,0,0,0.25)',
+                            background: 'rgba(0,0,0,0.22)',
                             color: '#ffffff',
                             fontSize: 9,
                             fontWeight: 800,
@@ -1147,26 +1144,21 @@ export default function CustomerHome() {
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'stretch' }}>
-                          {/* Left Side: Restaurant Profile Image (Stretches to edges) */}
+                        <div style={{ display: 'flex', alignItems: 'center', padding: 10, gap: 12 }}>
+                          {/* Left Side: Square Poster with curved bottom-left corner and 2-5% curve on other corners */}
                           <div style={{
-                            width: 100,
-                            position: 'relative',
-                            background: 'rgba(0,0,0,0.15)',
+                            width: 105,
+                            height: 105,
                             flexShrink: 0,
-                            borderTopLeftRadius: 4,
-                            borderBottomLeftRadius: 16,
-                            borderTopRightRadius: 0,
-                            borderBottomRightRadius: 0,
+                            borderRadius: '6px 6px 6px 18px',
                             overflow: 'hidden',
-                            alignSelf: 'stretch'
+                            background: 'rgba(0,0,0,0.2)',
+                            position: 'relative'
                           }}>
                             <img
                               src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
                               alt={acc.restaurantName}
                               style={{
-                                position: 'absolute',
-                                inset: 0,
                                 width: '100%',
                                 height: '100%',
                                 objectFit: 'cover'
@@ -1177,27 +1169,36 @@ export default function CustomerHome() {
                           {/* Right Side: Details */}
                           <div style={{
                             flex: 1,
-                            padding: '8px 12px 8px 10px',
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
-                            minHeight: 85,
-                            position: 'relative',
+                            height: 105,
                             minWidth: 0
                           }}>
                             <div>
-                              {/* Header with Logo on Top Right */}
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                                <h4 style={{ fontSize: 16, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: '#ffffff', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', textShadow: '0 1px 3px rgba(0,0,0,0.3)', flex: 1 }}>
+                              {/* Restaurant Title & Floating Logo Circle */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6, marginBottom: 2 }}>
+                                <h4 style={{
+                                  fontSize: 16,
+                                  fontWeight: 900,
+                                  fontFamily: 'var(--font-display)',
+                                  margin: 0,
+                                  color: '#ffffff',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  lineHeight: 1.2,
+                                  flex: 1
+                                }}>
                                   {acc.restaurantName}
                                 </h4>
                                 
-                                {/* Logo Image on Top Right */}
                                 <div style={{
-                                  width: 20,
-                                  height: 20,
+                                  width: 24,
+                                  height: 24,
                                   borderRadius: '50%',
-                                  border: '1px solid var(--border)',
+                                  border: '1.5px solid rgba(255,255,255,0.8)',
                                   overflow: 'hidden',
                                   background: '#ffffff',
                                   flexShrink: 0
@@ -1210,41 +1211,56 @@ export default function CustomerHome() {
                                 </div>
                               </div>
 
-                              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)', margin: 0, fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              <p style={{
+                                fontSize: 10,
+                                color: 'rgba(255,255,255,0.85)',
+                                margin: 0,
+                                fontStyle: 'italic',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
                                 {acc.cuisines || 'North Indian • Chinese • Fast Food'}
                               </p>
                             </div>
 
-                            {/* Distance, Rating & Delivery */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: 6 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 9, color: acc.distance <= 5 ? '#86efac' : '#fde047' }}>
-                                  <span style={{ fontWeight: 800 }}>{acc.distance.toFixed(1)} km</span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 9, color: '#86efac' }}>
-                                  <Award size={10} color="#86efac" />
-                                  <span style={{ fontWeight: 800 }}>Free</span>
+                            {/* Distance, Delivery & Rating */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 4,
+                              borderTop: '1px solid rgba(255,255,255,0.2)',
+                              paddingTop: 6
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 11, fontWeight: 900, color: '#ffffff' }}>
+                                  {acc.distance.toFixed(1)} km
+                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 10, color: '#ffffff', fontWeight: 800 }}>
+                                  <Award size={11} color="#ffffff" />
+                                  <span>Free</span>
                                 </div>
                               </div>
 
-                              {/* Rating Badge & Count */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              {/* Rating Pill */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 <div style={{
-                                  background: 'rgba(255,255,255,0.9)',
+                                  background: '#ffffff',
                                   color: '#16a34a',
-                                  fontSize: 8,
+                                  fontSize: 10,
                                   fontWeight: 900,
-                                  padding: '1px 4px',
-                                  borderRadius: 4,
+                                  padding: '2px 6px',
+                                  borderRadius: 6,
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 1
+                                  gap: 2
                                 }}>
-                                  <span>{(acc.rating ?? 0).toFixed(1)}</span>
-                                  <Star size={8} fill="#16a34a" stroke="none" />
+                                  <span>{(acc.rating ?? 5.0).toFixed(1)}</span>
+                                  <Star size={9} fill="#16a34a" stroke="none" />
                                 </div>
-                                <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
-                                  ({acc.ratingsCount ?? 0})
+                                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>
+                                  ({acc.ratingsCount ?? 483})
                                 </span>
                               </div>
                             </div>

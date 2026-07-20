@@ -19,7 +19,7 @@ const STATUS_INFO: Record<OrderStatus, { label: string; desc: string; icon: any;
   cancelled: { label: 'Cancelled', desc: 'Order was cancelled', icon: X, color: '#ef4444' },
 };
 
-export default function CustomerOrders({ tableId }: Props) {
+export default function CustomerOrders({ tableId: _tableId }: Props) {
   const { state, dispatch, addToast } = useStore();
   const [activeSubTab, setActiveSubTab] = useState<'orders' | 'loyalty'>('orders');
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all' | string>('all');
@@ -127,8 +127,16 @@ export default function CustomerOrders({ tableId }: Props) {
     );
   }
 
+  const mySessionOrderIds: string[] = (() => {
+    try { return JSON.parse(localStorage.getItem('meenufy_my_order_ids') || '[]'); } catch { return []; }
+  })();
+
   const myOrders = state.orders
-    .filter(o => o.customerPhone === myPhoneIdentifier || o.tableId === tableId)
+    .filter(o => {
+      if (mySessionOrderIds.includes(o.id)) return true;
+      if (myPhoneIdentifier && o.customerPhone === myPhoneIdentifier) return true;
+      return false;
+    })
     .sort((a, b) => b.createdAt - a.createdAt);
 
   // Find all unique months in user's orders
