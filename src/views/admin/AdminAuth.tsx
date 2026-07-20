@@ -328,6 +328,7 @@ export default function AdminAuth() {
     if (!auth) return;
     setLoading(true);
     try {
+      localStorage.setItem('meenufy_auth_role', 'admin');
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
       const adminId = fbUser.uid;

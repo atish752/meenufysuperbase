@@ -801,19 +801,21 @@ export default function CustomerMenu() {
           <div
             onClick={() => setShowOffersModal(true)}
             style={{
-              background: 'rgba(255, 125, 0, 0.06)',
-              border: '1px solid rgba(255, 125, 0, 0.15)',
-              padding: '6px 10px',
+              background: 'rgba(255, 125, 0, 0.08)',
+              border: '1px solid rgba(255, 125, 0, 0.2)',
+              padding: '7px 10px',
               cursor: 'pointer',
               overflow: 'hidden',
               whiteSpace: 'nowrap',
               position: 'relative',
-              borderRadius: 8,
+              borderRadius: 10,
               display: 'flex',
               alignItems: 'center',
               userSelect: 'none',
-              marginBottom: 4,
+              marginBottom: 8,
+              boxShadow: '0 2px 8px rgba(255,125,0,0.08)'
             }}
+            title="Click to view all active offers"
           >
             {/* Styles for marquee animation */}
             <style>{`
@@ -823,7 +825,7 @@ export default function CustomerMenu() {
               }
               .ticker-text {
                 display: inline-block;
-                animation: marquee-scroll 22s linear infinite;
+                animation: marquee-scroll 25s linear infinite;
                 font-size: 11px;
                 font-weight: 700;
                 color: var(--brand);
@@ -833,18 +835,21 @@ export default function CustomerMenu() {
                 animation-play-state: paused;
               }
             `}</style>
-            <div style={{ position: 'absolute', left: 8, background: 'var(--bg-glass)', padding: '0 4px', zIndex: 2, fontSize: 10, fontWeight: 800, color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: 3 }}>
-              🏷️ <span style={{ textTransform: 'uppercase', fontSize: 9 }}>Offers</span>:
+            <div style={{ position: 'absolute', left: 8, background: 'var(--bg-elevated)', padding: '2px 6px', zIndex: 2, fontSize: 10, fontWeight: 800, color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: 4, borderRadius: 6, border: '1px solid var(--border)' }}>
+              🎁 <span style={{ textTransform: 'uppercase', fontSize: 9 }}>Offers ({activeCoupons.length})</span>:
             </div>
-            <div style={{ width: '100%', overflow: 'hidden' }}>
+            <div style={{ width: '100%', overflow: 'hidden', paddingLeft: 85, paddingRight: 60 }}>
               <div className="ticker-text">
                 {activeCoupons.map((c, idx) => {
                   const desc = c.type === 'percentage'
-                    ? `🎉 Get ${c.value}% OFF using code ${c.code}${c.minOrderAmount ? ` (Min order ₹${c.minOrderAmount})` : ''}`
-                    : `🎉 Flat ₹${c.value} OFF using code ${c.code}${c.minOrderAmount ? ` (Min order ₹${c.minOrderAmount})` : ''}`;
+                    ? `🎉 ${c.value}% OFF with code ${c.code}${c.minOrderAmount ? ` (Min order ₹${c.minOrderAmount})` : ''}`
+                    : `🎉 Flat ₹${c.value} OFF with code ${c.code}${c.minOrderAmount ? ` (Min order ₹${c.minOrderAmount})` : ''}`;
                   return `${desc}${idx < activeCoupons.length - 1 ? '   •   ' : ''}`;
                 }).join(' ')}
               </div>
+            </div>
+            <div style={{ position: 'absolute', right: 8, background: 'var(--bg-elevated)', padding: '2px 6px', zIndex: 2, fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', borderRadius: 6, border: '1px solid var(--border)' }}>
+              Tap for all ➔
             </div>
           </div>
         )}

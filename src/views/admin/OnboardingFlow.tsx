@@ -14,8 +14,7 @@ import {
   Palette,
   Users,
   ChevronDown,
-  ChevronUp,
-  ChevronRight
+  ChevronUp
 } from 'lucide-react';
 
 export interface OnboardingState {
@@ -38,8 +37,9 @@ export default function OnboardingFlow() {
   const [currency, setCurrency] = useState<'INR' | 'USD'>('USD');
   const [detectingLocation, setDetectingLocation] = useState(true);
 
-  // Onboarding Form States
   const [tableCount, setTableCount] = useState<number>(12);
+  const [avgOrdersPerDay, setAvgOrdersPerDay] = useState<number>(50);
+  const [supportedOrderTypes, setSupportedOrderTypes] = useState<Array<'in-dining' | 'home-delivery' | 'take-away'>>(['in-dining', 'home-delivery', 'take-away']);
   const [biggestPainPoint, setBiggestPainPoint] = useState<string>('');
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [onboardingCity, setOnboardingCity] = useState<string>('Mumbai');
@@ -48,6 +48,15 @@ export default function OnboardingFlow() {
   const [basePlanSelectedType, setBasePlanSelectedType] = useState<'dining_takeaway' | 'delivery_only' | 'both'>('both');
   const [serviceModeSelected, setServiceModeSelected] = useState<boolean>(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
+  const toggleOrderType = (type: 'in-dining' | 'home-delivery' | 'take-away') => {
+    if (supportedOrderTypes.includes(type)) {
+      if (supportedOrderTypes.length === 1) return;
+      setSupportedOrderTypes(supportedOrderTypes.filter(t => t !== type));
+    } else {
+      setSupportedOrderTypes([...supportedOrderTypes, type]);
+    }
+  };
 
   // Local state object to capture user selections across screens (OnboardingState)
   const [onboardingData, setOnboardingData] = useState<OnboardingState>({
@@ -125,7 +134,9 @@ export default function OnboardingFlow() {
   }, []);
 
   // Screen 5 value counter logic
-  const targetLossValue = currency === 'INR' ? tableCount * 2500 : tableCount * 35;
+  const targetLossValue = currency === 'INR'
+    ? Math.round((tableCount * 1800) + (avgOrdersPerDay * 350))
+    : Math.round((tableCount * 25) + (avgOrdersPerDay * 5));
   useEffect(() => {
     if (screenIndex === 4) {
       setAnimatedLoss(0);
@@ -155,14 +166,6 @@ export default function OnboardingFlow() {
     if (screenIndex > 0) {
       setScreenIndex(prev => prev - 1);
     }
-  };
-
-  const handleSelectTables = (count: number) => {
-    setTableCount(count);
-    // Auto advance to next screen
-    setTimeout(() => {
-      setScreenIndex(3);
-    }, 300);
   };
 
   const handleSelectPainPoint = (pointKey: string) => {
@@ -221,6 +224,8 @@ export default function OnboardingFlow() {
           payload: {
             name: restaurantName.trim(),
             address: finalCity || 'India',
+            supportedOrderTypes,
+            avgOrdersPerDay,
             subscriptionPlan: (selectedPlan as any) || 'free',
             basePlanSelectedType: selectedPlan === 'base' && basePlanSelectedType !== 'both' ? (basePlanSelectedType as 'dining_takeaway' | 'delivery_only') : undefined,
             subscriptionRenewalDate: selectedPlan === 'free' ? Date.now() + 29 * 24 * 60 * 60 * 1000 : 0,
@@ -314,7 +319,7 @@ export default function OnboardingFlow() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'radial-gradient(circle at 50% 0%, #1e1e1e 0%, #0a0a0a 100%)',
+      background: 'var(--bg-body)',
       color: 'var(--text-primary)',
       padding: '24px 16px',
       position: 'relative',
@@ -325,7 +330,7 @@ export default function OnboardingFlow() {
       <div style={{
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,
-        background: 'linear-gradient(rgba(255,255,255,0.007) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.007) 1px, transparent 1px)',
+        background: 'linear-gradient(rgba(255,125,0,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,125,0,0.02) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
         opacity: 0.8,
         pointerEvents: 'none'
@@ -335,13 +340,13 @@ export default function OnboardingFlow() {
       <style>{`
         .onboarding-card {
           width: 100%;
-          max-width: 480px;
-          background: rgba(26, 26, 26, 0.65);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          max-width: 500px;
+          background: var(--bg-card);
+          color: var(--text-primary);
+          border: 1px solid var(--border);
           border-radius: 24px;
           padding: 32px 28px;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+          box-shadow: 0 20px 50px rgba(0,0,0,0.25);
           position: relative;
           z-index: 10;
           animation: scaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -519,46 +524,140 @@ export default function OnboardingFlow() {
           </div>
         )}
 
-        {/* ── SCREEN 3: TABLE VALUE COMMITMENT (ASK PHASE) ── */}
+        {/* ── SCREEN 3: VENUE CAPACITY & ORDER TYPES ── */}
         {screenIndex === 2 && (
           <div className="anim-fade">
-            <h2 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800, textAlign: 'center', marginBottom: 20 }}>
-              How many active tables does your venue operate?
+            <h2 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 800, textAlign: 'center', marginBottom: 16, color: 'var(--text-primary)' }}>
+              Configure your venue setup
             </h2>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-              {[
-                { label: '1 - 5 Tables', val: 5 },
-                { label: '6 - 15 Tables', val: 12 },
-                { label: '16 - 30 Tables', val: 24 },
-                { label: '31 - 50 Tables', val: 40 },
-                { label: '50+ Tables', val: 60 }
-              ].map(item => (
-                <button
-                  key={item.label}
-                  onClick={() => handleSelectTables(item.val)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 18px',
-                    background: tableCount === item.val ? 'var(--brand-dim)' : 'var(--bg-elevated)',
-                    border: tableCount === item.val ? '2px solid var(--brand)' : '1px solid var(--border)',
-                    borderRadius: 14,
-                    color: 'var(--text-primary)',
-                    textAlign: 'left',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    transition: 'var(--transition)'
-                  }}
-                >
-                  <span>{item.label}</span>
-                  <ChevronRight size={16} style={{ opacity: 0.6 }} />
-                </button>
-              ))}
+            {/* Order Types Selection */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand)', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+                Which order types do you handle? (Select all that apply)
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
+                {[
+                  { type: 'in-dining' as const, emoji: '🍽️', title: 'In-Dining / QR Table Ordering', desc: 'Dine-in menu scanning & table service' },
+                  { type: 'home-delivery' as const, emoji: '🛵', title: 'Home Delivery', desc: 'Online delivery orders & rider dispatch' },
+                  { type: 'take-away' as const, emoji: '🛍️', title: 'Take-Away / Pickup', desc: 'Parcel pickup & counter takeaway' }
+                ].map(item => {
+                  const isChecked = supportedOrderTypes.includes(item.type);
+                  return (
+                    <div
+                      key={item.type}
+                      onClick={() => toggleOrderType(item.type)}
+                      style={{
+                        padding: '10px 14px',
+                        background: isChecked ? 'rgba(255,125,0,0.08)' : 'var(--bg-elevated)',
+                        border: isChecked ? '2px solid var(--brand)' : '1px solid var(--border)',
+                        borderRadius: 12,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        transition: 'var(--transition)'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}} // Controlled by div onClick
+                        style={{ accentColor: 'var(--brand)', width: 16, height: 16, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 18 }}>{item.emoji}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: isChecked ? 'var(--brand)' : 'var(--text-primary)' }}>
+                          {item.title}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+                          {item.desc}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Table Count */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                Active Dining Tables: <strong style={{ color: 'var(--brand)' }}>{tableCount} tables</strong>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+                {[5, 12, 24, 40, 60].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setTableCount(val)}
+                    style={{
+                      padding: '8px 0',
+                      background: tableCount === val ? 'var(--brand)' : 'var(--bg-elevated)',
+                      color: tableCount === val ? '#000' : 'var(--text-primary)',
+                      border: tableCount === val ? 'none' : '1px solid var(--border)',
+                      borderRadius: 10,
+                      fontWeight: 800,
+                      fontSize: 12,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Avg Orders Per Day */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                Estimated Average Orders Per Day: <strong style={{ color: 'var(--brand)' }}>{avgOrdersPerDay} orders/day</strong>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                {[25, 50, 100, 250].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setAvgOrdersPerDay(val)}
+                    style={{
+                      padding: '8px 0',
+                      background: avgOrdersPerDay === val ? 'var(--brand)' : 'var(--bg-elevated)',
+                      color: avgOrdersPerDay === val ? '#000' : 'var(--text-primary)',
+                      border: avgOrdersPerDay === val ? 'none' : '1px solid var(--border)',
+                      borderRadius: 10,
+                      fontWeight: 800,
+                      fontSize: 12,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setScreenIndex(3)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'var(--brand)',
+                color: '#000',
+                border: 'none',
+                borderRadius: 14,
+                fontWeight: 800,
+                fontSize: 14,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8
+              }}
+            >
+              <span>Continue to Cost Calculator</span>
+              <ArrowRight size={16} />
+            </button>
           </div>
         )}
 

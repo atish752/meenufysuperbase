@@ -126,6 +126,7 @@ export default function CustomerMore() {
   const handleGoogleSignIn = async () => {
     if (hasFirebaseConfig && auth) {
       try {
+        localStorage.setItem('meenufy_auth_role', 'customer');
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
         const matched = state.customers.find(c => c.email === user.email);
@@ -476,6 +477,7 @@ export default function CustomerMore() {
     if (!customer) return;
     if (hasFirebaseConfig && auth && db) {
       try {
+        localStorage.setItem('meenufy_auth_role', 'customer');
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
 

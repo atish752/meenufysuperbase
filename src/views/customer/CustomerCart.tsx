@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore, getActiveRestaurantInfo, getActiveRestaurantId, isSubscriptionActive, isOrderTypeAllowed } from '../../context/RealtimeStore';
 import type { Order, Coupon } from '../../context/RealtimeStore';
 import { ShoppingBag, Trash2, ArrowRight, ChevronUp, MapPin, Check, X, Loader2 } from 'lucide-react';
-import { hasFirebaseConfig, auth, googleProvider } from '../../utils/firebase';
+import { hasFirebaseConfig, auth, googleProvider, db } from '../../utils/firebase';
 import { signInWithPopup } from 'firebase/auth';
 
 const RADAR_STYLE_ID = 'meenufy-gps-radar-styles';
@@ -622,6 +622,7 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
     if (hasFirebaseConfig && auth) {
       setSigningIn(true);
       try {
+        localStorage.setItem('meenufy_auth_role', 'customer');
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
         setGoogleForm({
@@ -639,35 +640,47 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       }
     } else {
       // Mock mode
+      localStorage.setItem('meenufy_auth_role', 'customer');
       setGoogleForm({ name: '', email: '', phone: '' });
       setShowGoogleModal(true);
     }
   };
 
-  const submitGoogleSignIn = (e: React.FormEvent) => {
+  const submitGoogleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!googleForm.name.trim() || !googleForm.email.trim() || !googleForm.phone.trim()) {
       addToast('error', 'All fields are required.');
       return;
     }
     
-    // Simulate minor delay for mock or save
     setSigningIn(true);
-    setTimeout(() => {
-      const user = {
-        name: googleForm.name.trim(),
-        email: googleForm.email.trim(),
-        phone: googleForm.phone.trim()
-      };
-      localStorage.setItem('meenufy_customer_google_user', JSON.stringify(user));
-      setCustomerName(user.name);
-      setCustomerPhone(user.phone);
-      setCustomerEmail(user.email);
-      setGoogleUser(user);
-      setSigningIn(false);
-      setShowGoogleModal(false);
-      addToast('success', 'Signed in successfully via Google! 🔒');
-    }, 400);
+    const user = {
+      name: googleForm.name.trim(),
+      email: googleForm.email.trim(),
+      phone: googleForm.phone.trim()
+    };
+
+    if (hasFirebaseConfig && db && auth?.currentUser) {
+      try {
+        const { ref: dbRef, set } = await import('firebase/database');
+        await set(dbRef(db, `customers/${auth.currentUser.uid}`), {
+          ...user,
+          uid: auth.currentUser.uid,
+          updatedAt: Date.now()
+        });
+      } catch (err) {
+        console.error('Error saving customer to Firebase DB:', err);
+      }
+    }
+
+    localStorage.setItem('meenufy_customer_google_user', JSON.stringify(user));
+    setCustomerName(user.name);
+    setCustomerPhone(user.phone);
+    setCustomerEmail(user.email);
+    setGoogleUser(user);
+    setSigningIn(false);
+    setShowGoogleModal(false);
+    addToast('success', 'Signed in successfully via Google! 🔒');
   };
 
   const handleApplyCouponCode = () => {
@@ -688,15 +701,18 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       return;
     }
     // Enforce one-time coupon: check if this phone already used it
-    if (found.isOneTime && customerPhone.trim()) {
-      const alreadyUsed = state.orders.some(
-        o => o.couponCodeApplied === found.code &&
-             o.customerPhone === customerPhone.trim() &&
-             o.restaurantId === restaurantId
-      );
-      if (alreadyUsed) {
-        setCouponError('This coupon has already been used by your account.');
-        return;
+    if (found.isOneTime) {
+      const cleanPhone = customerPhone.trim();
+      if (cleanPhone) {
+        const alreadyUsed = state.orders.some(
+          o => o.couponCodeApplied === found.code &&
+               o.restaurantId === restaurantId &&
+               o.customerPhone === cleanPhone
+        );
+        if (alreadyUsed) {
+          setCouponError('This one-time coupon has already been used by your phone number.');
+          return;
+        }
       }
     }
     // Check global usage limit
@@ -750,6 +766,22 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
     if (!isLoginRequired && (!customerName.trim() || !customerPhone.trim())) {
       addToast('error', 'Name and Phone number are required to place an order.');
       return;
+    }
+
+    if (appliedCoupon && appliedCoupon.isOneTime) {
+      const cleanPhone = customerPhone.trim();
+      if (cleanPhone) {
+        const alreadyUsed = state.orders.some(
+          o => o.couponCodeApplied === appliedCoupon.code &&
+               o.restaurantId === restaurantId &&
+               o.customerPhone === cleanPhone
+        );
+        if (alreadyUsed) {
+          addToast('error', `❌ One-time coupon ${appliedCoupon.code} has already been used by your phone number.`);
+          setAppliedCoupon(null);
+          return;
+        }
+      }
     }
 
     setPlacing(true);

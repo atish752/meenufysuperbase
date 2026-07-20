@@ -365,6 +365,7 @@ export default function AdminHome() {
     value: '',
     minOrderAmount: '',
     isOneTime: false,
+    showInDeals: false,
     isActive: true,
     appliesToType: 'all' as 'all' | 'categories',
     selectedCategories: [] as string[],
@@ -393,12 +394,22 @@ export default function AdminHome() {
       value: val,
       minOrderAmount: isNaN(minOrder) ? undefined : minOrder,
       isOneTime: couponForm.isOneTime,
+      showInDeals: couponForm.showInDeals,
       isActive: couponForm.isActive,
       createdAt: Date.now(),
       restaurantId: targetRestaurantId,
       appliesTo: couponForm.appliesToType === 'all' ? 'all' : couponForm.selectedCategories,
       label: couponForm.label.trim() || undefined
     };
+
+    if (couponForm.showInDeals) {
+      const restCoupons = (state.coupons || []).filter(c => (c.restaurantId || 'admin-1') === targetRestaurantId && c.id !== couponData.id);
+      restCoupons.forEach(c => {
+        if (c.showInDeals) {
+          dispatch({ type: 'UPDATE_COUPON', payload: { ...c, showInDeals: false } });
+        }
+      });
+    }
 
     if (editingCouponId) {
       dispatch({ type: 'UPDATE_COUPON', payload: couponData });
@@ -421,6 +432,7 @@ export default function AdminHome() {
       value: '',
       minOrderAmount: '',
       isOneTime: false,
+      showInDeals: false,
       isActive: true,
       appliesToType: 'all',
       selectedCategories: [],
@@ -437,6 +449,7 @@ export default function AdminHome() {
       value: String(coupon.value),
       minOrderAmount: coupon.minOrderAmount ? String(coupon.minOrderAmount) : '',
       isOneTime: !!coupon.isOneTime,
+      showInDeals: !!coupon.showInDeals,
       isActive: !!coupon.isActive,
       appliesToType: Array.isArray(coupon.appliesTo) ? 'categories' : 'all',
       selectedCategories: Array.isArray(coupon.appliesTo) ? coupon.appliesTo : [],
@@ -456,6 +469,7 @@ export default function AdminHome() {
           value: '',
           minOrderAmount: '',
           isOneTime: false,
+          showInDeals: false,
           isActive: true,
           appliesToType: 'all',
           selectedCategories: [],
@@ -469,6 +483,26 @@ export default function AdminHome() {
     const updated = { ...coupon, isActive: !coupon.isActive };
     dispatch({ type: 'UPDATE_COUPON', payload: updated });
     addToast('success', `Coupon ${coupon.code} is now ${updated.isActive ? 'Active' : 'Inactive'}.`);
+  };
+
+  const handleToggleDealsCoupon = (coupon: any) => {
+    const isCurrentlyFeatured = !!coupon.showInDeals;
+    const restId = state.admin?.restaurantId || 'admin-1';
+    const restaurantCoupons = (state.coupons || []).filter(c => (c.restaurantId || 'admin-1') === restId);
+
+    restaurantCoupons.forEach(c => {
+      if (c.id === coupon.id) {
+        dispatch({ type: 'UPDATE_COUPON', payload: { ...c, showInDeals: !isCurrentlyFeatured } });
+      } else if (c.showInDeals) {
+        dispatch({ type: 'UPDATE_COUPON', payload: { ...c, showInDeals: false } });
+      }
+    });
+
+    if (isCurrentlyFeatured) {
+      addToast('success', `Removed ${coupon.code} from Deals for You.`);
+    } else {
+      addToast('success', `Featured ${coupon.code} in Deals for You!`);
+    }
   };
 
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
@@ -1667,9 +1701,18 @@ export default function AdminHome() {
                     checked={couponForm.isOneTime}
                     onChange={e => setCouponForm({ ...couponForm, isOneTime: e.target.checked })}
                   />
-                  <span>One-time use per customer</span>
+                  <span>👤 One-time use per customer</span>
                 </label>
                 
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={couponForm.showInDeals}
+                    onChange={e => setCouponForm({ ...couponForm, showInDeals: e.target.checked })}
+                  />
+                  <span>⭐ Featured in "Deals for You" on Homescreen</span>
+                </label>
+
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
                   <input
                     type="checkbox"
@@ -1700,6 +1743,7 @@ export default function AdminHome() {
                         value: '',
                         minOrderAmount: '',
                         isOneTime: false,
+                        showInDeals: false,
                         isActive: true,
                         appliesToType: 'all',
                         selectedCategories: [],
@@ -1734,11 +1778,21 @@ export default function AdminHome() {
                     }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand)' }}>{coupon.code}</span>
                         <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: coupon.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: coupon.isActive ? 'var(--success)' : 'var(--error)' }}>
                           {coupon.isActive ? 'Active' : 'Inactive'}
                         </span>
+                        {coupon.showInDeals && (
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(255,125,0,0.15)', color: 'var(--brand)' }}>
+                            ⭐ Featured in Deals
+                          </span>
+                        )}
+                        {coupon.isOneTime && (
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+                            👤 1-Time/Customer
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                         {coupon.type === 'percentage' ? `${coupon.value}% Off` : `₹${coupon.value} Off`}
@@ -1766,6 +1820,22 @@ export default function AdminHome() {
                     </div>
                     
                     <div style={{ display: 'flex', gap: 4 }}>
+                      {coupon.isActive && (
+                        <button
+                          onClick={() => handleToggleDealsCoupon(coupon)}
+                          className={coupon.showInDeals ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"}
+                          style={{
+                            fontSize: 10,
+                            padding: '2px 8px',
+                            height: 26,
+                            background: coupon.showInDeals ? 'var(--brand)' : undefined,
+                            color: coupon.showInDeals ? '#000' : undefined,
+                            fontWeight: coupon.showInDeals ? '800' : undefined,
+                          }}
+                        >
+                          {coupon.showInDeals ? '⭐ Featured' : 'Feature'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleToggleCouponActive(coupon)}
                         className="btn btn-secondary btn-sm"

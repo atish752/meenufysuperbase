@@ -256,6 +256,8 @@ export type RestaurantInfo = {
   deliveryCharge?: number;
   freeDeliveryDistanceEnabled?: boolean;
   freeDeliveryMinAmountEnabled?: boolean;
+  supportedOrderTypes?: Array<'in-dining' | 'home-delivery' | 'take-away'>;
+  avgOrdersPerDay?: number;
 };
 
 export type Coupon = {
@@ -272,6 +274,7 @@ export type Coupon = {
   restaurantId?: string;
   appliesTo?: 'all' | string[];
   label?: string;
+  showInDeals?: boolean;
 };
 
 export type AddonOption = {
@@ -2597,57 +2600,97 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const currentAdmin = stateRef.current?.admin;
       const isAlreadyLoggedIn = currentAdmin && currentAdmin.isLoggedIn && !currentAdmin.isStaff && !currentAdmin.isDeliveryBoy;
 
-      if (fbUser && !isAlreadyLoggedIn) {
-        // Firebase session exists — restore admin session from DB
-        try {
-          const { get, ref: dbRef, query, orderByChild, equalTo } = await import('firebase/database');
-          const fbEmail = fbUser.email?.trim().toLowerCase() || '';
+      if (fbUser) {
+        const authRole = localStorage.getItem('meenufy_auth_role');
+        
+        // If logged in as customer (explicitly set or customer page)
+        if (authRole === 'customer') {
+          try {
+            const { get, ref: dbRef } = await import('firebase/database');
+            const custSnap = await get(dbRef(db!, `customers/${fbUser.uid}`));
+            const localUser = {
+              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Customer',
+              phone: custSnap.exists() ? (custSnap.val().phone || fbUser.phoneNumber || '') : (fbUser.phoneNumber || ''),
+              email: fbUser.email || '',
+              uniqueId: custSnap.exists() ? (custSnap.val().uniqueId || '') : '',
+              googleId: fbUser.uid
+            };
+            localStorage.setItem('meenufy_customer_google_user', JSON.stringify(localUser));
+            localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(localUser));
+            localStorage.setItem('meenufy_customer_user_logged_in', 'true');
+          } catch (err) {
+            console.error('Failed to restore customer session:', err);
+          }
+          return; // Strictly DO NOT log into admin!
+        }
 
-          // Try to find the account by UID first, then by email
-          let resolvedAdminId = fbUser.uid;
-          let dbMatchedAccount: any = null;
+        // If logged in as admin
+        if (!isAlreadyLoggedIn) {
+          try {
+            const { get, ref: dbRef, query, orderByChild, equalTo } = await import('firebase/database');
+            const fbEmail = fbUser.email?.trim().toLowerCase() || '';
 
-          const directSnap = await get(dbRef(db!, `restaurantAccounts/${fbUser.uid}`));
-          if (directSnap.exists()) {
-            dbMatchedAccount = { ...directSnap.val(), id: fbUser.uid };
-            resolvedAdminId = fbUser.uid;
-          } else {
-            const emailQuery = query(
-              dbRef(db!, 'restaurantAccounts'),
-              orderByChild('ownerEmail'),
-              equalTo(fbEmail)
-            );
-            const querySnap = await get(emailQuery);
-            if (querySnap.exists()) {
-              const queryData = querySnap.val();
-              const matchedEntry = Object.entries(queryData)[0];
-              if (matchedEntry) {
-                resolvedAdminId = matchedEntry[0];
-                dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+            let resolvedAdminId = fbUser.uid;
+            let dbMatchedAccount: any = null;
+
+            const directSnap = await get(dbRef(db!, `restaurantAccounts/${fbUser.uid}`));
+            if (directSnap.exists()) {
+              dbMatchedAccount = { ...directSnap.val(), id: fbUser.uid };
+              resolvedAdminId = fbUser.uid;
+            } else {
+              const emailQuery = query(
+                dbRef(db!, 'restaurantAccounts'),
+                orderByChild('ownerEmail'),
+                equalTo(fbEmail)
+              );
+              const querySnap = await get(emailQuery);
+              if (querySnap.exists()) {
+                const queryData = querySnap.val();
+                const matchedEntry = Object.entries(queryData)[0];
+                if (matchedEntry) {
+                  resolvedAdminId = matchedEntry[0];
+                  dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
+                }
               }
             }
+
+            // If role was not explicitly 'admin' and no restaurant account exists, treat as customer instead of forcing admin onboarding
+            if (!dbMatchedAccount && authRole !== 'admin') {
+              console.log('User logged in via Google but is not a restaurant owner. Treating as customer.');
+              localStorage.setItem('meenufy_auth_role', 'customer');
+              const localUser = {
+                name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Customer',
+                phone: fbUser.phoneNumber || '',
+                email: fbUser.email || '',
+                googleId: fbUser.uid
+              };
+              localStorage.setItem('meenufy_customer_google_user', JSON.stringify(localUser));
+              localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(localUser));
+              localStorage.setItem('meenufy_customer_user_logged_in', 'true');
+              return;
+            }
+
+            if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
+              await auth!.signOut();
+              return;
+            }
+
+            const adminUser = {
+              id: resolvedAdminId,
+              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
+              email: fbUser.email || '',
+              restaurantId: resolvedAdminId,
+              isLoggedIn: true,
+              isFirebaseUser: true,
+              restaurantName: dbMatchedAccount?.restaurantName || 'My Restaurant',
+              ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
+              existingAccount: dbMatchedAccount || undefined
+            };
+
+            dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
+          } catch (err) {
+            console.error('Failed to restore session from Firebase Auth:', err);
           }
-
-          if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
-            await auth!.signOut();
-            return;
-          }
-
-          const adminUser = {
-            id: resolvedAdminId,
-            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
-            email: fbUser.email || '',
-            restaurantId: resolvedAdminId,
-            isLoggedIn: true,
-            isFirebaseUser: true,
-            restaurantName: dbMatchedAccount?.restaurantName || 'My Restaurant',
-            ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
-            existingAccount: dbMatchedAccount || undefined
-          };
-
-          dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
-        } catch (err) {
-          console.error('Failed to restore session from Firebase Auth:', err);
         }
       } else if (!fbUser && isAlreadyLoggedIn && currentAdmin?.isFirebaseUser) {
         // Firebase session expired or signed out — log out the admin

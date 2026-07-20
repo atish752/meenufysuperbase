@@ -545,9 +545,20 @@ export default function CustomerHome() {
             </h3>
             {(() => {
               // Show deals from ALL active restaurants (not just nearby ones)
-              // so they persist even when processedRestaurants briefly recalculates after navigation
               const activeRestaurantIds = new Set(allAccounts.filter(a => a.status === 'active').map(r => r.id));
-              const filteredCoupons = allCoupons.filter(c => c.isActive !== false && c.restaurantId && activeRestaurantIds.has(c.restaurantId));
+              const activeCouponsList = allCoupons.filter(c => c.isActive !== false && c.restaurantId && activeRestaurantIds.has(c.restaurantId));
+              
+              // Group by restaurantId and pick strictly 1 offer per restaurant (prefer showInDeals === true)
+              const couponsByRest = new Map<string, typeof allCoupons[0]>();
+              activeCouponsList.forEach(c => {
+                const existing = couponsByRest.get(c.restaurantId!);
+                if (!existing) {
+                  couponsByRest.set(c.restaurantId!, c);
+                } else if (c.showInDeals && !existing.showInDeals) {
+                  couponsByRest.set(c.restaurantId!, c);
+                }
+              });
+              const filteredCoupons = Array.from(couponsByRest.values());
               const row1Coupons = filteredCoupons.filter((_, idx) => idx % 2 === 0);
               const row2Coupons = filteredCoupons.filter((_, idx) => idx % 2 !== 0);
 
@@ -1080,7 +1091,7 @@ export default function CustomerHome() {
                     </div>
                   )
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {processedRestaurants.map(acc => (
                       <div
                         key={acc.id}
@@ -1090,7 +1101,10 @@ export default function CustomerHome() {
                           flexDirection: 'column',
                           background: 'linear-gradient(135deg, #F97316 0%, #EA580C 80%, #C2410C 100%)',
                           border: 'none',
-                          borderRadius: 16,
+                          borderTopLeftRadius: 4,
+                          borderBottomLeftRadius: 16,
+                          borderTopRightRadius: 4,
+                          borderBottomRightRadius: 4,
                           overflow: 'hidden',
                           cursor: 'pointer',
                           boxShadow: '0 4px 16px rgba(249,115,22,0.35)',
@@ -1104,10 +1118,10 @@ export default function CustomerHome() {
                           <div style={{
                             background: 'rgba(0,0,0,0.25)',
                             color: '#ffffff',
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: 800,
-                            padding: '6px 14px',
-                            lineHeight: '1.4',
+                            padding: '4px 12px',
+                            lineHeight: '1.3',
                             textAlign: 'left',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -1121,14 +1135,14 @@ export default function CustomerHome() {
                         <div style={{ display: 'flex', alignItems: 'stretch' }}>
                           {/* Left Side: Restaurant Profile Image (Stretches to edges) */}
                           <div style={{
-                            width: 135,
+                            width: 100,
                             position: 'relative',
                             background: 'rgba(0,0,0,0.15)',
                             flexShrink: 0,
-                            borderTopLeftRadius: acc.promoText ? 4 : 16,
+                            borderTopLeftRadius: 4,
                             borderBottomLeftRadius: 16,
-                            borderTopRightRadius: 4,
-                            borderBottomRightRadius: 4,
+                            borderTopRightRadius: 0,
+                            borderBottomRightRadius: 0,
                             overflow: 'hidden',
                             alignSelf: 'stretch'
                           }}>
@@ -1148,25 +1162,25 @@ export default function CustomerHome() {
                           {/* Right Side: Details */}
                           <div style={{
                             flex: 1,
-                            padding: '12px 14px 12px 12px',
+                            padding: '8px 12px 8px 10px',
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
-                            minHeight: 110,
+                            minHeight: 85,
                             position: 'relative',
                             minWidth: 0
                           }}>
                             <div>
                               {/* Header with Logo on Top Right */}
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                                <h4 style={{ fontSize: 22, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: '#ffffff', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                <h4 style={{ fontSize: 16, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, color: '#ffffff', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', textShadow: '0 1px 3px rgba(0,0,0,0.3)', flex: 1 }}>
                                   {acc.restaurantName}
                                 </h4>
                                 
                                 {/* Logo Image on Top Right */}
                                 <div style={{
-                                  width: 24,
-                                  height: 24,
+                                  width: 20,
+                                  height: 20,
                                   borderRadius: '50%',
                                   border: '1px solid var(--border)',
                                   overflow: 'hidden',
@@ -1181,40 +1195,40 @@ export default function CustomerHome() {
                                 </div>
                               </div>
 
-                              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)', margin: '2px 0 0', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)', margin: 0, fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                 {acc.cuisines || 'North Indian • Chinese • Fast Food'}
                               </p>
                             </div>
 
                             {/* Distance, Rating & Delivery */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: 8 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: acc.distance <= 5 ? '#86efac' : '#fde047' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: 6 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 9, color: acc.distance <= 5 ? '#86efac' : '#fde047' }}>
                                   <span style={{ fontWeight: 800 }}>{acc.distance.toFixed(1)} km</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#86efac' }}>
-                                  <Award size={11} color="#86efac" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 9, color: '#86efac' }}>
+                                  <Award size={10} color="#86efac" />
                                   <span style={{ fontWeight: 800 }}>Free</span>
                                 </div>
                               </div>
 
                               {/* Rating Badge & Count */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                                 <div style={{
                                   background: 'rgba(255,255,255,0.9)',
                                   color: '#16a34a',
-                                  fontSize: 9,
+                                  fontSize: 8,
                                   fontWeight: 900,
-                                  padding: '2px 6px',
-                                  borderRadius: 6,
+                                  padding: '1px 4px',
+                                  borderRadius: 4,
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 2
+                                  gap: 1
                                 }}>
                                   <span>{(acc.rating ?? 0).toFixed(1)}</span>
-                                  <Star size={9} fill="#16a34a" stroke="none" />
+                                  <Star size={8} fill="#16a34a" stroke="none" />
                                 </div>
-                                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
+                                <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
                                   ({acc.ratingsCount ?? 0})
                                 </span>
                               </div>
@@ -1500,62 +1514,85 @@ export default function CustomerHome() {
               </div>
             </div>
 
-            {/* Offer details */}
+            {/* Offer details list */}
             <div style={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: 16,
               display: 'flex',
               flexDirection: 'column',
-              gap: 12
-            }}>
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Coupon Code</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <span style={{
-                    fontSize: 14,
-                    fontWeight: 900,
-                    letterSpacing: '0.04em',
-                    color: 'var(--brand)',
-                    background: 'rgba(255, 125, 0, 0.1)',
-                    border: '1.5px dashed var(--brand)',
-                    padding: '4px 12px',
-                    borderRadius: 6,
-                    fontFamily: 'monospace'
+              gap: 12,
+              maxHeight: 250,
+              overflowY: 'auto',
+              paddingRight: 4,
+              marginBottom: 16
+            }} className="hide-scrollbar">
+              {(() => {
+                const restId = selectedDeal.restaurant?.id;
+                const restaurantCoupons = allCoupons.filter(c => c.restaurantId === restId && c.isActive !== false);
+                if (restaurantCoupons.length === 0) {
+                  return (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>
+                      No active coupons for this restaurant right now.
+                    </div>
+                  );
+                }
+                return restaurantCoupons.map(coupon => (
+                  <div key={coupon.id} style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    padding: 12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8
                   }}>
-                    {selectedDeal.coupon?.code}
-                  </span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(selectedDeal.coupon?.code);
-                      addToast('success', `📋 Copied code: ${selectedDeal.coupon?.code}`);
-                    }}
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: '#fff',
-                      background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
-                      border: 'none',
-                      padding: '6px 12px',
-                      borderRadius: 8,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Copy Code
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Offer Description</div>
-                <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 700, marginTop: 4 }}>
-                  {selectedDeal.coupon?.type === 'percentage'
-                    ? `Get ${selectedDeal.coupon?.value}% OFF on order${selectedDeal.coupon?.minOrderAmount ? ` above ₹${selectedDeal.coupon?.minOrderAmount}` : ''}`
-                    : `Flat ₹${selectedDeal.coupon?.value} OFF on order${selectedDeal.coupon?.minOrderAmount ? ` above ₹${selectedDeal.coupon?.minOrderAmount}` : ''}`
-                  }
-                </div>
-              </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 900,
+                        letterSpacing: '0.04em',
+                        color: 'var(--brand)',
+                        background: 'rgba(255, 125, 0, 0.1)',
+                        border: '1.5px dashed var(--brand)',
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        fontFamily: 'monospace'
+                      }}>
+                        {coupon.code}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(coupon.code);
+                          addToast('success', `📋 Copied code: ${coupon.code}`);
+                        }}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          color: '#fff',
+                          background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
+                          border: 'none',
+                          padding: '4px 8px',
+                          borderRadius: 6,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 700 }}>
+                        {coupon.type === 'percentage'
+                          ? `Get ${coupon.value}% OFF on order${coupon.minOrderAmount ? ` above ₹${coupon.minOrderAmount}` : ''}`
+                          : `Flat ₹${coupon.value} OFF on order${coupon.minOrderAmount ? ` above ₹${coupon.minOrderAmount}` : ''}`
+                        }
+                      </div>
+                      {coupon.label && (
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>
+                          ℹ️ {coupon.label}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
 
             <button

@@ -98,6 +98,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     if (!auth || !googleProvider) return;
     setGoogleLinking(true);
     try {
+      localStorage.setItem('meenufy_auth_role', 'admin');
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
       dispatch({
@@ -132,7 +133,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       case 'advance': return 6;
       case 'free':
       default:
-        return 0;
+        return 3; // Return 3 for Free/Default as fallback
     }
   };
   const staffLimit = getStaffLimit(state.subscriptionPlan || 'free');
