@@ -191,6 +191,7 @@ export default function SuperAdminDashboard() {
   const [newCuisineImage, setNewCuisineImage] = useState('');
   const [uploadingCuisineImage, setUploadingCuisineImage] = useState(false);
   const [editingCuisineQuery, setEditingCuisineQuery] = useState<string | null>(null);
+  const [originalQuality, setOriginalQuality] = useState(false);
   const [newApiKey, setNewApiKey] = useState('');
   const [supportReplies, setSupportReplies] = useState<Record<string, string>>({});
   const [feedbackReplies, setFeedbackReplies] = useState<Record<string, string>>({});
@@ -1523,18 +1524,24 @@ export default function SuperAdminDashboard() {
                           reader.readAsDataURL(files[0]);
                           reader.onload = (event) => {
                             const raw = event.target?.result as string;
-                            compressImage(raw, 500, 500, 0.9)
-                              .then(compressed => {
-                                setNewCuisineImage(compressed);
-                                setUploadingCuisineImage(false);
-                                addToast('success', 'Image uploaded and optimized successfully!');
-                              })
-                              .catch(err => {
-                                console.error(err);
-                                setNewCuisineImage(raw);
-                                setUploadingCuisineImage(false);
-                                addToast('success', 'Image uploaded successfully!');
-                              });
+                            if (originalQuality) {
+                              setNewCuisineImage(raw);
+                              setUploadingCuisineImage(false);
+                              addToast('success', 'Image uploaded successfully (Original Quality)!');
+                            } else {
+                              compressImage(raw, 500, 500, 0.9)
+                                .then(compressed => {
+                                  setNewCuisineImage(compressed);
+                                  setUploadingCuisineImage(false);
+                                  addToast('success', 'Image uploaded and optimized successfully!');
+                                })
+                                .catch(err => {
+                                  console.error(err);
+                                  setNewCuisineImage(raw);
+                                  setUploadingCuisineImage(false);
+                                  addToast('success', 'Image uploaded successfully!');
+                                });
+                            }
                           };
                         } catch (err) {
                           console.error(err);
@@ -1552,6 +1559,17 @@ export default function SuperAdminDashboard() {
                     </label>
                   </div>
                 </div>
+                <div style={{ gridColumn: 'span 2', marginTop: -4, marginBottom: 8 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={originalQuality}
+                      onChange={e => setOriginalQuality(e.target.checked)}
+                      style={{ width: 16, height: 16, accentColor: 'var(--brand)', cursor: 'pointer' }}
+                    />
+                    <span style={{ color: 'var(--text-primary)' }}>⚡ <strong>Show Original Photo Quality</strong> (Skip sizing/compression limits to show full HD original image on Customer App)</span>
+                  </label>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 {editingCuisineQuery ? (
@@ -1563,30 +1581,44 @@ export default function SuperAdminDashboard() {
                         const list = [...(state.popularCuisines || [])];
                         const idx = list.findIndex(c => c.query === editingCuisineQuery);
                         if (idx !== -1) {
-                          compressImage(newCuisineImage.trim(), 500, 500, 0.9)
-                            .then(compressed => {
-                              list[idx] = {
-                                name: newCuisineName.trim(),
-                                query: newCuisineQuery.trim(),
-                                image: compressed
-                              };
-                              dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
-                              addToast('success', `${newCuisineName} updated and optimized successfully!`);
-                            })
-                            .catch(err => {
-                              console.error(err);
-                              list[idx] = {
-                                name: newCuisineName.trim(),
-                                query: newCuisineQuery.trim(),
-                                image: newCuisineImage.trim()
-                              };
-                              dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
-                              addToast('success', `${newCuisineName} updated successfully!`);
-                            });
+                          if (originalQuality) {
+                            list[idx] = {
+                              name: newCuisineName.trim(),
+                              query: newCuisineQuery.trim(),
+                              image: newCuisineImage.trim(),
+                              originalQuality: true
+                            };
+                            dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                            addToast('success', `${newCuisineName} updated successfully (Original Quality)!`);
+                          } else {
+                            compressImage(newCuisineImage.trim(), 500, 500, 0.9)
+                              .then(compressed => {
+                                list[idx] = {
+                                  name: newCuisineName.trim(),
+                                  query: newCuisineQuery.trim(),
+                                  image: compressed,
+                                  originalQuality: false
+                                };
+                                dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                                addToast('success', `${newCuisineName} updated and optimized successfully!`);
+                              })
+                              .catch(err => {
+                                console.error(err);
+                                list[idx] = {
+                                  name: newCuisineName.trim(),
+                                  query: newCuisineQuery.trim(),
+                                  image: newCuisineImage.trim(),
+                                  originalQuality: false
+                                };
+                                dispatch({ type: 'SET_POPULAR_CUISINES', payload: list });
+                                addToast('success', `${newCuisineName} updated successfully!`);
+                              });
+                          }
                         }
                         setNewCuisineName('');
                         setNewCuisineQuery('');
                         setNewCuisineImage('');
+                        setOriginalQuality(false);
                         setEditingCuisineQuery(null);
                       }}
                     >
@@ -1598,6 +1630,7 @@ export default function SuperAdminDashboard() {
                         setNewCuisineName('');
                         setNewCuisineQuery('');
                         setNewCuisineImage('');
+                        setOriginalQuality(false);
                         setEditingCuisineQuery(null);
                       }}
                     >
@@ -1609,35 +1642,55 @@ export default function SuperAdminDashboard() {
                     className="btn btn-primary"
                     disabled={!newCuisineName.trim() || !newCuisineQuery.trim() || !newCuisineImage}
                     onClick={() => {
-                      compressImage(newCuisineImage.trim(), 500, 500, 0.9)
-                        .then(compressed => {
-                          dispatch({
-                            type: 'ADD_POPULAR_CUISINE',
-                            payload: {
-                              name: newCuisineName.trim(),
-                              query: newCuisineQuery.trim(),
-                              image: compressed
-                            }
-                          });
-                          addToast('success', `${newCuisineName} added and optimized successfully!`);
-                        })
-                        .catch(err => {
-                          console.error(err);
-                          dispatch({
-                            type: 'ADD_POPULAR_CUISINE',
-                            payload: {
-                              name: newCuisineName.trim(),
-                              query: newCuisineQuery.trim(),
-                              image: newCuisineImage.trim()
-                            }
-                          });
-                          addToast('success', `${newCuisineName} added successfully!`);
-                        })
-                        .finally(() => {
-                          setNewCuisineName('');
-                          setNewCuisineQuery('');
-                          setNewCuisineImage('');
+                      if (originalQuality) {
+                        dispatch({
+                          type: 'ADD_POPULAR_CUISINE',
+                          payload: {
+                            name: newCuisineName.trim(),
+                            query: newCuisineQuery.trim(),
+                            image: newCuisineImage.trim(),
+                            originalQuality: true
+                          }
                         });
+                        addToast('success', `${newCuisineName} added successfully (Original Quality)!`);
+                        setNewCuisineName('');
+                        setNewCuisineQuery('');
+                        setNewCuisineImage('');
+                        setOriginalQuality(false);
+                      } else {
+                        compressImage(newCuisineImage.trim(), 500, 500, 0.9)
+                          .then(compressed => {
+                            dispatch({
+                              type: 'ADD_POPULAR_CUISINE',
+                              payload: {
+                                name: newCuisineName.trim(),
+                                query: newCuisineQuery.trim(),
+                                image: compressed,
+                                originalQuality: false
+                              }
+                            });
+                            addToast('success', `${newCuisineName} added and optimized successfully!`);
+                          })
+                          .catch(err => {
+                            console.error(err);
+                            dispatch({
+                              type: 'ADD_POPULAR_CUISINE',
+                              payload: {
+                                name: newCuisineName.trim(),
+                                query: newCuisineQuery.trim(),
+                                image: newCuisineImage.trim(),
+                                originalQuality: false
+                              }
+                            });
+                            addToast('success', `${newCuisineName} added successfully!`);
+                          })
+                          .finally(() => {
+                            setNewCuisineName('');
+                            setNewCuisineQuery('');
+                            setNewCuisineImage('');
+                            setOriginalQuality(false);
+                          });
+                      }
                     }}
                   >
                     Add Cuisine Item
@@ -1763,6 +1816,7 @@ export default function SuperAdminDashboard() {
                           setNewCuisineName(c.name);
                           setNewCuisineQuery(c.query);
                           setNewCuisineImage(c.image);
+                          setOriginalQuality(!!c.originalQuality);
                           setEditingCuisineQuery(c.query);
                         }}
                       >
@@ -1786,6 +1840,11 @@ export default function SuperAdminDashboard() {
                       </div>
                       <div style={{ fontWeight: 800, fontSize: 12, color: 'var(--text-primary)' }}>{c.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace' }}>q: {c.query}</div>
+                      {c.originalQuality && (
+                        <div style={{ display: 'inline-block', fontSize: 9, background: 'rgba(255,125,0,0.12)', color: 'var(--brand)', padding: '2px 6px', borderRadius: 4, fontWeight: 700, marginTop: 4 }}>
+                          ⚡ HD / Original
+                        </div>
+                      )}
                       
                       <div style={{ width: '100%', marginTop: 2 }}>
                         <select
