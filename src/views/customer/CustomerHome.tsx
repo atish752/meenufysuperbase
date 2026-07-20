@@ -269,7 +269,7 @@ export default function CustomerHome() {
 
 
   const processedRestaurants = useMemo(() => {
-    return activeRestaurants
+    const list = activeRestaurants
       .map(acc => {
         const rLat = acc.latitude || 12.9348;
         const rLon = acc.longitude || 77.6202;
@@ -292,11 +292,10 @@ export default function CustomerHome() {
         }
 
         // 2. Haversine 15 Kilometer radius limit or city address fallback
-        if (!coords) return false;
         const isNearby = acc.distance <= 15;
         const isAddressMatch = selectedCity !== 'all' && selectedCity !== 'gps' && 
                                !!acc.address && acc.address.toLowerCase().includes(selectedCity.toLowerCase());
-        if (!isNearby && !isAddressMatch) return false;
+        if (!isNearby && !isAddressMatch && coords) return false;
 
         // 3. Search query filter
         const matchesSearch = searchQuery.trim() === '' || 
@@ -305,6 +304,22 @@ export default function CustomerHome() {
 
         return matchesSearch;
       });
+
+    // Fallback: If no nearby match found or GPS pending, show all active restaurants so list is never blank!
+    if (list.length === 0 && activeRestaurants.length > 0) {
+      return activeRestaurants.map(acc => {
+        const rLat = acc.latitude || 12.9348;
+        const rLon = acc.longitude || 77.6202;
+        const uLat = coords?.latitude || 12.9348;
+        const uLon = coords?.longitude || 77.6202;
+        return {
+          ...acc,
+          distance: calculateDistance(uLat, uLon, rLat, rLon)
+        };
+      });
+    }
+
+    return list;
   }, [activeRestaurants, coords, selectedCity, searchQuery]);
 
   // Fetch meals from all nearby restaurants in parallel when coordinates are active

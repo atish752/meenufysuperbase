@@ -47,42 +47,38 @@ function AppInner() {
 
   if (state.isLoading) return <SplashScreen />;
 
-  // Onboarding routing check:
-  // - Show onboarding ONLY when admin is logged in for the FIRST TIME (new signup)
-  // - If DB says completed -> skip (returning admin, any device)
-  // - If DB record exists but hasCompletedOnboarding is false -> show (new account, not finished)
-  // - If no DB record at all (null) -> skip (pre-existing account or login user, don't force onboarding)
-  // - Never show onboarding for staff or superadmin
-  const currentAccount = state.restaurantAccounts?.find(acc => acc.id === state.admin?.id);
-  const dbHasCompleted = currentAccount ? currentAccount.hasCompletedOnboarding === true : null;
-
-  const isOnboarding =
-    pathname === '/onboarding' ||
-    pathname === '/onboarding/' ||
-    viewParam === 'onboarding' ||
-    (state.isAdminLoggedIn &&
-     !state.admin?.isSuperAdmin &&
-     !state.admin?.isStaff &&
-     !state.admin?.isDeliveryBoy &&
-     dbHasCompleted === false);
-
-  if (isOnboarding) {
-    return (
-      <Suspense fallback={<SplashScreen />}>
-        <OnboardingFlow />
-      </Suspense>
-    );
-  }
-
-  // Explicitly check for admin route:
-  // /admin or /admin/ or ?view=admin -> ALWAYS show admin panel
+  // Explicitly check for admin routes (/admin, /onboarding, ?view=admin)
   const isAdminRoute =
     pathname === '/admin' ||
     pathname === '/admin/' ||
     pathname.startsWith('/admin/') ||
-    viewParam === 'admin';
+    pathname === '/onboarding' ||
+    pathname === '/onboarding/' ||
+    viewParam === 'admin' ||
+    viewParam === 'onboarding';
 
   if (isAdminRoute) {
+    const currentAccount = state.restaurantAccounts?.find(acc => acc.id === state.admin?.id);
+    const dbHasCompleted = currentAccount ? currentAccount.hasCompletedOnboarding === true : null;
+
+    const isOnboarding =
+      pathname === '/onboarding' ||
+      pathname === '/onboarding/' ||
+      viewParam === 'onboarding' ||
+      (state.isAdminLoggedIn &&
+       !state.admin?.isSuperAdmin &&
+       !state.admin?.isStaff &&
+       !state.admin?.isDeliveryBoy &&
+       dbHasCompleted === false);
+
+    if (isOnboarding) {
+      return (
+        <Suspense fallback={<SplashScreen />}>
+          <OnboardingFlow />
+        </Suspense>
+      );
+    }
+
     return (
       <Suspense fallback={<SplashScreen />}>
         <AdminLayout />
@@ -90,18 +86,7 @@ function AppInner() {
     );
   }
 
-  // Customer route: '/' or '/home' or viewParam=customer
-  const isCustomerRoute =
-    pathname === '/' ||
-    pathname === '/home' ||
-    pathname === '/home/' ||
-    viewParam === 'customer';
-
-  if (isCustomerRoute) {
-    return <CustomerLayout tableId={tableParam || 'table-1'} />;
-  }
-
-  // Fallback: restaurant QR code scans or unknown paths -> customer view
+  // All non-admin routes render customer layout
   return <CustomerLayout tableId={tableParam || 'table-1'} />;
 }
 

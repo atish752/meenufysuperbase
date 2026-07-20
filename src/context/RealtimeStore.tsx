@@ -2654,9 +2654,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               }
             }
 
-            // If role was not explicitly 'admin' and no restaurant account exists, treat as customer instead of forcing admin onboarding
-            if (!dbMatchedAccount && authRole !== 'admin') {
-              console.log('User logged in via Google but is not a restaurant owner. Treating as customer.');
+            const isTargetingAdminRoute = typeof window !== 'undefined' && 
+              (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/onboarding') || window.location.search.includes('view=admin'));
+
+            // If user is on a customer route or signed in as a customer, keep as customer and DO NOT log into admin!
+            if (authRole === 'customer' || (!isTargetingAdminRoute && authRole !== 'admin')) {
+              console.log('Customer session active. Keeping customer role.');
               localStorage.setItem('meenufy_auth_role', 'customer');
               const localUser = {
                 name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Customer',
