@@ -1116,14 +1116,14 @@ export default function CustomerHome() {
                           flexDirection: 'column',
                           background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
                           border: 'none',
-                          borderRadius: 16,
+                          borderRadius: 18,
                           overflow: 'hidden',
                           cursor: 'pointer',
-                          boxShadow: '0 4px 16px rgba(234, 88, 12, 0.3)',
+                          boxShadow: '0 4px 18px rgba(234, 88, 12, 0.35)',
                           transition: 'transform 0.2s, box-shadow 0.2s'
                         }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(234, 88, 12, 0.4)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(234, 88, 12, 0.3)'; }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(234, 88, 12, 0.45)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 18px rgba(234, 88, 12, 0.35)'; }}
                       >
                         {/* Top Promo Text Banner */}
                         {acc.promoText && (
@@ -1132,7 +1132,7 @@ export default function CustomerHome() {
                             color: '#ffffff',
                             fontSize: 9,
                             fontWeight: 800,
-                            padding: '4px 12px',
+                            padding: '4px 14px',
                             lineHeight: '1.3',
                             textAlign: 'left',
                             whiteSpace: 'nowrap',
@@ -1144,13 +1144,13 @@ export default function CustomerHome() {
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', padding: 10, gap: 12 }}>
-                          {/* Left Side: Square Poster with curved bottom-left corner and 2-5% curve on other corners */}
+                        <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                          {/* Left Side: Square Poster - 20% Larger (128px x 128px), touching top, left, and bottom edges */}
                           <div style={{
-                            width: 105,
-                            height: 105,
+                            width: 128,
+                            height: 128,
                             flexShrink: 0,
-                            borderRadius: '6px 6px 6px 18px',
+                            borderRadius: '18px 6px 6px 22px',
                             overflow: 'hidden',
                             background: 'rgba(0,0,0,0.2)',
                             position: 'relative'
@@ -1172,14 +1172,16 @@ export default function CustomerHome() {
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
-                            height: 105,
+                            height: 128,
+                            padding: '12px 14px 12px 12px',
+                            boxSizing: 'border-box',
                             minWidth: 0
                           }}>
                             <div>
                               {/* Restaurant Title & Floating Logo Circle */}
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6, marginBottom: 2 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
                                 <h4 style={{
-                                  fontSize: 16,
+                                  fontSize: 17,
                                   fontWeight: 900,
                                   fontFamily: 'var(--font-display)',
                                   margin: 0,
@@ -1195,10 +1197,10 @@ export default function CustomerHome() {
                                 </h4>
                                 
                                 <div style={{
-                                  width: 24,
-                                  height: 24,
+                                  width: 26,
+                                  height: 26,
                                   borderRadius: '50%',
-                                  border: '1.5px solid rgba(255,255,255,0.8)',
+                                  border: '1.5px solid rgba(255,255,255,0.85)',
                                   overflow: 'hidden',
                                   background: '#ffffff',
                                   flexShrink: 0
@@ -1212,7 +1214,7 @@ export default function CustomerHome() {
                               </div>
 
                               <p style={{
-                                fontSize: 10,
+                                fontSize: 10.5,
                                 color: 'rgba(255,255,255,0.85)',
                                 margin: 0,
                                 fontStyle: 'italic',
@@ -1231,14 +1233,14 @@ export default function CustomerHome() {
                               justifyContent: 'space-between',
                               gap: 4,
                               borderTop: '1px solid rgba(255,255,255,0.2)',
-                              paddingTop: 6
+                              paddingTop: 8
                             }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ fontSize: 11, fontWeight: 900, color: '#ffffff' }}>
+                                <span style={{ fontSize: 11.5, fontWeight: 900, color: '#ffffff' }}>
                                   {acc.distance.toFixed(1)} km
                                 </span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 10, color: '#ffffff', fontWeight: 800 }}>
-                                  <Award size={11} color="#ffffff" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 10.5, color: '#ffffff', fontWeight: 800 }}>
+                                  <Award size={12} color="#ffffff" />
                                   <span>Free</span>
                                 </div>
                               </div>
@@ -1248,18 +1250,18 @@ export default function CustomerHome() {
                                 <div style={{
                                   background: '#ffffff',
                                   color: '#16a34a',
-                                  fontSize: 10,
+                                  fontSize: 10.5,
                                   fontWeight: 900,
-                                  padding: '2px 6px',
+                                  padding: '2px 7px',
                                   borderRadius: 6,
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: 2
                                 }}>
                                   <span>{(acc.rating ?? 5.0).toFixed(1)}</span>
-                                  <Star size={9} fill="#16a34a" stroke="none" />
+                                  <Star size={10} fill="#16a34a" stroke="none" />
                                 </div>
-                                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>
+                                <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>
                                   ({acc.ratingsCount ?? 483})
                                 </span>
                               </div>
