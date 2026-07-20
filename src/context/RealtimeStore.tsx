@@ -375,6 +375,7 @@ export type RestaurantAccount = {
   ratingsCount?: number;
   promoText?: string;
   daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>;
+  isListedOnHome?: boolean;
 };
 
 export type StaffMember = {
@@ -1165,6 +1166,7 @@ type Action =
   | { type: 'LOGIN_ADMIN'; payload: AdminUser }
   | { type: 'LOGOUT_ADMIN' }
   | { type: 'UPDATE_RESTAURANT'; payload: Partial<RestaurantInfo> }
+  | { type: 'TOGGLE_RESTAURANT_LISTING'; payload: { id: string; isListedOnHome: boolean } }
   | { type: 'ADD_MENU_ITEM'; payload: MenuItem }
   | { type: 'UPDATE_MENU_ITEM'; payload: MenuItem }
   | { type: 'DELETE_MENU_ITEM'; payload: string }
@@ -1699,7 +1701,42 @@ function reducer(state: AppState, action: Action): AppState {
         }
       ]
     };
-    case 'UPDATE_RESTAURANT': return { ...state, restaurant: { ...state.restaurant, ...action.payload } };
+    case 'UPDATE_RESTAURANT': {
+      const restName = action.payload.name || (action.payload as any).restaurantName;
+      const updatedPayload = restName ? { ...action.payload, name: restName } : action.payload;
+      const targetRestId = state.admin?.restaurantId || state.restaurant.id || 'admin-1';
+
+      const updatedAccounts = state.restaurantAccounts.map(acc => {
+        if (acc.id === targetRestId) {
+          return {
+            ...acc,
+            restaurantName: restName || acc.restaurantName,
+            ...(action.payload.logo ? { logo: action.payload.logo } : {}),
+            ...(action.payload.tagline ? { tagline: action.payload.tagline } : {}),
+            ...(action.payload.address ? { address: action.payload.address } : {}),
+            ...(action.payload.cuisines ? { cuisines: action.payload.cuisines } : {}),
+            ...(action.payload.posterImage ? { posterImage: action.payload.posterImage } : {}),
+            ...(action.payload.bannerImage ? { bannerImage: action.payload.bannerImage } : {}),
+          };
+        }
+        return acc;
+      });
+
+      return {
+        ...state,
+        restaurant: { ...state.restaurant, ...updatedPayload },
+        restaurantAccounts: updatedAccounts
+      };
+    }
+    case 'TOGGLE_RESTAURANT_LISTING': {
+      const { id, isListedOnHome } = action.payload;
+      return {
+        ...state,
+        restaurantAccounts: state.restaurantAccounts.map(acc =>
+          acc.id === id ? { ...acc, isListedOnHome } : acc
+        )
+      };
+    }
     case 'SET_MANUAL_CLOSED': return { ...state, restaurant: { ...state.restaurant, isManualClosed: action.payload } };
     case 'ADD_MENU_ITEM': {
       const restId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
@@ -3821,6 +3858,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)
                 .catch(err => console.error("Failed to sync profile changes to restaurantAccounts:", err));
             }
+            break;
+          }
+          case 'TOGGLE_RESTAURANT_LISTING': {
+            const { id, isListedOnHome } = action.payload;
+            handleDbPromise(
+              update(ref(db, `restaurantAccounts/${id}`), { isListedOnHome }),
+              'Failed to update restaurant home listing status'
+            );
             break;
           }
           case 'SET_MANUAL_CLOSED':

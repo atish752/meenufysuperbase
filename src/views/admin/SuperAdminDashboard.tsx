@@ -778,6 +778,28 @@ export default function SuperAdminDashboard() {
                       <td style={{ padding: '16px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                           <button
+                            onClick={() => {
+                              const nextListed = acc.isListedOnHome === false ? true : false;
+                              dispatch({
+                                type: 'TOGGLE_RESTAURANT_LISTING',
+                                payload: { id: acc.id, isListedOnHome: nextListed }
+                              });
+                              addToast('info', nextListed ? `Listed ${acc.restaurantName} on Customer Home!` : `Delisted ${acc.restaurantName} from Customer Home.`);
+                            }}
+                            className="btn btn-secondary btn-sm"
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              borderColor: 'var(--border)',
+                              color: acc.isListedOnHome === false ? 'var(--text-muted)' : 'var(--brand)',
+                              background: acc.isListedOnHome === false ? 'rgba(255,255,255,0.05)' : 'rgba(255,125,0,0.1)',
+                              padding: '4px 10px'
+                            }}
+                          >
+                            {acc.isListedOnHome === false ? '👁️ Hidden from Home' : '🌐 Listed on Home'}
+                          </button>
+
+                          <button
                             onClick={() => handleOpenManageModal(acc)}
                             className="btn btn-secondary btn-sm"
                             style={{

@@ -264,7 +264,7 @@ export default function CustomerHome() {
   // Filter & calculate active restaurants nearby (within 15 km limit)
   // useMemo prevents expensive Haversine recalculation on every Firebase push (orders, pings, etc.)
   const allAccounts = state.restaurantAccounts || [];
-  const activeRestaurants = useMemo(() => allAccounts.filter(acc => acc.status === 'active'), [allAccounts]);
+  const activeRestaurants = useMemo(() => allAccounts.filter(acc => acc.status === 'active' && acc.isListedOnHome !== false), [allAccounts]);
 
 
 
@@ -1258,11 +1258,11 @@ export default function CustomerHome() {
                                   alignItems: 'center',
                                   gap: 2
                                 }}>
-                                  <span>{(acc.rating ?? 5.0).toFixed(1)}</span>
+                                  <span>{(acc.rating ?? 0.0).toFixed(1)}</span>
                                   <Star size={10} fill="#16a34a" stroke="none" />
                                 </div>
                                 <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>
-                                  ({acc.ratingsCount ?? 483})
+                                  ({acc.ratingsCount ?? 0})
                                 </span>
                               </div>
                             </div>

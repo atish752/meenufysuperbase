@@ -167,7 +167,13 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     return true;
   });
 
-  const [restaurantForm, setRestaurantForm] = useState({ ...state.restaurant });
+  const activeAccount = state.restaurantAccounts?.find(acc => acc.id === (state.admin?.restaurantId || state.admin?.id));
+  const currentRestName = activeAccount?.restaurantName || state.restaurant.name;
+
+  const [restaurantForm, setRestaurantForm] = useState({ 
+    ...state.restaurant,
+    name: currentRestName
+  });
   const [feedbackText, setFeedbackText] = useState('');
   const [ticketType, setTicketType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
   const [activeSection, setActiveSection] = useState<string | null>(forceSection || null);
@@ -177,9 +183,16 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
 
   useEffect(() => {
-    setRestaurantForm({ ...state.restaurant });
+    const freshAccount = state.restaurantAccounts?.find(acc => acc.id === (state.admin?.restaurantId || state.admin?.id));
+    const freshName = freshAccount?.restaurantName || state.restaurant.name;
+
+    setRestaurantForm(prev => ({ 
+      ...state.restaurant, 
+      ...prev,
+      name: prev.name || freshName
+    }));
     setTableCount(state.restaurant.tableCount || 0);
-  }, [state.restaurant]);
+  }, [state.restaurant, state.restaurantAccounts]);
 
   // Staff state hooks
   const [staffName, setStaffName] = useState('');
