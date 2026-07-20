@@ -625,13 +625,53 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
         localStorage.setItem('meenufy_auth_role', 'customer');
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
-        setGoogleForm({
-          name: user.displayName || '',
+
+        let existingPhone = user.phoneNumber || customerPhone || '';
+        if (hasFirebaseConfig && db) {
+          try {
+            const { ref: dbRef, get } = await import('firebase/database');
+            const snap = await get(dbRef(db, `customers/${user.uid}`));
+            if (snap.exists() && snap.val().phone) {
+              existingPhone = snap.val().phone;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        const localUser = {
+          name: user.displayName || user.email?.split('@')[0] || 'Customer',
           email: user.email || '',
-          phone: ''
-        });
-        setShowGoogleModal(true);
-        addToast('info', 'Authenticated! Please verify your phone number to complete profile.');
+          phone: existingPhone,
+          uid: user.uid
+        };
+
+        if (hasFirebaseConfig && db) {
+          try {
+            const { ref: dbRef, set } = await import('firebase/database');
+            await set(dbRef(db, `customers/${user.uid}`), {
+              ...localUser,
+              updatedAt: Date.now()
+            });
+          } catch (e) {
+            console.error('Failed to write to customers node:', e);
+          }
+        }
+
+        localStorage.setItem('meenufy_customer_google_user', JSON.stringify(localUser));
+        localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(localUser));
+        localStorage.setItem('meenufy_customer_user_logged_in', 'true');
+        setCustomerName(localUser.name);
+        setCustomerEmail(localUser.email);
+        if (localUser.phone) setCustomerPhone(localUser.phone);
+        setGoogleUser(localUser);
+
+        if (!localUser.phone) {
+          setGoogleForm({ name: localUser.name, email: localUser.email, phone: '' });
+          setShowGoogleModal(true);
+        } else {
+          addToast('success', `Welcome back, ${localUser.name}! Signed in via Google.`);
+        }
       } catch (err: any) {
         console.error(err);
         addToast('error', `❌ Google Sign-In failed: ${err.message || err}`);
@@ -641,8 +681,15 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
     } else {
       // Mock mode
       localStorage.setItem('meenufy_auth_role', 'customer');
-      setGoogleForm({ name: '', email: '', phone: '' });
-      setShowGoogleModal(true);
+      const mockUser = { name: 'Customer User', email: 'customer@meenufy.in', phone: '9876543210' };
+      localStorage.setItem('meenufy_customer_google_user', JSON.stringify(mockUser));
+      localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(mockUser));
+      localStorage.setItem('meenufy_customer_user_logged_in', 'true');
+      setGoogleUser(mockUser);
+      setCustomerName(mockUser.name);
+      setCustomerPhone(mockUser.phone);
+      setCustomerEmail(mockUser.email);
+      addToast('success', 'Signed in as Customer (Mock Mode)');
     }
   };
 
