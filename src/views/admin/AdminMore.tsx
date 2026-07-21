@@ -171,7 +171,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const activeAccount = state.restaurantAccounts?.find(acc => acc.id === (state.admin?.restaurantId || state.admin?.id));
   const currentRestName = activeAccount?.restaurantName || state.restaurant.name;
 
-  const [restaurantForm, setRestaurantForm] = useState({ 
+  const [restaurantForm, _setRestaurantForm] = useState({ 
     ...state.restaurant,
     name: currentRestName
   });
@@ -182,15 +182,19 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
-  const isLoadedRef = useRef(false);
+  const isFormDirtyRef = useRef(false);
+  const updateRestaurantForm = (action: React.SetStateAction<typeof restaurantForm>) => {
+    isFormDirtyRef.current = true;
+    _setRestaurantForm(action);
+  };
 
   useEffect(() => {
     const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
     const freshAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
     
-    if (!isLoadedRef.current && (state.accountsFromDb || freshAccount || state.restaurant)) {
-      isLoadedRef.current = true;
-      setRestaurantForm({
+    // Update form state if the user has not typed unsaved changes
+    if (!isFormDirtyRef.current) {
+      _setRestaurantForm({
         ...state.restaurant,
         ...(freshAccount ? {
           name: freshAccount.restaurantName || state.restaurant.name,
@@ -222,7 +226,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       });
       setTableCount(state.restaurant.tableCount || 0);
     }
-  }, [state.admin?.id, state.accountsFromDb]);
+  }, [state.restaurant, state.restaurantAccounts, state.admin?.id, state.accountsFromDb]);
 
   // Staff state hooks
   const [staffName, setStaffName] = useState('');
@@ -316,7 +320,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         
         // Logo is always cropped to 1:1 ratio
         const cropped = await cropImageSource(base64Src, '1:1');
-        setRestaurantForm(prev => ({ ...prev, logo: cropped }));
+        updateRestaurantForm(prev => ({ ...prev, logo: cropped }));
         dispatch({ type: 'UPDATE_RESTAURANT', payload: { logo: cropped } });
         addToast('success', '✨ Restaurant logo uploaded & saved live to cloud! 📸');
       };
@@ -346,7 +350,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         
         // Enforce square (1:1) crop for the profile image
         const cropped = await cropImageSource(base64Src, '1:1', 1200, 300);
-        setRestaurantForm(prev => ({ ...prev, posterImage: cropped, posterRatio: '1:1' }));
+        updateRestaurantForm(prev => ({ ...prev, posterImage: cropped, posterRatio: '1:1' }));
         dispatch({ type: 'UPDATE_RESTAURANT', payload: { posterImage: cropped, posterRatio: '1:1' } });
         addToast('success', '✨ Restaurant poster image uploaded & saved live to cloud! 📸');
       };
@@ -373,7 +377,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       reader.readAsDataURL(file);
       reader.onload = (event) => {
         const base64Src = event.target?.result as string;
-        setRestaurantForm(prev => ({ ...prev, upiQrCode: base64Src }));
+        updateRestaurantForm(prev => ({ ...prev, upiQrCode: base64Src }));
         addToast('success', 'UPI QR Code uploaded successfully! 📱');
         setUploadingUpiQr(false);
       };
@@ -803,6 +807,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       update(ref(db, `restaurants/${targetId}`), { ...payloadToSave, name: currentName }).catch(err => console.error(err));
     }
     
+    isFormDirtyRef.current = false;
     dispatch({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
     addToast('success', '✨ Restaurant settings saved & synced live to cloud!');
   };
@@ -815,7 +820,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     setCapturingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setRestaurantForm(prev => ({
+        updateRestaurantForm(prev => ({
           ...prev,
           latitude: parseFloat(position.coords.latitude.toFixed(6)),
           longitude: parseFloat(position.coords.longitude.toFixed(6)),
@@ -1316,7 +1321,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </div>
                       <button
                         type="button"
-                        onClick={() => setRestaurantForm(prev => ({ ...prev, deliveryEnabled: !prev.deliveryEnabled }))}
+                        onClick={() => updateRestaurantForm(prev => ({ ...prev, deliveryEnabled: !prev.deliveryEnabled }))}
                         style={{
                           width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
                           background: restaurantForm.deliveryEnabled ? 'var(--brand)' : 'var(--border)',
@@ -1342,7 +1347,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               min={1}
                               max={100}
                               value={restaurantForm.deliveryRadius || 10}
-                              onChange={e => setRestaurantForm({ ...restaurantForm, deliveryRadius: parseFloat(e.target.value) || 0 })}
+                              onChange={e => updateRestaurantForm({ ...restaurantForm, deliveryRadius: parseFloat(e.target.value) || 0 })}
                             />
                           </div>
 
@@ -1353,7 +1358,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               type="number"
                               min={0}
                               value={restaurantForm.deliveryCharge !== undefined ? restaurantForm.deliveryCharge : 40}
-                              onChange={e => setRestaurantForm({ ...restaurantForm, deliveryCharge: parseFloat(e.target.value) || 0 })}
+                              onChange={e => updateRestaurantForm({ ...restaurantForm, deliveryCharge: parseFloat(e.target.value) || 0 })}
                               placeholder="e.g. 40"
                             />
                           </div>
@@ -1370,7 +1375,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                                 type="number"
                                 min={0}
                                 value={restaurantForm.freeDeliveryDistance || ''}
-                                onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryDistance: parseFloat(e.target.value) || 0 })}
+                                onChange={e => updateRestaurantForm({ ...restaurantForm, freeDeliveryDistance: parseFloat(e.target.value) || 0 })}
                                 placeholder="e.g. 5"
                               />
                             </div>
@@ -1382,7 +1387,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                                 type="number"
                                 min={0}
                                 value={restaurantForm.freeDeliveryMinAmount || ''}
-                                onChange={e => setRestaurantForm({ ...restaurantForm, freeDeliveryMinAmount: parseFloat(e.target.value) || 0 })}
+                                onChange={e => updateRestaurantForm({ ...restaurantForm, freeDeliveryMinAmount: parseFloat(e.target.value) || 0 })}
                                 placeholder="e.g. 500"
                               />
                             </div>
@@ -1396,7 +1401,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               </div>
                               <button
                                 type="button"
-                                onClick={() => setRestaurantForm(prev => ({ ...prev, freeDeliveryDistanceEnabled: prev.freeDeliveryDistanceEnabled !== undefined ? !prev.freeDeliveryDistanceEnabled : false }))}
+                                onClick={() => updateRestaurantForm(prev => ({ ...prev, freeDeliveryDistanceEnabled: prev.freeDeliveryDistanceEnabled !== undefined ? !prev.freeDeliveryDistanceEnabled : false }))}
                                 style={{
                                   width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
                                   background: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 'var(--brand)' : 'var(--border)',
@@ -1418,7 +1423,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               </div>
                               <button
                                 type="button"
-                                onClick={() => setRestaurantForm(prev => ({ ...prev, freeDeliveryMinAmountEnabled: prev.freeDeliveryMinAmountEnabled !== undefined ? !prev.freeDeliveryMinAmountEnabled : false }))}
+                                onClick={() => updateRestaurantForm(prev => ({ ...prev, freeDeliveryMinAmountEnabled: prev.freeDeliveryMinAmountEnabled !== undefined ? !prev.freeDeliveryMinAmountEnabled : false }))}
                                 style={{
                                   width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
                                   background: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 'var(--brand)' : 'var(--border)',
@@ -1458,7 +1463,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         <span style={{ fontSize: 13, marginRight: 6, marginLeft: 10, color: 'var(--text-muted)' }}>@</span>
                         <input className="input" type="text" placeholder="e.g. restaurant@upi"
                           value={restaurantForm.upiId || ''}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, upiId: e.target.value })} />
+                          onChange={e => updateRestaurantForm({ ...restaurantForm, upiId: e.target.value })} />
                       </div>
                     </div>
 
@@ -1510,7 +1515,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           <img src={restaurantForm.upiQrCode} alt="UPI QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         </div>
                         <button
-                          onClick={() => setRestaurantForm(prev => ({ ...prev, upiQrCode: undefined }))}
+                          onClick={() => updateRestaurantForm(prev => ({ ...prev, upiQrCode: undefined }))}
                           className="btn btn-ghost btn-sm"
                           style={{ color: 'var(--error)', marginTop: 8, fontSize: 11 }}
                         >
@@ -1540,7 +1545,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </div>
                       <div 
                         className={`toggle ${restaurantForm.mustLoginBeforeOrder ? 'on' : ''}`}
-                        onClick={() => setRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
+                        onClick={() => updateRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="toggle-thumb" />
@@ -1555,7 +1560,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </div>
                       <div 
                         className={`toggle ${restaurantForm.overlayLogoOnMeals ? 'on' : ''}`}
-                        onClick={() => setRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
+                        onClick={() => updateRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="toggle-thumb" />
@@ -1570,7 +1575,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </div>
                       <div 
                         className={`toggle ${restaurantForm.locationVerificationEnabled ? 'on' : ''}`}
-                        onClick={() => setRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: !prev.locationVerificationEnabled }))}
+                        onClick={() => updateRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: !prev.locationVerificationEnabled }))}
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="toggle-thumb" />
@@ -1590,7 +1595,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               const url = e.target.value;
                               const parsed = parseCoordsFromGmaps(url);
                               if (parsed) {
-                                setRestaurantForm(prev => ({
+                                updateRestaurantForm(prev => ({
                                   ...prev,
                                   googleMapsUrl: url,
                                   latitude: parseFloat(parsed.lat.toFixed(6)),
@@ -1598,7 +1603,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                                 }));
                                 addToast('success', 'Coordinates auto-extracted!');
                               } else {
-                                setRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
+                                updateRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
                               }
                             }}
                           />
@@ -1612,7 +1617,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               type="number"
                               step="any"
                               value={restaurantForm.latitude ?? ''}
-                              onChange={e => setRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
+                              onChange={e => updateRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
                             />
                           </div>
                           <div className="input-group" style={{ flex: 1 }}>
@@ -1622,7 +1627,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               type="number"
                               step="any"
                               value={restaurantForm.longitude ?? ''}
-                              onChange={e => setRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
+                              onChange={e => updateRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
                             />
                           </div>
                           <button
@@ -1642,7 +1647,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                             className="input"
                             type="number"
                             value={restaurantForm.verificationRadius ?? 50}
-                            onChange={e => setRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
+                            onChange={e => updateRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
                           />
                         </div>
                       </div>
@@ -1665,7 +1670,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       <div className="input-icon-wrap">
                         <Store size={15} className="input-icon" />
                         <input className="input" type="text" value={restaurantForm.name}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, name: e.target.value })} />
+                          onChange={e => updateRestaurantForm({ ...restaurantForm, name: e.target.value })} />
                       </div>
                     </div>
 
@@ -1673,12 +1678,12 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       <div className="input-group" style={{ flex: 1 }}>
                         <label className="input-label">Opens At</label>
                         <input className="input" type="time" value={restaurantForm.openTime}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, openTime: e.target.value })} />
+                          onChange={e => updateRestaurantForm({ ...restaurantForm, openTime: e.target.value })} />
                       </div>
                       <div className="input-group" style={{ flex: 1 }}>
                         <label className="input-label">Closes At</label>
                         <input className="input" type="time" value={restaurantForm.closeTime}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, closeTime: e.target.value })} />
+                          onChange={e => updateRestaurantForm({ ...restaurantForm, closeTime: e.target.value })} />
                       </div>
                     </div>
 
@@ -1703,7 +1708,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                                     } else {
                                       delete newHours[day];
                                     }
-                                    setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                    updateRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
                                   }}
                                   style={{ accentColor: 'var(--brand)' }}
                                 />
@@ -1717,7 +1722,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                                     onChange={e => {
                                       const newHours = { ...(restaurantForm as any).daySpecificHours };
                                       newHours[day] = { ...customHours, openTime: e.target.value };
-                                      setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                      updateRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
                                     }}
                                     style={{ height: 26, fontSize: 11, padding: '2px 4px' }}
                                   />
@@ -1728,7 +1733,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                                     onChange={e => {
                                       const newHours = { ...(restaurantForm as any).daySpecificHours };
                                       newHours[day] = { ...customHours, closeTime: e.target.value };
-                                      setRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
+                                      updateRestaurantForm({ ...restaurantForm, daySpecificHours: newHours });
                                     }}
                                     style={{ height: 26, fontSize: 11, padding: '2px 4px' }}
                                   />
@@ -1743,31 +1748,31 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                     <div className="input-group">
                       <label className="input-label">Address</label>
                       <input className="input" type="text" value={restaurantForm.address}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, address: e.target.value })} />
+                        onChange={e => updateRestaurantForm({ ...restaurantForm, address: e.target.value })} />
                     </div>
 
                     <div className="input-group">
                       <label className="input-label">Phone Number</label>
                       <input className="input" type="tel" value={restaurantForm.phone}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, phone: e.target.value })} />
+                        onChange={e => updateRestaurantForm({ ...restaurantForm, phone: e.target.value })} />
                     </div>
 
                     <div className="input-group">
                       <label className="input-label">Email</label>
                       <input className="input" type="email" value={restaurantForm.email}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, email: e.target.value })} />
+                        onChange={e => updateRestaurantForm({ ...restaurantForm, email: e.target.value })} />
                     </div>
 
                     <div className="input-group">
                       <label className="input-label">FSSAI License Number</label>
                       <input className="input" type="text" value={restaurantForm.fssai || ''}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, fssai: e.target.value })} />
+                        onChange={e => updateRestaurantForm({ ...restaurantForm, fssai: e.target.value })} />
                     </div>
 
                     <div className="input-group">
                       <label className="input-label">GST Number</label>
                       <input className="input" type="text" value={restaurantForm.gst || ''}
-                        onChange={e => setRestaurantForm({ ...restaurantForm, gst: e.target.value })} />
+                        onChange={e => updateRestaurantForm({ ...restaurantForm, gst: e.target.value })} />
                     </div>
 
                     {/* Outlet Location & GPS Coordinates */}
@@ -1787,7 +1792,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                             const url = e.target.value;
                             const parsed = parseCoordsFromGmaps(url);
                             if (parsed) {
-                              setRestaurantForm(prev => ({
+                              updateRestaurantForm(prev => ({
                                 ...prev,
                                 googleMapsUrl: url,
                                 latitude: parseFloat(parsed.lat.toFixed(6)),
@@ -1795,7 +1800,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               }));
                               addToast('success', '✨ Coordinates auto-extracted from Google Maps link!');
                             } else {
-                              setRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
+                              updateRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
                             }
                           }}
                         />
@@ -1810,7 +1815,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                             step="any"
                             placeholder="e.g. 12.9348"
                             value={restaurantForm.latitude ?? ''}
-                            onChange={e => setRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
+                            onChange={e => updateRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
                           />
                         </div>
                         <div className="input-group" style={{ flex: 1 }}>
@@ -1821,7 +1826,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                             step="any"
                             placeholder="e.g. 77.6202"
                             value={restaurantForm.longitude ?? ''}
-                            onChange={e => setRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
+                            onChange={e => updateRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
                           />
                         </div>
                         <button
@@ -1845,7 +1850,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           value={restaurantForm.verificationRadius ?? restaurantForm.indiningRadius ?? 100}
                           onChange={e => {
                             const val = parseInt(e.target.value) || 0;
-                            setRestaurantForm({
+                            updateRestaurantForm({
                               ...restaurantForm,
                               verificationRadius: val,
                               indiningRadius: val,
@@ -1951,7 +1956,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                   <button
                     key={method.id}
                     type="button"
-                    onClick={() => setRestaurantForm(prev => ({ ...prev, printMethod: method.id as 'browser' | 'bluetooth' }))}
+                    onClick={() => updateRestaurantForm(prev => ({ ...prev, printMethod: method.id as 'browser' | 'bluetooth' }))}
                     style={{
                       flex: 1,
                       padding: '12px 8px',
@@ -1991,7 +1996,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         setBtConnected(false);
                         setBtPrinterName('');
                         setBtError('');
-                        setRestaurantForm(prev => ({ ...prev, bluetoothPrinterName: '' }));
+                        updateRestaurantForm(prev => ({ ...prev, bluetoothPrinterName: '' }));
                       }}
                       style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, borderRadius: 8, background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
                     >
@@ -2009,7 +2014,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         if (result.success) {
                           setBtConnected(true);
                           setBtPrinterName(result.name || 'Printer');
-                          setRestaurantForm(prev => ({ ...prev, bluetoothPrinterName: result.name || 'Printer' }));
+                          updateRestaurantForm(prev => ({ ...prev, bluetoothPrinterName: result.name || 'Printer' }));
                         } else {
                           setBtError(result.error || 'Connection failed');
                         }
@@ -2041,7 +2046,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
               </div>
               <div 
                 className={`toggle ${restaurantForm.autoprintKotEnabled ? 'on' : ''}`}
-                onClick={() => setRestaurantForm(prev => ({ ...prev, autoprintKotEnabled: !prev.autoprintKotEnabled }))}
+                onClick={() => updateRestaurantForm(prev => ({ ...prev, autoprintKotEnabled: !prev.autoprintKotEnabled }))}
                 style={{ cursor: 'pointer' }}
               >
                 <div className="toggle-thumb" />
@@ -2055,7 +2060,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
               </div>
               <div 
                 className={`toggle ${restaurantForm.autoprintBillEnabled ? 'on' : ''}`}
-                onClick={() => setRestaurantForm(prev => ({ ...prev, autoprintBillEnabled: !prev.autoprintBillEnabled }))}
+                onClick={() => updateRestaurantForm(prev => ({ ...prev, autoprintBillEnabled: !prev.autoprintBillEnabled }))}
                 style={{ cursor: 'pointer' }}
               >
                 <div className="toggle-thumb" />
@@ -2069,7 +2074,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
               </div>
               <div 
                 className={`toggle ${restaurantForm.orderPopupEnabled !== false ? 'on' : ''}`}
-                onClick={() => setRestaurantForm(prev => ({ ...prev, orderPopupEnabled: restaurantForm.orderPopupEnabled === false ? true : false }))}
+                onClick={() => updateRestaurantForm(prev => ({ ...prev, orderPopupEnabled: restaurantForm.orderPopupEnabled === false ? true : false }))}
                 style={{ cursor: 'pointer' }}
               >
                 <div className="toggle-thumb" />
@@ -2171,13 +2176,13 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             <div className="input-group">
               <label className="input-label">Tax Percentage (%)</label>
               <input className="input" type="number" step="0.01" min={0} max={100} value={restaurantForm.taxPercentage ?? 5}
-                onChange={e => setRestaurantForm({ ...restaurantForm, taxPercentage: parseFloat(e.target.value) || 0 })} />
+                onChange={e => updateRestaurantForm({ ...restaurantForm, taxPercentage: parseFloat(e.target.value) || 0 })} />
             </div>
 
             <div className="input-group">
               <label className="input-label">Printer Paper Width</label>
               <select className="input" value={restaurantForm.printWidth || '80mm'}
-                onChange={e => setRestaurantForm({ ...restaurantForm, printWidth: e.target.value as '58mm' | '80mm' })}>
+                onChange={e => updateRestaurantForm({ ...restaurantForm, printWidth: e.target.value as '58mm' | '80mm' })}>
                 <option value="58mm">58mm (Standard Small Thermal)</option>
                 <option value="80mm">80mm (Standard Large Thermal)</option>
               </select>
@@ -2187,18 +2192,18 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
               <label className="input-label">Receipt Header Message</label>
               <input className="input" type="text" value={restaurantForm.printHeaderMessage || ''}
                 placeholder="e.g. Welcome to our restaurant!"
-                onChange={e => setRestaurantForm({ ...restaurantForm, printHeaderMessage: e.target.value })} />
+                onChange={e => updateRestaurantForm({ ...restaurantForm, printHeaderMessage: e.target.value })} />
             </div>
 
             <div className="input-group">
               <label className="input-label">Receipt Footer Message</label>
               <input className="input" type="text" value={restaurantForm.printFooterMessage || ''}
                 placeholder="e.g. Thank you for dining with us! Visit again."
-                onChange={e => setRestaurantForm({ ...restaurantForm, printFooterMessage: e.target.value })} />
+                onChange={e => updateRestaurantForm({ ...restaurantForm, printFooterMessage: e.target.value })} />
             </div>
 
             <div style={{ display: 'flex', gap: 16, background: 'var(--bg-elevated)', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => setRestaurantForm(prev => ({ ...prev, printShowDateTime: prev.printShowDateTime !== false ? false : true }))}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => updateRestaurantForm(prev => ({ ...prev, printShowDateTime: prev.printShowDateTime !== false ? false : true }))}>
                 <input 
                   type="checkbox" 
                   checked={restaurantForm.printShowDateTime !== false}
@@ -2208,7 +2213,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Show Date &amp; Time</span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => setRestaurantForm(prev => ({ ...prev, printShowOrderNumber: prev.printShowOrderNumber !== false ? false : true }))}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => updateRestaurantForm(prev => ({ ...prev, printShowOrderNumber: prev.printShowOrderNumber !== false ? false : true }))}>
                 <input 
                   type="checkbox" 
                   checked={restaurantForm.printShowOrderNumber !== false}
