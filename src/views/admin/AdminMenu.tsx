@@ -287,6 +287,8 @@ export default function AdminMenu() {
 
   // Support request states
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [showApiKeySetup, setShowApiKeySetup] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
 
   const handleOpenRankModal = () => {
     const cats = [...adminCategories].sort((a, b) => (a.rank || 0) - (b.rank || 0));
@@ -390,61 +392,64 @@ export default function AdminMenu() {
     apiCallFn: (key: string, model: string) => Promise<T>,
     onErrorText: string
   ): Promise<T> => {
-    // Prioritize valid user keys by filtering out placeholder/fake keys if valid keys are present
-    const validUserKeys = state.geminiApiKeys && state.geminiApiKeys.length > 0
-      ? state.geminiApiKeys.filter(k => !k.includes('FakeGeminiKey'))
-      : [];
+    // Only use real keys — filter out placeholder/fake keys
+    const validUserKeys = (state.geminiApiKeys || [])
+      .filter(k => k && !k.includes('FakeGeminiKey') && !k.includes('DEMO_KEY') && k.startsWith('AIza') && k.length > 30);
 
-    const finalKeys = validUserKeys.length > 0 
-      ? validUserKeys 
-      : (state.geminiApiKeys && state.geminiApiKeys.length > 0 ? state.geminiApiKeys : ['DEMO_KEY_PLACEHOLDER']);
+    if (validUserKeys.length === 0) {
+      throw new Error('NO_VALID_API_KEY');
+    }
 
-    // Try models in order: newest → stable fallback
-    const modelsToTry = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    // Valid Gemini models as of 2025-2026 (ordered newest→oldest stable)
+    const modelsToTry = [
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-8b',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash'
+    ];
+
     let attempts = 0;
-    const maxRetriesPerKey = 2;
-    const shuffledKeys = [...finalKeys].sort(() => Math.random() - 0.5);
+    let lastError = '';
+    const shuffledKeys = [...validUserKeys].sort(() => Math.random() - 0.5);
 
     for (const currentKey of shuffledKeys) {
       for (const modelName of modelsToTry) {
-        for (let retry = 0; retry < maxRetriesPerKey; retry++) {
+        const maxRetries = 2;
+        for (let retry = 0; retry < maxRetries; retry++) {
           attempts++;
           try {
             const result = await apiCallFn(currentKey, modelName);
             return result;
           } catch (err: any) {
-            console.warn(`Attempt ${attempts} [key:...${currentKey.slice(-6)}, model:${modelName}, retry:${retry}]: ${err.message}`);
-            
-            const errMsg = err.message || '';
-            // Permanent errors mean this key/model combo is dead — skip immediately
-            const isPermanentError = 
-              errMsg.includes('404') ||
-              errMsg.includes('403') ||
-              errMsg.toLowerCase().includes('not valid') ||
-              errMsg.toLowerCase().includes('invalid') ||
-              errMsg.toLowerCase().includes('key not') ||
-              errMsg.toLowerCase().includes('disabled') ||
-              errMsg.toLowerCase().includes('not found');
+            lastError = err.message || '';
+            console.warn(`[Gemini] Attempt ${attempts} [key:...${currentKey.slice(-6)}, model:${modelName}]: ${lastError}`);
 
-            if (isPermanentError) break; // try next model
-            if (retry < maxRetriesPerKey - 1) {
-              await new Promise(r => setTimeout(r, 400));
-            }
+            // Permanent errors (bad key / model not found) — skip to next model immediately
+            const isPermanentError =
+              lastError.includes('404') ||
+              lastError.includes('403') ||
+              lastError.toLowerCase().includes('api key') ||
+              lastError.toLowerCase().includes('not valid') ||
+              lastError.toLowerCase().includes('invalid') ||
+              lastError.toLowerCase().includes('key not') ||
+              lastError.toLowerCase().includes('disabled') ||
+              lastError.toLowerCase().includes('not found');
+
+            if (isPermanentError) break; // skip retry, try next model
+            if (retry < maxRetries - 1) await new Promise(r => setTimeout(r, 500));
           }
         }
       }
     }
+
     setSupportAttemptsCount(attempts);
-    throw new Error(`${onErrorText}. Attempted ${attempts} times across ${shuffledKeys.length} API key(s) and ${modelsToTry.length} model(s). Please check your API keys in Super Admin.`);
+    const keyHint = lastError.toLowerCase().includes('api key') || lastError.includes('403')
+      ? 'Your API key appears invalid or has no access. Get a free key at https://aistudio.google.com/apikey'
+      : `Last error: ${lastError}`;
+    throw new Error(`${onErrorText}. ${keyHint}`);
   };
 
   const openExtractor = () => {
-    const validUserKeys = state.geminiApiKeys && state.geminiApiKeys.length > 0
-      ? state.geminiApiKeys.filter(k => !k.includes('FakeGeminiKey'))
-      : [];
-    if (validUserKeys.length === 0) {
-      addToast('warning', '⚠️ Demo mode: No real Gemini API Key configured in Super Admin. Please add a valid key first.');
-    }
     setExtractorStep('upload');
     setShowExtractorModal(true);
   };
@@ -584,9 +589,16 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
       addToast('success', `Extracted ${parsed.meals.length} items successfully!`);
     } catch (err: any) {
       console.error(err);
-      addToast('error', err.message || 'Error occurred while extracting meals.');
-      setShowSupportModal(true);
-      setExtractorStep('upload');
+      if (err.message === 'NO_VALID_API_KEY') {
+        setExtractorStep('upload');
+        // Show inline API key setup instead of generic error
+        addToast('error', '🔑 No Gemini API key found. Please add one below to use AI extraction.');
+        setShowApiKeySetup(true);
+      } else {
+        addToast('error', err.message || 'Error occurred while extracting meals.');
+        setShowSupportModal(true);
+        setExtractorStep('upload');
+      }
     }
   };
 
@@ -2594,6 +2606,60 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>or</span>
                   <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 </div>
+
+                {/* API Key Setup Banner (shown when no valid key) */}
+                {showApiKeySetup && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(255,152,0,0.12), rgba(255,87,34,0.08))',
+                    border: '1.5px solid var(--brand)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '16px 18px',
+                    marginBottom: 4
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 18 }}>🔑</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Gemini API Key Required</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ color: 'var(--brand)' }}>aistudio.google.com/apikey</a></div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Paste your Gemini API key (AIza...)"
+                        value={apiKeyInput}
+                        onChange={e => setApiKeyInput(e.target.value)}
+                        style={{
+                          flex: 1,
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius)',
+                          color: 'var(--text-primary)',
+                          padding: '8px 12px',
+                          fontSize: 12,
+                          fontFamily: 'monospace'
+                        }}
+                      />
+                      <button
+                        className="btn btn-primary"
+                        disabled={!apiKeyInput.trim().startsWith('AIza') || apiKeyInput.trim().length < 30}
+                        onClick={() => {
+                          const key = apiKeyInput.trim();
+                          if (key.startsWith('AIza') && key.length >= 30) {
+                            dispatch({ type: 'ADD_GEMINI_KEY', payload: key });
+                            setApiKeyInput('');
+                            setShowApiKeySetup(false);
+                            addToast('success', '✅ API key saved! You can now use AI extraction.');
+                          }
+                        }}
+                        style={{ padding: '8px 16px', whiteSpace: 'nowrap', fontSize: 12 }}
+                      >
+                        Save Key
+                      </button>
+                    </div>
+                  </div>
+                )}
+
 
                 {/* Capture photo native selector */}
                 <div>
