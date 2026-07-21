@@ -1511,7 +1511,10 @@ function reducer(state: AppState, action: Action): AppState {
 
       return { 
         ...state, 
-        admin: action.payload, 
+        admin: {
+          ...action.payload,
+          restaurantId: action.payload.restaurantId || action.payload.id
+        }, 
         isAdminLoggedIn: true,
         restaurantAccounts: newAccounts,
         walletBalance: isSuper ? state.walletBalance : activeBalance,
@@ -2417,14 +2420,15 @@ export function getActiveRestaurantId(state: AppState): string {
   
   const isAdminView = viewParam === 'admin' || viewParam === 'onboarding' || 
                       (state.isAdminLoggedIn && viewParam !== 'customer' && window.location.pathname !== '/' && window.location.pathname !== '/home' && window.location.pathname !== '/onboarding');
-  if (isAdminView && state.admin?.restaurantId) {
-    return state.admin.restaurantId;
+  if (isAdminView && (state.admin?.restaurantId || state.admin?.id)) {
+    return state.admin.restaurantId || state.admin.id;
   }
   
   return urlParams.get('restaurant') || 
          state.activeCustomerRestaurantId ||
          localStorage.getItem('meenufy_active_restaurant_id') || 
          state.admin?.restaurantId || 
+         state.admin?.id ||
          'admin-1';
 }
 
@@ -2874,8 +2878,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // to flash/vanish repeatedly especially for large menus like Hideout Cafe (150+ items).
   const targetRestaurantId = useMemo(() => {
     const urlParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('restaurant') : null;
-    return urlParam || state.activeCustomerRestaurantId || state.admin?.restaurantId || 'admin-1';
-  }, [state.activeCustomerRestaurantId, state.admin?.restaurantId]);
+    return urlParam || state.activeCustomerRestaurantId || state.admin?.restaurantId || state.admin?.id || 'admin-1';
+  }, [state.activeCustomerRestaurantId, state.admin?.restaurantId, state.admin?.id]);
 
   // 1. Global Firebase sync listeners (Subscribed once on app load)
   useEffect(() => {

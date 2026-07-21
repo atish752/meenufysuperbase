@@ -14,7 +14,7 @@ export default function AdminNotificationBell() {
     return () => clearInterval(timer);
   }, []);
 
-  const adminId = state.admin?.restaurantId || 'admin-1';
+  const adminId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
   const activeRequests = state.waiterRequests.filter(
     (r: WaiterRequest) => !r.resolved && (r.restaurantId || 'admin-1') === adminId
   );
