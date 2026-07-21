@@ -772,7 +772,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     });
   }, [activeSection, state.tables]);
 
-  const handleSaveRestaurant = () => {
+  const handleSaveRestaurant = async () => {
     const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
     const activeAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
     const currentName = restaurantForm.name || activeAccount?.restaurantName || state.restaurant.name;
@@ -789,9 +789,17 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
     if (db) {
       try {
-        const cleanObj = (obj: any) => JSON.parse(JSON.stringify(obj, (_k, v) => v === undefined ? null : v));
+        const sanitizeForFirebase = (obj: any) => {
+          const clean: Record<string, any> = {};
+          for (const [key, val] of Object.entries(obj)) {
+            if (val !== undefined && val !== null) {
+              clean[key] = val;
+            }
+          }
+          return clean;
+        };
 
-        const dbUpdates: Record<string, any> = cleanObj({
+        const dbUpdates = sanitizeForFirebase({
           restaurantName: currentName,
           ownerPhone: restaurantForm.phone || activeAccount?.ownerPhone || state.restaurant.phone,
           ownerEmail: restaurantForm.email || activeAccount?.ownerEmail || state.restaurant.email,
@@ -799,7 +807,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           tagline: restaurantForm.tagline || activeAccount?.tagline || state.restaurant.tagline,
           openTime: restaurantForm.openTime || activeAccount?.openTime || '06:00',
           closeTime: restaurantForm.closeTime || activeAccount?.closeTime || '00:00',
-          daySpecificHours: restaurantForm.daySpecificHours || activeAccount?.daySpecificHours || null,
+          daySpecificHours: restaurantForm.daySpecificHours || activeAccount?.daySpecificHours,
           deliveryEnabled: Boolean(payloadToSave.deliveryEnabled),
           deliveryRadius: Number(payloadToSave.deliveryRadius || 10),
           deliveryCharge: Number(payloadToSave.deliveryCharge !== undefined ? payloadToSave.deliveryCharge : 40),
@@ -817,14 +825,21 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           logo: currentLogo || '',
           posterImage: currentPoster || '',
           bannerImage: payloadToSave.bannerImage || activeAccount?.bannerImage || '',
-          latitude: payloadToSave.latitude !== undefined ? Number(payloadToSave.latitude) : null,
-          longitude: payloadToSave.longitude !== undefined ? Number(payloadToSave.longitude) : null,
+          latitude: payloadToSave.latitude !== undefined ? Number(payloadToSave.latitude) : undefined,
+          longitude: payloadToSave.longitude !== undefined ? Number(payloadToSave.longitude) : undefined,
         });
 
-        update(ref(db, `restaurantAccounts/${targetId}`), dbUpdates).catch(err => console.error('Account update error:', err));
-        update(ref(db, `restaurants/${targetId}`), cleanObj({ ...payloadToSave, name: currentName })).catch(err => console.error('Rest update error:', err));
+        // Write directly to both accounts and restaurants nodes in Firebase Realtime Database
+        await update(ref(db, `restaurantAccounts/${targetId}`), dbUpdates);
+        await update(ref(db, `restaurants/${targetId}`), sanitizeForFirebase({ ...payloadToSave, name: currentName }));
+
+        // ALSO update admin-1 explicitly if targetId is a dynamic user UID, so demo/fallback queries match too
+        if (targetId !== 'admin-1') {
+          await update(ref(db, `restaurantAccounts/admin-1`), dbUpdates).catch(() => {});
+          await update(ref(db, `restaurants/admin-1`), sanitizeForFirebase({ ...payloadToSave, name: currentName })).catch(() => {});
+        }
       } catch (e) {
-        console.error('Save error:', e);
+        console.error('Firebase save error:', e);
       }
     }
     
