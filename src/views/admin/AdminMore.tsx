@@ -190,7 +190,10 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
   useEffect(() => {
     const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
-    const freshAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
+    const adminEmail = state.admin?.email?.trim().toLowerCase();
+    const freshAccount = state.restaurantAccounts?.find(
+      acc => acc.id === targetId || acc.id === 'admin-1' || (adminEmail && acc.ownerEmail?.trim().toLowerCase() === adminEmail)
+    );
     
     // Update form state if the user has not typed unsaved changes
     if (!isFormDirtyRef.current) {

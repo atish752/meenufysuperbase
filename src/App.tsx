@@ -58,8 +58,11 @@ function AppInner() {
     viewParam === 'onboarding';
 
   if (isAdminRoute) {
-    const currentAccount = state.restaurantAccounts?.find(acc => acc.id === state.admin?.id);
-    const dbHasCompleted = currentAccount ? currentAccount.hasCompletedOnboarding === true : null;
+    const adminEmail = state.admin?.email?.trim().toLowerCase();
+    const currentAccount = state.restaurantAccounts?.find(
+      acc => acc.id === state.admin?.id || acc.id === state.admin?.restaurantId || (adminEmail && acc.ownerEmail?.trim().toLowerCase() === adminEmail)
+    );
+    const dbHasCompleted = currentAccount ? currentAccount.hasCompletedOnboarding !== false : false;
 
     const isOnboarding =
       pathname === '/onboarding' ||
@@ -69,7 +72,7 @@ function AppInner() {
        !state.admin?.isSuperAdmin &&
        !state.admin?.isStaff &&
        !state.admin?.isDeliveryBoy &&
-       dbHasCompleted === false);
+       !dbHasCompleted);
 
     if (isOnboarding) {
       return (
