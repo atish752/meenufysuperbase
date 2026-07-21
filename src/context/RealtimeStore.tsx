@@ -1384,7 +1384,12 @@ function reducer(state: AppState, action: Action): AppState {
       let updatedRestaurant = state.restaurant;
       if (currentAdmin && !currentAdmin.isSuperAdmin) {
         const cEmail = currentAdmin.email?.trim().toLowerCase();
-        const matched = accounts.find(acc => acc.id === currentAdmin.id || acc.id === currentAdmin.restaurantId || acc.id === 'admin-1' || (cEmail && acc.ownerEmail?.trim().toLowerCase() === cEmail));
+        const matched = accounts.find(acc => 
+          acc.id === currentAdmin.id || 
+          (currentAdmin.restaurantId && acc.id === currentAdmin.restaurantId) || 
+          (cEmail && acc.ownerEmail?.trim().toLowerCase() === cEmail) ||
+          (currentAdmin.id === 'admin-1' && acc.id === 'admin-1')
+        );
         if (matched) {
           activeBalance = matched.walletBalance;
           subscriptionPlan = matched.subscriptionPlan || 'free';
@@ -3057,10 +3062,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Sync restaurant accounts (all active outlets)
     const unsubscribeAccounts = onValue(ref(db, 'restaurantAccounts'), (snapshot) => {
       const data = snapshot.val();
-      const accounts: RestaurantAccount[] = data ? Object.entries(data).map(([key, val]: [string, any]) => ({
+      let accounts: RestaurantAccount[] = data ? Object.entries(data).map(([key, val]: [string, any]) => ({
         ...val,
         id: key
       })) : [];
+
+      // Protect user's local saved outlet info from being overwritten by stale cloud snapshots
+      try {
+        const savedRaw = localStorage.getItem('meenufy_saved_outlet_info');
+        if (savedRaw) {
+          const saved = JSON.parse(savedRaw);
+          if (saved && (saved.name || saved.restaurantName)) {
+            const sName = saved.name || saved.restaurantName;
+            const curEmail = stateRef.current.admin?.email?.trim().toLowerCase();
+            accounts = accounts.map(acc => {
+              if (acc.id === 'admin-1' || acc.id === stateRef.current.admin?.id || (curEmail && acc.ownerEmail?.trim().toLowerCase() === curEmail)) {
+                return {
+                  ...acc,
+                  restaurantName: sName,
+                  ...(saved.phone ? { ownerPhone: saved.phone } : {}),
+                  ...(saved.email ? { ownerEmail: saved.email } : {}),
+                  ...(saved.address ? { address: saved.address } : {}),
+                  ...(saved.tagline ? { tagline: saved.tagline } : {}),
+                  ...(saved.logo ? { logo: saved.logo } : {}),
+                  ...(saved.posterImage ? { posterImage: saved.posterImage } : {}),
+                  ...(saved.bannerImage ? { bannerImage: saved.bannerImage } : {}),
+                  ...(saved.openTime ? { openTime: saved.openTime } : {}),
+                  ...(saved.closeTime ? { closeTime: saved.closeTime } : {}),
+                };
+              }
+              return acc;
+            });
+          }
+        }
+      } catch {}
+
       if (accounts.length > 0) {
         dispatch({
           type: 'SYNC_RESTAURANT_ACCOUNTS',
