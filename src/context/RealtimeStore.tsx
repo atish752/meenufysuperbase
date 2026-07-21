@@ -2576,6 +2576,42 @@ function loadState(): Partial<AppState> {
     if (fastAccounts && fastAccounts.length > 0) {
       parsed.restaurantAccounts = fastAccounts;
       parsed.accountsFromDb = true;
+
+      const targetId = parsed.admin?.restaurantId || parsed.admin?.id || 'admin-1';
+      const matched = fastAccounts.find(acc => acc.id === targetId || (parsed.admin?.email && acc.ownerEmail?.trim().toLowerCase() === parsed.admin.email.trim().toLowerCase()));
+      if (matched) {
+        parsed.restaurant = {
+          ...DEFAULT_RESTAURANT,
+          ...parsed.restaurant,
+          id: matched.id,
+          name: matched.restaurantName || parsed.restaurant?.name || DEFAULT_RESTAURANT.name,
+          phone: matched.ownerPhone || parsed.restaurant?.phone || DEFAULT_RESTAURANT.phone,
+          email: matched.ownerEmail || parsed.restaurant?.email || DEFAULT_RESTAURANT.email,
+          address: matched.address || parsed.restaurant?.address || DEFAULT_RESTAURANT.address,
+          tagline: matched.tagline || parsed.restaurant?.tagline || DEFAULT_RESTAURANT.tagline,
+          logo: matched.logo || parsed.restaurant?.logo || DEFAULT_RESTAURANT.logo,
+          posterImage: matched.posterImage || parsed.restaurant?.posterImage || DEFAULT_RESTAURANT.posterImage,
+          bannerImage: matched.bannerImage || parsed.restaurant?.bannerImage || DEFAULT_RESTAURANT.bannerImage,
+          cuisines: matched.cuisines || parsed.restaurant?.cuisines || DEFAULT_RESTAURANT.cuisines,
+          openTime: matched.openTime || parsed.restaurant?.openTime || '06:00',
+          closeTime: matched.closeTime || parsed.restaurant?.closeTime || '00:00',
+          daySpecificHours: matched.daySpecificHours || parsed.restaurant?.daySpecificHours || undefined,
+          deliveryEnabled: matched.deliveryEnabled !== undefined ? matched.deliveryEnabled : (parsed.restaurant?.deliveryEnabled ?? true),
+          deliveryRadius: matched.deliveryRadius !== undefined ? matched.deliveryRadius : (parsed.restaurant?.deliveryRadius ?? 10),
+          deliveryCharge: matched.deliveryCharge !== undefined ? matched.deliveryCharge : (parsed.restaurant?.deliveryCharge ?? 40),
+          freeDeliveryDistance: matched.freeDeliveryDistance !== undefined ? matched.freeDeliveryDistance : (parsed.restaurant?.freeDeliveryDistance ?? 2),
+          freeDeliveryMinAmount: matched.freeDeliveryMinAmount !== undefined ? matched.freeDeliveryMinAmount : (parsed.restaurant?.freeDeliveryMinAmount ?? 150),
+          freeDeliveryDistanceEnabled: matched.freeDeliveryDistanceEnabled !== undefined ? matched.freeDeliveryDistanceEnabled : (parsed.restaurant?.freeDeliveryDistanceEnabled ?? true),
+          freeDeliveryMinAmountEnabled: matched.freeDeliveryMinAmountEnabled !== undefined ? matched.freeDeliveryMinAmountEnabled : (parsed.restaurant?.freeDeliveryMinAmountEnabled ?? true),
+          indiningRadius: matched.indiningRadius !== undefined ? matched.indiningRadius : (parsed.restaurant?.indiningRadius ?? 5),
+          takeawayRadius: matched.takeawayRadius !== undefined ? matched.takeawayRadius : (parsed.restaurant?.takeawayRadius ?? 10),
+          verificationRadius: matched.verificationRadius !== undefined ? matched.verificationRadius : (parsed.restaurant?.verificationRadius ?? 50),
+          upiId: matched.upiId || parsed.restaurant?.upiId || '',
+          googleMapsUrl: matched.googleMapsUrl || parsed.restaurant?.googleMapsUrl || '',
+          latitude: matched.latitude !== undefined ? matched.latitude : parsed.restaurant?.latitude,
+          longitude: matched.longitude !== undefined ? matched.longitude : parsed.restaurant?.longitude,
+        };
+      }
     }
     if (fastCuisines && fastCuisines.length > 0) {
       parsed.popularCuisines = fastCuisines;
