@@ -1681,13 +1681,10 @@ function reducer(state: AppState, action: Action): AppState {
         if (acc.id === targetRestId) {
           return {
             ...acc,
+            ...action.payload,
             restaurantName: restName || acc.restaurantName,
-            ...(action.payload.logo ? { logo: action.payload.logo } : {}),
-            ...(action.payload.tagline ? { tagline: action.payload.tagline } : {}),
-            ...(action.payload.address ? { address: action.payload.address } : {}),
-            ...(action.payload.cuisines ? { cuisines: action.payload.cuisines } : {}),
-            ...(action.payload.posterImage ? { posterImage: action.payload.posterImage } : {}),
-            ...(action.payload.bannerImage ? { bannerImage: action.payload.bannerImage } : {}),
+            ...(action.payload.phone ? { ownerPhone: action.payload.phone } : {}),
+            ...(action.payload.email ? { ownerEmail: action.payload.email } : {}),
           };
         }
         return acc;
@@ -3862,35 +3859,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               'Failed to update restaurant info'
             );
 
-            // Dynamically propagate profile name, phone, email, location coordinates, cuisines, and logo
-            const accountUpdates: any = {};
-            if (action.payload.name) accountUpdates.restaurantName = action.payload.name;
-            if (action.payload.phone) accountUpdates.ownerPhone = action.payload.phone;
-            if (action.payload.email) accountUpdates.ownerEmail = action.payload.email;
-            if (action.payload.logo) accountUpdates.logo = action.payload.logo;
-            if (action.payload.tagline) accountUpdates.tagline = action.payload.tagline;
-            if (action.payload.address) accountUpdates.address = action.payload.address;
-            if (action.payload.latitude !== undefined) accountUpdates.latitude = action.payload.latitude;
-            if (action.payload.longitude !== undefined) accountUpdates.longitude = action.payload.longitude;
-            if (action.payload.cuisines) accountUpdates.cuisines = action.payload.cuisines;
-            if (action.payload.rating !== undefined) accountUpdates.rating = action.payload.rating;
-            if (action.payload.bannerImage) accountUpdates.bannerImage = action.payload.bannerImage;
-            if (action.payload.posterImage) accountUpdates.posterImage = action.payload.posterImage;
-            if (action.payload.ratingsCount !== undefined) accountUpdates.ratingsCount = action.payload.ratingsCount;
-            if (action.payload.promoText !== undefined) accountUpdates.promoText = action.payload.promoText;
-            if (action.payload.subscriptionPlan) accountUpdates.subscriptionPlan = action.payload.subscriptionPlan;
-            if (action.payload.subscriptionRenewalDate !== undefined) accountUpdates.subscriptionRenewalDate = action.payload.subscriptionRenewalDate;
-            if (action.payload.basePlanSelectedType) accountUpdates.basePlanSelectedType = action.payload.basePlanSelectedType;
-            if (action.payload.deliveryEnabled !== undefined) accountUpdates.deliveryEnabled = action.payload.deliveryEnabled;
-            if (action.payload.deliveryRadius !== undefined) accountUpdates.deliveryRadius = action.payload.deliveryRadius;
-            if (action.payload.deliveryCharge !== undefined) accountUpdates.deliveryCharge = action.payload.deliveryCharge;
-            if (action.payload.freeDeliveryDistance !== undefined) accountUpdates.freeDeliveryDistance = action.payload.freeDeliveryDistance;
-            if (action.payload.freeDeliveryMinAmount !== undefined) accountUpdates.freeDeliveryMinAmount = action.payload.freeDeliveryMinAmount;
-            if (action.payload.freeDeliveryDistanceEnabled !== undefined) accountUpdates.freeDeliveryDistanceEnabled = action.payload.freeDeliveryDistanceEnabled;
-            if (action.payload.freeDeliveryMinAmountEnabled !== undefined) accountUpdates.freeDeliveryMinAmountEnabled = action.payload.freeDeliveryMinAmountEnabled;
-            if (action.payload.indiningRadius !== undefined) accountUpdates.indiningRadius = action.payload.indiningRadius;
-            if (action.payload.takeawayRadius !== undefined) accountUpdates.takeawayRadius = action.payload.takeawayRadius;
-            
+            // Dynamically propagate all account updates directly to restaurantAccounts
+            const accountUpdates: any = {
+              ...sanitizeDbData(action.payload),
+              ...(action.payload.name ? { restaurantName: action.payload.name } : {}),
+              ...(action.payload.phone ? { ownerPhone: action.payload.phone } : {}),
+              ...(action.payload.email ? { ownerEmail: action.payload.email } : {}),
+            };
+            delete accountUpdates.name;
+            delete accountUpdates.phone;
+            delete accountUpdates.email;
+
             if (Object.keys(accountUpdates).length > 0) {
               update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)
                 .catch(err => console.error("Failed to sync profile changes to restaurantAccounts:", err));
