@@ -2875,26 +2875,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // If logged in as admin
         if (!isAlreadyLoggedIn) {
           try {
-            const { get, ref: dbRef, query, orderByChild, equalTo } = await import('firebase/database');
+            const { get, ref: dbRef } = await import('firebase/database');
             const fbEmail = fbUser.email?.trim().toLowerCase() || '';
 
             let resolvedAdminId = fbUser.uid;
             let dbMatchedAccount: any = null;
 
-            const directSnap = await get(dbRef(db!, `restaurantAccounts/${fbUser.uid}`));
-            if (directSnap.exists()) {
-              dbMatchedAccount = { ...directSnap.val(), id: fbUser.uid };
-              resolvedAdminId = fbUser.uid;
-            } else {
-              const emailQuery = query(
-                dbRef(db!, 'restaurantAccounts'),
-                orderByChild('ownerEmail'),
-                equalTo(fbEmail)
-              );
-              const querySnap = await get(emailQuery);
-              if (querySnap.exists()) {
-                const queryData = querySnap.val();
-                const matchedEntry = Object.entries(queryData)[0];
+            const accountsSnap = await get(dbRef(db!, 'restaurantAccounts'));
+            if (accountsSnap.exists()) {
+              const allAccountsObj = accountsSnap.val();
+              if (allAccountsObj[fbUser.uid]) {
+                resolvedAdminId = fbUser.uid;
+                dbMatchedAccount = { ...allAccountsObj[fbUser.uid], id: fbUser.uid };
+              } else {
+                const matchedEntry = Object.entries(allAccountsObj).find(
+                  ([_, acc]: [string, any]) => acc.ownerEmail?.trim().toLowerCase() === fbEmail
+                );
                 if (matchedEntry) {
                   resolvedAdminId = matchedEntry[0];
                   dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
@@ -2905,7 +2901,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const isTargetingAdminRoute = typeof window !== 'undefined' && 
               (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/onboarding') || window.location.search.includes('view=admin'));
 
-            const isDbAdmin = !!dbMatchedAccount || fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477';
+            const isDbAdmin = !!dbMatchedAccount || isTargetingAdminRoute || authRole === 'admin' || fbEmail === 'atish3477@gmail.com';
 
             if (isDbAdmin) {
               // This is an Admin account! ONLY log into admin if user is on an admin route/view or authRole is admin.
@@ -2917,7 +2913,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 }
                 const adminUser = {
                   id: resolvedAdminId,
-                  name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
+                  name: dbMatchedAccount?.ownerName || fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
                   email: fbUser.email || '',
                   restaurantId: resolvedAdminId,
                   isLoggedIn: true,
