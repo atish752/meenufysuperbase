@@ -687,45 +687,65 @@ export const MOCK_RESTAURANT_INFOS: Record<string, RestaurantInfo> = {
 };
 
 export function getActiveRestaurantInfo(state: AppState, restaurantId: string): RestaurantInfo {
+  let savedOverride: any = null;
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('meenufy_saved_outlet_info') : null;
+    if (raw) savedOverride = JSON.parse(raw);
+  } catch {}
+
   // Primary Source of Truth: Find account from state.restaurantAccounts (realtime Firebase DB node)
   const account = state.restaurantAccounts?.find(acc => acc.id === restaurantId);
   const baseRest = (state.restaurant && state.restaurant.id === restaurantId) ? state.restaurant : DEFAULT_RESTAURANT;
 
-  if (account) {
+  if (account || savedOverride) {
+    const activeAcc: Partial<RestaurantAccount> = account || {};
+    const effectiveName = savedOverride?.name || savedOverride?.restaurantName || activeAcc.restaurantName || baseRest.name || DEFAULT_RESTAURANT.name;
+    const effectivePhone = savedOverride?.phone || savedOverride?.ownerPhone || activeAcc.ownerPhone || baseRest.phone || DEFAULT_RESTAURANT.phone;
+    const effectiveEmail = savedOverride?.email || savedOverride?.ownerEmail || activeAcc.ownerEmail || baseRest.email || DEFAULT_RESTAURANT.email;
+    const effectiveAddress = savedOverride?.address || activeAcc.address || baseRest.address || DEFAULT_RESTAURANT.address;
+    const effectiveTagline = savedOverride?.tagline || activeAcc.tagline || baseRest.tagline || DEFAULT_RESTAURANT.tagline;
+    const effectiveLogo = savedOverride?.logo || activeAcc.logo || baseRest.logo || DEFAULT_RESTAURANT.logo;
+    const effectivePoster = savedOverride?.posterImage || activeAcc.posterImage || baseRest.posterImage || DEFAULT_RESTAURANT.posterImage;
+    const effectiveBanner = savedOverride?.bannerImage || activeAcc.bannerImage || baseRest.bannerImage || DEFAULT_RESTAURANT.bannerImage;
+    const effectiveOpenTime = savedOverride?.openTime || activeAcc.openTime || baseRest.openTime || '06:00';
+    const effectiveCloseTime = savedOverride?.closeTime || activeAcc.closeTime || baseRest.closeTime || '00:00';
+
     return {
       ...baseRest,
-      ...account,
+      ...activeAcc,
+      ...(savedOverride || {}),
       id: restaurantId,
-      name: account.restaurantName || baseRest.name || DEFAULT_RESTAURANT.name,
-      tagline: account.tagline || baseRest.tagline || DEFAULT_RESTAURANT.tagline,
-      logo: account.logo || baseRest.logo || DEFAULT_RESTAURANT.logo,
-      bannerImage: account.bannerImage || baseRest.bannerImage || DEFAULT_RESTAURANT.bannerImage,
-      posterImage: account.posterImage || baseRest.posterImage || DEFAULT_RESTAURANT.posterImage,
-      address: account.address || baseRest.address || DEFAULT_RESTAURANT.address,
-      phone: account.ownerPhone || baseRest.phone || DEFAULT_RESTAURANT.phone,
-      daySpecificHours: account.daySpecificHours || baseRest.daySpecificHours || DEFAULT_RESTAURANT.daySpecificHours,
-      rating: account.rating !== undefined ? account.rating : baseRest.rating,
-      ratingsCount: account.ratingsCount !== undefined ? account.ratingsCount : baseRest.ratingsCount,
-      promoText: account.promoText !== undefined ? account.promoText : baseRest.promoText,
-      cuisines: account.cuisines || baseRest.cuisines || DEFAULT_RESTAURANT.cuisines,
-      subscriptionPlan: account.subscriptionPlan || baseRest.subscriptionPlan || 'free',
-      subscriptionRenewalDate: account.subscriptionRenewalDate || baseRest.subscriptionRenewalDate || 0,
-      basePlanSelectedType: account.basePlanSelectedType || baseRest.basePlanSelectedType || 'dining_takeaway',
-      createdAt: account.createdAt || baseRest.createdAt || Date.now(),
-      openTime: account.openTime || baseRest.openTime || '00:00',
-      closeTime: account.closeTime || baseRest.closeTime || '23:59',
-      isManualClosed: (account as any).isManualClosed !== undefined ? (account as any).isManualClosed : (baseRest.isManualClosed || false),
-      deliveryEnabled: account.deliveryEnabled !== undefined ? account.deliveryEnabled : baseRest.deliveryEnabled,
-      deliveryRadius: account.deliveryRadius !== undefined ? account.deliveryRadius : baseRest.deliveryRadius,
-      deliveryCharge: account.deliveryCharge !== undefined ? account.deliveryCharge : baseRest.deliveryCharge,
-      freeDeliveryDistance: account.freeDeliveryDistance !== undefined ? account.freeDeliveryDistance : baseRest.freeDeliveryDistance,
-      freeDeliveryMinAmount: account.freeDeliveryMinAmount !== undefined ? account.freeDeliveryMinAmount : baseRest.freeDeliveryMinAmount,
-      freeDeliveryDistanceEnabled: account.freeDeliveryDistanceEnabled !== undefined ? account.freeDeliveryDistanceEnabled : baseRest.freeDeliveryDistanceEnabled,
-      freeDeliveryMinAmountEnabled: account.freeDeliveryMinAmountEnabled !== undefined ? account.freeDeliveryMinAmountEnabled : baseRest.freeDeliveryMinAmountEnabled,
-      latitude: account.latitude !== undefined ? account.latitude : baseRest.latitude,
-      longitude: account.longitude !== undefined ? account.longitude : baseRest.longitude,
-      upiId: account.upiId || baseRest.upiId,
-      googleMapsUrl: account.googleMapsUrl || baseRest.googleMapsUrl,
+      name: effectiveName,
+      tagline: effectiveTagline,
+      logo: effectiveLogo,
+      bannerImage: effectiveBanner,
+      posterImage: effectivePoster,
+      address: effectiveAddress,
+      phone: effectivePhone,
+      email: effectiveEmail,
+      openTime: effectiveOpenTime,
+      closeTime: effectiveCloseTime,
+      daySpecificHours: savedOverride?.daySpecificHours || activeAcc.daySpecificHours || baseRest.daySpecificHours || DEFAULT_RESTAURANT.daySpecificHours,
+      rating: activeAcc.rating !== undefined ? activeAcc.rating : baseRest.rating,
+      ratingsCount: activeAcc.ratingsCount !== undefined ? activeAcc.ratingsCount : baseRest.ratingsCount,
+      promoText: activeAcc.promoText !== undefined ? activeAcc.promoText : baseRest.promoText,
+      cuisines: savedOverride?.cuisines || activeAcc.cuisines || baseRest.cuisines || DEFAULT_RESTAURANT.cuisines,
+      subscriptionPlan: activeAcc.subscriptionPlan || baseRest.subscriptionPlan || 'free',
+      subscriptionRenewalDate: activeAcc.subscriptionRenewalDate || baseRest.subscriptionRenewalDate || 0,
+      basePlanSelectedType: activeAcc.basePlanSelectedType || baseRest.basePlanSelectedType || 'dining_takeaway',
+      createdAt: activeAcc.createdAt || baseRest.createdAt || Date.now(),
+      isManualClosed: savedOverride?.isManualClosed !== undefined ? savedOverride.isManualClosed : ((activeAcc as any).isManualClosed !== undefined ? (activeAcc as any).isManualClosed : (baseRest.isManualClosed || false)),
+      deliveryEnabled: savedOverride?.deliveryEnabled !== undefined ? savedOverride.deliveryEnabled : (activeAcc.deliveryEnabled !== undefined ? activeAcc.deliveryEnabled : baseRest.deliveryEnabled),
+      deliveryRadius: savedOverride?.deliveryRadius !== undefined ? savedOverride.deliveryRadius : (activeAcc.deliveryRadius !== undefined ? activeAcc.deliveryRadius : baseRest.deliveryRadius),
+      deliveryCharge: savedOverride?.deliveryCharge !== undefined ? savedOverride.deliveryCharge : (activeAcc.deliveryCharge !== undefined ? activeAcc.deliveryCharge : baseRest.deliveryCharge),
+      freeDeliveryDistance: savedOverride?.freeDeliveryDistance !== undefined ? savedOverride.freeDeliveryDistance : (activeAcc.freeDeliveryDistance !== undefined ? activeAcc.freeDeliveryDistance : baseRest.freeDeliveryDistance),
+      freeDeliveryMinAmount: savedOverride?.freeDeliveryMinAmount !== undefined ? savedOverride.freeDeliveryMinAmount : (activeAcc.freeDeliveryMinAmount !== undefined ? activeAcc.freeDeliveryMinAmount : baseRest.freeDeliveryMinAmount),
+      freeDeliveryDistanceEnabled: savedOverride?.freeDeliveryDistanceEnabled !== undefined ? savedOverride.freeDeliveryDistanceEnabled : (activeAcc.freeDeliveryDistanceEnabled !== undefined ? activeAcc.freeDeliveryDistanceEnabled : baseRest.freeDeliveryDistanceEnabled),
+      freeDeliveryMinAmountEnabled: savedOverride?.freeDeliveryMinAmountEnabled !== undefined ? savedOverride.freeDeliveryMinAmountEnabled : (activeAcc.freeDeliveryMinAmountEnabled !== undefined ? activeAcc.freeDeliveryMinAmountEnabled : baseRest.freeDeliveryMinAmountEnabled),
+      latitude: savedOverride?.latitude !== undefined ? savedOverride.latitude : (activeAcc.latitude !== undefined ? activeAcc.latitude : baseRest.latitude),
+      longitude: savedOverride?.longitude !== undefined ? savedOverride.longitude : (activeAcc.longitude !== undefined ? activeAcc.longitude : baseRest.longitude),
+      upiId: savedOverride?.upiId || activeAcc.upiId || baseRest.upiId,
+      googleMapsUrl: savedOverride?.googleMapsUrl || activeAcc.googleMapsUrl || baseRest.googleMapsUrl,
     };
   }
 

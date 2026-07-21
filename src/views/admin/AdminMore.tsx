@@ -787,6 +787,10 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       ...(currentLogo ? { logo: currentLogo } : {})
     };
 
+    try {
+      localStorage.setItem('meenufy_saved_outlet_info', JSON.stringify(payloadToSave));
+    } catch {}
+
     if (db) {
       try {
         const sanitizeForFirebase = (obj: any) => {
