@@ -1670,6 +1670,10 @@ function reducer(state: AppState, action: Action): AppState {
         return acc;
       });
 
+      try {
+        localStorage.setItem('meenufy_accounts_cache', JSON.stringify(updatedAccounts));
+      } catch {}
+
       return {
         ...state,
         restaurant: { ...state.restaurant, ...updatedPayload },
@@ -1703,12 +1707,19 @@ function reducer(state: AppState, action: Action): AppState {
         ? state.orders.map(o => o.id === newOrder.id ? { ...o, ...newOrder } : o)
         : [newOrder, ...state.orders];
       
+      let dismissedSet = new Set<string>();
+      try {
+        const raw = localStorage.getItem('meenufy_dismissed_alert_orders');
+        if (raw) dismissedSet = new Set(JSON.parse(raw));
+      } catch {}
+
       const isTargetAdmin = state.admin && !newOrder.isManualOrder && newOrder.restaurantId === (state.admin.restaurantId || state.admin.id);
+      const isFreshPendingOrder = newOrder.status === 'pending' && (Date.now() - (newOrder.createdAt || 0)) < 30000 && !dismissedSet.has(newOrder.id);
 
       return {
         ...state,
         orders: updatedOrders,
-        ...(isTargetAdmin && !exists ? { newOrderAlert: newOrder } : {})
+        ...(isTargetAdmin && !exists && isFreshPendingOrder ? { newOrderAlert: newOrder } : {})
       };
     }
     case 'SET_MANUAL_CLOSED': return { ...state, restaurant: { ...state.restaurant, isManualClosed: action.payload } };

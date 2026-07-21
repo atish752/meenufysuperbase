@@ -1773,38 +1773,26 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         </button>
                       </div>
 
-                      <div className="input-group">
-                        <label className="input-label">Allowed Radius for Order Verification (meters)</label>
+                      <div className="input-group" style={{ marginTop: 10 }}>
+                        <label className="input-label">In-Dining &amp; Takeaway Order Radius (meters)</label>
                         <input
                           className="input"
                           type="number"
-                          value={restaurantForm.verificationRadius ?? 50}
-                          onChange={e => setRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
+                          min={1}
+                          placeholder="e.g. 100"
+                          value={restaurantForm.verificationRadius ?? restaurantForm.indiningRadius ?? 100}
+                          onChange={e => {
+                            const val = parseInt(e.target.value) || 0;
+                            setRestaurantForm({
+                              ...restaurantForm,
+                              verificationRadius: val,
+                              indiningRadius: val,
+                              takeawayRadius: val,
+                            });
+                          }}
                         />
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
-                        <div className="input-group">
-                          <label className="input-label" style={{ fontSize: 11 }}>In-Dining Order Radius (meters)</label>
-                          <input
-                            className="input"
-                            type="number"
-                            min={1}
-                            placeholder="e.g. 100"
-                            value={restaurantForm.indiningRadius ?? 100}
-                            onChange={e => setRestaurantForm({ ...restaurantForm, indiningRadius: parseInt(e.target.value) || 0 })}
-                          />
-                        </div>
-                        <div className="input-group">
-                          <label className="input-label" style={{ fontSize: 11 }}>Takeaway Order Radius (meters)</label>
-                          <input
-                            className="input"
-                            type="number"
-                            min={1}
-                            placeholder="e.g. 500"
-                            value={restaurantForm.takeawayRadius ?? 500}
-                            onChange={e => setRestaurantForm({ ...restaurantForm, takeawayRadius: parseInt(e.target.value) || 0 })}
-                          />
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                          Maximum allowed distance in meters from outlet location to place In-Dining or Takeaway orders.
                         </div>
                       </div>
                     </div>

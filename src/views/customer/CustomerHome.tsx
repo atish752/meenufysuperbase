@@ -1150,7 +1150,7 @@ export default function CustomerHome() {
                             position: 'relative'
                           }}>
                             <img
-                              src={acc.posterImage || acc.bannerImage || DEFAULT_BANNER}
+                              src={acc.posterImage || acc.logo || acc.bannerImage || DEFAULT_BANNER}
                               alt={acc.restaurantName}
                               style={{
                                 width: '100%',
