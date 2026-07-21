@@ -1698,7 +1698,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'UPDATE_RESTAURANT': {
       const restName = action.payload.name || (action.payload as any).restaurantName;
       const updatedPayload = restName ? { ...action.payload, name: restName } : action.payload;
-      const targetRestId = state.admin?.restaurantId || state.restaurant.id || 'admin-1';
+      const targetRestId = action.payload.id || state.admin?.restaurantId || state.restaurant.id || 'admin-1';
 
       const updatedAccounts = state.restaurantAccounts.map(acc => {
         if (acc.id === targetRestId) {
@@ -1713,14 +1713,15 @@ function reducer(state: AppState, action: Action): AppState {
         return acc;
       });
 
+      // Update localStorage so refresh does not revert data
       try {
         localStorage.setItem('meenufy_accounts_cache', JSON.stringify(updatedAccounts));
-      } catch {}
+      } catch (e) {}
 
-      return {
-        ...state,
-        restaurant: { ...state.restaurant, ...updatedPayload },
-        restaurantAccounts: updatedAccounts
+      return { 
+        ...state, 
+        restaurantAccounts: updatedAccounts,
+        restaurant: { ...state.restaurant, ...updatedPayload } 
       };
     }
     case 'TOGGLE_RESTAURANT_LISTING': {
@@ -3878,8 +3879,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             break;
           }
           case 'UPDATE_RESTAURANT': {
+            const targetRestId = action.payload.id || restId || 'admin-1';
             handleDbPromise(
-              update(ref(db, `restaurants/${restId}`), sanitizeDbData(action.payload)),
+              update(ref(db, `restaurants/${targetRestId}`), sanitizeDbData(action.payload)),
               'Failed to update restaurant info'
             );
 
@@ -3895,7 +3897,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             delete accountUpdates.email;
 
             if (Object.keys(accountUpdates).length > 0) {
-              update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)
+              update(ref(db, `restaurantAccounts/${targetRestId}`), accountUpdates)
                 .catch(err => console.error("Failed to sync profile changes to restaurantAccounts:", err));
             }
             break;
