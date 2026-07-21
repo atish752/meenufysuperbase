@@ -3,12 +3,44 @@ import { useStore } from '../../context/RealtimeStore';
 import {
   Store, Save, LogOut,
   MessageSquare, Smartphone, Send, Download, QrCode, ExternalLink,
-  CreditCard, Printer, Users
+  CreditCard, Printer, Users, X
 } from 'lucide-react';
 import { auth, googleProvider, hasFirebaseConfig, db } from '../../utils/firebase';
 import { ref, update } from 'firebase/database';
 import { signInWithPopup } from 'firebase/auth';
 import { connectBluetoothPrinter, disconnectBluetoothPrinter, printThermalReceipt } from '../../utils/printReceipt';
+
+const loadLeaflet = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      reject(new Error('Window not defined'));
+      return;
+    }
+    if ((window as any).L) {
+      resolve((window as any).L);
+      return;
+    }
+
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.async = true;
+    script.onload = () => {
+      resolve((window as any).L);
+    };
+    script.onerror = (err) => {
+      reject(err);
+    };
+    document.head.appendChild(script);
+  });
+};
 
 
 function getQRUrl(tableId: string, restaurantId: string): string {
@@ -182,6 +214,92 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
+  const [showAdminMapModal, setShowAdminMapModal] = useState(false);
+  const [adminMapLat, setAdminMapLat] = useState<number>(26.29855);
+  const [adminMapLng, setAdminMapLng] = useState<number>(84.43531);
+  const [adminMapAddress, setAdminMapAddress] = useState<string>('');
+
+  useEffect(() => {
+    if (!showAdminMapModal) return;
+
+    let activeMap: any = null;
+    let marker: any = null;
+
+    loadLeaflet()
+      .then((L) => {
+        const mapContainer = document.getElementById('admin-outlet-map-picker');
+        if (!mapContainer) return;
+
+        const startLat = adminMapLat || restaurantForm.latitude || 26.29855;
+        const startLng = adminMapLng || restaurantForm.longitude || 84.43531;
+
+        activeMap = L.map('admin-outlet-map-picker', {
+          zoomControl: true,
+          scrollWheelZoom: true
+        }).setView([startLat, startLng], 16);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(activeMap);
+
+        marker = L.marker([startLat, startLng], {
+          draggable: true
+        }).addTo(activeMap);
+
+        const updatePosition = (lat: number, lng: number) => {
+          const cleanLat = parseFloat(lat.toFixed(6));
+          const cleanLng = parseFloat(lng.toFixed(6));
+          setAdminMapLat(cleanLat);
+          setAdminMapLng(cleanLng);
+
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${cleanLat}&lon=${cleanLng}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.display_name) {
+                setAdminMapAddress(data.display_name);
+              }
+            })
+            .catch(() => {});
+        };
+
+        marker.on('dragend', () => {
+          const pos = marker.getLatLng();
+          updatePosition(pos.lat, pos.lng);
+        });
+
+        activeMap.on('click', (e: any) => {
+          marker.setLatLng(e.latlng);
+          updatePosition(e.latlng.lat, e.latlng.lng);
+        });
+
+        setTimeout(() => {
+          if (activeMap) activeMap.invalidateSize();
+        }, 300);
+      })
+      .catch((err) => {
+        console.error('Leaflet load error:', err);
+        addToast('error', 'Failed to load interactive map.');
+      });
+
+    return () => {
+      if (activeMap) {
+        activeMap.off();
+        activeMap.remove();
+      }
+    };
+  }, [showAdminMapModal]);
+
+  const handleConfirmAdminMapLocation = () => {
+    updateRestaurantForm(prev => ({
+      ...prev,
+      latitude: adminMapLat,
+      longitude: adminMapLng,
+      ...(adminMapAddress ? { address: adminMapAddress } : {})
+    }));
+    setShowAdminMapModal(false);
+    addToast('success', `📍 Location set to (${adminMapLat}, ${adminMapLng})! Click "Save Info Details" to update.`);
+  };
   const isFormDirtyRef = useRef(false);
   const updateRestaurantForm = (action: React.SetStateAction<typeof restaurantForm>) => {
     isFormDirtyRef.current = true;
@@ -859,13 +977,13 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           update(ref(db, `restaurants/admin-1`), sanitizeForFirebase({ ...accountData, name: currentName })).catch(() => {});
         }
 
-        addToast('success', `✨ "${currentName}" saved and synced to cloud!`);
+        addToast('success', `✅ "${currentName}" saved successfully! Note: Changes may take up to 10 minutes to reflect live for all customers.`);
       } catch (e: any) {
         console.error('Firebase save error:', e);
         addToast('error', `⚠️ Saved locally, but cloud sync failed: ${e?.message || e}`);
       }
     } else {
-      addToast('success', `✨ "${currentName}" saved locally!`);
+      addToast('success', `✅ "${currentName}" saved locally! Note: Changes may take up to 10 minutes to reflect live.`);
     }
   };
 
@@ -1361,6 +1479,26 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             })}
           </div>
 
+          {/* Notice Banner for Restaurant Owners */}
+          <div style={{
+            background: 'rgba(255, 152, 0, 0.1)',
+            border: '1px solid var(--brand)',
+            borderRadius: 'var(--radius)',
+            padding: '12px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            fontSize: 12,
+            color: 'var(--text-primary)'
+          }}>
+            <span style={{ fontSize: 20 }}>⏱️</span>
+            <div>
+              <div style={{ fontWeight: 800, color: 'var(--brand)', marginBottom: 2 }}>Notice for Restaurant Owners</div>
+              <div>Any updates made to your outlet settings (name, logo, location, delivery radii) will take <strong>up to 10 minutes</strong> to reflect live for all customers.</div>
+            </div>
+          </div>
+
           <div>
 
               {/* 1. Home Delivery Sub-section */}
@@ -1692,9 +1830,23 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                             className="btn btn-secondary"
                             onClick={handleCaptureCurrentLocation}
                             disabled={capturingLocation}
-                            style={{ height: 38, padding: '0 12px' }}
+                            style={{ height: 38, padding: '0 10px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
                           >
-                            {capturingLocation ? '...' : 'GPS'}
+                            {capturingLocation ? '🔄 GPS...' : '📡 GPS'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => {
+                              const defaultLat = restaurantForm.latitude || 26.29855;
+                              const defaultLng = restaurantForm.longitude || 84.43531;
+                              setAdminMapLat(defaultLat);
+                              setAdminMapLng(defaultLng);
+                              setShowAdminMapModal(true);
+                            }}
+                            style={{ height: 38, padding: '0 10px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                          >
+                            🗺️ Select on Map
                           </button>
                         </div>
 
@@ -1891,9 +2043,23 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           className="btn btn-secondary"
                           onClick={handleCaptureCurrentLocation}
                           disabled={capturingLocation}
-                          style={{ height: 38, padding: '0 12px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                          style={{ height: 38, padding: '0 10px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
                         >
                           {capturingLocation ? '🔄 GPS...' : '📡 Capture GPS'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => {
+                            const defaultLat = restaurantForm.latitude || 26.29855;
+                            const defaultLng = restaurantForm.longitude || 84.43531;
+                            setAdminMapLat(defaultLat);
+                            setAdminMapLng(defaultLng);
+                            setShowAdminMapModal(true);
+                          }}
+                          style={{ height: 38, padding: '0 10px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          🗺️ Select on Map
                         </button>
                       </div>
 
@@ -3701,6 +3867,89 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Map Location Picker Modal for Outlet */}
+      {showAdminMapModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1200,
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'fadeIn 0.2s ease',
+          padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: 24,
+            padding: '24px', width: '100%', maxWidth: 480,
+            border: '1px solid var(--border-elevated)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            display: 'flex', flexDirection: 'column', gap: 16
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>📍</span>
+                <span style={{ fontSize: 15, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--brand)', textTransform: 'uppercase' }}>
+                  Choose Outlet Location on Map
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdminMapModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Drag the pin marker or click anywhere on the map to select your exact restaurant outlet location.
+            </div>
+
+            {/* Map Element */}
+            <div style={{ position: 'relative', width: '100%' }}>
+              <div 
+                id="admin-outlet-map-picker" 
+                style={{ 
+                  width: '100%', 
+                  height: 320, 
+                  borderRadius: 14, 
+                  border: '1px solid var(--border)', 
+                  overflow: 'hidden',
+                  background: 'var(--bg-elevated)'
+                }} 
+              />
+            </div>
+
+            {/* Coordinates & Address display */}
+            <div style={{ background: 'var(--bg-elevated)', padding: '10px 14px', borderRadius: 10, fontSize: 11.5, color: 'var(--text-primary)' }}>
+              <div><strong>Latitude:</strong> {adminMapLat} | <strong>Longitude:</strong> {adminMapLng}</div>
+              {adminMapAddress && (
+                <div style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  🏠 {adminMapAddress}
+                </div>
+              )}
+            </div>
+
+            {/* Footer buttons */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary btn-full" 
+                onClick={() => setShowAdminMapModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary btn-full" 
+                onClick={handleConfirmAdminMapLocation}
+              >
+                Confirm &amp; Use Location
+              </button>
+            </div>
           </div>
         </div>
       )}
