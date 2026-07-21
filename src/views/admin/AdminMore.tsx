@@ -323,6 +323,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           email: freshAccount.ownerEmail || state.restaurant.email,
           address: freshAccount.address || state.restaurant.address,
           tagline: freshAccount.tagline || state.restaurant.tagline,
+          promoText: freshAccount.promoText || (state.restaurant as any).promoText || '',
           logo: freshAccount.logo || state.restaurant.logo,
           posterImage: freshAccount.posterImage || state.restaurant.posterImage,
           bannerImage: freshAccount.bannerImage || state.restaurant.bannerImage,
@@ -938,11 +939,13 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
 
         // Map form fields → Firebase account fields
         const accountData = sanitizeForFirebase({
+          id: resolvedId,
           restaurantName: currentName,
           ownerPhone: restaurantForm.phone || activeAccount?.ownerPhone || '',
           ownerEmail: restaurantForm.email || activeAccount?.ownerEmail || adminEmail || '',
           address: restaurantForm.address ?? '',
           tagline: restaurantForm.tagline ?? '',
+          promoText: restaurantForm.promoText ?? '',
           openTime: restaurantForm.openTime || '06:00',
           closeTime: restaurantForm.closeTime || '00:00',
           daySpecificHours: restaurantForm.daySpecificHours ?? null,
@@ -962,6 +965,13 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           logo: currentLogo || '',
           posterImage: currentPoster || '',
           bannerImage: restaurantForm.bannerImage || '',
+          status: activeAccount?.status || 'active',
+          isListedOnHome: activeAccount?.isListedOnHome !== false,
+          rating: activeAccount?.rating ?? 0,
+          ratingsCount: activeAccount?.ratingsCount ?? 0,
+          subscriptionPlan: activeAccount?.subscriptionPlan || 'free',
+          walletBalance: activeAccount?.walletBalance ?? 300,
+          createdAt: activeAccount?.createdAt || Date.now(),
           ...(restaurantForm.latitude !== undefined ? { latitude: Number(restaurantForm.latitude) } : {}),
           ...(restaurantForm.longitude !== undefined ? { longitude: Number(restaurantForm.longitude) } : {}),
         });
@@ -970,12 +980,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
         await update(ref(db, `restaurantAccounts/${resolvedId}`), accountData);
         // Write to restaurants node for customer reads
         await update(ref(db, `restaurants/${resolvedId}`), sanitizeForFirebase({ ...accountData, name: currentName }));
-
-        // If user's key differs from 'admin-1', also keep admin-1 updated (legacy compatibility)
-        if (resolvedId !== 'admin-1') {
-          update(ref(db, `restaurantAccounts/admin-1`), accountData).catch(() => {});
-          update(ref(db, `restaurants/admin-1`), sanitizeForFirebase({ ...accountData, name: currentName })).catch(() => {});
-        }
 
         addToast('success', `✅ "${currentName}" saved successfully! Note: Changes may take up to 10 minutes to reflect live for all customers.`);
       } catch (e: any) {
@@ -1952,6 +1956,33 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           );
                         })}
                       </div>
+                    </div>
+
+                    <div className="input-group" style={{ background: 'rgba(255,125,0,0.08)', padding: 12, borderRadius: 10, border: '1px solid rgba(255,125,0,0.2)' }}>
+                      <label className="input-label" style={{ fontWeight: 800, color: 'var(--brand)' }}>
+                        📢 Header Announcement / Promo Message (Single-line on Customer Card)
+                      </label>
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="e.g. 🔥 Flat 20% OFF on all orders today! / Free Dessert with every meal"
+                        value={restaurantForm.promoText || ''}
+                        onChange={e => updateRestaurantForm({ ...restaurantForm, promoText: e.target.value })}
+                      />
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                        This unique message displays in a prominent single-line banner at the top of your restaurant card on the customer app.
+                      </div>
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">Restaurant Tagline / Slogan</label>
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="e.g. Authentic flavors, modern experience"
+                        value={restaurantForm.tagline || ''}
+                        onChange={e => updateRestaurantForm({ ...restaurantForm, tagline: e.target.value })}
+                      />
                     </div>
 
                     <div className="input-group">

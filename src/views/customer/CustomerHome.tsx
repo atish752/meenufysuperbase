@@ -264,7 +264,7 @@ export default function CustomerHome() {
   // Filter & calculate active restaurants nearby (within 15 km limit)
   // useMemo prevents expensive Haversine recalculation on every Firebase push (orders, pings, etc.)
   const allAccounts = state.restaurantAccounts || [];
-  const activeRestaurants = useMemo(() => allAccounts.filter(acc => acc.status === 'active' && acc.isListedOnHome !== false), [allAccounts]);
+  const activeRestaurants = useMemo(() => allAccounts.filter(acc => (acc.status || 'active') === 'active' && acc.isListedOnHome !== false), [allAccounts]);
 
 
 
@@ -1122,12 +1122,12 @@ export default function CustomerHome() {
                         onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(234, 88, 12, 0.45)'; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 18px rgba(234, 88, 12, 0.35)'; }}
                       >
-                        {/* Top Promo Text Banner */}
-                        {acc.promoText && (
+                        {/* Top Promo Text Banner / Unique Header Message */}
+                        {(acc.promoText || acc.tagline) && (
                           <div style={{
                             background: 'rgba(0,0,0,0.22)',
                             color: '#ffffff',
-                            fontSize: 9,
+                            fontSize: 10,
                             fontWeight: 800,
                             padding: '4px 14px',
                             lineHeight: '1.3',
@@ -1137,7 +1137,7 @@ export default function CustomerHome() {
                             textOverflow: 'ellipsis',
                             borderBottom: '1px solid rgba(255,255,255,0.15)',
                           }}>
-                            📢 {acc.promoText.length > 50 ? acc.promoText.substring(0, 50) + '...' : acc.promoText}
+                            📢 {(acc.promoText || acc.tagline)!.length > 60 ? (acc.promoText || acc.tagline)!.substring(0, 60) + '...' : (acc.promoText || acc.tagline)}
                           </div>
                         )}
 

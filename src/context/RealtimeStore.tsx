@@ -1773,7 +1773,7 @@ function reducer(state: AppState, action: Action): AppState {
       const adminEmail = state.admin?.email?.trim().toLowerCase();
       const updatedAccounts = state.restaurantAccounts.map(acc => {
         const accEmail = acc.ownerEmail?.trim().toLowerCase();
-        if (acc.id === targetRestId || acc.id === 'admin-1' || (adminEmail && accEmail === adminEmail)) {
+        if (acc.id === targetRestId || (adminEmail && accEmail === adminEmail && targetRestId !== 'admin-1')) {
           // Explicitly map ALL restaurant field names to account field names
           const merged: RestaurantAccount = {
             ...acc,
@@ -1785,6 +1785,7 @@ function reducer(state: AppState, action: Action): AppState {
             // Details
             address: p.address ?? acc.address,
             tagline: p.tagline ?? acc.tagline,
+            promoText: p.promoText ?? acc.promoText,
             cuisines: p.cuisines ?? acc.cuisines,
             googleMapsUrl: p.googleMapsUrl ?? acc.googleMapsUrl,
             // Images
