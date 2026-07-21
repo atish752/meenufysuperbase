@@ -182,22 +182,26 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
 
-  useEffect(() => {
-    const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
-    const freshAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
-    const freshName = freshAccount?.restaurantName || state.restaurant.name;
-    const freshPoster = freshAccount?.posterImage || state.restaurant.posterImage;
-    const freshLogo = freshAccount?.logo || state.restaurant.logo;
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
-    setRestaurantForm(prev => ({ 
-      ...state.restaurant, 
-      ...prev,
-      name: prev.name || freshName,
-      posterImage: prev.posterImage || freshPoster,
-      logo: prev.logo || freshLogo,
-    }));
-    setTableCount(state.restaurant.tableCount || 0);
-  }, [state.restaurant, state.restaurantAccounts, state.admin]);
+  useEffect(() => {
+    // Only synchronize the form ONCE after the real database data has arrived (accountsFromDb = true).
+    // This prevents the form from permanently locking in the DEFAULT mock state from cache,
+    // and prevents overwriting user edits on every background update.
+    if (!initialDataLoaded && state.accountsFromDb) {
+      const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+      const freshAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
+      
+      setRestaurantForm({ 
+        ...state.restaurant, 
+        name: freshAccount?.restaurantName || state.restaurant.name,
+        posterImage: freshAccount?.posterImage || state.restaurant.posterImage,
+        logo: freshAccount?.logo || state.restaurant.logo,
+      });
+      setTableCount(state.restaurant.tableCount || 0);
+      setInitialDataLoaded(true);
+    }
+  }, [state.restaurant, state.restaurantAccounts, state.admin, state.accountsFromDb, initialDataLoaded]);
 
   // Staff state hooks
   const [staffName, setStaffName] = useState('');
