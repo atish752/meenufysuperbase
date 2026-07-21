@@ -131,7 +131,12 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     setGoogleLinking(true);
     try {
       localStorage.setItem('meenufy_auth_role', 'admin');
-      const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + window.location.pathname + window.location.search
+        }
+      });
       if (error) throw error;
       const { data: sessionData } = await supabaseClient.auth.getSession();
       const sbUser = sessionData?.session?.user;

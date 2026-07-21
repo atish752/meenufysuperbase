@@ -623,7 +623,12 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       setSigningIn(true);
       try {
         localStorage.setItem('meenufy_auth_role', 'customer');
-        const { error: oauthError } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+        const { error: oauthError } = await supabaseClient.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin + window.location.pathname + window.location.search
+          }
+        });
         if (oauthError) throw oauthError;
         const { data: sessionData } = await supabaseClient.auth.getSession();
         const user = sessionData?.session?.user;
