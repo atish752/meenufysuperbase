@@ -4080,53 +4080,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             break;
           }
           case 'UPDATE_RESTAURANT': {
-            const targetRestId = action.payload.id || restId || 'admin-1';
-            const cleanPayload = sanitizeDbData(action.payload);
-
-            // 1. Write to restaurants node
-            handleDbPromise(
-              update(ref(db, `restaurants/${targetRestId}`), cleanPayload),
-              'Failed to update restaurant info'
-            );
-
-            // 2. Build clean account updates object explicitly with safe type casts
-            const p = action.payload as any;
-            const accountUpdates: Record<string, any> = {};
-            if (p.name || p.restaurantName) {
-              accountUpdates.restaurantName = p.name || p.restaurantName;
-            }
-            if (p.phone || p.ownerPhone) {
-              accountUpdates.ownerPhone = p.phone || p.ownerPhone;
-            }
-            if (p.email || p.ownerEmail) {
-              accountUpdates.ownerEmail = p.email || p.ownerEmail;
-            }
-            if (action.payload.address !== undefined) accountUpdates.address = action.payload.address;
-            if (action.payload.tagline !== undefined) accountUpdates.tagline = action.payload.tagline;
-            if (action.payload.logo !== undefined) accountUpdates.logo = action.payload.logo;
-            if (action.payload.posterImage !== undefined) accountUpdates.posterImage = action.payload.posterImage;
-            if (action.payload.bannerImage !== undefined) accountUpdates.bannerImage = action.payload.bannerImage;
-            if (action.payload.cuisines !== undefined) accountUpdates.cuisines = action.payload.cuisines;
-            if (action.payload.deliveryEnabled !== undefined) accountUpdates.deliveryEnabled = Boolean(action.payload.deliveryEnabled);
-            if (action.payload.deliveryRadius !== undefined) accountUpdates.deliveryRadius = Number(action.payload.deliveryRadius);
-            if (action.payload.deliveryCharge !== undefined) accountUpdates.deliveryCharge = Number(action.payload.deliveryCharge);
-            if (action.payload.freeDeliveryDistance !== undefined) accountUpdates.freeDeliveryDistance = Number(action.payload.freeDeliveryDistance);
-            if (action.payload.freeDeliveryMinAmount !== undefined) accountUpdates.freeDeliveryMinAmount = Number(action.payload.freeDeliveryMinAmount);
-            if (action.payload.freeDeliveryDistanceEnabled !== undefined) accountUpdates.freeDeliveryDistanceEnabled = Boolean(action.payload.freeDeliveryDistanceEnabled);
-            if (action.payload.freeDeliveryMinAmountEnabled !== undefined) accountUpdates.freeDeliveryMinAmountEnabled = Boolean(action.payload.freeDeliveryMinAmountEnabled);
-            if (action.payload.latitude !== undefined) accountUpdates.latitude = Number(action.payload.latitude);
-            if (action.payload.longitude !== undefined) accountUpdates.longitude = Number(action.payload.longitude);
-            if (action.payload.upiId !== undefined) accountUpdates.upiId = action.payload.upiId;
-            if (action.payload.googleMapsUrl !== undefined) accountUpdates.googleMapsUrl = action.payload.googleMapsUrl;
-            if (action.payload.openTime !== undefined) accountUpdates.openTime = action.payload.openTime;
-            if (action.payload.closeTime !== undefined) accountUpdates.closeTime = action.payload.closeTime;
-
-            if (Object.keys(accountUpdates).length > 0) {
-              handleDbPromise(
-                update(ref(db, `restaurantAccounts/${targetRestId}`), accountUpdates),
-                'Failed to sync profile changes to restaurantAccounts'
-              );
-            }
+            // NOTE: handleSaveRestaurant in AdminMore.tsx writes directly to Firebase before dispatching.
+            // To avoid a race condition (middleware write racing with the direct write and potentially
+            // overwriting with stale/partial data), we skip the middleware DB write here.
+            // The direct write in handleSaveRestaurant is the single source of truth for outlet settings.
             break;
           }
           case 'TOGGLE_RESTAURANT_LISTING': {

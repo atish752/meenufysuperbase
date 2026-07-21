@@ -776,83 +776,97 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   }, [activeSection, state.tables]);
 
   const handleSaveRestaurant = async () => {
+    // Resolve the correct account node key
+    const adminEmail = state.admin?.email?.trim().toLowerCase();
     const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
-    const activeAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
+
+    // Find the matching account by ID or email
+    const activeAccount = state.restaurantAccounts?.find(
+      acc => acc.id === targetId || (adminEmail && acc.ownerEmail?.trim().toLowerCase() === adminEmail)
+    );
+    const resolvedId = activeAccount?.id || targetId;
+
     const currentName = restaurantForm.name || activeAccount?.restaurantName || state.restaurant.name;
     const currentPoster = restaurantForm.posterImage || activeAccount?.posterImage || state.restaurant.posterImage;
     const currentLogo = restaurantForm.logo || activeAccount?.logo || state.restaurant.logo;
-    
-    const payloadToSave = { 
-      ...restaurantForm, 
-      id: targetId,
+
+    const payloadToSave = {
+      ...restaurantForm,
+      id: resolvedId,
       name: currentName,
       ...(currentPoster ? { posterImage: currentPoster } : {}),
       ...(currentLogo ? { logo: currentLogo } : {})
     };
 
+    // 1. Save to localStorage IMMEDIATELY so it survives any reload
     try {
       localStorage.setItem('meenufy_saved_outlet_info', JSON.stringify(payloadToSave));
     } catch {}
 
+    // 2. Dispatch to Redux IMMEDIATELY so UI (sidebar, header) updates without waiting for Firebase
+    isFormDirtyRef.current = false;
+    dispatch({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
+
+    // 3. Write directly to Firebase (bypassing middleware double-write)
     if (db) {
       try {
         const sanitizeForFirebase = (obj: any) => {
           const clean: Record<string, any> = {};
           for (const [key, val] of Object.entries(obj)) {
-            if (val !== undefined && val !== null) {
-              clean[key] = val;
-            }
+            if (val !== undefined && val !== null) clean[key] = val;
           }
           return clean;
         };
 
-        const dbUpdates = sanitizeForFirebase({
+        // Map form fields → Firebase account fields
+        const accountData = sanitizeForFirebase({
           restaurantName: currentName,
-          ownerPhone: restaurantForm.phone || activeAccount?.ownerPhone || state.restaurant.phone,
-          ownerEmail: restaurantForm.email || activeAccount?.ownerEmail || state.restaurant.email,
-          address: restaurantForm.address || activeAccount?.address || state.restaurant.address,
-          tagline: restaurantForm.tagline || activeAccount?.tagline || state.restaurant.tagline,
-          openTime: restaurantForm.openTime || activeAccount?.openTime || '06:00',
-          closeTime: restaurantForm.closeTime || activeAccount?.closeTime || '00:00',
-          daySpecificHours: restaurantForm.daySpecificHours || activeAccount?.daySpecificHours,
-          deliveryEnabled: Boolean(payloadToSave.deliveryEnabled),
-          deliveryRadius: Number(payloadToSave.deliveryRadius || 10),
-          deliveryCharge: Number(payloadToSave.deliveryCharge !== undefined ? payloadToSave.deliveryCharge : 40),
-          freeDeliveryDistance: Number(payloadToSave.freeDeliveryDistance || 2),
-          freeDeliveryMinAmount: Number(payloadToSave.freeDeliveryMinAmount || 150),
-          freeDeliveryDistanceEnabled: Boolean(payloadToSave.freeDeliveryDistanceEnabled ?? true),
-          freeDeliveryMinAmountEnabled: Boolean(payloadToSave.freeDeliveryMinAmountEnabled ?? true),
-          indiningRadius: Number(payloadToSave.indiningRadius || 5),
-          takeawayRadius: Number(payloadToSave.takeawayRadius || 10),
-          verificationRadius: Number(payloadToSave.verificationRadius || 50),
-          upiId: payloadToSave.upiId || activeAccount?.upiId || '',
-          upiQrCode: payloadToSave.upiQrCode || (activeAccount as any)?.upiQrCode || '',
-          googleMapsUrl: payloadToSave.googleMapsUrl || activeAccount?.googleMapsUrl || '',
-          cuisines: payloadToSave.cuisines || activeAccount?.cuisines || '',
+          ownerPhone: restaurantForm.phone || activeAccount?.ownerPhone || '',
+          ownerEmail: restaurantForm.email || activeAccount?.ownerEmail || adminEmail || '',
+          address: restaurantForm.address ?? '',
+          tagline: restaurantForm.tagline ?? '',
+          openTime: restaurantForm.openTime || '06:00',
+          closeTime: restaurantForm.closeTime || '00:00',
+          daySpecificHours: restaurantForm.daySpecificHours ?? null,
+          deliveryEnabled: Boolean(restaurantForm.deliveryEnabled),
+          deliveryRadius: Number(restaurantForm.deliveryRadius || 10),
+          deliveryCharge: Number(restaurantForm.deliveryCharge ?? 40),
+          freeDeliveryDistance: Number(restaurantForm.freeDeliveryDistance || 2),
+          freeDeliveryMinAmount: Number(restaurantForm.freeDeliveryMinAmount || 150),
+          freeDeliveryDistanceEnabled: Boolean(restaurantForm.freeDeliveryDistanceEnabled ?? true),
+          freeDeliveryMinAmountEnabled: Boolean(restaurantForm.freeDeliveryMinAmountEnabled ?? true),
+          indiningRadius: Number(restaurantForm.indiningRadius || 5),
+          takeawayRadius: Number(restaurantForm.takeawayRadius || 10),
+          verificationRadius: Number(restaurantForm.verificationRadius || 50),
+          upiId: restaurantForm.upiId ?? '',
+          googleMapsUrl: restaurantForm.googleMapsUrl ?? '',
+          cuisines: restaurantForm.cuisines ?? '',
           logo: currentLogo || '',
           posterImage: currentPoster || '',
-          bannerImage: payloadToSave.bannerImage || activeAccount?.bannerImage || '',
-          latitude: payloadToSave.latitude !== undefined ? Number(payloadToSave.latitude) : undefined,
-          longitude: payloadToSave.longitude !== undefined ? Number(payloadToSave.longitude) : undefined,
+          bannerImage: restaurantForm.bannerImage || '',
+          ...(restaurantForm.latitude !== undefined ? { latitude: Number(restaurantForm.latitude) } : {}),
+          ...(restaurantForm.longitude !== undefined ? { longitude: Number(restaurantForm.longitude) } : {}),
         });
 
-        // Write directly to both accounts and restaurants nodes in Firebase Realtime Database
-        await update(ref(db, `restaurantAccounts/${targetId}`), dbUpdates);
-        await update(ref(db, `restaurants/${targetId}`), sanitizeForFirebase({ ...payloadToSave, name: currentName }));
+        // Write to the account's actual Firebase node
+        await update(ref(db, `restaurantAccounts/${resolvedId}`), accountData);
+        // Write to restaurants node for customer reads
+        await update(ref(db, `restaurants/${resolvedId}`), sanitizeForFirebase({ ...accountData, name: currentName }));
 
-        // ALSO update admin-1 explicitly if targetId is a dynamic user UID, so demo/fallback queries match too
-        if (targetId !== 'admin-1') {
-          await update(ref(db, `restaurantAccounts/admin-1`), dbUpdates).catch(() => {});
-          await update(ref(db, `restaurants/admin-1`), sanitizeForFirebase({ ...payloadToSave, name: currentName })).catch(() => {});
+        // If user's key differs from 'admin-1', also keep admin-1 updated (legacy compatibility)
+        if (resolvedId !== 'admin-1') {
+          update(ref(db, `restaurantAccounts/admin-1`), accountData).catch(() => {});
+          update(ref(db, `restaurants/admin-1`), sanitizeForFirebase({ ...accountData, name: currentName })).catch(() => {});
         }
-      } catch (e) {
+
+        addToast('success', `✨ "${currentName}" saved and synced to cloud!`);
+      } catch (e: any) {
         console.error('Firebase save error:', e);
+        addToast('error', `⚠️ Saved locally, but cloud sync failed: ${e?.message || e}`);
       }
+    } else {
+      addToast('success', `✨ "${currentName}" saved locally!`);
     }
-    
-    isFormDirtyRef.current = false;
-    dispatch({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
-    addToast('success', '✨ Restaurant settings saved & synced live to cloud!');
   };
 
   const handleCaptureCurrentLocation = () => {

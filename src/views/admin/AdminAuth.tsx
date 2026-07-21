@@ -255,7 +255,13 @@ export default function AdminAuth() {
         addToast('success', mode === 'signup' ? `Account created! Welcome, ${adminUser.name}! 🎉` : `Welcome back, ${adminUser.name}! 🎉`);
       } catch (err: any) {
         let errMsg = err.message || 'Authentication failed.';
-        if (err.code === 'auth/email-already-in-use') errMsg = 'This email is already in use.';
+        if (err.code === 'auth/email-already-in-use') {
+          setMode('login');
+          setForm(prev => ({ ...prev, name: '', restaurantName: '' }));
+          addToast('info', '📧 This email already has an account. Switched to Sign In — just enter your password!');
+          setLoading(false);
+          return;
+        }
         if (err.code === 'auth/wrong-password') errMsg = 'Incorrect password.';
         if (err.code === 'auth/user-not-found') errMsg = 'No account found with this email.';
         if (err.code === 'auth/invalid-credential') errMsg = 'Invalid email or password.';
