@@ -182,26 +182,44 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
 
-  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
-
   useEffect(() => {
-    // Only synchronize the form ONCE after the real database data has arrived (accountsFromDb = true).
-    // This prevents the form from permanently locking in the DEFAULT mock state from cache,
-    // and prevents overwriting user edits on every background update.
-    if (!initialDataLoaded && state.accountsFromDb) {
-      const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
-      const freshAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
-      
-      setRestaurantForm({ 
-        ...state.restaurant, 
-        name: freshAccount?.restaurantName || state.restaurant.name,
-        posterImage: freshAccount?.posterImage || state.restaurant.posterImage,
-        logo: freshAccount?.logo || state.restaurant.logo,
+    const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+    const freshAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
+    
+    if (state.accountsFromDb || freshAccount) {
+      setRestaurantForm({
+        ...state.restaurant,
+        ...(freshAccount ? {
+          name: freshAccount.restaurantName || state.restaurant.name,
+          phone: freshAccount.ownerPhone || state.restaurant.phone,
+          email: freshAccount.ownerEmail || state.restaurant.email,
+          address: freshAccount.address || state.restaurant.address,
+          tagline: freshAccount.tagline || state.restaurant.tagline,
+          logo: freshAccount.logo || state.restaurant.logo,
+          posterImage: freshAccount.posterImage || state.restaurant.posterImage,
+          bannerImage: freshAccount.bannerImage || state.restaurant.bannerImage,
+          cuisines: freshAccount.cuisines || state.restaurant.cuisines,
+          latitude: freshAccount.latitude !== undefined ? freshAccount.latitude : state.restaurant.latitude,
+          longitude: freshAccount.longitude !== undefined ? freshAccount.longitude : state.restaurant.longitude,
+          deliveryEnabled: freshAccount.deliveryEnabled !== undefined ? freshAccount.deliveryEnabled : state.restaurant.deliveryEnabled,
+          deliveryRadius: freshAccount.deliveryRadius !== undefined ? freshAccount.deliveryRadius : state.restaurant.deliveryRadius,
+          deliveryCharge: freshAccount.deliveryCharge !== undefined ? freshAccount.deliveryCharge : state.restaurant.deliveryCharge,
+          freeDeliveryDistance: freshAccount.freeDeliveryDistance !== undefined ? freshAccount.freeDeliveryDistance : state.restaurant.freeDeliveryDistance,
+          freeDeliveryMinAmount: freshAccount.freeDeliveryMinAmount !== undefined ? freshAccount.freeDeliveryMinAmount : state.restaurant.freeDeliveryMinAmount,
+          freeDeliveryDistanceEnabled: freshAccount.freeDeliveryDistanceEnabled !== undefined ? freshAccount.freeDeliveryDistanceEnabled : state.restaurant.freeDeliveryDistanceEnabled,
+          freeDeliveryMinAmountEnabled: freshAccount.freeDeliveryMinAmountEnabled !== undefined ? freshAccount.freeDeliveryMinAmountEnabled : state.restaurant.freeDeliveryMinAmountEnabled,
+          indiningRadius: freshAccount.indiningRadius !== undefined ? freshAccount.indiningRadius : state.restaurant.indiningRadius,
+          takeawayRadius: freshAccount.takeawayRadius !== undefined ? freshAccount.takeawayRadius : state.restaurant.takeawayRadius,
+          verificationRadius: freshAccount.verificationRadius !== undefined ? freshAccount.verificationRadius : state.restaurant.verificationRadius,
+          upiId: freshAccount.upiId || state.restaurant.upiId,
+          googleMapsUrl: freshAccount.googleMapsUrl || state.restaurant.googleMapsUrl,
+          openTime: freshAccount.openTime || state.restaurant.openTime,
+          closeTime: freshAccount.closeTime || state.restaurant.closeTime,
+        } : {})
       });
       setTableCount(state.restaurant.tableCount || 0);
-      setInitialDataLoaded(true);
     }
-  }, [state.restaurant, state.restaurantAccounts, state.admin, state.accountsFromDb, initialDataLoaded]);
+  }, [state.restaurant, state.restaurantAccounts, state.admin, state.accountsFromDb]);
 
   // Staff state hooks
   const [staffName, setStaffName] = useState('');

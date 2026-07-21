@@ -381,8 +381,18 @@ export type RestaurantAccount = {
   isListedOnHome?: boolean;
   deliveryEnabled?: boolean;
   deliveryRadius?: number;
+  deliveryCharge?: number;
+  freeDeliveryDistance?: number;
+  freeDeliveryMinAmount?: number;
+  freeDeliveryDistanceEnabled?: boolean;
+  freeDeliveryMinAmountEnabled?: boolean;
   indiningRadius?: number;
   takeawayRadius?: number;
+  verificationRadius?: number;
+  upiId?: string;
+  googleMapsUrl?: string;
+  openTime?: string;
+  closeTime?: string;
 };
 
 export type StaffMember = {
@@ -1369,8 +1379,18 @@ function reducer(state: AppState, action: Action): AppState {
             longitude: matched.longitude !== undefined ? matched.longitude : state.restaurant.longitude,
             deliveryEnabled: matched.deliveryEnabled !== undefined ? matched.deliveryEnabled : state.restaurant.deliveryEnabled,
             deliveryRadius: matched.deliveryRadius !== undefined ? matched.deliveryRadius : state.restaurant.deliveryRadius,
+            deliveryCharge: matched.deliveryCharge !== undefined ? matched.deliveryCharge : state.restaurant.deliveryCharge,
+            freeDeliveryDistance: matched.freeDeliveryDistance !== undefined ? matched.freeDeliveryDistance : state.restaurant.freeDeliveryDistance,
+            freeDeliveryMinAmount: matched.freeDeliveryMinAmount !== undefined ? matched.freeDeliveryMinAmount : state.restaurant.freeDeliveryMinAmount,
+            freeDeliveryDistanceEnabled: matched.freeDeliveryDistanceEnabled !== undefined ? matched.freeDeliveryDistanceEnabled : state.restaurant.freeDeliveryDistanceEnabled,
+            freeDeliveryMinAmountEnabled: matched.freeDeliveryMinAmountEnabled !== undefined ? matched.freeDeliveryMinAmountEnabled : state.restaurant.freeDeliveryMinAmountEnabled,
             indiningRadius: matched.indiningRadius !== undefined ? matched.indiningRadius : state.restaurant.indiningRadius,
             takeawayRadius: matched.takeawayRadius !== undefined ? matched.takeawayRadius : state.restaurant.takeawayRadius,
+            verificationRadius: matched.verificationRadius !== undefined ? matched.verificationRadius : state.restaurant.verificationRadius,
+            upiId: matched.upiId || state.restaurant.upiId,
+            googleMapsUrl: matched.googleMapsUrl || state.restaurant.googleMapsUrl,
+            openTime: matched.openTime || state.restaurant.openTime,
+            closeTime: matched.closeTime || state.restaurant.closeTime,
           };
         }
       }
