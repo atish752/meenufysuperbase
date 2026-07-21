@@ -6,6 +6,7 @@ import {
   CreditCard, Printer, Users
 } from 'lucide-react';
 import { auth, googleProvider, hasFirebaseConfig, db } from '../../utils/firebase';
+import { ref, update } from 'firebase/database';
 import { signInWithPopup } from 'firebase/auth';
 import { connectBluetoothPrinter, disconnectBluetoothPrinter, printThermalReceipt } from '../../utils/printReceipt';
 
@@ -781,6 +782,26 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       ...(currentPoster ? { posterImage: currentPoster } : {}),
       ...(currentLogo ? { logo: currentLogo } : {})
     };
+
+    if (db) {
+      const dbUpdates: Record<string, any> = {
+        deliveryEnabled: Boolean(payloadToSave.deliveryEnabled),
+        deliveryRadius: Number(payloadToSave.deliveryRadius || 10),
+        deliveryCharge: Number(payloadToSave.deliveryCharge !== undefined ? payloadToSave.deliveryCharge : 40),
+        freeDeliveryDistance: Number(payloadToSave.freeDeliveryDistance || 2),
+        freeDeliveryMinAmount: Number(payloadToSave.freeDeliveryMinAmount || 150),
+        freeDeliveryDistanceEnabled: Boolean(payloadToSave.freeDeliveryDistanceEnabled ?? true),
+        freeDeliveryMinAmountEnabled: Boolean(payloadToSave.freeDeliveryMinAmountEnabled ?? true),
+        restaurantName: currentName,
+        ...(currentLogo ? { logo: currentLogo } : {}),
+        ...(currentPoster ? { posterImage: currentPoster } : {}),
+      };
+      if (payloadToSave.upiId) dbUpdates.upiId = payloadToSave.upiId;
+      if (payloadToSave.address) dbUpdates.address = payloadToSave.address;
+
+      update(ref(db, `restaurantAccounts/${targetId}`), dbUpdates).catch(err => console.error(err));
+      update(ref(db, `restaurants/${targetId}`), { ...payloadToSave, name: currentName }).catch(err => console.error(err));
+    }
     
     dispatch({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
     addToast('success', '✨ Restaurant settings saved & synced live to cloud!');
