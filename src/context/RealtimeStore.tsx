@@ -2964,9 +2964,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             console.error('Failed to restore session from Firebase Auth:', err);
           }
         }
-      } else if (!fbUser && isAlreadyLoggedIn && currentAdmin?.isFirebaseUser) {
-        // Firebase session expired or signed out — log out the admin
-        dispatch({ type: 'LOGOUT_ADMIN' });
       }
     });
     return () => unsubscribeAuth();
