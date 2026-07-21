@@ -1403,6 +1403,7 @@ function reducer(state: AppState, action: Action): AppState {
             googleMapsUrl: matched.googleMapsUrl || state.restaurant.googleMapsUrl,
             openTime: matched.openTime || state.restaurant.openTime,
             closeTime: matched.closeTime || state.restaurant.closeTime,
+            daySpecificHours: matched.daySpecificHours || state.restaurant.daySpecificHours,
           };
         }
       }

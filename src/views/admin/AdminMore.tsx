@@ -788,23 +788,44 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     };
 
     if (db) {
-      const dbUpdates: Record<string, any> = {
-        deliveryEnabled: Boolean(payloadToSave.deliveryEnabled),
-        deliveryRadius: Number(payloadToSave.deliveryRadius || 10),
-        deliveryCharge: Number(payloadToSave.deliveryCharge !== undefined ? payloadToSave.deliveryCharge : 40),
-        freeDeliveryDistance: Number(payloadToSave.freeDeliveryDistance || 2),
-        freeDeliveryMinAmount: Number(payloadToSave.freeDeliveryMinAmount || 150),
-        freeDeliveryDistanceEnabled: Boolean(payloadToSave.freeDeliveryDistanceEnabled ?? true),
-        freeDeliveryMinAmountEnabled: Boolean(payloadToSave.freeDeliveryMinAmountEnabled ?? true),
-        restaurantName: currentName,
-        ...(currentLogo ? { logo: currentLogo } : {}),
-        ...(currentPoster ? { posterImage: currentPoster } : {}),
-      };
-      if (payloadToSave.upiId) dbUpdates.upiId = payloadToSave.upiId;
-      if (payloadToSave.address) dbUpdates.address = payloadToSave.address;
+      try {
+        const cleanObj = (obj: any) => JSON.parse(JSON.stringify(obj, (_k, v) => v === undefined ? null : v));
 
-      update(ref(db, `restaurantAccounts/${targetId}`), dbUpdates).catch(err => console.error(err));
-      update(ref(db, `restaurants/${targetId}`), { ...payloadToSave, name: currentName }).catch(err => console.error(err));
+        const dbUpdates: Record<string, any> = cleanObj({
+          restaurantName: currentName,
+          ownerPhone: restaurantForm.phone || activeAccount?.ownerPhone || state.restaurant.phone,
+          ownerEmail: restaurantForm.email || activeAccount?.ownerEmail || state.restaurant.email,
+          address: restaurantForm.address || activeAccount?.address || state.restaurant.address,
+          tagline: restaurantForm.tagline || activeAccount?.tagline || state.restaurant.tagline,
+          openTime: restaurantForm.openTime || activeAccount?.openTime || '06:00',
+          closeTime: restaurantForm.closeTime || activeAccount?.closeTime || '00:00',
+          daySpecificHours: restaurantForm.daySpecificHours || activeAccount?.daySpecificHours || null,
+          deliveryEnabled: Boolean(payloadToSave.deliveryEnabled),
+          deliveryRadius: Number(payloadToSave.deliveryRadius || 10),
+          deliveryCharge: Number(payloadToSave.deliveryCharge !== undefined ? payloadToSave.deliveryCharge : 40),
+          freeDeliveryDistance: Number(payloadToSave.freeDeliveryDistance || 2),
+          freeDeliveryMinAmount: Number(payloadToSave.freeDeliveryMinAmount || 150),
+          freeDeliveryDistanceEnabled: Boolean(payloadToSave.freeDeliveryDistanceEnabled ?? true),
+          freeDeliveryMinAmountEnabled: Boolean(payloadToSave.freeDeliveryMinAmountEnabled ?? true),
+          indiningRadius: Number(payloadToSave.indiningRadius || 5),
+          takeawayRadius: Number(payloadToSave.takeawayRadius || 10),
+          verificationRadius: Number(payloadToSave.verificationRadius || 50),
+          upiId: payloadToSave.upiId || activeAccount?.upiId || '',
+          upiQrCode: payloadToSave.upiQrCode || (activeAccount as any)?.upiQrCode || '',
+          googleMapsUrl: payloadToSave.googleMapsUrl || activeAccount?.googleMapsUrl || '',
+          cuisines: payloadToSave.cuisines || activeAccount?.cuisines || '',
+          logo: currentLogo || '',
+          posterImage: currentPoster || '',
+          bannerImage: payloadToSave.bannerImage || activeAccount?.bannerImage || '',
+          latitude: payloadToSave.latitude !== undefined ? Number(payloadToSave.latitude) : null,
+          longitude: payloadToSave.longitude !== undefined ? Number(payloadToSave.longitude) : null,
+        });
+
+        update(ref(db, `restaurantAccounts/${targetId}`), dbUpdates).catch(err => console.error('Account update error:', err));
+        update(ref(db, `restaurants/${targetId}`), cleanObj({ ...payloadToSave, name: currentName })).catch(err => console.error('Rest update error:', err));
+      } catch (e) {
+        console.error('Save error:', e);
+      }
     }
     
     isFormDirtyRef.current = false;
