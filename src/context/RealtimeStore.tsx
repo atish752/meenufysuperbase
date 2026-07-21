@@ -3120,20 +3120,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const isLocalAdmin = (() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return !!s.isAdminLoggedIn; } catch { return false; } })();
     const isAdminMode = isUrlAdmin || isLocalAdmin;
 
-    // Listen to Gemini API keys
-    let unsubscribeGeminiKeys = () => {};
-    if (isAdminMode) {
-      unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as string[];
-          dispatch({
-            type: 'SET_STATE',
-            payload: { geminiApiKeys: keys }
-          });
-        }
-      });
-    }
+    // Listen to Gemini API keys — always load, needed by all restaurant owners for AI features
+    const unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as string[];
+        dispatch({
+          type: 'SET_STATE',
+          payload: { geminiApiKeys: keys }
+        });
+      }
+    });
 
     // Listen to popular cuisines
     const unsubscribePopularCuisines = onValue(ref(db, 'meenufy_config/popularCuisines'), (snapshot) => {

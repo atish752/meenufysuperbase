@@ -392,9 +392,9 @@ export default function AdminMenu() {
     apiCallFn: (key: string, model: string) => Promise<T>,
     onErrorText: string
   ): Promise<T> => {
-    // Only use real keys — filter out placeholder/fake keys
+    // Only use real keys — filter out the built-in placeholder/fake keys
     const validUserKeys = (state.geminiApiKeys || [])
-      .filter(k => k && !k.includes('FakeGeminiKey') && !k.includes('DEMO_KEY') && k.startsWith('AIza') && k.length > 30);
+      .filter(k => k && typeof k === 'string' && k.length > 20 && !k.includes('FakeGeminiKey') && !k.includes('DEMO_KEY') && !k.includes('PLACEHOLDER'));
 
     if (validUserKeys.length === 0) {
       throw new Error('NO_VALID_API_KEY');
@@ -450,6 +450,7 @@ export default function AdminMenu() {
   };
 
   const openExtractor = () => {
+    setShowApiKeySetup(false); // never show API key prompt — Super Admin manages all keys
     setExtractorStep('upload');
     setShowExtractorModal(true);
   };
@@ -591,9 +592,8 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
       console.error(err);
       if (err.message === 'NO_VALID_API_KEY') {
         setExtractorStep('upload');
-        // Show inline API key setup instead of generic error
-        addToast('error', '🔑 No Gemini API key found. Please add one below to use AI extraction.');
-        setShowApiKeySetup(true);
+        addToast('error', '⚠️ No Gemini API keys are active yet. Please contact the platform admin to configure AI access in Super Admin.');
+        setShowApiKeySetup(false);
       } else {
         addToast('error', err.message || 'Error occurred while extracting meals.');
         setShowSupportModal(true);
