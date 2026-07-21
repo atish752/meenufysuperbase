@@ -1547,7 +1547,7 @@ function reducer(state: AppState, action: Action): AppState {
         else defaultTab = 'more';
       }
       
-      const isDemoAdmin = action.payload.id === 'admin-1' || email.trim().toLowerCase() === 'atish3477';
+      const isDemoAdmin = action.payload.id === 'admin-1';
       
       const loginRestId = action.payload.id;
 
@@ -2617,73 +2617,7 @@ function loadState(): Partial<AppState> {
     }
     const parsed = JSON.parse(raw) as Partial<AppState>;
 
-    // ── Step 1: Detect the admin's old dynamic ID (if any) ───────────────────────
-    // If the saved admin is 'atish3477' or 'atish3477@gmail.com' but has a non-admin-1 ID, that's the old dynamic ID
-    let oldDynamicId: string | null = null;
-    if (
-      parsed.admin &&
-      (parsed.admin.email?.trim().toLowerCase() === 'atish3477' ||
-       parsed.admin.email?.trim().toLowerCase() === 'atish3477@gmail.com') &&
-      parsed.admin.id !== 'admin-1'
-    ) {
-      oldDynamicId = parsed.admin.id;
-    }
-
-    // ── Step 2: Remap restaurant accounts ────────────────────────────────────────
-    if (parsed.restaurantAccounts) {
-      // Find dynamic account for 'atish3477' or 'atish3477@gmail.com' via email (alternative detection)
-      const dynamicAccount = parsed.restaurantAccounts.find(
-        acc => acc.id !== 'admin-1' && 
-        (acc.ownerEmail?.trim().toLowerCase() === 'atish3477' ||
-         acc.ownerEmail?.trim().toLowerCase() === 'atish3477@gmail.com')
-      );
-      if (dynamicAccount && !oldDynamicId) {
-        oldDynamicId = dynamicAccount.id;
-      }
-
-      // Update admin-1 to have owner email 'atish3477'
-      parsed.restaurantAccounts = parsed.restaurantAccounts.map(acc => {
-        if (acc.id === 'admin-1') {
-          return { ...acc, ownerEmail: 'atish3477', ownerName: 'Atish' };
-        }
-        return acc;
-      });
-
-      // Remove duplicate dynamic account
-      parsed.restaurantAccounts = parsed.restaurantAccounts.filter(
-        acc => !(acc.id !== 'admin-1' && 
-                 (acc.ownerEmail?.trim().toLowerCase() === 'atish3477' ||
-                  acc.ownerEmail?.trim().toLowerCase() === 'atish3477@gmail.com'))
-      );
-    }
-
-    // ── Step 3: Remap all data using the old dynamic ID ──────────────────────────
-    if (oldDynamicId) {
-      if (parsed.menuItems) {
-        parsed.menuItems = parsed.menuItems.map(item =>
-          item.restaurantId === oldDynamicId ? { ...item, restaurantId: 'admin-1' } : item
-        );
-      }
-      if (parsed.categories) {
-        parsed.categories = parsed.categories.map(cat =>
-          cat.restaurantId === oldDynamicId ? { ...cat, restaurantId: 'admin-1' } : cat
-        );
-      }
-      if (parsed.orders) {
-        parsed.orders = parsed.orders.map(order =>
-          order.restaurantId === oldDynamicId ? { ...order, restaurantId: 'admin-1' } : order
-        );
-      }
-    }
-
-    // ── Step 4: Fix the active admin session ─────────────────────────────────────
-    if (
-      parsed.admin && 
-      (parsed.admin.email?.trim().toLowerCase() === 'atish3477' ||
-       parsed.admin.email?.trim().toLowerCase() === 'atish3477@gmail.com')
-    ) {
-      parsed.admin = { ...parsed.admin, id: 'admin-1', restaurantId: 'admin-1' };
-    }
+    // No dynamic session remapping or overrides for owner email atish3477
 
     // NOTE: Session restoration from Firebase Auth is handled by onAuthStateChanged
     // listener in StoreProvider. We do NOT restore from sessionStorage here to avoid
@@ -2901,7 +2835,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const isTargetingAdminRoute = typeof window !== 'undefined' && 
               (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/onboarding') || window.location.search.includes('view=admin'));
 
-            const isDbAdmin = !!dbMatchedAccount || isTargetingAdminRoute || authRole === 'admin' || fbEmail === 'atish3477@gmail.com';
+            const isDbAdmin = !!dbMatchedAccount || isTargetingAdminRoute || authRole === 'admin';
 
             if (isDbAdmin) {
               // This is an Admin account! ONLY log into admin if user is on an admin route/view or authRole is admin.

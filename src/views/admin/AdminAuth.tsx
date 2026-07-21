@@ -285,9 +285,7 @@ export default function AdminAuth() {
     }
 
     let adminId = existingAccount ? existingAccount.id : `admin-${Date.now()}`;
-    if (emailLower === 'atish3477' || emailLower === 'atish3477@gmail.com') {
-      adminId = 'admin-1';
-    }
+
     const adminUser = {
       id: adminId,
       name: existingAccount ? existingAccount.ownerName : (form.name || form.email.split('@')[0]),
@@ -335,28 +333,24 @@ export default function AdminAuth() {
       let resolvedAdminId = adminId;
       let dbMatchedAccount: any = null;
 
-      if (fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477') {
-        resolvedAdminId = 'admin-1';
-      } else {
-        try {
-          const allAccountsObj = await dbGet('restaurantAccounts');
-          if (allAccountsObj) {
-            if (allAccountsObj[adminId]) {
-              resolvedAdminId = adminId;
-              dbMatchedAccount = { ...allAccountsObj[adminId], id: adminId };
-            } else {
-              const matchedEntry = Object.entries(allAccountsObj).find(
-                ([_, acc]: [string, any]) => acc.ownerEmail?.trim().toLowerCase() === fbEmail
-              );
-              if (matchedEntry) {
-                resolvedAdminId = matchedEntry[0];
-                dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
-              }
+      try {
+        const allAccountsObj = await dbGet('restaurantAccounts');
+        if (allAccountsObj) {
+          if (allAccountsObj[adminId]) {
+            resolvedAdminId = adminId;
+            dbMatchedAccount = { ...allAccountsObj[adminId], id: adminId };
+          } else {
+            const matchedEntry = Object.entries(allAccountsObj).find(
+              ([_, acc]: [string, any]) => acc.ownerEmail?.trim().toLowerCase() === fbEmail
+            );
+            if (matchedEntry) {
+              resolvedAdminId = matchedEntry[0];
+              dbMatchedAccount = { ...(matchedEntry[1] as any), id: matchedEntry[0] };
             }
           }
-        } catch (dbErr) {
-          console.error('Error pre-fetching restaurant account during Google login:', dbErr);
         }
+      } catch (dbErr) {
+        console.error('Error pre-fetching restaurant account during Google login:', dbErr);
       }
 
       // Fallback search in memory state if database read is skipped or failed
