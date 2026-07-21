@@ -71,7 +71,19 @@ export default function NewOrderAlert({ order }: { order: Order }) {
     return () => clearTimeout(autoDismiss);
   }, []);
 
+  const markAlertDismissed = (orderId: string) => {
+    try {
+      const raw = localStorage.getItem('meenufy_dismissed_alert_orders');
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      if (!list.includes(orderId)) {
+        list.push(orderId);
+        localStorage.setItem('meenufy_dismissed_alert_orders', JSON.stringify(list.slice(-200)));
+      }
+    } catch {}
+  };
+
   const handleAccept = () => {
+    markAlertDismissed(order.id);
     dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: order.id, status: 'preparing' } });
     addToast('success', `Order accepted! Cooking started.`);
     dispatch({ type: 'CLEAR_NEW_ORDER_ALERT' });
@@ -80,12 +92,14 @@ export default function NewOrderAlert({ order }: { order: Order }) {
   const handleReject = () => {
     const confirmReject = window.confirm("Are you sure you want to REJECT and CANCEL this order?");
     if (!confirmReject) return;
+    markAlertDismissed(order.id);
     dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: order.id, status: 'cancelled' } });
     addToast('error', `Order cancelled/rejected.`);
     dispatch({ type: 'CLEAR_NEW_ORDER_ALERT' });
   };
 
   const handleIgnore = () => {
+    markAlertDismissed(order.id);
     dispatch({ type: 'CLEAR_NEW_ORDER_ALERT' });
     addToast('info', 'Alert dismissed. Order can be managed on the board.');
   };

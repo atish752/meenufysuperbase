@@ -96,13 +96,21 @@ export default function AdminLayout() {
     const adminId = state.admin?.restaurantId || 'admin-1';
     const myOrders = state.orders.filter(o => (o.restaurantId || 'admin-1') === adminId);
 
+    let dismissedOrderIds: Set<string> = new Set();
+    try {
+      const raw = localStorage.getItem('meenufy_dismissed_alert_orders');
+      if (raw) dismissedOrderIds = new Set(JSON.parse(raw));
+    } catch {}
+
     if (isOrdersMount.current) {
-      const initialOrders: Record<string, any> = {};
-      myOrders.forEach(o => {
-        initialOrders[o.id] = { status: o.status, paymentStatus: o.paymentStatus || 'pending' };
-      });
-      prevOrdersRef.current = initialOrders;
-      isOrdersMount.current = false;
+      if (myOrders.length > 0) {
+        const initialOrders: Record<string, any> = {};
+        myOrders.forEach(o => {
+          initialOrders[o.id] = { status: o.status, paymentStatus: o.paymentStatus || 'pending' };
+        });
+        prevOrdersRef.current = initialOrders;
+        isOrdersMount.current = false;
+      }
       return;
     }
 
@@ -117,7 +125,7 @@ export default function AdminLayout() {
 
       currentOrders[orderId] = { status: currentStatus, paymentStatus: currentPayStatus };
 
-      if (!prev) {
+      if (!prev && !dismissedOrderIds.has(orderId)) {
         if (currentStatus === 'pending') {
           triggerNotification(
             `🛒 New Order Placed! (Table ${order.tableNumber})`,

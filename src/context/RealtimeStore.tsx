@@ -250,6 +250,8 @@ export type RestaurantInfo = {
   subscriptionId?: string | null;
   deliveryEnabled?: boolean;
   deliveryRadius?: number;
+  indiningRadius?: number;
+  takeawayRadius?: number;
   upiQrCode?: string;
   freeDeliveryDistance?: number;
   freeDeliveryMinAmount?: number;
@@ -377,6 +379,10 @@ export type RestaurantAccount = {
   promoText?: string;
   daySpecificHours?: Record<string, { openTime: string; closeTime: string; closed?: boolean }>;
   isListedOnHome?: boolean;
+  deliveryEnabled?: boolean;
+  deliveryRadius?: number;
+  indiningRadius?: number;
+  takeawayRadius?: number;
 };
 
 export type StaffMember = {
@@ -3841,6 +3847,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (action.payload.subscriptionPlan) accountUpdates.subscriptionPlan = action.payload.subscriptionPlan;
             if (action.payload.subscriptionRenewalDate !== undefined) accountUpdates.subscriptionRenewalDate = action.payload.subscriptionRenewalDate;
             if (action.payload.basePlanSelectedType) accountUpdates.basePlanSelectedType = action.payload.basePlanSelectedType;
+            if (action.payload.deliveryEnabled !== undefined) accountUpdates.deliveryEnabled = action.payload.deliveryEnabled;
+            if (action.payload.deliveryRadius !== undefined) accountUpdates.deliveryRadius = action.payload.deliveryRadius;
+            if (action.payload.deliveryCharge !== undefined) accountUpdates.deliveryCharge = action.payload.deliveryCharge;
+            if (action.payload.freeDeliveryDistance !== undefined) accountUpdates.freeDeliveryDistance = action.payload.freeDeliveryDistance;
+            if (action.payload.freeDeliveryMinAmount !== undefined) accountUpdates.freeDeliveryMinAmount = action.payload.freeDeliveryMinAmount;
+            if (action.payload.freeDeliveryDistanceEnabled !== undefined) accountUpdates.freeDeliveryDistanceEnabled = action.payload.freeDeliveryDistanceEnabled;
+            if (action.payload.freeDeliveryMinAmountEnabled !== undefined) accountUpdates.freeDeliveryMinAmountEnabled = action.payload.freeDeliveryMinAmountEnabled;
+            if (action.payload.indiningRadius !== undefined) accountUpdates.indiningRadius = action.payload.indiningRadius;
+            if (action.payload.takeawayRadius !== undefined) accountUpdates.takeawayRadius = action.payload.takeawayRadius;
             
             if (Object.keys(accountUpdates).length > 0) {
               update(ref(db, `restaurantAccounts/${restId}`), accountUpdates)

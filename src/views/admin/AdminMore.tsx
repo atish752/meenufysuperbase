@@ -1782,6 +1782,31 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           onChange={e => setRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
                         />
                       </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                        <div className="input-group">
+                          <label className="input-label" style={{ fontSize: 11 }}>In-Dining Order Radius (meters)</label>
+                          <input
+                            className="input"
+                            type="number"
+                            min={1}
+                            placeholder="e.g. 100"
+                            value={restaurantForm.indiningRadius ?? 100}
+                            onChange={e => setRestaurantForm({ ...restaurantForm, indiningRadius: parseInt(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <div className="input-group">
+                          <label className="input-label" style={{ fontSize: 11 }}>Takeaway Order Radius (meters)</label>
+                          <input
+                            className="input"
+                            type="number"
+                            min={1}
+                            placeholder="e.g. 500"
+                            value={restaurantForm.takeawayRadius ?? 500}
+                            onChange={e => setRestaurantForm({ ...restaurantForm, takeawayRadius: parseInt(e.target.value) || 0 })}
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
