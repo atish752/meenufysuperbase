@@ -1,4 +1,4 @@
-import { useStore } from '../../context/RealtimeStore';
+import { useStore, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import { ShoppingBag, UtensilsCrossed, Store, BarChart3, MoreHorizontal, Bell, ChevronRight } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -12,7 +12,8 @@ const NAV_ITEMS = [
 export default function AdminSidebar() {
   const { state, dispatch } = useStore();
 
-  const adminRestaurantId = state.admin?.restaurantId || 'admin-1';
+  const adminRestaurantId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+  const activeRest = getActiveRestaurantInfo(state, adminRestaurantId);
   const activeOrders = state.orders.filter(o => 
     ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status) && 
     (o.restaurantId === adminRestaurantId)
@@ -52,7 +53,7 @@ export default function AdminSidebar() {
         }}>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 1 }}>Restaurant</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {state.restaurant.name}
+            {activeRest.name || state.restaurant.name}
           </div>
         </div>
       </div>

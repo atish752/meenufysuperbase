@@ -1168,7 +1168,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{state.admin?.name}</div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{state.admin?.email}</div>
               <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600, marginTop: 2 }}>
-                {state.restaurant.name}
+                {restaurantForm.name || currentRestName}
               </div>
             </div>
             {canConnectGoogle && (
