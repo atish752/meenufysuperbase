@@ -1363,7 +1363,8 @@ function reducer(state: AppState, action: Action): AppState {
       
       let updatedRestaurant = state.restaurant;
       if (currentAdmin && !currentAdmin.isSuperAdmin) {
-        const matched = accounts.find(acc => acc.id === currentAdmin.id);
+        const cEmail = currentAdmin.email?.trim().toLowerCase();
+        const matched = accounts.find(acc => acc.id === currentAdmin.id || acc.id === currentAdmin.restaurantId || acc.id === 'admin-1' || (cEmail && acc.ownerEmail?.trim().toLowerCase() === cEmail));
         if (matched) {
           activeBalance = matched.walletBalance;
           subscriptionPlan = matched.subscriptionPlan || 'free';
@@ -1743,8 +1744,10 @@ function reducer(state: AppState, action: Action): AppState {
       const restName = p.name || p.restaurantName;
       const targetRestId = p.id || state.admin?.restaurantId || state.admin?.id || state.restaurant.id || 'admin-1';
 
+      const adminEmail = state.admin?.email?.trim().toLowerCase();
       const updatedAccounts = state.restaurantAccounts.map(acc => {
-        if (acc.id === targetRestId) {
+        const accEmail = acc.ownerEmail?.trim().toLowerCase();
+        if (acc.id === targetRestId || acc.id === 'admin-1' || (adminEmail && accEmail === adminEmail)) {
           // Explicitly map ALL restaurant field names to account field names
           const merged: RestaurantAccount = {
             ...acc,
