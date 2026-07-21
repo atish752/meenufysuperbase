@@ -184,6 +184,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const deliveryBoyLimit = getDeliveryBoyLimit(state.subscriptionPlan || 'free');
 
   const rawSections = [
+    { id: 'restaurant', label: 'Outlet Settings', icon: Store, permission: 'outlet_setting' },
     { id: 'qr', label: 'Manage QR & Tables', icon: QrCode, permission: 'qr_tables' },
     { id: 'autoprint', label: 'Autoprint KOT/Bill', icon: Printer, permission: 'outlet_setting' },
     { id: 'staff', label: 'Manage Staff', icon: Users, permission: 'owner_only' },
@@ -1265,7 +1266,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     }
   };
 
-  const isOnlyOutlet = forceSection === 'outlet';
+  const isOnlyOutlet = forceSection === 'outlet' || forceSection === 'restaurant' || activeSection === 'restaurant';
 
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
