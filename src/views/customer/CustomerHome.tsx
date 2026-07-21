@@ -291,8 +291,9 @@ export default function CustomerHome() {
           return matchesSearch;
         }
 
-        // 2. Haversine 15 Kilometer radius limit or city address fallback
-        const isNearby = acc.distance <= 15;
+        // 2. Haversine outlet delivery radius limit or city address fallback
+        const maxRadius = acc.deliveryRadius || 15;
+        const isNearby = acc.distance <= maxRadius;
         const isAddressMatch = selectedCity !== 'all' && selectedCity !== 'gps' && 
                                !!acc.address && acc.address.toLowerCase().includes(selectedCity.toLowerCase());
         if (!isNearby && !isAddressMatch && coords) return false;

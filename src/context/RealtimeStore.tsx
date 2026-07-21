@@ -693,6 +693,7 @@ export function getActiveRestaurantInfo(state: AppState, restaurantId: string): 
   if (account) {
     return {
       ...baseRest,
+      ...account,
       id: restaurantId,
       name: account.restaurantName || baseRest.name || DEFAULT_RESTAURANT.name,
       tagline: account.tagline || baseRest.tagline || DEFAULT_RESTAURANT.tagline,
@@ -710,9 +711,20 @@ export function getActiveRestaurantInfo(state: AppState, restaurantId: string): 
       subscriptionRenewalDate: account.subscriptionRenewalDate || baseRest.subscriptionRenewalDate || 0,
       basePlanSelectedType: account.basePlanSelectedType || baseRest.basePlanSelectedType || 'dining_takeaway',
       createdAt: account.createdAt || baseRest.createdAt || Date.now(),
-      openTime: baseRest.openTime || '00:00',
-      closeTime: baseRest.closeTime || '23:59',
-      isManualClosed: baseRest.isManualClosed || false,
+      openTime: account.openTime || baseRest.openTime || '00:00',
+      closeTime: account.closeTime || baseRest.closeTime || '23:59',
+      isManualClosed: (account as any).isManualClosed !== undefined ? (account as any).isManualClosed : (baseRest.isManualClosed || false),
+      deliveryEnabled: account.deliveryEnabled !== undefined ? account.deliveryEnabled : baseRest.deliveryEnabled,
+      deliveryRadius: account.deliveryRadius !== undefined ? account.deliveryRadius : baseRest.deliveryRadius,
+      deliveryCharge: account.deliveryCharge !== undefined ? account.deliveryCharge : baseRest.deliveryCharge,
+      freeDeliveryDistance: account.freeDeliveryDistance !== undefined ? account.freeDeliveryDistance : baseRest.freeDeliveryDistance,
+      freeDeliveryMinAmount: account.freeDeliveryMinAmount !== undefined ? account.freeDeliveryMinAmount : baseRest.freeDeliveryMinAmount,
+      freeDeliveryDistanceEnabled: account.freeDeliveryDistanceEnabled !== undefined ? account.freeDeliveryDistanceEnabled : baseRest.freeDeliveryDistanceEnabled,
+      freeDeliveryMinAmountEnabled: account.freeDeliveryMinAmountEnabled !== undefined ? account.freeDeliveryMinAmountEnabled : baseRest.freeDeliveryMinAmountEnabled,
+      latitude: account.latitude !== undefined ? account.latitude : baseRest.latitude,
+      longitude: account.longitude !== undefined ? account.longitude : baseRest.longitude,
+      upiId: account.upiId || baseRest.upiId,
+      googleMapsUrl: account.googleMapsUrl || baseRest.googleMapsUrl,
     };
   }
 
