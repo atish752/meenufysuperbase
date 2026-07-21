@@ -200,10 +200,11 @@ const EMPTY_ITEM: Omit<MenuItem, 'id'> = {
 
 export default function AdminMenu() {
   const { state, dispatch, addToast } = useStore();
-  const adminId = state.admin?.restaurantId || 'admin-1';
-  const adminMenuItems = state.menuItems.filter(item => (item.restaurantId || 'admin-1') === adminId);
-  const adminCategories = state.categories.filter(c => (c.restaurantId || 'admin-1') === adminId);
-  const adminAddons = state.addons?.filter(a => a && (a.restaurantId || 'admin-1') === adminId) || [];
+  const adminId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+  const ownerAdminIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId].filter(Boolean));
+  const adminMenuItems = state.menuItems.filter(item => ownerAdminIds.has(item.restaurantId || 'admin-1'));
+  const adminCategories = state.categories.filter(c => ownerAdminIds.has(c.restaurantId || 'admin-1'));
+  const adminAddons = state.addons?.filter(a => a && ownerAdminIds.has(a.restaurantId || 'admin-1')) || [];
   const uncategorizedItems = adminMenuItems.filter(item => 
     !item.category || !adminCategories.some(c => c.id === item.category)
   );

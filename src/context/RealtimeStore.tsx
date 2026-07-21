@@ -10,8 +10,7 @@ import {
   set, 
   update, 
   remove, 
-  onValue,
-  get
+  onValue
 } from 'firebase/database';
 
 const DEFAULT_POPULAR_CUISINES = [
@@ -1100,7 +1099,7 @@ const DEFAULT_STATE: AppState = {
     'AIzaSyE_FakeGeminiKey_Beta02',
     'AIzaSyF_FakeGeminiKey_Gamma03'
   ],
-  popularCuisines: [],
+  popularCuisines: DEFAULT_POPULAR_CUISINES,
   supportRequests: [],
   ownerFeedbacks: [
     {
@@ -1142,7 +1141,7 @@ const DEFAULT_STATE: AppState = {
   },
   deferredPrompt: null,
   accountsFromDb: false,
-  cuisinesFromDb: false,
+  cuisinesFromDb: true,
 };
 
 // ─── Actions ─────────────────────────────────────────────────
@@ -1203,6 +1202,7 @@ type Action =
   | { type: 'ADD_GEMINI_KEY'; payload: string }
   | { type: 'REMOVE_GEMINI_KEY'; payload: string }
   | { type: 'SYNC_POPULAR_CUISINES'; payload: { name: string; query: string; image: string; zoom?: number; originalQuality?: boolean }[] }
+  | { type: 'SYNC_ALL_COUPONS'; payload: Coupon[] }
   | { type: 'SET_POPULAR_CUISINES'; payload: { name: string; query: string; image: string; zoom?: number; originalQuality?: boolean }[] }
   | { type: 'ADD_POPULAR_CUISINE'; payload: { name: string; query: string; image: string; zoom?: number; originalQuality?: boolean } }
   | { type: 'REMOVE_POPULAR_CUISINE'; payload: string }
@@ -1316,6 +1316,7 @@ function reducer(state: AppState, action: Action): AppState {
         coupons: action.payload
       };
     }
+    case 'SYNC_ALL_COUPONS': return { ...state, coupons: action.payload };
     case 'ADD_COUPON': {
       return {
         ...state,
@@ -3135,17 +3136,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Listen to popular cuisines
     const unsubscribePopularCuisines = onValue(ref(db, 'meenufy_config/popularCuisines'), (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        const items = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as { name: string; query: string; image: string }[];
-        dispatch({
-          type: 'SYNC_POPULAR_CUISINES',
-          payload: items
-        });
-      } else {
-        // Auto-initialize the database with default popular cuisines if completely empty in RTDB
+      const items = data
+        ? ((Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as { name: string; query: string; image: string }[])
+        : DEFAULT_POPULAR_CUISINES;
+      
+      dispatch({
+        type: 'SYNC_POPULAR_CUISINES',
+        payload: items
+      });
+
+      if (!data) {
         import('firebase/database').then(({ set, ref }) => {
           set(ref(db!, 'meenufy_config/popularCuisines'), DEFAULT_POPULAR_CUISINES);
         });
+      }
+    });
+
+    // Listen to ALL restaurant coupons globally for Customer Home Deals section
+    const unsubscribeAllCoupons = onValue(ref(db, 'coupons'), (snapshot) => {
+      const data = snapshot.val();
+      if (data && typeof data === 'object') {
+        const allList: Coupon[] = [];
+        Object.entries(data).forEach(([rId, restCoupons]: [string, any]) => {
+          if (restCoupons && typeof restCoupons === 'object') {
+            const cList = Array.isArray(restCoupons) ? restCoupons.filter(Boolean) : Object.values(restCoupons);
+            cList.forEach((c: any) => {
+              if (c && typeof c === 'object') {
+                allList.push({ ...c, restaurantId: c.restaurantId || rId });
+              }
+            });
+          }
+        });
+        dispatch({ type: 'SYNC_ALL_COUPONS', payload: allList });
       }
     });
 
@@ -3206,6 +3228,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAccounts();
       unsubscribeGeminiKeys();
       unsubscribePopularCuisines();
+      unsubscribeAllCoupons();
       unsubscribeSubscriptionCoupons();
       unsubscribeFeedbacks();
       unsubscribeSupport();
@@ -3236,63 +3259,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // This avoids the race condition where categories arrive before items (or vice versa)
     // making restaurantCategories always show only 'All'.
     // The capturedId prevents stale closures if user navigates away before fetch resolves.
-    const capturedId = targetRestaurantId;
-    let menuUnsubscribe: (() => void) | null = null;
-    let catUnsubscribe: (() => void) | null = null;
-
-    // Check if we already have data in state (e.g., already visited this restaurant)
-    const alreadyHasItems = stateRef.current.menuItems.some(i => i && i.restaurantId === capturedId);
-    const alreadyHasCats = stateRef.current.categories.some(c => c && c.restaurantId === capturedId);
-
-    if (alreadyHasItems && alreadyHasCats) {
-      // Data already cached — no fetch needed, just set up live update listeners
-    } else {
-      // Parallel get() for both — dispatched atomically as SYNC_MENU_DATA
-      Promise.all([
-        get(ref(db, `menuItems/${capturedId}`)),
-        get(ref(db, `categories/${capturedId}`)),
-      ]).then(([menuSnap, catSnap]) => {
-        if (capturedId !== getActiveRestaurantId(stateRef.current)) return; // navigated away
-        const menuData = menuSnap.val();
-        const catData = catSnap.val();
-        const items: MenuItem[] = menuData
-          ? (Array.isArray(menuData) ? menuData.filter(Boolean) : Object.values(menuData)).filter(Boolean) as MenuItem[]
-          : [];
-        const itemsWithId = items.map(item => ({ ...item, restaurantId: item.restaurantId || capturedId }));
-        const cats: MenuCategory[] = catData
-          ? (Array.isArray(catData) ? catData.filter(Boolean) : Object.values(catData)).filter(Boolean) as MenuCategory[]
-          : [];
-        const catsWithId = cats.map(c => ({ ...c, restaurantId: c.restaurantId || capturedId }));
-
-        if (!isCustomer && catData === null) {
-          const localCats = stateRef.current.categories.filter(c => c && c.restaurantId === capturedId);
-          if (localCats.length > 0) {
-            const catsObj: Record<string, any> = {};
-            localCats.forEach(cat => { if (cat) catsObj[cat.id] = cat; });
-            set(ref(db!, `categories/${capturedId}`), catsObj);
-          }
-        }
-
-        dispatch({
-          type: 'SYNC_MENU_DATA',
-          payload: { restaurantId: capturedId, items: itemsWithId, categories: catsWithId }
-        });
-      }).catch(() => {});
-    }
-
     // Keep live onValue listeners for real-time updates after initial load
     // These fire again when data changes (e.g., admin edits menu while customer is viewing)
     const unsubscribeMenu = onValue(ref(db, `menuItems/${targetRestaurantId}`), (snapshot) => {
-      if (!menuUnsubscribe) { menuUnsubscribe = () => {}; return; } // skip first callback (covered by get())
       const data = snapshot.val();
       const items: MenuItem[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuItem[] : [];
       const itemsWithId = items.map(item => ({ ...item, restaurantId: item.restaurantId || targetRestaurantId }));
       dispatch({ type: 'SYNC_MENU_ITEMS', payload: { restaurantId: targetRestaurantId, items: itemsWithId } });
     });
-    menuUnsubscribe = unsubscribeMenu;
 
     const unsubscribeCat = onValue(ref(db, `categories/${targetRestaurantId}`), (snapshot) => {
-      if (!catUnsubscribe) { catUnsubscribe = () => {}; return; } // skip first callback (covered by get())
       const data = snapshot.val();
       if (data) {
         const cats: MenuCategory[] = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuCategory[];
@@ -3300,7 +3276,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SYNC_CATEGORIES', payload: { restaurantId: targetRestaurantId, categories: catsWithId } });
       }
     });
-    catUnsubscribe = unsubscribeCat;
 
     // Listen to orders
     const unsubscribeOrder = onValue(ref(db, `orders/${targetRestaurantId}`), (snapshot) => {

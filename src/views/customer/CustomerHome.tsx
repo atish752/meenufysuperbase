@@ -292,11 +292,13 @@ export default function CustomerHome() {
         }
 
         // 2. Haversine outlet delivery radius limit or city address fallback
-        const maxRadius = acc.deliveryRadius || 15;
+        const maxRadius = acc.deliveryRadius || 50;
         const isNearby = acc.distance <= maxRadius;
         const isAddressMatch = selectedCity !== 'all' && selectedCity !== 'gps' && 
                                !!acc.address && acc.address.toLowerCase().includes(selectedCity.toLowerCase());
-        if (!isNearby && !isAddressMatch && coords) return false;
+        const isNewOrUnset = !acc.address || acc.address.trim() === '';
+        
+        if (!isNearby && !isAddressMatch && !isNewOrUnset && coords) return false;
 
         // 3. Search query filter
         const matchesSearch = searchQuery.trim() === '' || 
@@ -714,7 +716,7 @@ export default function CustomerHome() {
               overflowX: 'auto',
               paddingBottom: 6
             }} className="hide-scrollbar">
-              {!state.cuisinesFromDb ? (
+              {(!state.popularCuisines || state.popularCuisines.length === 0) ? (
                 /* Animated circular skeletons for cuisines during cold start */
                 <>
                   <style>{`
