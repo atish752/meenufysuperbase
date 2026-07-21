@@ -1465,7 +1465,7 @@ function reducer(state: AppState, action: Action): AppState {
       const isSuper = action.payload.isSuperAdmin;
       
       const newAccounts = state.restaurantAccounts.map(acc => {
-        if (acc.ownerEmail.trim().toLowerCase() === email.trim().toLowerCase()) {
+        if (acc.ownerEmail?.trim().toLowerCase() === email?.trim().toLowerCase()) {
           const updated = { ...acc };
           if (!acc.password && action.payload.password) {
             updated.password = action.payload.password;
@@ -1482,7 +1482,7 @@ function reducer(state: AppState, action: Action): AppState {
       });
       
       let existingAccount = action.payload.existingAccount || newAccounts.find(
-        acc => acc.ownerEmail.trim().toLowerCase() === email.trim().toLowerCase()
+        acc => acc.ownerEmail?.trim().toLowerCase() === email?.trim().toLowerCase()
       );
 
       if (action.payload.existingAccount && !newAccounts.some(acc => acc.id === action.payload.existingAccount.id)) {

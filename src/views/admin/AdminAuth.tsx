@@ -216,7 +216,7 @@ export default function AdminAuth() {
         // Fallback search in memory state if database read is skipped or failed
         if (!dbMatchedAccount) {
           const localAcc = state.restaurantAccounts?.find(
-            acc => acc.id === fbUser.uid || acc.ownerEmail.trim().toLowerCase() === fbEmail
+            acc => acc.id === fbUser.uid || acc.ownerEmail?.trim().toLowerCase() === fbEmail
           );
           if (localAcc) {
             resolvedAdminId = localAcc.id;
@@ -274,8 +274,8 @@ export default function AdminAuth() {
 
     // 4. Fallback Local storage authentication
     const existingAccount = state.restaurantAccounts?.find(
-      acc => acc.ownerEmail.trim().toLowerCase() === emailLower ||
-      (acc.ownerEmail.trim().toLowerCase() === 'atish3477' && emailLower === 'atish3477@gmail.com')
+      acc => acc.ownerEmail?.trim().toLowerCase() === emailLower ||
+      (acc.ownerEmail?.trim().toLowerCase() === 'atish3477' && emailLower === 'atish3477@gmail.com')
     );
 
     if (existingAccount) {
@@ -374,7 +374,7 @@ export default function AdminAuth() {
       // Fallback search in memory state if database read is skipped or failed
       if (!dbMatchedAccount) {
         const localAcc = state.restaurantAccounts?.find(
-          acc => acc.id === adminId || acc.ownerEmail.trim().toLowerCase() === fbEmail
+          acc => acc.id === adminId || acc.ownerEmail?.trim().toLowerCase() === fbEmail
         );
         if (localAcc) {
           resolvedAdminId = localAcc.id;
