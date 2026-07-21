@@ -211,7 +211,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [ticketType, setTicketType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
   const [activeSection, setActiveSection] = useState<string | null>(forceSection || null);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
-  const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
   const [showAdminMapModal, setShowAdminMapModal] = useState(false);
@@ -340,6 +339,11 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           indiningRadius: freshAccount.indiningRadius !== undefined ? freshAccount.indiningRadius : state.restaurant.indiningRadius,
           takeawayRadius: freshAccount.takeawayRadius !== undefined ? freshAccount.takeawayRadius : state.restaurant.takeawayRadius,
           verificationRadius: freshAccount.verificationRadius !== undefined ? freshAccount.verificationRadius : state.restaurant.verificationRadius,
+          mustLoginBeforeOrder: freshAccount.mustLoginBeforeOrder !== undefined ? freshAccount.mustLoginBeforeOrder : state.restaurant.mustLoginBeforeOrder,
+          locationVerificationEnabled: freshAccount.locationVerificationEnabled !== undefined ? freshAccount.locationVerificationEnabled : state.restaurant.locationVerificationEnabled,
+          overlayLogoOnMeals: freshAccount.overlayLogoOnMeals !== undefined ? freshAccount.overlayLogoOnMeals : state.restaurant.overlayLogoOnMeals,
+          fssai: freshAccount.fssai || state.restaurant.fssai || '',
+          gst: freshAccount.gst || state.restaurant.gst || '',
           upiId: freshAccount.upiId || state.restaurant.upiId,
           googleMapsUrl: freshAccount.googleMapsUrl || state.restaurant.googleMapsUrl,
           openTime: freshAccount.openTime || state.restaurant.openTime,
@@ -972,6 +976,12 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           subscriptionPlan: activeAccount?.subscriptionPlan || 'free',
           walletBalance: activeAccount?.walletBalance ?? 300,
           createdAt: activeAccount?.createdAt || Date.now(),
+          mustLoginBeforeOrder: Boolean(restaurantForm.mustLoginBeforeOrder),
+          locationVerificationEnabled: Boolean(restaurantForm.locationVerificationEnabled),
+          overlayLogoOnMeals: Boolean(restaurantForm.overlayLogoOnMeals),
+          fssai: restaurantForm.fssai ?? '',
+          gst: restaurantForm.gst ?? '',
+          tableCount: Number(restaurantForm.tableCount || 8),
           ...(restaurantForm.latitude !== undefined ? { latitude: Number(restaurantForm.latitude) } : {}),
           ...(restaurantForm.longitude !== undefined ? { longitude: Number(restaurantForm.longitude) } : {}),
         });
@@ -991,30 +1001,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     }
   };
 
-  const handleCaptureCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      addToast('error', 'Geolocation is not supported by your browser.');
-      return;
-    }
-    setCapturingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        updateRestaurantForm(prev => ({
-          ...prev,
-          latitude: parseFloat(position.coords.latitude.toFixed(6)),
-          longitude: parseFloat(position.coords.longitude.toFixed(6)),
-        }));
-        addToast('success', '✨ Registered current location coordinates!');
-        setCapturingLocation(false);
-      },
-      (error) => {
-        console.error(error);
-        addToast('error', 'Failed to retrieve location. Make sure GPS is enabled.');
-        setCapturingLocation(false);
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-  };
+
 
   const handleSendFeedback = () => {
     if (!feedbackText.trim()) { addToast('error', 'Please write your message or ticket description first.'); return; }
@@ -1831,15 +1818,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           </div>
                           <button
                             type="button"
-                            className="btn btn-secondary"
-                            onClick={handleCaptureCurrentLocation}
-                            disabled={capturingLocation}
-                            style={{ height: 38, padding: '0 10px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
-                          >
-                            {capturingLocation ? '🔄 GPS...' : '📡 GPS'}
-                          </button>
-                          <button
-                            type="button"
                             className="btn btn-primary"
                             onClick={() => {
                               const defaultLat = restaurantForm.latitude || 26.29855;
@@ -1848,9 +1826,9 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                               setAdminMapLng(defaultLng);
                               setShowAdminMapModal(true);
                             }}
-                            style={{ height: 38, padding: '0 10px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                            style={{ height: 38, padding: '0 14px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
                           >
-                            🗺️ Select on Map
+                            🗺️ Select Location on Map
                           </button>
                         </div>
 
@@ -2071,15 +2049,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                         </div>
                         <button
                           type="button"
-                          className="btn btn-secondary"
-                          onClick={handleCaptureCurrentLocation}
-                          disabled={capturingLocation}
-                          style={{ height: 38, padding: '0 10px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
-                        >
-                          {capturingLocation ? '🔄 GPS...' : '📡 Capture GPS'}
-                        </button>
-                        <button
-                          type="button"
                           className="btn btn-primary"
                           onClick={() => {
                             const defaultLat = restaurantForm.latitude || 26.29855;
@@ -2088,9 +2057,9 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                             setAdminMapLng(defaultLng);
                             setShowAdminMapModal(true);
                           }}
-                          style={{ height: 38, padding: '0 10px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                          style={{ height: 38, padding: '0 14px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
                         >
-                          🗺️ Select on Map
+                          🗺️ Select Location on Map
                         </button>
                       </div>
 

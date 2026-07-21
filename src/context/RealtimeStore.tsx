@@ -393,6 +393,12 @@ export type RestaurantAccount = {
   openTime?: string;
   closeTime?: string;
   isManualClosed?: boolean;
+  mustLoginBeforeOrder?: boolean;
+  locationVerificationEnabled?: boolean;
+  overlayLogoOnMeals?: boolean;
+  fssai?: string;
+  gst?: string;
+  tableCount?: number;
 };
 
 export type StaffMember = {
@@ -1812,6 +1818,13 @@ function reducer(state: AppState, action: Action): AppState {
             // Location
             latitude: p.latitude !== undefined ? p.latitude : acc.latitude,
             longitude: p.longitude !== undefined ? p.longitude : acc.longitude,
+            // Customization Toggles
+            mustLoginBeforeOrder: p.mustLoginBeforeOrder !== undefined ? p.mustLoginBeforeOrder : acc.mustLoginBeforeOrder,
+            locationVerificationEnabled: p.locationVerificationEnabled !== undefined ? p.locationVerificationEnabled : acc.locationVerificationEnabled,
+            overlayLogoOnMeals: p.overlayLogoOnMeals !== undefined ? p.overlayLogoOnMeals : acc.overlayLogoOnMeals,
+            fssai: p.fssai ?? acc.fssai,
+            gst: p.gst ?? acc.gst,
+            tableCount: p.tableCount !== undefined ? p.tableCount : acc.tableCount,
           };
           return merged;
         }
@@ -4147,7 +4160,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                       billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
                       hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false,
                       rating: existingDbAcc ? (existingDbAcc.rating ?? 0) : 0,
-                      ratingsCount: existingDbAcc ? (existingDbAcc.ratingsCount ?? 0) : 0
+                      ratingsCount: existingDbAcc ? (existingDbAcc.ratingsCount ?? 0) : 0,
+                      ...(existingDbAcc ? {
+                        address: existingDbAcc.address,
+                        tagline: existingDbAcc.tagline,
+                        promoText: existingDbAcc.promoText,
+                        cuisines: existingDbAcc.cuisines,
+                        logo: existingDbAcc.logo,
+                        posterImage: existingDbAcc.posterImage,
+                        bannerImage: existingDbAcc.bannerImage,
+                        latitude: existingDbAcc.latitude,
+                        longitude: existingDbAcc.longitude,
+                        openTime: existingDbAcc.openTime,
+                        closeTime: existingDbAcc.closeTime,
+                        deliveryEnabled: existingDbAcc.deliveryEnabled,
+                        deliveryRadius: existingDbAcc.deliveryRadius,
+                        deliveryCharge: existingDbAcc.deliveryCharge,
+                        freeDeliveryDistance: existingDbAcc.freeDeliveryDistance,
+                        freeDeliveryMinAmount: existingDbAcc.freeDeliveryMinAmount,
+                        freeDeliveryDistanceEnabled: existingDbAcc.freeDeliveryDistanceEnabled,
+                        freeDeliveryMinAmountEnabled: existingDbAcc.freeDeliveryMinAmountEnabled,
+                        indiningRadius: existingDbAcc.indiningRadius,
+                        takeawayRadius: existingDbAcc.takeawayRadius,
+                        verificationRadius: existingDbAcc.verificationRadius,
+                        upiId: existingDbAcc.upiId,
+                        googleMapsUrl: existingDbAcc.googleMapsUrl,
+                        mustLoginBeforeOrder: existingDbAcc.mustLoginBeforeOrder,
+                        locationVerificationEnabled: existingDbAcc.locationVerificationEnabled,
+                        overlayLogoOnMeals: existingDbAcc.overlayLogoOnMeals,
+                        fssai: existingDbAcc.fssai,
+                        gst: existingDbAcc.gst,
+                      } : {})
                     };
 
                     update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData))
