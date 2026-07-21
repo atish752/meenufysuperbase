@@ -1550,11 +1550,39 @@ function reducer(state: AppState, action: Action): AppState {
         waiterRequests: isSuper ? state.waiterRequests : [],
         coupons: isSuper ? state.coupons : [],
         schedules: isSuper ? state.schedules : [],
-        restaurant: isSuper ? state.restaurant : (isDemoAdmin ? DEFAULT_RESTAURANT : {
+        restaurant: {
           ...DEFAULT_RESTAURANT,
-          ...state.restaurant, // keep existing restaurant data (Firebase will override with fresh data)
-          name: existingAccount ? existingAccount.restaurantName : (state.restaurant?.name || 'New Restaurant'),
-        }),
+          ...state.restaurant,
+          ...(existingAccount ? {
+            id: existingAccount.id,
+            name: existingAccount.restaurantName || state.restaurant.name,
+            phone: existingAccount.ownerPhone || state.restaurant.phone,
+            email: existingAccount.ownerEmail || state.restaurant.email,
+            address: existingAccount.address !== undefined ? existingAccount.address : state.restaurant.address,
+            tagline: existingAccount.tagline !== undefined ? existingAccount.tagline : state.restaurant.tagline,
+            logo: existingAccount.logo !== undefined ? existingAccount.logo : state.restaurant.logo,
+            posterImage: existingAccount.posterImage !== undefined ? existingAccount.posterImage : state.restaurant.posterImage,
+            bannerImage: existingAccount.bannerImage !== undefined ? existingAccount.bannerImage : state.restaurant.bannerImage,
+            cuisines: existingAccount.cuisines !== undefined ? existingAccount.cuisines : state.restaurant.cuisines,
+            openTime: existingAccount.openTime !== undefined ? existingAccount.openTime : state.restaurant.openTime,
+            closeTime: existingAccount.closeTime !== undefined ? existingAccount.closeTime : state.restaurant.closeTime,
+            daySpecificHours: existingAccount.daySpecificHours !== undefined ? existingAccount.daySpecificHours : state.restaurant.daySpecificHours,
+            deliveryEnabled: existingAccount.deliveryEnabled !== undefined ? existingAccount.deliveryEnabled : state.restaurant.deliveryEnabled,
+            deliveryRadius: existingAccount.deliveryRadius !== undefined ? existingAccount.deliveryRadius : state.restaurant.deliveryRadius,
+            deliveryCharge: existingAccount.deliveryCharge !== undefined ? existingAccount.deliveryCharge : state.restaurant.deliveryCharge,
+            freeDeliveryDistance: existingAccount.freeDeliveryDistance !== undefined ? existingAccount.freeDeliveryDistance : state.restaurant.freeDeliveryDistance,
+            freeDeliveryMinAmount: existingAccount.freeDeliveryMinAmount !== undefined ? existingAccount.freeDeliveryMinAmount : state.restaurant.freeDeliveryMinAmount,
+            freeDeliveryDistanceEnabled: existingAccount.freeDeliveryDistanceEnabled !== undefined ? existingAccount.freeDeliveryDistanceEnabled : state.restaurant.freeDeliveryDistanceEnabled,
+            freeDeliveryMinAmountEnabled: existingAccount.freeDeliveryMinAmountEnabled !== undefined ? existingAccount.freeDeliveryMinAmountEnabled : state.restaurant.freeDeliveryMinAmountEnabled,
+            indiningRadius: existingAccount.indiningRadius !== undefined ? existingAccount.indiningRadius : state.restaurant.indiningRadius,
+            takeawayRadius: existingAccount.takeawayRadius !== undefined ? existingAccount.takeawayRadius : state.restaurant.takeawayRadius,
+            verificationRadius: existingAccount.verificationRadius !== undefined ? existingAccount.verificationRadius : state.restaurant.verificationRadius,
+            upiId: existingAccount.upiId !== undefined ? existingAccount.upiId : state.restaurant.upiId,
+            googleMapsUrl: existingAccount.googleMapsUrl !== undefined ? existingAccount.googleMapsUrl : state.restaurant.googleMapsUrl,
+            latitude: existingAccount.latitude !== undefined ? existingAccount.latitude : state.restaurant.latitude,
+            longitude: existingAccount.longitude !== undefined ? existingAccount.longitude : state.restaurant.longitude,
+          } : {})
+        },
         walletTransactions: isSuper ? state.walletTransactions : (isDemoAdmin ? state.walletTransactions : (state.walletTransactions.length > 0 ? state.walletTransactions : [
           {
             id: 'tx-initial',
