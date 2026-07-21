@@ -6,7 +6,8 @@ import { triggerNotification } from '../../utils/notifications';
 import { printThermalReceipt } from '../../utils/printReceipt';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { hasFirebaseConfig, db } from '../../utils/firebase';
+import { hasFirebaseConfig } from '../../utils/firebase';
+import { dbUpdate } from '../../utils/supabase';
 
 const loadLeaflet = (): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -715,21 +716,19 @@ export default function AdminHome() {
           const nextDeliveries = (riderProfile.totalDeliveries || 0) + 1;
           const nextEarnings = (riderProfile.totalEarnings || 0) + commission;
 
-          if (hasFirebaseConfig && db) {
-            import('firebase/database').then(({ ref, update }) => {
-              update(ref(db!, `orders/${order.restaurantId}/${order.id}`), {
-                deliveryStatus: 'delivered',
-                deliveryDistance: distance,
-                deliveryBoyEarnings: commission,
-                updatedAt: Date.now()
-              });
-              update(ref(db!, `deliveryBoys/${riderProfile.id}`), {
-                status: 'idle',
-                totalDeliveries: nextDeliveries,
-                totalEarnings: nextEarnings,
-                assignedOrderId: null
-              });
-            }).catch(console.error);
+          if (hasFirebaseConfig) {
+            dbUpdate(`orders/${order.restaurantId}/${order.id}`, {
+              deliveryStatus: 'delivered',
+              deliveryDistance: distance,
+              deliveryBoyEarnings: commission,
+              updatedAt: Date.now()
+            });
+            dbUpdate(`deliveryBoys/${riderProfile.id}`, {
+              status: 'idle',
+              totalDeliveries: nextDeliveries,
+              totalEarnings: nextEarnings,
+              assignedOrderId: null
+            });
           } else {
             dispatch({
               type: 'SET_STATE',

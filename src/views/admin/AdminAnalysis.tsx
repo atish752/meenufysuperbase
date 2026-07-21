@@ -5,7 +5,7 @@ import {
   Award, Activity, BarChart3, UtensilsCrossed, CreditCard, Clock
 } from 'lucide-react';
 import AdminCustomers from './AdminCustomers';
-import { db } from '../../utils/firebase';
+import { dbUpdate } from '../../utils/supabase';
 
 function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
@@ -729,7 +729,6 @@ export default function AdminAnalysis() {
                             onClick={async () => {
                               setResolvingId(c.id);
                               try {
-                                const { ref, update } = await import('firebase/database');
                                 const matchedOrder = state.orders.find(o => o.id === c.orderId);
                                 if (matchedOrder && matchedOrder.complaint) {
                                   const updatedComplaint = {
@@ -737,7 +736,7 @@ export default function AdminAnalysis() {
                                     status: 'resolved' as const,
                                     resolvedAt: Date.now()
                                   };
-                                  await update(ref(db!, `orders/${adminRestaurantId}/${c.orderId}`), {
+                                  await dbUpdate(`orders/${adminRestaurantId}/${c.orderId}`, {
                                     complaint: updatedComplaint
                                   });
                                 }
@@ -772,7 +771,6 @@ export default function AdminAnalysis() {
                               }
                               setResolvingId(c.id);
                               try {
-                                const { ref, update } = await import('firebase/database');
                                 const matchedOrder = state.orders.find(o => o.id === c.orderId);
                                 if (matchedOrder && matchedOrder.complaint) {
                                   const updatedComplaint = {
@@ -781,7 +779,7 @@ export default function AdminAnalysis() {
                                     replyText,
                                     resolvedAt: Date.now()
                                   };
-                                  await update(ref(db!, `orders/${adminRestaurantId}/${c.orderId}`), {
+                                  await dbUpdate(`orders/${adminRestaurantId}/${c.orderId}`, {
                                     complaint: updatedComplaint
                                   });
                                 }

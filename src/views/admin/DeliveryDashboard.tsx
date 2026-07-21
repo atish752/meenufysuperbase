@@ -4,7 +4,8 @@ import {
   LogOut, MapPin, Phone, Package, CheckCircle, Navigation,
   Check, Star, TrendingUp, Bike, User, Home, History, Zap, Sun, Moon
 } from 'lucide-react';
-import { hasFirebaseConfig, db, auth } from '../../utils/firebase';
+import { hasFirebaseConfig } from '../../utils/firebase';
+import { dbUpdate, signOutUser } from '../../utils/supabase';
 
 type Tab = 'home' | 'history' | 'profile';
 
@@ -149,9 +150,8 @@ export default function DeliveryDashboard() {
       async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        if (hasFirebaseConfig && db) {
-          const { ref, update } = await import('firebase/database');
-          await update(ref(db, `deliveryBoys/${rider.id}`), {
+        if (hasFirebaseConfig) {
+          await dbUpdate(`deliveryBoys/${rider.id}`, {
             latitude: lat,
             longitude: lng
           });
@@ -175,7 +175,7 @@ export default function DeliveryDashboard() {
 
   const handleLogout = () => {
     // Delivery boys don't use Firebase Auth — just clear app state
-    if (auth) auth.signOut().catch(() => {});
+    signOutUser().catch(() => {});
     dispatch({ type: 'LOGOUT_ADMIN' });
     addToast('success', 'Logged out successfully.');
   };
@@ -184,12 +184,11 @@ export default function DeliveryDashboard() {
     if (!activeOrder) return;
     setUpdatingStatus(true);
     try {
-      if (hasFirebaseConfig && db) {
-        const { ref, update } = await import('firebase/database');
-        await update(ref(db, `orders/${activeOrder.restaurantId}/${activeOrder.id}`), {
+      if (hasFirebaseConfig) {
+        await dbUpdate(`orders/${activeOrder.restaurantId}/${activeOrder.id}`, {
           deliveryStatus: 'started'
         });
-        await update(ref(db, `deliveryBoys/${rider.id}`), { status: 'delivering' });
+        await dbUpdate(`deliveryBoys/${rider.id}`, { status: 'delivering' });
       } else {
         dispatch({
           type: 'SET_STATE',
@@ -245,9 +244,8 @@ export default function DeliveryDashboard() {
       const nextDeliveries = (riderDetail.totalDeliveries || 0) + 1;
       const nextEarnings = (riderDetail.totalEarnings || 0) + commission;
 
-      if (hasFirebaseConfig && db) {
-        const { ref, update } = await import('firebase/database');
-        await update(ref(db, `orders/${activeOrder.restaurantId}/${activeOrder.id}`), {
+      if (hasFirebaseConfig) {
+        await dbUpdate(`orders/${activeOrder.restaurantId}/${activeOrder.id}`, {
           status: 'served',
           paymentStatus: 'paid',
           deliveryStatus: 'delivered',
@@ -255,7 +253,7 @@ export default function DeliveryDashboard() {
           deliveryBoyEarnings: commission,
           updatedAt: Date.now()
         });
-        await update(ref(db, `deliveryBoys/${rider.id}`), {
+        await dbUpdate(`deliveryBoys/${rider.id}`, {
           status: 'idle',
           totalDeliveries: nextDeliveries,
           totalEarnings: nextEarnings,

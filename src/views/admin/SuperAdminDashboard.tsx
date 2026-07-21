@@ -4,6 +4,7 @@ import {
   LogOut, Mail, Phone, Store, Calendar,
   Check, ShieldAlert, Plus, Trash2, Key
 } from 'lucide-react';
+import { dbGet, dbUpdate, dbSet } from '../../utils/supabase';
 
 const DEFAULT_POPULAR_CUISINES = [
   { name: 'Biryani', query: 'biryani', image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=150&auto=format&fit=crop&q=60' },
@@ -119,69 +120,35 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     if (!state.admin?.isSuperAdmin || accounts.length === 0) return;
 
-    import('firebase/database').then(({ get, ref, update, getDatabase }) => {
-      const db = getDatabase();
-      accounts.forEach(acc => {
-        if (!acc.id) return;
-        get(ref(db, `restaurants/${acc.id}`)).then(snap => {
-          const restData = snap.val();
-          if (restData) {
-            let needsUpdate = false;
-            const updatePayload: any = {};
+    accounts.forEach(async (acc) => {
+      if (!acc.id) return;
+      try {
+        const restData = await dbGet(`restaurants/${acc.id}`);
+        if (restData) {
+          let needsUpdate = false;
+          const updatePayload: any = {};
 
-            if (restData.name && restData.name !== acc.restaurantName) {
-              updatePayload.restaurantName = restData.name;
-              needsUpdate = true;
-            }
-            if (restData.phone && restData.phone !== acc.ownerPhone) {
-              updatePayload.ownerPhone = restData.phone;
-              needsUpdate = true;
-            }
-            if (restData.email && restData.email !== acc.ownerEmail) {
-              updatePayload.ownerEmail = restData.email;
-              needsUpdate = true;
-            }
-            if (restData.logo && restData.logo !== acc.logo) {
-              updatePayload.logo = restData.logo;
-              needsUpdate = true;
-            }
-            if (restData.tagline && restData.tagline !== acc.tagline) {
-              updatePayload.tagline = restData.tagline;
-              needsUpdate = true;
-            }
-            if (restData.address && restData.address !== acc.address) {
-              updatePayload.address = restData.address;
-              needsUpdate = true;
-            }
-            if (restData.latitude !== undefined && restData.latitude !== acc.latitude) {
-              updatePayload.latitude = restData.latitude;
-              needsUpdate = true;
-            }
-            if (restData.longitude !== undefined && restData.longitude !== acc.longitude) {
-              updatePayload.longitude = restData.longitude;
-              needsUpdate = true;
-            }
-            if (restData.cuisines && restData.cuisines !== acc.cuisines) {
-              updatePayload.cuisines = restData.cuisines;
-              needsUpdate = true;
-            }
-            if (restData.rating !== undefined && restData.rating !== acc.rating) {
-              updatePayload.rating = restData.rating;
-              needsUpdate = true;
-            }
-            if (restData.bannerImage && restData.bannerImage !== acc.bannerImage) {
-              updatePayload.bannerImage = restData.bannerImage;
-              needsUpdate = true;
-            }
+          if (restData.name && restData.name !== acc.restaurantName) { updatePayload.restaurantName = restData.name; needsUpdate = true; }
+          if (restData.phone && restData.phone !== acc.ownerPhone) { updatePayload.ownerPhone = restData.phone; needsUpdate = true; }
+          if (restData.email && restData.email !== acc.ownerEmail) { updatePayload.ownerEmail = restData.email; needsUpdate = true; }
+          if (restData.logo && restData.logo !== acc.logo) { updatePayload.logo = restData.logo; needsUpdate = true; }
+          if (restData.tagline && restData.tagline !== acc.tagline) { updatePayload.tagline = restData.tagline; needsUpdate = true; }
+          if (restData.address && restData.address !== acc.address) { updatePayload.address = restData.address; needsUpdate = true; }
+          if (restData.latitude !== undefined && restData.latitude !== acc.latitude) { updatePayload.latitude = restData.latitude; needsUpdate = true; }
+          if (restData.longitude !== undefined && restData.longitude !== acc.longitude) { updatePayload.longitude = restData.longitude; needsUpdate = true; }
+          if (restData.cuisines && restData.cuisines !== acc.cuisines) { updatePayload.cuisines = restData.cuisines; needsUpdate = true; }
+          if (restData.rating !== undefined && restData.rating !== acc.rating) { updatePayload.rating = restData.rating; needsUpdate = true; }
+          if (restData.bannerImage && restData.bannerImage !== acc.bannerImage) { updatePayload.bannerImage = restData.bannerImage; needsUpdate = true; }
 
-            if (needsUpdate) {
-              console.log(`Auto-healing account ${acc.id}: ${acc.restaurantName} -> ${restData.name}`);
-              update(ref(db, `restaurantAccounts/${acc.id}`), updatePayload).catch(() => {});
-            }
+          if (needsUpdate) {
+            console.log(`Auto-healing account ${acc.id}: ${acc.restaurantName} -> ${restData.name}`);
+            await dbUpdate(`restaurantAccounts/${acc.id}`, updatePayload);
           }
-        }).catch(() => {});
-      });
-    }).catch(e => console.error("Firebase Database import failed:", e));
+        }
+      } catch (e) {
+        console.error('Auto-heal error:', e);
+      }
+    });
   }, [accounts.length, state.admin?.isSuperAdmin]);
 
   // Tabs and replies
@@ -1475,14 +1442,10 @@ export default function SuperAdminDashboard() {
               </div>
               <button
                 className="btn btn-secondary"
-                onClick={() => {
-                  if (window.confirm("Are you sure you want to load default popular cuisines? This will overwrite the current list.")) {
-                    import('firebase/database').then(({ ref, set, getDatabase }) => {
-                      const db = getDatabase();
-                      set(ref(db, 'meenufy_config/popularCuisines'), DEFAULT_POPULAR_CUISINES).then(() => {
-                        addToast('success', 'Popular cuisines initialized to defaults!');
-                      });
-                    });
+                onClick={async () => {
+                  if (window.confirm('Are you sure you want to load default popular cuisines? This will overwrite the current list.')) {
+                    await dbSet('meenufy_config/popularCuisines', DEFAULT_POPULAR_CUISINES);
+                    addToast('success', 'Popular cuisines initialized to defaults!');
                   }
                 }}
                 style={{ fontSize: 12, padding: '6px 12px' }}

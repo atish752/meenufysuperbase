@@ -5,9 +5,8 @@ import {
   MessageSquare, Smartphone, Send, Download, QrCode, ExternalLink,
   CreditCard, Printer, Users, X
 } from 'lucide-react';
-import { auth, googleProvider, hasFirebaseConfig, db } from '../../utils/firebase';
-import { ref, update } from 'firebase/database';
-import { signInWithPopup } from 'firebase/auth';
+import { hasFirebaseConfig } from '../../utils/firebase';
+import { dbUpdate, supabase as supabaseClient, signOutUser } from '../../utils/supabase';
 import { connectBluetoothPrinter, disconnectBluetoothPrinter, printThermalReceipt } from '../../utils/printReceipt';
 
 const loadLeaflet = (): Promise<any> => {
@@ -125,28 +124,30 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [googleLinking, setGoogleLinking] = useState(false);
 
   const isFirebaseUser = !!state.admin?.isFirebaseUser;
-  const canConnectGoogle = !isFirebaseUser && hasFirebaseConfig && !!auth && !state.admin?.isSuperAdmin && !state.admin?.isStaff;
+  const canConnectGoogle = !isFirebaseUser && hasFirebaseConfig && !!supabaseClient && !state.admin?.isSuperAdmin && !state.admin?.isStaff;
 
   const handleConnectGoogle = async () => {
-    if (!auth || !googleProvider) return;
+    if (!supabaseClient) return;
     setGoogleLinking(true);
     try {
       localStorage.setItem('meenufy_auth_role', 'admin');
-      const result = await signInWithPopup(auth, googleProvider);
-      const fbUser = result.user;
-      dispatch({
-        type: 'LINK_GOOGLE_ACCOUNT',
-        payload: {
-          uid: fbUser.uid,
-          name: fbUser.displayName || state.admin?.name || '',
-          email: fbUser.email || state.admin?.email || '',
-        }
-      });
-      addToast('success', '✅ Google account connected! Your data is now safely synced to the cloud.');
-    } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        addToast('error', `❌ Failed to connect Google: ${err.message || err}`);
+      const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+      if (error) throw error;
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      const sbUser = sessionData?.session?.user;
+      if (sbUser) {
+        dispatch({
+          type: 'LINK_GOOGLE_ACCOUNT',
+          payload: {
+            uid: sbUser.id,
+            name: sbUser.user_metadata?.full_name || state.admin?.name || '',
+            email: sbUser.email || state.admin?.email || '',
+          }
+        });
+        addToast('success', '✅ Google account connected! Your data is now safely synced to the cloud.');
       }
+    } catch (err: any) {
+      addToast('error', `❌ Failed to connect Google: ${err.message || err}`);
     } finally {
       setGoogleLinking(false);
     }
@@ -931,19 +932,18 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     isFormDirtyRef.current = false;
     dispatch({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
 
-    // 3. Write directly to Firebase (bypassing middleware double-write)
-    if (db) {
-      try {
-        const sanitizeForFirebase = (obj: any) => {
-          const clean: Record<string, any> = {};
-          for (const [key, val] of Object.entries(obj)) {
-            if (val !== undefined && val !== null) clean[key] = val;
-          }
-          return clean;
-        };
+    // 3. Write directly to Supabase
+    try {
+      const sanitize = (obj: any) => {
+        const clean: Record<string, any> = {};
+        for (const [key, val] of Object.entries(obj)) {
+          if (val !== undefined && val !== null) clean[key] = val;
+        }
+        return clean;
+      };
 
-        // Map form fields → Firebase account fields
-        const accountData = sanitizeForFirebase({
+      // Map form fields → Supabase account fields
+      const accountData = sanitize({
           id: resolvedId,
           restaurantName: currentName,
           ownerPhone: restaurantForm.phone || activeAccount?.ownerPhone || '',
@@ -987,18 +987,15 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
           ...(restaurantForm.longitude !== undefined ? { longitude: Number(restaurantForm.longitude) } : {}),
         });
 
-        // Write to the account's actual Firebase node
-        await update(ref(db, `restaurantAccounts/${resolvedId}`), accountData);
+        // Write to the account's actual Supabase node
+        await dbUpdate(`restaurantAccounts/${resolvedId}`, accountData);
         // Write to restaurants node for customer reads
-        await update(ref(db, `restaurants/${resolvedId}`), sanitizeForFirebase({ ...accountData, name: currentName }));
+        await dbUpdate(`restaurants/${resolvedId}`, { ...accountData, name: currentName });
 
-        addToast('success', `✅ "${currentName}" saved successfully! Note: Changes may take up to 10 minutes to reflect live for all customers.`);
-      } catch (e: any) {
-        console.error('Firebase save error:', e);
-        addToast('error', `⚠️ Saved locally, but cloud sync failed: ${e?.message || e}`);
-      }
-    } else {
-      addToast('success', `✅ "${currentName}" saved locally! Note: Changes may take up to 10 minutes to reflect live.`);
+      addToast('success', `✅ "${currentName}" saved successfully! Note: Changes may take up to 10 minutes to reflect live for all customers.`);
+    } catch (e: any) {
+      console.error('Supabase save error:', e);
+      addToast('error', `⚠️ Saved locally, but cloud sync failed: ${e?.message || e}`);
     }
   };
 
@@ -1098,8 +1095,8 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   };
 
   const handleLogout = () => {
-    // Sign out from Firebase Auth so the session is cleared on all devices
-    if (auth) auth.signOut().catch(() => {});
+    // Sign out from Supabase Auth so the session is cleared on all devices
+    signOutUser().catch(() => {});
     dispatch({ type: 'LOGOUT_ADMIN' });
     addToast('info', 'Logged out successfully.');
   };
@@ -2773,10 +2770,9 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           type="button"
                           onClick={async () => {
                             try {
-                              const { ref, update } = await import('firebase/database');
                               const rId = state.admin?.restaurantId || 'admin-1';
-                              await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
-                              await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'dining_takeaway' });
+                              await dbUpdate(`restaurants/${rId}`, { basePlanSelectedType: 'dining_takeaway' });
+                              await dbUpdate(`restaurantAccounts/${rId}`, { basePlanSelectedType: 'dining_takeaway' });
                               addToast('success', '✅ Switched to In-Dining & Takeaway.');
                             } catch (err) { console.error(err); }
                           }}
@@ -2799,10 +2795,9 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                           type="button"
                           onClick={async () => {
                             try {
-                              const { ref, update } = await import('firebase/database');
                               const rId = state.admin?.restaurantId || 'admin-1';
-                              await update(ref(db!, `restaurants/${rId}`), { basePlanSelectedType: 'delivery_only' });
-                              await update(ref(db!, `restaurantAccounts/${rId}`), { basePlanSelectedType: 'delivery_only' });
+                              await dbUpdate(`restaurants/${rId}`, { basePlanSelectedType: 'delivery_only' });
+                              await dbUpdate(`restaurantAccounts/${rId}`, { basePlanSelectedType: 'delivery_only' });
                               addToast('success', '✅ Switched to Home Delivery Only.');
                             } catch (err) { console.error(err); }
                           }}

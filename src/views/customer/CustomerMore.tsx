@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useStore, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import { Wifi, LogIn, LogOut, User, Lock, Sparkles, MessageSquare, PhoneCall, Send, History } from 'lucide-react';
-import { hasFirebaseConfig, auth, googleProvider } from '../../utils/firebase';
-import { signInWithPopup } from 'firebase/auth';
-import { ref, set, update } from 'firebase/database';
-import { db } from '../../utils/firebase';
+import { hasFirebaseConfig } from '../../utils/firebase';
+import { dbGet, dbSet, dbUpdate, supabase as supabaseClient } from '../../utils/supabase';
 
 export default function CustomerMore() {
   const { state, addToast } = useStore();
@@ -89,76 +87,73 @@ export default function CustomerMore() {
 
   // Fetch support tickets and feedback for this user
   useEffect(() => {
-    if (!isLoggedIn || !savedPhone || !db) {
+    if (!isLoggedIn || !savedPhone) {
       setMyTickets([]);
       setMyFeedbacks([]);
       return;
     }
 
-    const fetchTickets = () => {
-      import('firebase/database').then(({ ref, get }) => {
-        get(ref(db!, 'supportRequests')).then(snap => {
-          const val = snap.val();
-          if (val) {
-            const list = Object.values(val).filter((t: any) => t.ownerPhone === savedPhone);
-            list.sort((a: any, b: any) => b.createdAt - a.createdAt);
-            setMyTickets(list);
-          }
-        }).catch(err => console.error("Error reading support requests:", err));
+    const fetchTickets = async () => {
+      try {
+        const supportData = await dbGet('supportRequests');
+        if (supportData) {
+          const list = Object.values(supportData).filter((t: any) => t.ownerPhone === savedPhone);
+          list.sort((a: any, b: any) => b.createdAt - a.createdAt);
+          setMyTickets(list);
+        }
+      } catch (err) { console.error('Error reading support requests:', err); }
 
-        get(ref(db!, 'ownerFeedbacks')).then(snap => {
-          const val = snap.val();
-          if (val) {
-            const list = Object.values(val).filter((f: any) => f.ownerEmail === loggedInUser.email || f.ownerPhone === savedPhone || f.ownerName?.includes(loggedInUser.name));
-            list.sort((a: any, b: any) => b.createdAt - a.createdAt);
-            setMyFeedbacks(list);
-          }
-        }).catch(err => console.error("Error reading feedbacks:", err));
-      });
+      try {
+        const fbData = await dbGet('ownerFeedbacks');
+        if (fbData) {
+          const list = Object.values(fbData).filter((f: any) => f.ownerEmail === loggedInUser.email || f.ownerPhone === savedPhone || f.ownerName?.includes(loggedInUser.name));
+          list.sort((a: any, b: any) => b.createdAt - a.createdAt);
+          setMyFeedbacks(list);
+        }
+      } catch (err) { console.error('Error reading feedbacks:', err); }
     };
 
     fetchTickets();
     const interval = setInterval(fetchTickets, 25000);
     return () => clearInterval(interval);
-  }, [isLoggedIn, savedPhone, db]);
+  }, [isLoggedIn, savedPhone]);
 
 
   const handleGoogleSignIn = async () => {
-    if (hasFirebaseConfig && auth) {
+    if (hasFirebaseConfig && supabaseClient) {
       try {
         localStorage.setItem('meenufy_auth_role', 'customer');
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
+        const { error: oauthError } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+        if (oauthError) throw oauthError;
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const user = sessionData?.session?.user;
+        if (!user) return;
         const matched = state.customers.find(c => c.email === user.email);
 
         if (matched) {
-          // Exists already, log them in directly
           const localUser = {
             name: matched.name,
             phone: matched.phone,
             email: matched.email || user.email || '',
             uniqueId: matched.uniqueId || '',
-            googleId: user.uid
+            googleId: user.id
           };
           localStorage.setItem('meenufy_customer_google_user', JSON.stringify(localUser));
           localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(localUser));
           localStorage.setItem('meenufy_customer_user_logged_in', 'true');
           setLoggedInUser(localUser);
 
-          if (hasFirebaseConfig && db) {
-            const cleanPhone = matched.phone.replace(/[^a-zA-Z0-9]/g, '');
-            update(ref(db, `customers/${restaurantId}/${cleanPhone}`), { googleId: user.uid })
-              .catch(e => console.error("Failed to link Google ID in DB:", e));
-          }
+          const cleanPhone = matched.phone.replace(/[^a-zA-Z0-9]/g, '');
+          dbUpdate(`customers/${restaurantId}/${cleanPhone}`, { googleId: user.id })
+            .catch((e: any) => console.error('Failed to link Google ID in DB:', e));
 
           setShowAuthModal(false);
           addToast('success', `Welcome back, ${matched.name}! Signed in via Google.`);
         } else {
-          // New customer, ask for details
           setGoogleUserTemp({
-            name: user.displayName || '',
+            name: user.user_metadata?.full_name || '',
             email: user.email || '',
-            googleId: user.uid
+            googleId: user.id
           });
           setGoogleStep('details');
         }
@@ -167,7 +162,6 @@ export default function CustomerMore() {
         addToast('error', `Google Sign-In failed: ${err.message}`);
       }
     } else {
-      // Mock mode
       setGoogleUserTemp({ name: 'Google Mock User', email: 'google.mock@gmail.com', googleId: 'mock-google-id' });
       setGoogleStep('details');
     }
@@ -199,10 +193,9 @@ export default function CustomerMore() {
     localStorage.setItem('meenufy_customer_user_logged_in', 'true');
     setLoggedInUser(newUser);
 
-    // Save/Sync customer to Firebase database
-    if (hasFirebaseConfig && db) {
+    // Save/Sync customer to Supabase database
+    if (hasFirebaseConfig) {
       if (matchedPhone) {
-        // Link existing guest account
         const dbCustUpdates = {
           googleId: newUser.googleId,
           name: newUser.name,
@@ -210,8 +203,8 @@ export default function CustomerMore() {
           uniqueId: newUser.uniqueId,
           lastVisit: Date.now()
         };
-        update(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCustUpdates)
-          .catch(e => console.error("Failed to update Google customer:", e));
+        dbUpdate(`customers/${restaurantId}/${cleanPhone}`, dbCustUpdates)
+          .catch((e: any) => console.error('Failed to update Google customer:', e));
       } else {
         const dbCust = {
           id: `cust-${Date.now()}`,
@@ -227,8 +220,8 @@ export default function CustomerMore() {
           points: 0,
           isVip: false
         };
-        set(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCust)
-          .catch(e => console.error("Failed to save Google customer:", e));
+        dbSet(`customers/${restaurantId}/${cleanPhone}`, dbCust)
+          .catch((e: any) => console.error('Failed to save Google customer:', e));
       }
     }
 
@@ -272,10 +265,9 @@ export default function CustomerMore() {
     localStorage.setItem('meenufy_customer_user_logged_in', 'true');
     setLoggedInUser(newUser);
 
-    // Save/Sync to Firebase
-    if (hasFirebaseConfig && db) {
+    // Save/Sync to Supabase
+    if (hasFirebaseConfig) {
       if (matchedPhone) {
-        // Register existing guest account
         const dbCustUpdates = {
           name: newUser.name,
           email: newUser.email,
@@ -283,8 +275,8 @@ export default function CustomerMore() {
           password: regPassword.trim(),
           lastVisit: Date.now()
         };
-        update(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCustUpdates)
-          .catch(e => console.error("Failed to update custom customer:", e));
+        dbUpdate(`customers/${restaurantId}/${cleanPhone}`, dbCustUpdates)
+          .catch((e: any) => console.error('Failed to update custom customer:', e));
       } else {
         const dbCust = {
           id: `cust-${Date.now()}`,
@@ -300,8 +292,8 @@ export default function CustomerMore() {
           points: 0,
           isVip: false
         };
-        set(ref(db, `customers/${restaurantId}/${cleanPhone}`), dbCust)
-          .catch(e => console.error("Failed to save custom customer:", e));
+        dbSet(`customers/${restaurantId}/${cleanPhone}`, dbCust)
+          .catch((e: any) => console.error('Failed to save custom customer:', e));
       }
     }
 
@@ -439,7 +431,7 @@ export default function CustomerMore() {
     }
     setLoggedInUser(updatedUser);
 
-    if (hasFirebaseConfig && db) {
+    if (hasFirebaseConfig) {
       try {
         if (newPhone !== oldPhone) {
           const migratedCustomer = {
@@ -450,8 +442,8 @@ export default function CustomerMore() {
             uniqueId: updatedUser.uniqueId,
             lastVisit: Date.now()
           };
-          await set(ref(db, `customers/${restaurantId}/${newClean}`), migratedCustomer);
-          await set(ref(db, `customers/${restaurantId}/${oldClean}`), null);
+          await dbSet(`customers/${restaurantId}/${newClean}`, migratedCustomer);
+          await dbSet(`customers/${restaurantId}/${oldClean}`, null);
         } else {
           const dbCustUpdates = {
             name: updatedUser.name,
@@ -459,12 +451,12 @@ export default function CustomerMore() {
             uniqueId: updatedUser.uniqueId,
             lastVisit: Date.now()
           };
-          await update(ref(db, `customers/${restaurantId}/${oldClean}`), dbCustUpdates);
+          await dbUpdate(`customers/${restaurantId}/${oldClean}`, dbCustUpdates);
         }
         addToast('success', 'Profile updated successfully.');
         setShowProfileModal(false);
       } catch (err: any) {
-        console.error("Failed to update profile:", err);
+        console.error('Failed to update profile:', err);
         addToast('error', `Failed to sync profile: ${err.message}`);
       }
     } else {
@@ -475,22 +467,24 @@ export default function CustomerMore() {
 
   const handleLinkGoogle = async () => {
     if (!customer) return;
-    if (hasFirebaseConfig && auth && db) {
+    if (hasFirebaseConfig && supabaseClient) {
       try {
         localStorage.setItem('meenufy_auth_role', 'customer');
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
+        const { error: oauthError } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+        if (oauthError) throw oauthError;
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const user = sessionData?.session?.user;
+        if (!user) return;
 
-        const matchedGoogle = state.customers.find(c => c.googleId === user.uid && c.phone !== customer.phone);
+        const matchedGoogle = state.customers.find(c => c.googleId === user.id && c.phone !== customer.phone);
         if (matchedGoogle) {
           addToast('error', 'This Google account is already linked to another profile.');
           return;
         }
 
         const cleanPhone = customer.phone.replace(/[^a-zA-Z0-9]/g, '');
-        
-        await update(ref(db, `customers/${restaurantId}/${cleanPhone}`), {
-          googleId: user.uid,
+        await dbUpdate(`customers/${restaurantId}/${cleanPhone}`, {
+          googleId: user.id,
           email: user.email || customer.email || ''
         });
 
@@ -499,24 +493,24 @@ export default function CustomerMore() {
           const parsed = JSON.parse(savedCustom);
           localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify({
             ...parsed,
-            googleId: user.uid,
+            googleId: user.id,
             email: user.email || parsed.email || ''
           }));
         }
         setLoggedInUser({
           ...loggedInUser,
-          googleId: user.uid,
+          googleId: user.id,
           email: user.email || loggedInUser.email || ''
         });
 
         addToast('success', 'Google account linked successfully!');
       } catch (err: any) {
-        console.error("Google link failed:", err);
+        console.error('Google link failed:', err);
         addToast('error', `Google linking failed: ${err.message}`);
       }
     } else {
       addToast('success', 'Google account linked (Demo mode).');
-setLoggedInUser({
+      setLoggedInUser({
         ...loggedInUser,
         googleId: 'mock-linked-google-id'
       });
@@ -549,21 +543,19 @@ setLoggedInUser({
       isCustomerTicket: true
     };
 
-    if (hasFirebaseConfig && db) {
-      import('firebase/database').then(({ ref, set }) => {
-        set(ref(db!, `supportRequests/${ticketId}`), ticketData)
-          .then(() => {
-            addToast('success', 'Support ticket raised successfully! We will contact you soon.');
-            setTicketMessageText('');
-            setIsSubmittingSupport(false);
-            setMyTickets(prev => [ticketData, ...prev]);
-          })
-          .catch(err => {
-            console.error(err);
-            addToast('error', 'Failed to raise support ticket.');
-            setIsSubmittingSupport(false);
-          });
-      });
+    if (hasFirebaseConfig) {
+      dbSet(`supportRequests/${ticketId}`, ticketData)
+        .then(() => {
+          addToast('success', 'Support ticket raised successfully! We will contact you soon.');
+          setTicketMessageText('');
+          setIsSubmittingSupport(false);
+          setMyTickets(prev => [ticketData, ...prev]);
+        })
+        .catch(err => {
+          console.error(err);
+          addToast('error', 'Failed to raise support ticket.');
+          setIsSubmittingSupport(false);
+        });
     } else {
       setTimeout(() => {
         addToast('success', 'Support ticket raised successfully (Demo mode).');
@@ -599,21 +591,19 @@ setLoggedInUser({
       isCustomerTicket: true
     };
 
-    if (hasFirebaseConfig && db) {
-      import('firebase/database').then(({ ref, set }) => {
-        set(ref(db!, `ownerFeedbacks/${fbId}`), fbData)
-          .then(() => {
-            addToast('success', 'Feedback submitted successfully! Thank you!');
-            setFeedbackText('');
-            setIsSubmittingFeedback(false);
-            setMyFeedbacks(prev => [fbData, ...prev]);
-          })
-          .catch(err => {
-            console.error(err);
-            addToast('error', 'Failed to submit feedback.');
-            setIsSubmittingFeedback(false);
-          });
-      });
+    if (hasFirebaseConfig) {
+      dbSet(`ownerFeedbacks/${fbId}`, fbData)
+        .then(() => {
+          addToast('success', 'Feedback submitted successfully! Thank you!');
+          setFeedbackText('');
+          setIsSubmittingFeedback(false);
+          setMyFeedbacks(prev => [fbData, ...prev]);
+        })
+        .catch(err => {
+          console.error(err);
+          addToast('error', 'Failed to submit feedback.');
+          setIsSubmittingFeedback(false);
+        });
     } else {
       setTimeout(() => {
         addToast('success', 'Feedback submitted successfully (Demo mode).');
@@ -669,13 +659,14 @@ setLoggedInUser({
       updatedAddresses = [...currentAddresses, newAddress];
     }
 
-    if (hasFirebaseConfig && db && customer) {
-      update(ref(db, `customers/${restaurantId}/${customer.phone}`), {
+    if (hasFirebaseConfig && customer) {
+      const cleanPhone = (customer.phone || '').replace(/[^a-zA-Z0-9]/g, '');
+      dbUpdate(`customers/${restaurantId}/${cleanPhone}`, {
         savedAddresses: updatedAddresses
       }).then(() => {
         addToast('success', editingAddressId ? 'Address updated!' : 'Address saved!');
         setShowAddressModal(false);
-      }).catch(err => {
+      }).catch((err: any) => {
         console.error(err);
         addToast('error', 'Failed to save address.');
       });
@@ -690,12 +681,13 @@ setLoggedInUser({
     const currentAddresses = customer.savedAddresses || [];
     const updatedAddresses = currentAddresses.filter((a: any) => a.id !== id);
 
-    if (hasFirebaseConfig && db) {
-      update(ref(db, `customers/${restaurantId}/${customer.phone}`), {
+    if (hasFirebaseConfig) {
+      const cleanPhone = (customer.phone || '').replace(/[^a-zA-Z0-9]/g, '');
+      dbUpdate(`customers/${restaurantId}/${cleanPhone}`, {
         savedAddresses: updatedAddresses
       }).then(() => {
         addToast('success', 'Address deleted.');
-      }).catch(err => {
+      }).catch((err: any) => {
         console.error(err);
         addToast('error', 'Failed to delete address.');
       });

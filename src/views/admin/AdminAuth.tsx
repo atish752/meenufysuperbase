@@ -1,13 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import { Eye, EyeOff } from 'lucide-react';
-import { hasFirebaseConfig, auth, googleProvider, db } from '../../utils/firebase';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signInWithPopup, 
-  updateProfile 
-} from 'firebase/auth';
+import { hasFirebaseConfig } from '../../utils/firebase';
+import { signUpUser, signInUser, signOutUser, dbGet, supabase as supabaseClient } from '../../utils/supabase';
 
 export default function AdminAuth() {
   const { state, dispatch, addToast } = useStore();
@@ -37,11 +32,9 @@ export default function AdminAuth() {
     if (mode === 'delivery') {
       try {
         let matchedBoy: any = null;
-        if (hasFirebaseConfig && auth && db) {
-          const { ref, get } = await import('firebase/database');
-          const snapshot = await get(ref(db, 'deliveryBoys'));
-          if (snapshot.exists()) {
-            const data = snapshot.val();
+        if (hasFirebaseConfig) {
+          const data = await dbGet('deliveryBoys');
+          if (data) {
             const boyList = Object.values(data) as any[];
             matchedBoy = boyList.find(
               b => b.username && b.username.trim().toLowerCase() === emailLower
@@ -90,11 +83,9 @@ export default function AdminAuth() {
     if (mode === 'staff') {
       try {
         let matchedStaff: any = null;
-        if (hasFirebaseConfig && auth && db) {
-          const { ref, get } = await import('firebase/database');
-          const snapshot = await get(ref(db, 'staffMembers'));
-          if (snapshot.exists()) {
-            const data = snapshot.val();
+        if (hasFirebaseConfig) {
+          const data = await dbGet('staffMembers');
+          if (data) {
             const staffList = Object.values(data) as any[];
             matchedStaff = staffList.find(
               s => s.username && s.username.trim().toLowerCase() === emailLower
@@ -166,34 +157,33 @@ export default function AdminAuth() {
       }
     }
 
-    // 3. Firebase Auth Flow (Owner / Admin)
-    if (hasFirebaseConfig && auth) {
+    // 3. Supabase Auth Flow (Owner / Admin)
+    if (hasFirebaseConfig) {
       try {
-        let userCredential;
+        let sbUser: any = null;
         if (mode === 'signup') {
-          userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
-          if (userCredential.user) {
-            await updateProfile(userCredential.user, { displayName: form.name });
-          }
+          const { data, error } = await signUpUser(form.email, form.password, form.name);
+          if (error) throw error;
+          sbUser = data?.user;
         } else {
-          userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
+          const { data, error } = await signInUser(form.email, form.password);
+          if (error) throw error;
+          sbUser = data?.user;
         }
 
-        const fbUser = userCredential.user;
-        const fbEmail = fbUser.email?.trim().toLowerCase() || '';
+        const fbUser = sbUser;
+        const fbEmail = fbUser?.email?.trim().toLowerCase() || '';
 
-        let resolvedAdminId = fbUser.uid;
+        let resolvedAdminId = fbUser?.id || fbEmail;
         let dbMatchedAccount: any = null;
 
-        if (db) {
+        if (fbUser) {
           try {
-            const { ref, get } = await import('firebase/database');
-            const accountsSnap = await get(ref(db, 'restaurantAccounts'));
-            if (accountsSnap.exists()) {
-              const allAccountsObj = accountsSnap.val();
-              if (allAccountsObj[fbUser.uid]) {
-                resolvedAdminId = fbUser.uid;
-                dbMatchedAccount = { ...allAccountsObj[fbUser.uid], id: fbUser.uid };
+            const allAccountsObj = await dbGet('restaurantAccounts');
+            if (allAccountsObj) {
+              if (allAccountsObj[fbUser.id]) {
+                resolvedAdminId = fbUser.id;
+                dbMatchedAccount = { ...allAccountsObj[fbUser.id], id: fbUser.id };
               } else {
                 const matchedEntry = Object.entries(allAccountsObj).find(
                   ([_, acc]: [string, any]) => acc.ownerEmail?.trim().toLowerCase() === fbEmail
@@ -212,7 +202,7 @@ export default function AdminAuth() {
         // Fallback search in memory state if database read is skipped or failed
         if (!dbMatchedAccount) {
           const localAcc = state.restaurantAccounts?.find(
-            acc => acc.id === fbUser.uid || acc.ownerEmail?.trim().toLowerCase() === fbEmail
+            acc => acc.id === fbUser?.id || acc.ownerEmail?.trim().toLowerCase() === fbEmail
           );
           if (localAcc) {
             resolvedAdminId = localAcc.id;
@@ -223,19 +213,19 @@ export default function AdminAuth() {
         if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
           addToast('error', '❌ Your account has been blocked. Please contact support@meenufy.com');
           setLoading(false);
-          await auth.signOut();
+          await signOutUser();
           return;
         }
 
         const adminUser = {
           id: resolvedAdminId,
-          name: form.name || fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
-          email: fbUser.email || form.email,
+          name: form.name || fbUser?.user_metadata?.full_name || fbUser?.email?.split('@')[0] || 'Owner',
+          email: fbUser?.email || form.email,
           restaurantId: resolvedAdminId,
           isLoggedIn: true,
           isFirebaseUser: true,
           restaurantName: form.restaurantName || dbMatchedAccount?.restaurantName || 'My Restaurant',
-          ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || state.restaurant.phone || '+91 99999 88888',
+          ownerPhone: dbMatchedAccount?.ownerPhone || fbUser?.phone || state.restaurant.phone || '+91 99999 88888',
           existingAccount: dbMatchedAccount || undefined
         };
 
@@ -251,16 +241,14 @@ export default function AdminAuth() {
         addToast('success', mode === 'signup' ? `Account created! Welcome, ${adminUser.name}! 🎉` : `Welcome back, ${adminUser.name}! 🎉`);
       } catch (err: any) {
         let errMsg = err.message || 'Authentication failed.';
-        if (err.code === 'auth/email-already-in-use') {
+        if (err.message?.includes('already registered') || err.message?.includes('User already registered')) {
           setMode('login');
           setForm(prev => ({ ...prev, name: '', restaurantName: '' }));
           addToast('info', '📧 This email already has an account. Switched to Sign In — just enter your password!');
           setLoading(false);
           return;
         }
-        if (err.code === 'auth/wrong-password') errMsg = 'Incorrect password.';
-        if (err.code === 'auth/user-not-found') errMsg = 'No account found with this email.';
-        if (err.code === 'auth/invalid-credential') errMsg = 'Invalid email or password.';
+        if (err.message?.includes('Invalid login credentials')) errMsg = 'Invalid email or password.';
         addToast('error', `❌ ${errMsg}`);
       } finally {
         setLoading(false);
@@ -327,13 +315,16 @@ export default function AdminAuth() {
   };
 
   const handleGoogleLogin = async () => {
-    if (!auth) return;
+    if (!supabaseClient) return;
     setLoading(true);
     try {
       localStorage.setItem('meenufy_auth_role', 'admin');
-      const result = await signInWithPopup(auth, googleProvider);
-      const fbUser = result.user;
-      const adminId = fbUser.uid;
+      const { error: oauthError } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+      if (oauthError) throw oauthError;
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      const fbUser = sessionData?.session?.user;
+      if (!fbUser) { setLoading(false); return; }
+      const adminId = fbUser.id;
       const fbEmail = fbUser.email?.trim().toLowerCase() || '';
 
       let resolvedAdminId = adminId;
@@ -341,12 +332,10 @@ export default function AdminAuth() {
 
       if (fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477') {
         resolvedAdminId = 'admin-1';
-      } else if (db) {
+      } else {
         try {
-          const { ref, get } = await import('firebase/database');
-          const accountsSnap = await get(ref(db, 'restaurantAccounts'));
-          if (accountsSnap.exists()) {
-            const allAccountsObj = accountsSnap.val();
+          const allAccountsObj = await dbGet('restaurantAccounts');
+          if (allAccountsObj) {
             if (allAccountsObj[adminId]) {
               resolvedAdminId = adminId;
               dbMatchedAccount = { ...allAccountsObj[adminId], id: adminId };
@@ -379,19 +368,19 @@ export default function AdminAuth() {
       if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
         addToast('error', '❌ Your account has been blocked. Please contact support@meenufy.com');
         setLoading(false);
-        await auth.signOut();
+        await signOutUser();
         return;
       }
 
       const adminUser = {
         id: resolvedAdminId,
-        name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
+        name: fbUser.user_metadata?.full_name || fbUser.email?.split('@')[0] || 'Owner',
         email: fbUser.email || '',
         restaurantId: resolvedAdminId,
         isLoggedIn: true,
         isFirebaseUser: true,
-        restaurantName: dbMatchedAccount?.restaurantName || `${fbUser.displayName || 'My'}'s Restaurant`,
-        ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
+        restaurantName: dbMatchedAccount?.restaurantName || `${fbUser.user_metadata?.full_name || 'My'}'s Restaurant`,
+        ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phone || '+91 99999 88888',
         existingAccount: dbMatchedAccount || undefined
       };
 

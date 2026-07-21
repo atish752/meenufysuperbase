@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import type { MenuItem, MealSchedule, NutritionInfo, MenuCategory, AddonConfig } from '../../context/RealtimeStore';
 import { Plus, Pencil, Trash2, Search, Tag, X, Sparkles, Camera, UploadCloud, Loader2, Check, CalendarClock, FlaskConical } from 'lucide-react';
-import { hasFirebaseConfig, db } from '../../utils/firebase';
-import { ref, update } from 'firebase/database';
+import { hasFirebaseConfig } from '../../utils/firebase';
+import { dbUpdate } from '../../utils/supabase';
 
 function CategoryRow({ cat, onUpdate, onDelete, isDeleting, onManageMeals }: { 
   cat: any; 
@@ -342,17 +342,17 @@ export default function AdminMenu() {
   };
 
   const handleSaveRanks = () => {
-    if (hasFirebaseConfig && db) {
+    if (hasFirebaseConfig) {
       if (rankTab === 'categories') {
         orderedCategories.forEach((cat, idx) => {
-          update(ref(db!, `categories/${adminId}/${cat.id}`), { rank: idx })
-            .catch(e => console.error("Failed to update category rank:", e));
+          dbUpdate(`categories/${adminId}/${cat.id}`, { rank: idx })
+            .catch((e: any) => console.error("Failed to update category rank:", e));
         });
         addToast('success', 'Category rankings saved successfully!');
       } else {
         orderedMeals.forEach((meal, idx) => {
-          update(ref(db!, `menuItems/${adminId}/${meal.id}`), { rank: idx })
-            .catch(e => console.error("Failed to update meal rank:", e));
+          dbUpdate(`menuItems/${adminId}/${meal.id}`, { rank: idx })
+            .catch((e: any) => console.error("Failed to update meal rank:", e));
         });
         addToast('success', 'Meal rankings saved successfully!');
       }

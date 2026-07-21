@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../context/RealtimeStore';
 import { Search, Star, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
-import { db } from '../../utils/firebase';
-import { ref, get } from 'firebase/database';
+import { dbGet } from '../../utils/supabase';
 
 // Haversine formula to calculate distance in km between two sets of coordinates
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -218,12 +217,9 @@ export default function CustomerHome() {
 
     if (!alreadyHasItems || !alreadyHasCats) {
       Promise.all([
-        get(ref(db!, `menuItems/${restaurantId}`)),
-        get(ref(db!, `categories/${restaurantId}`)),
-      ]).then(([menuSnap, catSnap]) => {
-        const menuData = menuSnap.val();
-        const catData = catSnap.val();
-
+        dbGet(`menuItems/${restaurantId}`),
+        dbGet(`categories/${restaurantId}`),
+      ]).then(([menuData, catData]) => {
         const items = menuData
           ? (Array.isArray(menuData) ? menuData.filter(Boolean) : Object.values(menuData)).filter(Boolean) as any[]
           : [];
@@ -240,7 +236,7 @@ export default function CustomerHome() {
           }
         });
       }).catch(() => {
-        // Fallback: onValue listeners in RealtimeStore will populate data
+        // Fallback: dbSubscribe listeners in RealtimeStore will populate data
       });
     }
   };
@@ -337,9 +333,8 @@ export default function CustomerHome() {
 
     // Fetch meals from nearby restaurants for the cuisine/search filter section
     const mealPromises = processedRestaurants.map(rest => {
-      return get(ref(db!, `menuItems/${rest.id}`))
-        .then(snapshot => {
-          const data = snapshot.val();
+      return dbGet(`menuItems/${rest.id}`)
+        .then(data => {
           if (data) {
             const mealsList = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
             return mealsList.map((meal: any) => ({

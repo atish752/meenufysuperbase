@@ -3,15 +3,18 @@
 // Cross-tab state sync via BroadcastChannel + localStorage
 // ============================================================
 import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { db, auth, hasFirebaseConfig } from '../utils/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 import { 
-  ref, 
-  set, 
-  update, 
-  remove, 
-  onValue
-} from 'firebase/database';
+  supabase as db, 
+  supabase as auth, 
+  hasSupabaseConfig as hasFirebaseConfig,
+  dbGet,
+  dbSet,
+  dbUpdate,
+  dbRemove,
+  dbSubscribe,
+  onAuthStateChanged,
+  signOutUser
+} from '../utils/supabase';
 
 const DEFAULT_POPULAR_CUISINES = [
   { name: 'Biryani', query: 'biryani', image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=150&auto=format&fit=crop&q=60' },
@@ -2842,7 +2845,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // onAuthStateChanged fires immediately on app load when Firebase has a valid session.
   useEffect(() => {
     if (!hasFirebaseConfig || !auth || !db) return;
-    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+    const unsubscribeAuth = onAuthStateChanged(async (fbUser) => {
       // If Firebase has a logged-in user but our app state doesn't yet know about them,
       // restore the session by fetching data from Firebase DB.
       const currentAdmin = stateRef.current?.admin;
@@ -2854,14 +2857,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // If logged in as customer (explicitly set or customer page)
         if (authRole === 'customer') {
           try {
-            const { get, ref: dbRef } = await import('firebase/database');
-            const custSnap = await get(dbRef(db!, `customers/${fbUser.uid}`));
+            const custData = await dbGet(`customers/${fbUser.id}`);
             const localUser = {
-              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Customer',
-              phone: custSnap.exists() ? (custSnap.val().phone || fbUser.phoneNumber || '') : (fbUser.phoneNumber || ''),
+              name: fbUser.user_metadata?.full_name || fbUser.email?.split('@')[0] || 'Customer',
+              phone: custData?.phone || fbUser.phone || '',
               email: fbUser.email || '',
-              uniqueId: custSnap.exists() ? (custSnap.val().uniqueId || '') : '',
-              googleId: fbUser.uid
+              uniqueId: custData?.uniqueId || '',
+              googleId: fbUser.id
             };
             localStorage.setItem('meenufy_customer_google_user', JSON.stringify(localUser));
             localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(localUser));
@@ -2875,18 +2877,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // If logged in as admin
         if (!isAlreadyLoggedIn) {
           try {
-            const { get, ref: dbRef } = await import('firebase/database');
             const fbEmail = fbUser.email?.trim().toLowerCase() || '';
 
-            let resolvedAdminId = fbUser.uid;
+            let resolvedAdminId = fbUser.id;
             let dbMatchedAccount: any = null;
 
-            const accountsSnap = await get(dbRef(db!, 'restaurantAccounts'));
-            if (accountsSnap.exists()) {
-              const allAccountsObj = accountsSnap.val();
-              if (allAccountsObj[fbUser.uid]) {
-                resolvedAdminId = fbUser.uid;
-                dbMatchedAccount = { ...allAccountsObj[fbUser.uid], id: fbUser.uid };
+            const allAccountsObj = await dbGet('restaurantAccounts');
+            if (allAccountsObj) {
+              if (allAccountsObj[fbUser.id]) {
+                resolvedAdminId = fbUser.id;
+                dbMatchedAccount = { ...allAccountsObj[fbUser.id], id: fbUser.id };
               } else {
                 const matchedEntry = Object.entries(allAccountsObj).find(
                   ([_, acc]: [string, any]) => acc.ownerEmail?.trim().toLowerCase() === fbEmail
@@ -2908,18 +2908,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               // NEVER auto-convert an Admin account into a signed-in customer session on customer pages!
               if (isTargetingAdminRoute || authRole === 'admin') {
                 if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
-                  await auth!.signOut();
+                  await signOutUser();
                   return;
                 }
                 const adminUser = {
                   id: resolvedAdminId,
-                  name: dbMatchedAccount?.ownerName || fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
+                  name: dbMatchedAccount?.ownerName || fbUser.user_metadata?.full_name || fbUser.email?.split('@')[0] || 'Owner',
                   email: fbUser.email || '',
                   restaurantId: resolvedAdminId,
                   isLoggedIn: true,
                   isFirebaseUser: true,
                   restaurantName: dbMatchedAccount?.restaurantName || 'My Restaurant',
-                  ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
+                  ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phone || '+91 99999 88888',
                   existingAccount: dbMatchedAccount || undefined
                 };
                 dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
@@ -2931,10 +2931,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             // Only for explicit customer auth sessions (authRole === 'customer')
             if (authRole === 'customer') {
               const localUser = {
-                name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Customer',
-                phone: fbUser.phoneNumber || '',
+                name: fbUser.user_metadata?.full_name || fbUser.email?.split('@')[0] || 'Customer',
+                phone: fbUser.phone || '',
                 email: fbUser.email || '',
-                googleId: fbUser.uid
+                googleId: fbUser.id
               };
               localStorage.setItem('meenufy_customer_google_user', JSON.stringify(localUser));
               localStorage.setItem('meenufy_customer_logged_in_user', JSON.stringify(localUser));
@@ -2943,19 +2943,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             }
 
             if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
-              await auth!.signOut();
+              await signOutUser();
               return;
             }
 
             const adminUser = {
               id: resolvedAdminId,
-              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
+              name: fbUser.user_metadata?.full_name || fbUser.email?.split('@')[0] || 'Owner',
               email: fbUser.email || '',
               restaurantId: resolvedAdminId,
               isLoggedIn: true,
               isFirebaseUser: true,
               restaurantName: dbMatchedAccount?.restaurantName || 'My Restaurant',
-              ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
+              ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phone || '+91 99999 88888',
               existingAccount: dbMatchedAccount || undefined
             };
 
@@ -3085,16 +3085,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return urlParam || state.activeCustomerRestaurantId || state.admin?.restaurantId || state.admin?.id || 'admin-1';
   }, [state.activeCustomerRestaurantId, state.admin?.restaurantId, state.admin?.id]);
 
-  // 1. Global Firebase sync listeners (Subscribed once on app load)
+  // 1. Global Supabase sync listeners (Subscribed once on app load)
   useEffect(() => {
-    if (!hasFirebaseConfig || !db) return;
-
-    // Connection state listener (silent — no toasts)
-    const unsubscribeConnected = onValue(ref(db, '.info/connected'), (_snapshot) => {});
+    if (!hasFirebaseConfig) return;
 
     // Sync restaurant accounts (all active outlets)
-    const unsubscribeAccounts = onValue(ref(db, 'restaurantAccounts'), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeAccounts = dbSubscribe('restaurantAccounts', (data) => {
       let accounts: RestaurantAccount[] = data ? Object.entries(data).map(([key, val]: [string, any]) => ({
         ...val,
         id: key
@@ -3137,13 +3133,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
 
         const curAdmin = stateRef.current.admin;
-        if (curAdmin && !curAdmin.isSuperAdmin && db) {
+        if (curAdmin && !curAdmin.isSuperAdmin) {
           const dbAcc = accounts.find(a => a.id === curAdmin.id);
           if (dbAcc && !dbAcc.billingCountry) {
             const detected = detectBillingCountry();
-            update(ref(db, `restaurantAccounts/${curAdmin.id}`), {
+            dbUpdate(`restaurantAccounts/${curAdmin.id}`, {
               billingCountry: detected
-            }).catch(e => console.error("Failed to sync billingCountry back to DB:", e));
+            }).catch((e: any) => console.error("Failed to sync billingCountry back to DB:", e));
           }
         }
       }
@@ -3154,8 +3150,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const isAdminMode = isUrlAdmin || isLocalAdmin;
 
     // Listen to Gemini API keys — always load, needed by all restaurant owners for AI features
-    const unsubscribeGeminiKeys = onValue(ref(db, 'geminiApiKeys'), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeGeminiKeys = dbSubscribe('geminiApiKeys', (data) => {
       if (data) {
         const keys = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as string[];
         dispatch({
@@ -3166,8 +3161,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen to popular cuisines
-    const unsubscribePopularCuisines = onValue(ref(db, 'meenufy_config/popularCuisines'), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribePopularCuisines = dbSubscribe('meenufy_config/popularCuisines', (data) => {
       const items = data
         ? ((Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as { name: string; query: string; image: string }[])
         : DEFAULT_POPULAR_CUISINES;
@@ -3178,15 +3172,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!data) {
-        import('firebase/database').then(({ set, ref }) => {
-          set(ref(db!, 'meenufy_config/popularCuisines'), DEFAULT_POPULAR_CUISINES);
-        });
+        dbSet('meenufy_config/popularCuisines', DEFAULT_POPULAR_CUISINES);
       }
     });
 
     // Listen to ALL restaurant coupons globally for Customer Home Deals section
-    const unsubscribeAllCoupons = onValue(ref(db, 'coupons'), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeAllCoupons = dbSubscribe('coupons', (data) => {
       if (data && typeof data === 'object') {
         const allList: Coupon[] = [];
         Object.entries(data).forEach(([rId, restCoupons]: [string, any]) => {
@@ -3206,8 +3197,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Listen to subscription coupons (global)
     let unsubscribeSubscriptionCoupons = () => {};
     if (isAdminMode) {
-      unsubscribeSubscriptionCoupons = onValue(ref(db, 'subscriptionCoupons'), (snapshot) => {
-        const data = snapshot.val();
+      unsubscribeSubscriptionCoupons = dbSubscribe('subscriptionCoupons', (data) => {
         const items: SubscriptionCoupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as SubscriptionCoupon[] : [];
         dispatch({ type: 'SYNC_SUBSCRIPTION_COUPONS', payload: items });
       });
@@ -3216,8 +3206,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Listen to ownerFeedbacks (global — for super admin to receive all feedback)
     let unsubscribeFeedbacks = () => {};
     if (isAdminMode) {
-      unsubscribeFeedbacks = onValue(ref(db, 'ownerFeedbacks'), (snapshot) => {
-        const data = snapshot.val();
+      unsubscribeFeedbacks = dbSubscribe('ownerFeedbacks', (data) => {
         const feedbacks: OwnerFeedback[] = data ? Object.values(data) as OwnerFeedback[] : [];
         feedbacks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         dispatch({ type: 'SYNC_OWNER_FEEDBACKS', payload: feedbacks });
@@ -3227,8 +3216,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Listen to supportRequests (global — for super admin to receive all support tickets)
     let unsubscribeSupport = () => {};
     if (isAdminMode) {
-      unsubscribeSupport = onValue(ref(db, 'supportRequests'), (snapshot) => {
-        const data = snapshot.val();
+      unsubscribeSupport = dbSubscribe('supportRequests', (data) => {
         const requests: SupportRequest[] = data ? Object.values(data) as SupportRequest[] : [];
         requests.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         dispatch({ type: 'SYNC_SUPPORT_REQUESTS', payload: requests });
@@ -3238,8 +3226,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Listen to staffMembers (for login authentication and permissions)
     let unsubscribeStaff = () => {};
     if (isAdminMode) {
-      unsubscribeStaff = onValue(ref(db, 'staffMembers'), (snapshot) => {
-        const data = snapshot.val();
+      unsubscribeStaff = dbSubscribe('staffMembers', (data) => {
         const staff: StaffMember[] = data ? Object.values(data) as StaffMember[] : [];
         dispatch({ type: 'SYNC_STAFF_MEMBERS', payload: staff });
       });
@@ -3248,15 +3235,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Listen to delivery riders
     let unsubscribeDeliveryBoys = () => {};
     if (isAdminMode) {
-      unsubscribeDeliveryBoys = onValue(ref(db, 'deliveryBoys'), (snapshot) => {
-        const data = snapshot.val();
+      unsubscribeDeliveryBoys = dbSubscribe('deliveryBoys', (data) => {
         const boys: DeliveryBoy[] = data ? Object.values(data) as DeliveryBoy[] : [];
         dispatch({ type: 'SYNC_DELIVERY_BOYS', payload: boys });
       });
     }
 
     return () => {
-      unsubscribeConnected();
       unsubscribeAccounts();
       unsubscribeGeminiKeys();
       unsubscribePopularCuisines();
@@ -3267,17 +3252,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeStaff();
       unsubscribeDeliveryBoys();
     };
-  }, [db]);
+  }, []);
 
-  // 2. Restaurant-specific Firebase sync listeners (Subscribed and refreshed when targetRestaurantId changes)
+
+  // 2. Restaurant-specific Supabase sync listeners (Subscribed and refreshed when targetRestaurantId changes)
   useEffect(() => {
-    if (!hasFirebaseConfig || !db || !targetRestaurantId) return;
+    if (!hasFirebaseConfig || !targetRestaurantId) return;
 
     const isCustomer = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'customer';
 
     // Sync restaurant profile details
-    const unsubscribeRestaurant = onValue(ref(db, `restaurants/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeRestaurant = dbSubscribe(`restaurants/${targetRestaurantId}`, (data) => {
       if (data) {
         dispatch({
           type: 'SET_STATE',
@@ -3286,22 +3271,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Fetch menuItems AND categories atomically using parallel get()
-    // Using get() (one-shot read) instead of onValue (WebSocket subscription) for the initial load
-    // This avoids the race condition where categories arrive before items (or vice versa)
-    // making restaurantCategories always show only 'All'.
-    // The capturedId prevents stale closures if user navigates away before fetch resolves.
-    // Keep live onValue listeners for real-time updates after initial load
-    // These fire again when data changes (e.g., admin edits menu while customer is viewing)
-    const unsubscribeMenu = onValue(ref(db, `menuItems/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeMenu = dbSubscribe(`menuItems/${targetRestaurantId}`, (data) => {
       const items: MenuItem[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuItem[] : [];
       const itemsWithId = items.map(item => ({ ...item, restaurantId: item.restaurantId || targetRestaurantId }));
       dispatch({ type: 'SYNC_MENU_ITEMS', payload: { restaurantId: targetRestaurantId, items: itemsWithId } });
     });
 
-    const unsubscribeCat = onValue(ref(db, `categories/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeCat = dbSubscribe(`categories/${targetRestaurantId}`, (data) => {
       if (data) {
         const cats: MenuCategory[] = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as MenuCategory[];
         const catsWithId = cats.map(c => ({ ...c, restaurantId: c.restaurantId || targetRestaurantId }));
@@ -3310,8 +3286,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen to orders
-    const unsubscribeOrder = onValue(ref(db, `orders/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeOrder = dbSubscribe(`orders/${targetRestaurantId}`, (data) => {
       const ords: Order[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Order[] : [];
       const ordsWithId = ords.map(o => ({
         ...o,
@@ -3323,27 +3298,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // ⚡ Instant Child Added & Child Changed listeners for orders (<10ms latency)
-    const { onChildAdded, onChildChanged } = require('firebase/database');
-    const ordersRef = ref(db, `orders/${targetRestaurantId}`);
-    const unsubscribeChildAdded = onChildAdded(ordersRef, (snapshot: any) => {
-      const val = snapshot.val();
-      if (val && snapshot.key) {
-        const singleOrder: Order = { ...val, id: snapshot.key, restaurantId: val.restaurantId || targetRestaurantId };
-        dispatch({ type: 'SYNC_SINGLE_ORDER_REALTIME', payload: singleOrder });
-      }
-    });
-    const unsubscribeChildChanged = onChildChanged(ordersRef, (snapshot: any) => {
-      const val = snapshot.val();
-      if (val && snapshot.key) {
-        const singleOrder: Order = { ...val, id: snapshot.key, restaurantId: val.restaurantId || targetRestaurantId };
-        dispatch({ type: 'SYNC_SINGLE_ORDER_REALTIME', payload: singleOrder });
-      }
-    });
-
     // Listen to waiterRequests
-    const unsubscribeWaiter = onValue(ref(db, `waiterRequests/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeWaiter = dbSubscribe(`waiterRequests/${targetRestaurantId}`, (data) => {
       const reqs: WaiterRequest[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as WaiterRequest[] : [];
       const reqsWithId = reqs.map(r => ({
         ...r,
@@ -3356,8 +3312,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen to tables
-    const unsubscribeTables = onValue(ref(db, `tables/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeTables = dbSubscribe(`tables/${targetRestaurantId}`, (data) => {
       if (data) {
         const tbls = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as TableInfo[];
         dispatch({
@@ -3365,13 +3320,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           payload: { tables: tbls }
         });
       } else if (!isCustomer && stateRef.current.tables.length > 0) {
-        set(ref(db!, `tables/${targetRestaurantId}`), stateRef.current.tables);
+        dbSet(`tables/${targetRestaurantId}`, stateRef.current.tables);
       }
     });
 
     // Listen to schedules
-    const unsubscribeSchedules = onValue(ref(db, `schedules/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeSchedules = dbSubscribe(`schedules/${targetRestaurantId}`, (data) => {
       if (data) {
         const schsRaw = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean);
         const schs = schsRaw.map((s: any) => ({
@@ -3386,8 +3340,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen to customers
-    const unsubscribeCustomers = onValue(ref(db, `customers/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeCustomers = dbSubscribe(`customers/${targetRestaurantId}`, (data) => {
       const custs: CustomerRecord[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as CustomerRecord[] : [];
       dispatch({
         type: 'SYNC_CUSTOMERS',
@@ -3396,15 +3349,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen to coupons
-    const unsubscribeCoupons = onValue(ref(db, `coupons/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeCoupons = dbSubscribe(`coupons/${targetRestaurantId}`, (data) => {
       const items: Coupon[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Coupon[] : [];
       dispatch({ type: 'SYNC_COUPONS', payload: items });
     });
 
     // Listen to addons
-    const unsubscribeAddons = onValue(ref(db, `addons/${targetRestaurantId}`), (snapshot) => {
-      const data = snapshot.val();
+    const unsubscribeAddons = dbSubscribe(`addons/${targetRestaurantId}`, (data) => {
       const rawItems = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) : [];
       const items: AddonConfig[] = rawItems.map((addon: any) => ({
         ...addon,
@@ -3420,8 +3371,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeMenu();
       unsubscribeCat();
       unsubscribeOrder();
-      if (unsubscribeChildAdded) unsubscribeChildAdded();
-      if (unsubscribeChildChanged) unsubscribeChildChanged();
       unsubscribeWaiter();
       unsubscribeTables();
       unsubscribeSchedules();
@@ -3429,19 +3378,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeCoupons();
       unsubscribeAddons();
     };
-  }, [db, targetRestaurantId]);
+  }, [targetRestaurantId]);
+
 
   // 3. Delivery Boy direct assigned order listener for instant updates
   useEffect(() => {
-    if (!hasFirebaseConfig || !db || !state.admin?.isDeliveryBoy) return;
+    if (!hasFirebaseConfig || !state.admin?.isDeliveryBoy) return;
 
     const riderId = state.admin.id;
     const rId = state.admin.restaurantId || 'admin-1';
     
     let unsubscribeOrder: (() => void) | null = null;
 
-    const unsubscribeRider = onValue(ref(db!, `deliveryBoys/${riderId}`), (snapshot) => {
-      const riderData = snapshot.val();
+    const unsubscribeRider = dbSubscribe(`deliveryBoys/${riderId}`, (riderData) => {
       if (unsubscribeOrder) {
         unsubscribeOrder();
         unsubscribeOrder = null;
@@ -3449,8 +3398,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       
       if (riderData && riderData.assignedOrderId) {
         const orderId = riderData.assignedOrderId;
-        unsubscribeOrder = onValue(ref(db!, `orders/${rId}/${orderId}`), (orderSnap) => {
-          const orderVal = orderSnap.val();
+        unsubscribeOrder = dbSubscribe(`orders/${rId}/${orderId}`, (orderVal) => {
           if (orderVal) {
             dispatch({
               type: 'SYNC_ORDERS',
@@ -3468,7 +3416,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeRider();
       if (unsubscribeOrder) unsubscribeOrder();
     };
-  }, [db, state.admin?.id, state.admin?.isDeliveryBoy]);
+  }, [state.admin?.id, state.admin?.isDeliveryBoy]);
+
 
   // Broadcast state changes to other tabs
   const wrappedDispatch = useCallback((action: Action) => {
@@ -3513,7 +3462,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'UPDATE_MENU_ITEM': {
             const itemRestId = action.payload.restaurantId || restId;
             handleDbPromise(
-              set(ref(db, `menuItems/${itemRestId}/${action.payload.id}`), sanitizeDbData({
+              dbSet(`menuItems/${itemRestId}/${action.payload.id}`, sanitizeDbData({
                 ...action.payload,
                 restaurantId: itemRestId
               })),
@@ -3524,7 +3473,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'DELETE_MENU_ITEM': {
             const itemRestId = currentState.menuItems.find(i => i.id === action.payload)?.restaurantId || restId;
             handleDbPromise(
-              remove(ref(db, `menuItems/${itemRestId}/${action.payload}`)),
+              dbRemove(`menuItems/${itemRestId}/${action.payload}`),
               'Failed to delete menu item from database'
             );
             break;
@@ -3533,7 +3482,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'UPDATE_CATEGORY': {
             const catRestId = action.payload.restaurantId || restId;
             handleDbPromise(
-              set(ref(db, `categories/${catRestId}/${action.payload.id}`), sanitizeDbData({
+              dbSet(`categories/${catRestId}/${action.payload.id}`, sanitizeDbData({
                 ...action.payload,
                 restaurantId: catRestId
               })),
@@ -3544,7 +3493,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'DELETE_CATEGORY': {
             const catRestId = currentState.categories.find(c => c.id === action.payload)?.restaurantId || restId;
             handleDbPromise(
-              remove(ref(db, `categories/${catRestId}/${action.payload}`)),
+              dbRemove(`categories/${catRestId}/${action.payload}`),
               'Failed to delete category from database'
             );
             break;
@@ -3554,11 +3503,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const _orderRestaurant = getActiveRestaurantInfo(currentState, orderRestId);
             const _subCheck = isSubscriptionActive(_orderRestaurant);
             if (!_subCheck.active) {
-              console.warn('[Firebase PLACE_ORDER] Blocked writing to DB: subscription inactive.', _subCheck.reason);
+              console.warn('[Supabase PLACE_ORDER] Blocked writing to DB: subscription inactive.', _subCheck.reason);
               break;
             }
             handleDbPromise(
-              set(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({
+              dbSet(`orders/${orderRestId}/${action.payload.id}`, sanitizeDbData({
                 ...action.payload,
                 restaurantId: orderRestId
               })),
@@ -3594,34 +3543,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 isVip: false,
               };
 
-              set(ref(db, `customers/${orderRestId}/${cleanPhone}`), sanitizeDbData(updatedCust))
-                .catch(e => console.error('Failed to sync customer profile:', e));
+              dbSet(`customers/${orderRestId}/${cleanPhone}`, sanitizeDbData(updatedCust))
+                .catch((e: any) => console.error('Failed to sync customer profile:', e));
             }
 
-            // Increment ordersPlacedThisMonth atomically using Firebase increment()
-            // This prevents race conditions when multiple orders arrive simultaneously
-            import('firebase/database').then(({ increment }) => {
-              update(ref(db!, `restaurantAccounts/${orderRestId}`), {
-                ordersPlacedThisMonth: increment(1)
-              }).catch(e => console.error('Failed to increment order count:', e));
-              
-              update(ref(db!, `restaurants/${orderRestId}`), {
-                ordersPlacedThisMonth: increment(1)
-              }).catch(e => console.error('Failed to increment order count on restaurant:', e));
-            }).catch(() => {
-              // Fallback to stale-read increment if dynamic import fails
-              const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === orderRestId);
-              const currentOrders = matchedAcc?.ordersPlacedThisMonth || 0;
-              update(ref(db!, `restaurantAccounts/${orderRestId}`), { ordersPlacedThisMonth: currentOrders + 1 }).catch(() => {});
-              update(ref(db!, `restaurants/${orderRestId}`), { ordersPlacedThisMonth: currentOrders + 1 }).catch(() => {});
-            });
+            // Increment ordersPlacedThisMonth (read-modify-write)
+            const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === orderRestId);
+            const currentOrders = matchedAcc?.ordersPlacedThisMonth || 0;
+            dbUpdate(`restaurantAccounts/${orderRestId}`, { ordersPlacedThisMonth: currentOrders + 1 }).catch(() => {});
+            dbUpdate(`restaurants/${orderRestId}`, { ordersPlacedThisMonth: currentOrders + 1 }).catch(() => {});
             
             break;
           }
           case 'UPDATE_ORDER_STATUS': {
             const orderRestId = currentState.orders.find(o => o.id === action.payload.id)?.restaurantId || restId;
             handleDbPromise(
-              update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({ status: action.payload.status })),
+              dbUpdate(`orders/${orderRestId}/${action.payload.id}`, sanitizeDbData({ status: action.payload.status })),
               'Failed to update order status'
             );
             break;
@@ -3629,7 +3566,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'UPDATE_ORDER_PAYMENT': {
             const orderRestId = currentState.orders.find(o => o.id === action.payload.id)?.restaurantId || restId;
             handleDbPromise(
-              update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData({
+              dbUpdate(`orders/${orderRestId}/${action.payload.id}`, sanitizeDbData({
                 ...(action.payload.method ? { paymentMethod: action.payload.method } : {}),
                 ...(action.payload.status ? { paymentStatus: action.payload.status } : {}),
               })),
@@ -3656,7 +3593,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               updatePayload.foodReview = action.payload.foodReview;
             }
             handleDbPromise(
-              update(ref(db, `orders/${orderRestId}/${action.payload.id}`), sanitizeDbData(updatePayload)),
+              dbUpdate(`orders/${orderRestId}/${action.payload.id}`, sanitizeDbData(updatePayload)),
               'Failed to submit ratings'
             );
 
@@ -3668,15 +3605,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const newCount = currentCount + 1;
               const newRating = Math.round((((currentRating * currentCount) + action.payload.foodRating) / newCount) * 10) / 10;
               
-              update(ref(db!, `restaurantAccounts/${orderRestId}`), {
+              dbUpdate(`restaurantAccounts/${orderRestId}`, {
                 rating: newRating,
                 ratingsCount: newCount
-              }).catch(err => console.error('Failed to update restaurantAccount rating:', err));
+              }).catch((err: any) => console.error('Failed to update restaurantAccount rating:', err));
 
-              update(ref(db!, `restaurants/${orderRestId}`), {
+              dbUpdate(`restaurants/${orderRestId}`, {
                 rating: newRating,
                 ratingsCount: newCount
-              }).catch(err => console.error('Failed to update restaurant rating:', err));
+              }).catch((err: any) => console.error('Failed to update restaurant rating:', err));
             }
 
             // Compute and update individual menu items ratings in database
@@ -3690,10 +3627,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                   const newCount = currentCount + 1;
                   const newRating = Math.round((((currentRating * currentCount) + ratingVal) / newCount) * 10) / 10;
                   
-                  update(ref(db!, `menuItems/${orderRestId}/${itemId}`), {
+                  dbUpdate(`menuItems/${orderRestId}/${itemId}`, {
                     rating: newRating,
                     ratingsCount: newCount
-                  }).catch(err => console.error(`Failed to update item ${itemId} rating:`, err));
+                  }).catch((err: any) => console.error(`Failed to update item ${itemId} rating:`, err));
                 }
               });
             }
@@ -3702,7 +3639,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'CALL_WAITER': {
             const waiterRestId = action.payload.restaurantId || restId;
             handleDbPromise(
-              set(ref(db, `waiterRequests/${waiterRestId}/${action.payload.id}`), sanitizeDbData({
+              dbSet(`waiterRequests/${waiterRestId}/${action.payload.id}`, sanitizeDbData({
                 ...action.payload,
                 restaurantId: waiterRestId
               })),
@@ -3711,24 +3648,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             break;
           }
           case 'RESOLVE_WAITER': {
-            const database = db;
-            if (database) {
-              const waiterRestId = currentState.waiterRequests.find(r => r.id === action.payload)?.restaurantId || restId;
-              handleDbPromise(
-                update(ref(database, `waiterRequests/${waiterRestId}/${action.payload}`), { resolved: true, resolvedAt: Date.now() }),
-                'Failed to resolve waiter request'
-              );
-              setTimeout(() => {
-                import('firebase/database').then(({ remove }) => {
-                  remove(ref(database, `waiterRequests/${waiterRestId}/${action.payload}`)).catch(e => console.error("Failed to auto-delete resolved waiter request:", e));
-                });
-              }, 5000);
-            }
+            const waiterRestId = currentState.waiterRequests.find(r => r.id === action.payload)?.restaurantId || restId;
+            handleDbPromise(
+              dbUpdate(`waiterRequests/${waiterRestId}/${action.payload}`, { resolved: true, resolvedAt: Date.now() }),
+              'Failed to resolve waiter request'
+            );
+            setTimeout(() => {
+              dbRemove(`waiterRequests/${waiterRestId}/${action.payload}`).catch((e: any) => console.error("Failed to auto-delete resolved waiter request:", e));
+            }, 5000);
             break;
           }
           case 'SET_TABLES': {
             handleDbPromise(
-              set(ref(db, `tables/${restId}`), sanitizeDbData(action.payload)),
+              dbSet(`tables/${restId}`, sanitizeDbData(action.payload)),
               'Failed to update tables'
             );
             break;
@@ -3750,7 +3682,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 : t
             );
             handleDbPromise(
-              set(ref(db, `tables/${restId}`), sanitizeDbData(updatedTables)),
+              dbSet(`tables/${restId}`, sanitizeDbData(updatedTables)),
               'Failed to update table status'
             );
             break;
@@ -3760,7 +3692,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               t.id === action.payload.id ? { ...t, ...action.payload } : t
             );
             handleDbPromise(
-              set(ref(db, `tables/${restId}`), sanitizeDbData(updatedTables)),
+              dbSet(`tables/${restId}`, sanitizeDbData(updatedTables)),
               'Failed to update table status'
             );
             break;
@@ -3780,7 +3712,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 : t
             );
             handleDbPromise(
-              set(ref(db, `tables/${restId}`), sanitizeDbData(updatedTables)),
+              dbSet(`tables/${restId}`, sanitizeDbData(updatedTables)),
               'Failed to save reservation'
             );
             break;
@@ -3788,49 +3720,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'ADD_SCHEDULE':
           case 'UPDATE_SCHEDULE': {
             handleDbPromise(
-              set(ref(db, `schedules/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              dbSet(`schedules/${restId}/${action.payload.id}`, sanitizeDbData(action.payload)),
               'Failed to save schedule'
             );
             break;
           }
           case 'DELETE_SCHEDULE': {
             handleDbPromise(
-              remove(ref(db, `schedules/${restId}/${action.payload}`)),
+              dbRemove(`schedules/${restId}/${action.payload}`),
               'Failed to delete schedule'
             );
             break;
           }
           case 'ADD_GEMINI_KEY': {
             handleDbPromise(
-              set(ref(db, 'geminiApiKeys'), sanitizeDbData([...currentState.geminiApiKeys, action.payload])),
+              dbSet('geminiApiKeys', sanitizeDbData([...currentState.geminiApiKeys, action.payload])),
               'Failed to add Gemini API key'
             );
             break;
           }
           case 'REMOVE_GEMINI_KEY': {
             handleDbPromise(
-              set(ref(db, 'geminiApiKeys'), sanitizeDbData(currentState.geminiApiKeys.filter(key => key !== action.payload))),
+              dbSet('geminiApiKeys', sanitizeDbData(currentState.geminiApiKeys.filter(key => key !== action.payload))),
               'Failed to remove Gemini API key'
             );
             break;
           }
           case 'SET_POPULAR_CUISINES': {
             handleDbPromise(
-              set(ref(db, 'meenufy_config/popularCuisines'), sanitizeDbData(action.payload)),
+              dbSet('meenufy_config/popularCuisines', sanitizeDbData(action.payload)),
               'Failed to update popular cuisines list'
             );
             break;
           }
           case 'ADD_POPULAR_CUISINE': {
             handleDbPromise(
-              set(ref(db, 'meenufy_config/popularCuisines'), sanitizeDbData([...currentState.popularCuisines, action.payload])),
+              dbSet('meenufy_config/popularCuisines', sanitizeDbData([...currentState.popularCuisines, action.payload])),
               'Failed to add popular cuisine'
             );
             break;
           }
           case 'REMOVE_POPULAR_CUISINE': {
             handleDbPromise(
-              set(ref(db, 'meenufy_config/popularCuisines'), sanitizeDbData(currentState.popularCuisines.filter(c => c.query !== action.payload))),
+              dbSet('meenufy_config/popularCuisines', sanitizeDbData(currentState.popularCuisines.filter(c => c.query !== action.payload))),
               'Failed to remove popular cuisine'
             );
             break;
@@ -3839,9 +3771,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const cust = currentState.customers.find(c => c.id === action.payload);
             if (cust && cust.phone) {
               const cleanPhone = cust.phone.replace(/[^a-zA-Z0-9]/g, '');
-              update(ref(db, `customers/${restId}/${cleanPhone}`), {
+              dbUpdate(`customers/${restId}/${cleanPhone}`, {
                 isVip: !cust.isVip
-              }).catch(e => console.error('Failed to update VIP status:', e));
+              }).catch((e: any) => console.error('Failed to update VIP status:', e));
             }
             break;
           }
@@ -3850,9 +3782,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const cust = currentState.customers.find(c => c.id === id);
             if (cust && cust.phone) {
               const cleanPhone = cust.phone.replace(/[^a-zA-Z0-9]/g, '');
-              update(ref(db, `customers/${restId}/${cleanPhone}`), {
+              dbUpdate(`customers/${restId}/${cleanPhone}`, {
                 points: points
-              }).catch(e => console.error('Failed to adjust customer points:', e));
+              }).catch((e: any) => console.error('Failed to adjust customer points:', e));
             }
             break;
           }
@@ -3860,7 +3792,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const targetItems = currentState.menuItems.filter(item => item.restaurantId === restId);
             targetItems.forEach(item => {
               handleDbPromise(
-                update(ref(db!, `menuItems/${restId}/${item.id}`), { isFeatured: false }),
+                dbUpdate(`menuItems/${restId}/${item.id}`, { isFeatured: false }),
                 'Failed to unfeature items'
               );
             });
@@ -3868,49 +3800,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'DELETE_ALL_MENU_ITEMS': {
             handleDbPromise(
-              remove(ref(db, `menuItems/${restId}`)),
+              dbRemove(`menuItems/${restId}`),
               'Failed to delete all menu items'
             );
             break;
           }
           case 'ADD_COUPON': {
             handleDbPromise(
-              set(ref(db, `coupons/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              dbSet(`coupons/${restId}/${action.payload.id}`, sanitizeDbData(action.payload)),
               'Failed to add coupon'
             );
             break;
           }
           case 'UPDATE_COUPON': {
             handleDbPromise(
-              update(ref(db, `coupons/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              dbUpdate(`coupons/${restId}/${action.payload.id}`, sanitizeDbData(action.payload)),
               'Failed to update coupon'
             );
             break;
           }
           case 'DELETE_COUPON': {
             handleDbPromise(
-              remove(ref(db, `coupons/${restId}/${action.payload}`)),
+              dbRemove(`coupons/${restId}/${action.payload}`),
               'Failed to delete coupon'
             );
             break;
           }
           case 'ADD_ADDON': {
             handleDbPromise(
-              set(ref(db, `addons/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              dbSet(`addons/${restId}/${action.payload.id}`, sanitizeDbData(action.payload)),
               'Failed to add addon'
             );
             break;
           }
           case 'UPDATE_ADDON': {
             handleDbPromise(
-              update(ref(db, `addons/${restId}/${action.payload.id}`), sanitizeDbData(action.payload)),
+              dbUpdate(`addons/${restId}/${action.payload.id}`, sanitizeDbData(action.payload)),
               'Failed to update addon'
             );
             break;
           }
           case 'DELETE_ADDON': {
             handleDbPromise(
-              remove(ref(db, `addons/${restId}/${action.payload}`)),
+              dbRemove(`addons/${restId}/${action.payload}`),
               'Failed to delete addon'
             );
             break;
@@ -3933,18 +3865,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 updates.basePlanSelectedType = payload.basePlanSelectedType;
               }
 
-              update(ref(db, `restaurantAccounts/${currentState.admin.id}`), updates).catch(() => {});
+              dbUpdate(`restaurantAccounts/${currentState.admin.id}`, updates).catch(() => {});
               
               const restId = currentState.admin.restaurantId;
               if (restId) {
-                update(ref(db, `restaurants/${restId}`), updates).catch(() => {});
+                dbUpdate(`restaurants/${restId}`, updates).catch(() => {});
               }
             }
             break;
           }
           case 'MARK_ONBOARDING_PENDING': {
             if (currentState.admin) {
-              update(ref(db, `restaurantAccounts/${currentState.admin.id}`), {
+              dbUpdate(`restaurantAccounts/${currentState.admin.id}`, {
                 hasCompletedOnboarding: false
               }).catch(() => {});
             }
@@ -3952,42 +3884,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'ADD_STAFF_MEMBER': {
             handleDbPromise(
-              set(ref(db, `staffMembers/${action.payload.id}`), sanitizeDbData(action.payload, new Set())),
+              dbSet(`staffMembers/${action.payload.id}`, sanitizeDbData(action.payload, new Set())),
               'Failed to add staff member'
             );
             break;
           }
           case 'UPDATE_STAFF_MEMBER': {
             handleDbPromise(
-              update(ref(db, `staffMembers/${action.payload.id}`), sanitizeDbData(action.payload, new Set())),
+              dbUpdate(`staffMembers/${action.payload.id}`, sanitizeDbData(action.payload, new Set())),
               'Failed to update staff member'
             );
             break;
           }
           case 'DELETE_STAFF_MEMBER': {
             handleDbPromise(
-              remove(ref(db, `staffMembers/${action.payload}`)),
+              dbRemove(`staffMembers/${action.payload}`),
               'Failed to delete staff member'
             );
             break;
           }
           case 'ADD_DELIVERY_BOY': {
             handleDbPromise(
-              set(ref(db, `deliveryBoys/${action.payload.id}`), sanitizeDbData(action.payload, new Set())),
+              dbSet(`deliveryBoys/${action.payload.id}`, sanitizeDbData(action.payload, new Set())),
               'Failed to add delivery boy'
             );
             break;
           }
           case 'UPDATE_DELIVERY_BOY': {
             handleDbPromise(
-              update(ref(db, `deliveryBoys/${action.payload.id}`), sanitizeDbData(action.payload, new Set())),
+              dbUpdate(`deliveryBoys/${action.payload.id}`, sanitizeDbData(action.payload, new Set())),
               'Failed to update delivery boy'
             );
             break;
           }
           case 'DELETE_DELIVERY_BOY': {
             handleDbPromise(
-              remove(ref(db, `deliveryBoys/${action.payload}`)),
+              dbRemove(`deliveryBoys/${action.payload}`),
               'Failed to delete delivery boy'
             );
             break;
@@ -3995,7 +3927,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'ASSIGN_DELIVERY_BOY': {
             const { orderId, restaurantId, deliveryBoyId, deliveryOtp } = action.payload;
             handleDbPromise(
-              update(ref(db, `orders/${restaurantId}/${orderId}`), {
+              dbUpdate(`orders/${restaurantId}/${orderId}`, {
                 deliveryBoyId,
                 deliveryStatus: 'assigned',
                 deliveryOtp
@@ -4003,7 +3935,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               'Failed to assign rider to order'
             );
             handleDbPromise(
-              update(ref(db, `deliveryBoys/${deliveryBoyId}`), {
+              dbUpdate(`deliveryBoys/${deliveryBoyId}`, {
                 status: 'delivering',
                 assignedOrderId: orderId
               }),
@@ -4013,7 +3945,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'CLEAR_ALL_CUSTOMERS': {
             handleDbPromise(
-              remove(ref(db, `customers/${restId}`)),
+              dbRemove(`customers/${restId}`),
               'Failed to clear all customers'
             );
             break;
@@ -4032,7 +3964,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               status: 'pending'
             };
             handleDbPromise(
-              set(ref(db, `supportRequests/${reqId}`), sanitizeDbData(reqData)),
+              dbSet(`supportRequests/${reqId}`, sanitizeDbData(reqData)),
               'Failed to submit support request'
             );
             break;
@@ -4040,7 +3972,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'REPLY_SUPPORT_REQUEST': {
             const { id: reqReplyId, replyText: reqReplyText } = action.payload;
             handleDbPromise(
-              update(ref(db, `supportRequests/${reqReplyId}`), { 
+              dbUpdate(`supportRequests/${reqReplyId}`, { 
                 replyText: reqReplyText, 
                 status: 'resolved' 
               }),
@@ -4049,7 +3981,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             break;
           }
           case 'SUBMIT_FEEDBACK': {
-            // Compute newFeedback same as reducer (we need the id to write to Firebase)
+            // Compute newFeedback same as reducer (we need the id to write to DB)
             const fbId = `fb-${Date.now()}`;
             const fbData = {
               id: fbId,
@@ -4063,7 +3995,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               createdAt: Date.now()
             };
             handleDbPromise(
-              set(ref(db, `ownerFeedbacks/${fbId}`), sanitizeDbData(fbData)),
+              dbSet(`ownerFeedbacks/${fbId}`, sanitizeDbData(fbData)),
               'Failed to submit feedback'
             );
             break;
@@ -4071,14 +4003,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'REPLY_FEEDBACK': {
             const { id: fbReplyId, replyText: fbReplyText } = action.payload;
             handleDbPromise(
-              update(ref(db, `ownerFeedbacks/${fbReplyId}`), { replyText: fbReplyText }),
+              dbUpdate(`ownerFeedbacks/${fbReplyId}`, { replyText: fbReplyText }),
               'Failed to update feedback reply'
             );
             break;
           }
           case 'DELETE_FEEDBACK': {
             handleDbPromise(
-              remove(ref(db, `ownerFeedbacks/${action.payload}`)),
+              dbRemove(`ownerFeedbacks/${action.payload}`),
               'Failed to delete feedback'
             );
             break;
@@ -4093,7 +4025,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'TOGGLE_RESTAURANT_LISTING': {
             const { id, isListedOnHome } = action.payload;
             handleDbPromise(
-              update(ref(db, `restaurantAccounts/${id}`), { isListedOnHome }),
+              dbUpdate(`restaurantAccounts/${id}`, { isListedOnHome }),
               'Failed to update restaurant home listing status'
             );
             break;
@@ -4102,7 +4034,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const { orderId, restaurantId } = action.payload;
             const targetId = restaurantId || restId;
             handleDbPromise(
-              update(ref(db, `orders/${targetId}/${orderId}`), {
+              dbUpdate(`orders/${targetId}/${orderId}`, {
                 paymentStatus: 'paid',
                 paymentConfirmedByAdmin: true,
                 status: 'preparing',
@@ -4114,7 +4046,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'SET_MANUAL_CLOSED':
             handleDbPromise(
-              update(ref(db, `restaurants/${restId}`), { isManualClosed: action.payload }),
+              dbUpdate(`restaurants/${restId}`, { isManualClosed: action.payload }),
               'Failed to update manual closed status'
             );
             break;
@@ -4123,101 +4055,72 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const detectedCountry = detectBillingCountry();
               const matchedAcc = currentState.restaurantAccounts.find(acc => acc.id === action.payload.id);
 
-              import('firebase/database').then(({ get, ref, update }) => {
-                get(ref(db!, `restaurantAccounts/${action.payload.id}`)).then((snapshot) => {
-                  const existingDbAcc = snapshot.val();
-                  
-                  // Retrieve current restaurant data to heal restaurantName and ownerPhone if missing
-                  get(ref(db!, `restaurants/${action.payload.id}`)).then((restSnap) => {
-                    const restData = restSnap.val();
-                    const realRestName = restData?.name || action.payload.restaurantName || existingDbAcc?.restaurantName || 'My Restaurant';
-                    const realRestPhone = restData?.phone || action.payload.ownerPhone || existingDbAcc?.ownerPhone || '+91 99999 88888';
+              // Self-heal account data using Supabase
+              (async () => {
+                try {
+                  const existingDbAcc = await dbGet(`restaurantAccounts/${action.payload.id}`);
+                  const restData = await dbGet(`restaurants/${action.payload.id}`);
+                  const realRestName = restData?.name || action.payload.restaurantName || existingDbAcc?.restaurantName || 'My Restaurant';
+                  const realRestPhone = restData?.phone || action.payload.ownerPhone || existingDbAcc?.ownerPhone || '+91 99999 88888';
 
-                    const accountData = {
-                      id: action.payload.id,
-                      ownerName: action.payload.name,
-                      ownerEmail: action.payload.email,
-                      ownerPhone: realRestPhone,
-                      restaurantName: realRestName,
-                      walletBalance: existingDbAcc ? (existingDbAcc.walletBalance ?? 300) : 300,
-                      status: existingDbAcc ? (existingDbAcc.status ?? 'active') : 'active',
-                      createdAt: existingDbAcc ? (existingDbAcc.createdAt ?? Date.now()) : Date.now(),
-                      subscriptionPlan: existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free',
-                      ordersPlacedThisMonth: existingDbAcc ? (existingDbAcc.ordersPlacedThisMonth ?? 0) : 0,
-                      subscriptionRenewalDate: (() => {
-                        const plan = existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free';
-                        const days = plan === 'free' ? 13 : 30;
-                        return existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + days * 24 * 60 * 60 * 1000)) : (Date.now() + days * 24 * 60 * 60 * 1000);
-                      })(),
-                      billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
-                      billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
-                      hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false,
-                      rating: existingDbAcc ? (existingDbAcc.rating ?? 0) : 0,
-                      ratingsCount: existingDbAcc ? (existingDbAcc.ratingsCount ?? 0) : 0,
-                      ...(existingDbAcc ? {
-                        address: existingDbAcc.address,
-                        tagline: existingDbAcc.tagline,
-                        promoText: existingDbAcc.promoText,
-                        cuisines: existingDbAcc.cuisines,
-                        logo: existingDbAcc.logo,
-                        posterImage: existingDbAcc.posterImage,
-                        bannerImage: existingDbAcc.bannerImage,
-                        latitude: existingDbAcc.latitude,
-                        longitude: existingDbAcc.longitude,
-                        openTime: existingDbAcc.openTime,
-                        closeTime: existingDbAcc.closeTime,
-                        deliveryEnabled: existingDbAcc.deliveryEnabled,
-                        deliveryRadius: existingDbAcc.deliveryRadius,
-                        deliveryCharge: existingDbAcc.deliveryCharge,
-                        freeDeliveryDistance: existingDbAcc.freeDeliveryDistance,
-                        freeDeliveryMinAmount: existingDbAcc.freeDeliveryMinAmount,
-                        freeDeliveryDistanceEnabled: existingDbAcc.freeDeliveryDistanceEnabled,
-                        freeDeliveryMinAmountEnabled: existingDbAcc.freeDeliveryMinAmountEnabled,
-                        indiningRadius: existingDbAcc.indiningRadius,
-                        takeawayRadius: existingDbAcc.takeawayRadius,
-                        verificationRadius: existingDbAcc.verificationRadius,
-                        upiId: existingDbAcc.upiId,
-                        googleMapsUrl: existingDbAcc.googleMapsUrl,
-                        mustLoginBeforeOrder: existingDbAcc.mustLoginBeforeOrder,
-                        locationVerificationEnabled: existingDbAcc.locationVerificationEnabled,
-                        overlayLogoOnMeals: existingDbAcc.overlayLogoOnMeals,
-                        fssai: existingDbAcc.fssai,
-                        gst: existingDbAcc.gst,
-                      } : {})
-                    };
+                  const accountData = {
+                    id: action.payload.id,
+                    ownerName: action.payload.name,
+                    ownerEmail: action.payload.email,
+                    ownerPhone: realRestPhone,
+                    restaurantName: realRestName,
+                    walletBalance: existingDbAcc ? (existingDbAcc.walletBalance ?? 300) : 300,
+                    status: existingDbAcc ? (existingDbAcc.status ?? 'active') : 'active',
+                    createdAt: existingDbAcc ? (existingDbAcc.createdAt ?? Date.now()) : Date.now(),
+                    subscriptionPlan: existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free',
+                    ordersPlacedThisMonth: existingDbAcc ? (existingDbAcc.ordersPlacedThisMonth ?? 0) : 0,
+                    subscriptionRenewalDate: (() => {
+                      const plan = existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free';
+                      const days = plan === 'free' ? 13 : 30;
+                      return existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + days * 24 * 60 * 60 * 1000)) : (Date.now() + days * 24 * 60 * 60 * 1000);
+                    })(),
+                    billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
+                    billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
+                    hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false,
+                    rating: existingDbAcc ? (existingDbAcc.rating ?? 0) : 0,
+                    ratingsCount: existingDbAcc ? (existingDbAcc.ratingsCount ?? 0) : 0,
+                    ...(existingDbAcc ? {
+                      address: existingDbAcc.address,
+                      tagline: existingDbAcc.tagline,
+                      promoText: existingDbAcc.promoText,
+                      cuisines: existingDbAcc.cuisines,
+                      logo: existingDbAcc.logo,
+                      posterImage: existingDbAcc.posterImage,
+                      bannerImage: existingDbAcc.bannerImage,
+                      latitude: existingDbAcc.latitude,
+                      longitude: existingDbAcc.longitude,
+                      openTime: existingDbAcc.openTime,
+                      closeTime: existingDbAcc.closeTime,
+                      deliveryEnabled: existingDbAcc.deliveryEnabled,
+                      deliveryRadius: existingDbAcc.deliveryRadius,
+                      deliveryCharge: existingDbAcc.deliveryCharge,
+                      freeDeliveryDistance: existingDbAcc.freeDeliveryDistance,
+                      freeDeliveryMinAmount: existingDbAcc.freeDeliveryMinAmount,
+                      freeDeliveryDistanceEnabled: existingDbAcc.freeDeliveryDistanceEnabled,
+                      freeDeliveryMinAmountEnabled: existingDbAcc.freeDeliveryMinAmountEnabled,
+                      indiningRadius: existingDbAcc.indiningRadius,
+                      takeawayRadius: existingDbAcc.takeawayRadius,
+                      verificationRadius: existingDbAcc.verificationRadius,
+                      upiId: existingDbAcc.upiId,
+                      googleMapsUrl: existingDbAcc.googleMapsUrl,
+                      mustLoginBeforeOrder: existingDbAcc.mustLoginBeforeOrder,
+                      locationVerificationEnabled: existingDbAcc.locationVerificationEnabled,
+                      overlayLogoOnMeals: existingDbAcc.overlayLogoOnMeals,
+                      fssai: existingDbAcc.fssai,
+                      gst: existingDbAcc.gst,
+                    } : {})
+                  };
 
-                    update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData))
-                      .catch(err => console.error('Failed to update self-healed restaurant account:', err));
-                  }).catch((err) => {
-                    console.error('Failed to get authoritative restaurant details for self-healing:', err);
-                    const accountData = {
-                      id: action.payload.id,
-                      ownerName: action.payload.name,
-                      ownerEmail: action.payload.email,
-                      ownerPhone: action.payload.ownerPhone || existingDbAcc?.ownerPhone || '+91 99999 88888',
-                      restaurantName: action.payload.restaurantName || existingDbAcc?.restaurantName || 'My Restaurant',
-                      walletBalance: existingDbAcc ? (existingDbAcc.walletBalance ?? 300) : 300,
-                      status: existingDbAcc ? (existingDbAcc.status ?? 'active') : 'active',
-                      createdAt: existingDbAcc ? (existingDbAcc.createdAt ?? Date.now()) : Date.now(),
-                      subscriptionPlan: existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free',
-                      ordersPlacedThisMonth: existingDbAcc ? (existingDbAcc.ordersPlacedThisMonth ?? 0) : 0,
-                      subscriptionRenewalDate: (() => {
-                        const plan = existingDbAcc ? (existingDbAcc.subscriptionPlan ?? 'free') : 'free';
-                        const days = plan === 'free' ? 13 : 30;
-                        return existingDbAcc ? (existingDbAcc.subscriptionRenewalDate ?? (Date.now() + days * 24 * 60 * 60 * 1000)) : (Date.now() + days * 24 * 60 * 60 * 1000);
-                      })(),
-                      billingCountry: existingDbAcc ? (existingDbAcc.billingCountry ?? detectedCountry) : detectedCountry,
-                      billingPeriod: existingDbAcc ? (existingDbAcc.billingPeriod ?? 'monthly') : 'monthly',
-                      hasCompletedOnboarding: existingDbAcc ? (existingDbAcc.hasCompletedOnboarding ?? false) : false,
-                      rating: existingDbAcc ? (existingDbAcc.rating ?? 0) : 0,
-                      ratingsCount: existingDbAcc ? (existingDbAcc.ratingsCount ?? 0) : 0
-                    };
-                    update(ref(db!, `restaurantAccounts/${action.payload.id}`), sanitizeDbData(accountData)).catch(() => {});
-                  });
-                }).catch((err) => {
-                  console.error('Failed to get restaurant account details for self-healing:', err);
-                });
-              });
+                  await dbUpdate(`restaurantAccounts/${action.payload.id}`, sanitizeDbData(accountData));
+                } catch (err) {
+                  console.error('Failed to self-heal restaurant account:', err);
+                }
+              })();
               
               // Re-evaluate geolocation dynamically on every login/signin
               fetch('https://ipapi.co/json/')
@@ -4227,7 +4130,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     const finalCountry = data.country_code === 'IN' ? 'IN' : 'global';
                     // Update in database if it differs or wasn't set yet
                     if (!matchedAcc || matchedAcc.billingCountry !== finalCountry) {
-                      update(ref(db!, `restaurantAccounts/${action.payload.id}`), {
+                      dbUpdate(`restaurantAccounts/${action.payload.id}`, {
                         billingCountry: finalCountry
                       });
                     }
@@ -4243,7 +4146,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const days = planName === 'free' ? 13 : billingPeriod === 'yearly' ? 365 : 30;
             const renewal = Date.now() + days * 24 * 60 * 60 * 1000;
             handleDbPromise(
-              update(ref(db, `restaurantAccounts/${targetId}`), {
+              dbUpdate(`restaurantAccounts/${targetId}`, {
                 subscriptionPlan: planName,
                 subscriptionRenewalDate: renewal,
                 billingPeriod,
@@ -4252,7 +4155,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               'Failed to update subscription plan in database'
             );
             handleDbPromise(
-              update(ref(db, `restaurants/${targetId}`), {
+              dbUpdate(`restaurants/${targetId}`, {
                 subscriptionPlan: planName,
                 subscriptionRenewalDate: renewal,
                 billingPeriod,
@@ -4265,7 +4168,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'SUPER_ADMIN_UPDATE_SUBSCRIPTION': {
             const { id, subscriptionPlan, ordersPlacedThisMonth, subscriptionRenewalDate, billingCountry, billingPeriod } = action.payload;
             handleDbPromise(
-              update(ref(db, `restaurantAccounts/${id}`), {
+              dbUpdate(`restaurantAccounts/${id}`, {
                 subscriptionPlan,
                 ordersPlacedThisMonth,
                 subscriptionRenewalDate,
@@ -4275,7 +4178,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               'Failed to update subscription in database (Super Admin)'
             );
             handleDbPromise(
-              update(ref(db, `restaurants/${id}`), {
+              dbUpdate(`restaurants/${id}`, {
                 subscriptionPlan,
                 ordersPlacedThisMonth,
                 subscriptionRenewalDate,
@@ -4299,7 +4202,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               if (action.type === 'SUPER_ADMIN_TOGGLE_BLOCK') nextStatus = matchedAcc.status === 'active' ? 'blocked' : 'active';
               
               handleDbPromise(
-                update(ref(db, `restaurantAccounts/${matchedAcc.id}`), sanitizeDbData({
+                dbUpdate(`restaurantAccounts/${matchedAcc.id}`, sanitizeDbData({
                   walletBalance: nextBalance,
                   status: nextStatus
                 })),
@@ -4311,24 +4214,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'SUPER_ADMIN_DELETE_ACCOUNT': {
             const accountId = action.payload;
             handleDbPromise(
-              remove(ref(db, `restaurantAccounts/${accountId}`)),
+              dbRemove(`restaurantAccounts/${accountId}`),
               'Failed to delete restaurant account'
             );
-            remove(ref(db, `restaurants/${accountId}`)).catch(() => {});
-            remove(ref(db, `menuItems/${accountId}`)).catch(() => {});
-            remove(ref(db, `categories/${accountId}`)).catch(() => {});
-            remove(ref(db, `orders/${accountId}`)).catch(() => {});
-            remove(ref(db, `customers/${accountId}`)).catch(() => {});
-            remove(ref(db, `coupons/${accountId}`)).catch(() => {});
-            remove(ref(db, `waiterRequests/${accountId}`)).catch(() => {});
-            remove(ref(db, `schedules/${accountId}`)).catch(() => {});
-            remove(ref(db, `tables/${accountId}`)).catch(() => {});
+            dbRemove(`restaurants/${accountId}`).catch(() => {});
+            dbRemove(`menuItems/${accountId}`).catch(() => {});
+            dbRemove(`categories/${accountId}`).catch(() => {});
+            dbRemove(`orders/${accountId}`).catch(() => {});
+            dbRemove(`customers/${accountId}`).catch(() => {});
+            dbRemove(`coupons/${accountId}`).catch(() => {});
+            dbRemove(`waiterRequests/${accountId}`).catch(() => {});
+            dbRemove(`schedules/${accountId}`).catch(() => {});
+            dbRemove(`tables/${accountId}`).catch(() => {});
             break;
           }
           case 'ADD_SUBSCRIPTION_COUPON': {
             const coupon = action.payload;
             handleDbPromise(
-              set(ref(db, `subscriptionCoupons/${coupon.id}`), sanitizeDbData(coupon)),
+              dbSet(`subscriptionCoupons/${coupon.id}`, sanitizeDbData(coupon)),
               'Failed to create subscription coupon'
             );
             break;
@@ -4336,7 +4239,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           case 'DELETE_SUBSCRIPTION_COUPON': {
             const couponId = action.payload;
             handleDbPromise(
-              remove(ref(db, `subscriptionCoupons/${couponId}`)),
+              dbRemove(`subscriptionCoupons/${couponId}`),
               'Failed to delete subscription coupon'
             );
             break;
@@ -4351,13 +4254,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Broadcast to other tabs after state change
-    // Skip broadcasting Firebase sync actions — both tabs have their own Firebase listeners
-    const FIREBASE_SYNC_ACTIONS = new Set([
+    // Skip broadcasting Supabase sync actions — both tabs have their own Supabase listeners
+    const SUPABASE_SYNC_ACTIONS = new Set([
       'SYNC_MENU_ITEMS', 'SYNC_CATEGORIES', 'SYNC_ORDERS', 'SYNC_WAITER_REQUESTS',
       'SYNC_RESTAURANT_ACCOUNTS', 'SYNC_SUBSCRIPTION_COUPONS', 'SYNC_ADDONS', 'SET_STATE'
     ]);
     setTimeout(() => {
-      if (channelRef.current && !isBroadcasting.current && !FIREBASE_SYNC_ACTIONS.has(action.type)) {
+      if (channelRef.current && !isBroadcasting.current && !SUPABASE_SYNC_ACTIONS.has(action.type)) {
         const savedRaw = localStorage.getItem(STORAGE_KEY);
         if (savedRaw) {
           const parsed = JSON.parse(savedRaw);

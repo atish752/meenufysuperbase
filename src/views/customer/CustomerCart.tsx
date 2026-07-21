@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useStore, getActiveRestaurantInfo, getActiveRestaurantId, isSubscriptionActive, isOrderTypeAllowed } from '../../context/RealtimeStore';
 import type { Order, Coupon } from '../../context/RealtimeStore';
 import { ShoppingBag, Trash2, ArrowRight, ChevronUp, MapPin, Check, X, Loader2 } from 'lucide-react';
-import { hasFirebaseConfig, auth, googleProvider, db } from '../../utils/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { hasFirebaseConfig } from '../../utils/firebase';
+import { supabase as supabaseClient, dbGet, dbSet } from '../../utils/supabase';
 
 const RADAR_STYLE_ID = 'meenufy-gps-radar-styles';
 if (typeof document !== 'undefined' && !document.getElementById(RADAR_STYLE_ID)) {
@@ -619,43 +619,38 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
   };
 
   const handleGoogleSignIn = async () => {
-    if (hasFirebaseConfig && auth) {
+    if (hasFirebaseConfig && supabaseClient) {
       setSigningIn(true);
       try {
         localStorage.setItem('meenufy_auth_role', 'customer');
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
+        const { error: oauthError } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+        if (oauthError) throw oauthError;
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const user = sessionData?.session?.user;
+        if (!user) { setSigningIn(false); return; }
 
-        let existingPhone = user.phoneNumber || customerPhone || '';
-        if (hasFirebaseConfig && db) {
-          try {
-            const { ref: dbRef, get } = await import('firebase/database');
-            const snap = await get(dbRef(db, `customers/${user.uid}`));
-            if (snap.exists() && snap.val().phone) {
-              existingPhone = snap.val().phone;
-            }
-          } catch (e) {
-            console.error(e);
-          }
+        let existingPhone = user.phone || customerPhone || '';
+        try {
+          const snap = await dbGet(`customers/${user.id}`);
+          if (snap && snap.phone) existingPhone = snap.phone;
+        } catch (e) {
+          console.error(e);
         }
 
         const localUser = {
-          name: user.displayName || user.email?.split('@')[0] || 'Customer',
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer',
           email: user.email || '',
           phone: existingPhone,
-          uid: user.uid
+          uid: user.id
         };
 
-        if (hasFirebaseConfig && db) {
-          try {
-            const { ref: dbRef, set } = await import('firebase/database');
-            await set(dbRef(db, `customers/${user.uid}`), {
-              ...localUser,
-              updatedAt: Date.now()
-            });
-          } catch (e) {
-            console.error('Failed to write to customers node:', e);
-          }
+        try {
+          await dbSet(`customers/${user.id}`, {
+            ...localUser,
+            updatedAt: Date.now()
+          });
+        } catch (e) {
+          console.error('Failed to write to customers node:', e);
         }
 
         localStorage.setItem('meenufy_customer_google_user', JSON.stringify(localUser));
@@ -707,16 +702,19 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
       phone: googleForm.phone.trim()
     };
 
-    if (hasFirebaseConfig && db && auth?.currentUser) {
+    if (hasFirebaseConfig && supabaseClient) {
       try {
-        const { ref: dbRef, set } = await import('firebase/database');
-        await set(dbRef(db, `customers/${auth.currentUser.uid}`), {
-          ...user,
-          uid: auth.currentUser.uid,
-          updatedAt: Date.now()
-        });
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const currentUser = sessionData?.session?.user;
+        if (currentUser) {
+          await dbSet(`customers/${currentUser.id}`, {
+            ...user,
+            uid: currentUser.id,
+            updatedAt: Date.now()
+          });
+        }
       } catch (err) {
-        console.error('Error saving customer to Firebase DB:', err);
+        console.error('Error saving customer to Supabase DB:', err);
       }
     }
 

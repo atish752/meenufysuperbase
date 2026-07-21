@@ -3,8 +3,7 @@ import { useStore, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 import type { Order, OrderStatus } from '../../context/RealtimeStore';
 import { ShoppingBag, Clock, ChefHat, Utensils, Check, X, ChevronDown, ChevronUp, Calendar, Printer, Gift, ShieldCheck } from 'lucide-react';
 import { printThermalReceipt } from '../../utils/printReceipt';
-import { db } from '../../utils/firebase';
-import { ref, get } from 'firebase/database';
+import { dbGet, dbUpdate } from '../../utils/supabase';
 
 type Props = { tableId: string };
 
@@ -48,9 +47,8 @@ export default function CustomerOrders({ tableId: _tableId }: Props) {
 
     const cleanPhone = myPhoneIdentifier.replace(/[^a-zA-Z0-9]/g, '');
     const promises = (state.restaurantAccounts || []).map(acc => {
-      return get(ref(db!, `customers/${acc.id}/${cleanPhone}`))
-        .then(snapshot => {
-          const data = snapshot.val();
+      return dbGet(`customers/${acc.id}/${cleanPhone}`)
+        .then(data => {
           if (data && (data.points > 0 || data.visitsCount > 0)) {
             return {
               restaurantId: acc.id,
@@ -550,7 +548,6 @@ export default function CustomerOrders({ tableId: _tableId }: Props) {
                   }
                   setSubmittingComplaint(true);
                   try {
-                    const { ref, update } = await import('firebase/database');
                     const rId = complaintOrder.restaurantId || 'admin-1';
                     
                     const complaintData = {
@@ -562,7 +559,7 @@ export default function CustomerOrders({ tableId: _tableId }: Props) {
                     };
 
                     // Save complaint directly under the order object to ensure write permission succeeds
-                    await update(ref(db!, `orders/${rId}/${complaintOrder.id}`), {
+                    await dbUpdate(`orders/${rId}/${complaintOrder.id}`, {
                       complaint: complaintData
                     });
 

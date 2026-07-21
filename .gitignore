@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment & Local secrets
+.env
+.env.*
+!.env.example
+
+# Local temporary/scratch files
+temp_*.json
+temp_acc.json
+temp_rest.json
+test_save.cjs
