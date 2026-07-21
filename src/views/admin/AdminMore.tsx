@@ -181,13 +181,14 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
-  const [isSaving, setIsSaving] = useState(false);
+  const isLoadedRef = useRef(false);
 
   useEffect(() => {
     const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
     const freshAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
     
-    if (state.accountsFromDb || freshAccount) {
+    if (!isLoadedRef.current && (state.accountsFromDb || freshAccount || state.restaurant)) {
+      isLoadedRef.current = true;
       setRestaurantForm({
         ...state.restaurant,
         ...(freshAccount ? {
@@ -220,7 +221,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
       });
       setTableCount(state.restaurant.tableCount || 0);
     }
-  }, [state.restaurant, state.restaurantAccounts, state.admin, state.accountsFromDb]);
+  }, [state.admin?.id, state.accountsFromDb]);
 
   // Staff state hooks
   const [staffName, setStaffName] = useState('');
@@ -766,7 +767,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     });
   }, [activeSection, state.tables]);
 
-  const handleSaveRestaurant = async () => {
+  const handleSaveRestaurant = () => {
     const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
     const activeAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
     const currentName = restaurantForm.name || activeAccount?.restaurantName || state.restaurant.name;
@@ -775,23 +776,14 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
     
     const payloadToSave = { 
       ...restaurantForm, 
+      id: targetId,
       name: currentName,
       ...(currentPoster ? { posterImage: currentPoster } : {}),
       ...(currentLogo ? { logo: currentLogo } : {})
     };
     
-    setIsSaving(true);
-    try {
-      const promise = (dispatch as any)({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
-      if (promise && typeof promise.then === 'function') {
-        await promise;
-      }
-      addToast('success', '✨ Restaurant settings saved & synced live to cloud!');
-    } catch (err: any) {
-      // Error is handled and toasted inside middleware
-    } finally {
-      setIsSaving(false);
-    }
+    dispatch({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
+    addToast('success', '✨ Restaurant settings saved & synced live to cloud!');
   };
 
   const handleCaptureCurrentLocation = () => {
@@ -1424,7 +1416,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </>
                     )}
 
-                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} disabled={isSaving} style={{ marginTop: 8 }}>
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
                       <Save size={15} /> Save Delivery Settings
                     </button>
                   </div>
@@ -1506,7 +1498,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </div>
                     )}
 
-                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} disabled={isSaving} style={{ marginTop: 8 }}>
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
                       <Save size={15} /> Save UPI Settings
                     </button>
                   </div>
@@ -1635,7 +1627,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </div>
                     )}
 
-                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} disabled={isSaving} style={{ marginTop: 8 }}>
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
                       <Save size={15} /> Save Customization
                     </button>
                   </div>
@@ -1846,7 +1838,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </div>
                     </div>
 
-                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} disabled={isSaving} style={{ marginTop: 8 }}>
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
                       <Save size={15} /> Save Info Details
                     </button>
                   </div>
@@ -1905,7 +1897,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
                       </div>
                     )}
 
-                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} disabled={isSaving} style={{ marginTop: 8 }}>
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
                       <Save size={15} /> Save Logo & Poster
                     </button>
                   </div>
@@ -2274,7 +2266,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
             <button 
               type="button" 
               className="btn btn-primary" 
-              onClick={handleSaveRestaurant} disabled={isSaving}
+              onClick={handleSaveRestaurant}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 6, height: 40, fontWeight: 700 }}
             >
               <Save size={16} /> Save Printer Preferences

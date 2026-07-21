@@ -3276,10 +3276,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const restId = getActiveRestaurantId(currentState);
 
         const handleDbPromise = (promise: Promise<any>, errorMsg: string) => {
-          return promise.catch((err: any) => {
+          promise.catch((err: any) => {
             console.error(`${errorMsg}:`, err);
             addToast('error', `${errorMsg}: ${err.message || err}`);
-            throw err;
           });
         };
 
@@ -3881,7 +3880,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           case 'UPDATE_RESTAURANT': {
             const targetRestId = action.payload.id || restId || 'admin-1';
-            const p1 = handleDbPromise(
+            handleDbPromise(
               update(ref(db, `restaurants/${targetRestId}`), sanitizeDbData(action.payload)),
               'Failed to update restaurant info'
             );
@@ -3897,14 +3896,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             delete accountUpdates.phone;
             delete accountUpdates.email;
 
-            let p2 = Promise.resolve();
             if (Object.keys(accountUpdates).length > 0) {
-              p2 = handleDbPromise(
+              handleDbPromise(
                 update(ref(db, `restaurantAccounts/${targetRestId}`), accountUpdates),
                 'Failed to sync profile changes to restaurantAccounts'
               );
             }
-            return Promise.all([p1, p2]);
+            break;
           }
           case 'TOGGLE_RESTAURANT_LISTING': {
             const { id, isListedOnHome } = action.payload;
