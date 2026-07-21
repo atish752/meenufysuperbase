@@ -2891,10 +2891,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const isTargetingAdminRoute = typeof window !== 'undefined' && 
               (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/onboarding') || window.location.search.includes('view=admin'));
 
-            // If user is on a customer route or signed in as a customer, keep as customer and DO NOT log into admin!
-            if (authRole === 'customer' || (!isTargetingAdminRoute && authRole !== 'admin')) {
-              console.log('Customer session active. Keeping customer role.');
-              localStorage.setItem('meenufy_auth_role', 'customer');
+            const isDbAdmin = !!dbMatchedAccount || fbEmail === 'atish3477@gmail.com' || fbEmail === 'atish3477';
+
+            if (isDbAdmin) {
+              // This is an Admin account! ONLY log into admin if user is on an admin route/view or authRole is admin.
+              // NEVER auto-convert an Admin account into a signed-in customer session on customer pages!
+              if (isTargetingAdminRoute || authRole === 'admin') {
+                if (dbMatchedAccount && dbMatchedAccount.status === 'blocked') {
+                  await auth!.signOut();
+                  return;
+                }
+                const adminUser = {
+                  id: resolvedAdminId,
+                  name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Owner',
+                  email: fbUser.email || '',
+                  restaurantId: resolvedAdminId,
+                  isLoggedIn: true,
+                  isFirebaseUser: true,
+                  restaurantName: dbMatchedAccount?.restaurantName || 'My Restaurant',
+                  ownerPhone: dbMatchedAccount?.ownerPhone || fbUser.phoneNumber || '+91 99999 88888',
+                  existingAccount: dbMatchedAccount || undefined
+                };
+                dispatch({ type: 'LOGIN_ADMIN', payload: adminUser });
+                localStorage.setItem('meenufy_auth_role', 'admin');
+              }
+              return;
+            }
+
+            // Only for explicit customer auth sessions (authRole === 'customer')
+            if (authRole === 'customer') {
               const localUser = {
                 name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Customer',
                 phone: fbUser.phoneNumber || '',
