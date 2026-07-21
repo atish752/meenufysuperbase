@@ -3855,10 +3855,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const renewalDate = plan === 'free' ? (Date.now() + renewalDays * 24 * 60 * 60 * 1000) : 0;
 
               const updates: any = {
+                id: currentState.admin.id,
+                restaurantName: currentState.admin.restaurantName || currentState.restaurant?.name || 'My Restaurant',
+                ownerName: currentState.admin.name || 'Owner',
+                ownerEmail: currentState.admin.email || '',
+                ownerPhone: currentState.admin.ownerPhone || currentState.restaurant?.phone || '+91 99999 88888',
+                address: currentState.restaurant?.address || 'India',
                 hasCompletedOnboarding: true,
                 subscriptionPlan: plan,
                 subscriptionRenewalDate: renewalDate,
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                status: 'active',
+                isListedOnHome: true,
+                rating: 4.5,
+                ratingsCount: 1,
+                supportedOrderTypes: currentState.restaurant?.supportedOrderTypes || ['dining', 'takeaway', 'delivery'],
+                tableCount: 8
               };
 
               if (payload.basePlanSelectedType) {
