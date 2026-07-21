@@ -377,7 +377,8 @@ export default function CustomerHome() {
   // Group matching meals by restaurant ID, returning list of restaurants with up to 2 matching meals each
   const groupedRestaurantMeals = (() => {
     const groups: Record<string, any[]> = {};
-    filteredMeals.forEach(meal => {
+    const activeListedIds = new Set(allAccounts.filter(a => (a.status || 'active') === 'active' && a.isListedOnHome !== false).map(r => r.id));
+    filteredMeals.filter(m => activeListedIds.has(m.restaurantId)).forEach(meal => {
       if (!groups[meal.restaurantId]) {
         groups[meal.restaurantId] = [];
       }
@@ -562,8 +563,8 @@ export default function CustomerHome() {
               DEALS FOR YOU 🎁
             </h3>
             {(() => {
-              // Show deals from ALL active restaurants (not just nearby ones)
-              const activeRestaurantIds = new Set(allAccounts.filter(a => a.status === 'active').map(r => r.id));
+              // Show deals from ALL active, listed restaurants (not just nearby ones)
+              const activeRestaurantIds = new Set(allAccounts.filter(a => (a.status || 'active') === 'active' && a.isListedOnHome !== false).map(r => r.id));
               const activeCouponsList = allCoupons.filter(c => c.isActive !== false && c.restaurantId && activeRestaurantIds.has(c.restaurantId));
               
               // Group by restaurantId and pick strictly 1 offer per restaurant (prefer showInDeals === true)
