@@ -25,22 +25,31 @@ export default async function handler(req, res) {
     ebitda, restaurantType, currency, period
   } = req.body || {};
 
-  // 1. Fetch Gemini keys from Firebase Realtime Database using built-in fetch
+  // 1. Fetch Gemini keys from Supabase app_store table using REST API
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
   let dbKeys = [];
-  try {
-    const dbResponse = await fetch('https://meenufy-default-rtdb.firebaseio.com/geminiApiKeys.json');
-    if (dbResponse.ok) {
-      const fetchedData = await dbResponse.json();
-      if (Array.isArray(fetchedData)) {
-        dbKeys = fetchedData;
-      } else if (fetchedData && typeof fetchedData === 'object') {
-        dbKeys = Object.values(fetchedData);
+
+  if (supabaseUrl && supabaseAnonKey) {
+    try {
+      const cleanUrl = supabaseUrl.endsWith('/') ? supabaseUrl.slice(0, -1) : supabaseUrl;
+      const dbResponse = await fetch(`${cleanUrl}/rest/v1/app_store?key=eq.geminiApiKeys&select=data`, {
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`
+        }
+      });
+      if (dbResponse.ok) {
+        const result = await dbResponse.json();
+        if (result && result[0] && Array.isArray(result[0].data)) {
+          dbKeys = result[0].data;
+        }
+      } else {
+        console.error(`Supabase REST API returned status ${dbResponse.status}`);
       }
-    } else {
-      console.error(`Firebase DB returned status ${dbResponse.status}`);
+    } catch (err) {
+      console.error('Failed to fetch Gemini API keys from Supabase database:', err);
     }
-  } catch (err) {
-    console.error('Failed to fetch Gemini API keys from database:', err);
   }
 
   // Filter out fake or template keys
