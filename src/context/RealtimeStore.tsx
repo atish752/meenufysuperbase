@@ -1338,6 +1338,7 @@ function reducer(state: AppState, action: Action): AppState {
       let billingPeriod = state.billingPeriod;
       let subscriptionId = state.subscriptionId;
       
+      let updatedRestaurant = state.restaurant;
       if (currentAdmin && !currentAdmin.isSuperAdmin) {
         const matched = accounts.find(acc => acc.id === currentAdmin.id);
         if (matched) {
@@ -1350,6 +1351,27 @@ function reducer(state: AppState, action: Action): AppState {
           billingCountry = matched.billingCountry || detectBillingCountry();
           billingPeriod = matched.billingPeriod || 'monthly';
           subscriptionId = matched.subscriptionId || null;
+
+          updatedRestaurant = {
+            ...state.restaurant,
+            name: matched.restaurantName || state.restaurant.name,
+            phone: matched.ownerPhone || state.restaurant.phone,
+            email: matched.ownerEmail || state.restaurant.email,
+            address: matched.address || state.restaurant.address,
+            tagline: matched.tagline || state.restaurant.tagline,
+            logo: matched.logo || state.restaurant.logo,
+            posterImage: matched.posterImage || state.restaurant.posterImage,
+            bannerImage: matched.bannerImage || state.restaurant.bannerImage,
+            cuisines: matched.cuisines || state.restaurant.cuisines,
+            rating: matched.rating !== undefined ? matched.rating : state.restaurant.rating,
+            ratingsCount: matched.ratingsCount !== undefined ? matched.ratingsCount : state.restaurant.ratingsCount,
+            latitude: matched.latitude !== undefined ? matched.latitude : state.restaurant.latitude,
+            longitude: matched.longitude !== undefined ? matched.longitude : state.restaurant.longitude,
+            deliveryEnabled: matched.deliveryEnabled !== undefined ? matched.deliveryEnabled : state.restaurant.deliveryEnabled,
+            deliveryRadius: matched.deliveryRadius !== undefined ? matched.deliveryRadius : state.restaurant.deliveryRadius,
+            indiningRadius: matched.indiningRadius !== undefined ? matched.indiningRadius : state.restaurant.indiningRadius,
+            takeawayRadius: matched.takeawayRadius !== undefined ? matched.takeawayRadius : state.restaurant.takeawayRadius,
+          };
         }
       }
 
@@ -1361,6 +1383,7 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         restaurantAccounts: accounts,
+        restaurant: updatedRestaurant,
         walletBalance: activeBalance,
         subscriptionPlan,
         ordersPlacedThisMonth,

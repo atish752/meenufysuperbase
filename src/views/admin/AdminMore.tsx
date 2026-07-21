@@ -183,16 +183,21 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
 
   useEffect(() => {
-    const freshAccount = state.restaurantAccounts?.find(acc => acc.id === (state.admin?.restaurantId || state.admin?.id));
+    const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+    const freshAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
     const freshName = freshAccount?.restaurantName || state.restaurant.name;
+    const freshPoster = freshAccount?.posterImage || state.restaurant.posterImage;
+    const freshLogo = freshAccount?.logo || state.restaurant.logo;
 
     setRestaurantForm(prev => ({ 
       ...state.restaurant, 
       ...prev,
-      name: prev.name || freshName
+      name: prev.name || freshName,
+      posterImage: prev.posterImage || freshPoster,
+      logo: prev.logo || freshLogo,
     }));
     setTableCount(state.restaurant.tableCount || 0);
-  }, [state.restaurant, state.restaurantAccounts]);
+  }, [state.restaurant, state.restaurantAccounts, state.admin]);
 
   // Staff state hooks
   const [staffName, setStaffName] = useState('');
@@ -739,10 +744,20 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   }, [activeSection, state.tables]);
 
   const handleSaveRestaurant = () => {
+    const targetId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+    const activeAccount = state.restaurantAccounts?.find(acc => acc.id === targetId);
     const currentName = restaurantForm.name || activeAccount?.restaurantName || state.restaurant.name;
-    const payloadToSave = { ...restaurantForm, name: currentName };
+    const currentPoster = restaurantForm.posterImage || activeAccount?.posterImage || state.restaurant.posterImage;
+    const currentLogo = restaurantForm.logo || activeAccount?.logo || state.restaurant.logo;
+    
+    const payloadToSave = { 
+      ...restaurantForm, 
+      name: currentName,
+      ...(currentPoster ? { posterImage: currentPoster } : {}),
+      ...(currentLogo ? { logo: currentLogo } : {})
+    };
     dispatch({ type: 'UPDATE_RESTAURANT', payload: payloadToSave });
-    addToast('success', '✨ Restaurant settings saved!');
+    addToast('success', '✨ Restaurant settings saved & synced live to cloud!');
   };
 
   const handleCaptureCurrentLocation = () => {
