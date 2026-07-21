@@ -393,6 +393,7 @@ export type RestaurantAccount = {
   googleMapsUrl?: string;
   openTime?: string;
   closeTime?: string;
+  isManualClosed?: boolean;
 };
 
 export type StaffMember = {
@@ -1376,15 +1377,15 @@ function reducer(state: AppState, action: Action): AppState {
 
           updatedRestaurant = {
             ...state.restaurant,
-            name: matched.restaurantName || state.restaurant.name,
-            phone: matched.ownerPhone || state.restaurant.phone,
-            email: matched.ownerEmail || state.restaurant.email,
-            address: matched.address || state.restaurant.address,
-            tagline: matched.tagline || state.restaurant.tagline,
-            logo: matched.logo || state.restaurant.logo,
-            posterImage: matched.posterImage || state.restaurant.posterImage,
-            bannerImage: matched.bannerImage || state.restaurant.bannerImage,
-            cuisines: matched.cuisines || state.restaurant.cuisines,
+            name: matched.restaurantName !== undefined ? matched.restaurantName : state.restaurant.name,
+            phone: matched.ownerPhone !== undefined ? matched.ownerPhone : state.restaurant.phone,
+            email: matched.ownerEmail !== undefined ? matched.ownerEmail : state.restaurant.email,
+            address: matched.address !== undefined ? matched.address : state.restaurant.address,
+            tagline: matched.tagline !== undefined ? matched.tagline : state.restaurant.tagline,
+            logo: matched.logo !== undefined ? matched.logo : state.restaurant.logo,
+            posterImage: matched.posterImage !== undefined ? matched.posterImage : state.restaurant.posterImage,
+            bannerImage: matched.bannerImage !== undefined ? matched.bannerImage : state.restaurant.bannerImage,
+            cuisines: matched.cuisines !== undefined ? matched.cuisines : state.restaurant.cuisines,
             rating: matched.rating !== undefined ? matched.rating : state.restaurant.rating,
             ratingsCount: matched.ratingsCount !== undefined ? matched.ratingsCount : state.restaurant.ratingsCount,
             latitude: matched.latitude !== undefined ? matched.latitude : state.restaurant.latitude,
@@ -1399,11 +1400,12 @@ function reducer(state: AppState, action: Action): AppState {
             indiningRadius: matched.indiningRadius !== undefined ? matched.indiningRadius : state.restaurant.indiningRadius,
             takeawayRadius: matched.takeawayRadius !== undefined ? matched.takeawayRadius : state.restaurant.takeawayRadius,
             verificationRadius: matched.verificationRadius !== undefined ? matched.verificationRadius : state.restaurant.verificationRadius,
-            upiId: matched.upiId || state.restaurant.upiId,
-            googleMapsUrl: matched.googleMapsUrl || state.restaurant.googleMapsUrl,
-            openTime: matched.openTime || state.restaurant.openTime,
-            closeTime: matched.closeTime || state.restaurant.closeTime,
-            daySpecificHours: matched.daySpecificHours || state.restaurant.daySpecificHours,
+            upiId: matched.upiId !== undefined ? matched.upiId : state.restaurant.upiId,
+            googleMapsUrl: matched.googleMapsUrl !== undefined ? matched.googleMapsUrl : state.restaurant.googleMapsUrl,
+            openTime: matched.openTime !== undefined ? matched.openTime : state.restaurant.openTime,
+            closeTime: matched.closeTime !== undefined ? matched.closeTime : state.restaurant.closeTime,
+            daySpecificHours: matched.daySpecificHours !== undefined ? matched.daySpecificHours : state.restaurant.daySpecificHours,
+            isManualClosed: matched.isManualClosed !== undefined ? matched.isManualClosed : state.restaurant.isManualClosed,
           };
         }
       }
@@ -1709,32 +1711,95 @@ function reducer(state: AppState, action: Action): AppState {
       ]
     };
     case 'UPDATE_RESTAURANT': {
-      const restName = action.payload.name || (action.payload as any).restaurantName;
-      const updatedPayload = restName ? { ...action.payload, name: restName } : action.payload;
-      const targetRestId = action.payload.id || state.admin?.restaurantId || state.restaurant.id || 'admin-1';
+      const p = action.payload as any;
+      const restName = p.name || p.restaurantName;
+      const targetRestId = p.id || state.admin?.restaurantId || state.admin?.id || state.restaurant.id || 'admin-1';
 
       const updatedAccounts = state.restaurantAccounts.map(acc => {
         if (acc.id === targetRestId) {
-          return {
+          // Explicitly map ALL restaurant field names to account field names
+          const merged: RestaurantAccount = {
             ...acc,
-            ...action.payload,
+            // Name
             restaurantName: restName || acc.restaurantName,
-            ...(action.payload.phone ? { ownerPhone: action.payload.phone } : {}),
-            ...(action.payload.email ? { ownerEmail: action.payload.email } : {}),
+            // Contact
+            ownerPhone: p.phone || p.ownerPhone || acc.ownerPhone,
+            ownerEmail: p.email || p.ownerEmail || acc.ownerEmail,
+            // Details
+            address: p.address ?? acc.address,
+            tagline: p.tagline ?? acc.tagline,
+            cuisines: p.cuisines ?? acc.cuisines,
+            googleMapsUrl: p.googleMapsUrl ?? acc.googleMapsUrl,
+            // Images
+            logo: p.logo ?? acc.logo,
+            posterImage: p.posterImage ?? acc.posterImage,
+            bannerImage: p.bannerImage ?? acc.bannerImage,
+            // Hours
+            openTime: p.openTime ?? acc.openTime,
+            closeTime: p.closeTime ?? acc.closeTime,
+            daySpecificHours: p.daySpecificHours ?? acc.daySpecificHours,
+            // Delivery
+            deliveryEnabled: p.deliveryEnabled !== undefined ? p.deliveryEnabled : acc.deliveryEnabled,
+            deliveryRadius: p.deliveryRadius !== undefined ? p.deliveryRadius : acc.deliveryRadius,
+            deliveryCharge: p.deliveryCharge !== undefined ? p.deliveryCharge : acc.deliveryCharge,
+            freeDeliveryDistance: p.freeDeliveryDistance !== undefined ? p.freeDeliveryDistance : acc.freeDeliveryDistance,
+            freeDeliveryMinAmount: p.freeDeliveryMinAmount !== undefined ? p.freeDeliveryMinAmount : acc.freeDeliveryMinAmount,
+            freeDeliveryDistanceEnabled: p.freeDeliveryDistanceEnabled !== undefined ? p.freeDeliveryDistanceEnabled : acc.freeDeliveryDistanceEnabled,
+            freeDeliveryMinAmountEnabled: p.freeDeliveryMinAmountEnabled !== undefined ? p.freeDeliveryMinAmountEnabled : acc.freeDeliveryMinAmountEnabled,
+            indiningRadius: p.indiningRadius !== undefined ? p.indiningRadius : acc.indiningRadius,
+            takeawayRadius: p.takeawayRadius !== undefined ? p.takeawayRadius : acc.takeawayRadius,
+            verificationRadius: p.verificationRadius !== undefined ? p.verificationRadius : acc.verificationRadius,
+            // UPI
+            upiId: p.upiId ?? acc.upiId,
+            // Location
+            latitude: p.latitude !== undefined ? p.latitude : acc.latitude,
+            longitude: p.longitude !== undefined ? p.longitude : acc.longitude,
           };
+          return merged;
         }
         return acc;
       });
 
-      // Update localStorage so refresh does not revert data
+      // Immediately persist to localStorage so page refresh gets fresh data
       try {
         localStorage.setItem('meenufy_accounts_cache', JSON.stringify(updatedAccounts));
-      } catch (e) {}
+      } catch {}
 
-      return { 
-        ...state, 
+      const updatedRestaurant: typeof state.restaurant = {
+        ...state.restaurant,
+        id: targetRestId,
+        name: restName || state.restaurant.name,
+        phone: p.phone || p.ownerPhone || state.restaurant.phone,
+        email: p.email || p.ownerEmail || state.restaurant.email,
+        address: p.address !== undefined ? p.address : state.restaurant.address,
+        tagline: p.tagline !== undefined ? p.tagline : state.restaurant.tagline,
+        cuisines: p.cuisines !== undefined ? p.cuisines : state.restaurant.cuisines,
+        googleMapsUrl: p.googleMapsUrl !== undefined ? p.googleMapsUrl : state.restaurant.googleMapsUrl,
+        logo: p.logo !== undefined ? p.logo : state.restaurant.logo,
+        posterImage: p.posterImage !== undefined ? p.posterImage : state.restaurant.posterImage,
+        bannerImage: p.bannerImage !== undefined ? p.bannerImage : state.restaurant.bannerImage,
+        openTime: p.openTime !== undefined ? p.openTime : state.restaurant.openTime,
+        closeTime: p.closeTime !== undefined ? p.closeTime : state.restaurant.closeTime,
+        daySpecificHours: p.daySpecificHours !== undefined ? p.daySpecificHours : state.restaurant.daySpecificHours,
+        deliveryEnabled: p.deliveryEnabled !== undefined ? p.deliveryEnabled : state.restaurant.deliveryEnabled,
+        deliveryRadius: p.deliveryRadius !== undefined ? p.deliveryRadius : state.restaurant.deliveryRadius,
+        deliveryCharge: p.deliveryCharge !== undefined ? p.deliveryCharge : state.restaurant.deliveryCharge,
+        freeDeliveryDistance: p.freeDeliveryDistance !== undefined ? p.freeDeliveryDistance : state.restaurant.freeDeliveryDistance,
+        freeDeliveryMinAmount: p.freeDeliveryMinAmount !== undefined ? p.freeDeliveryMinAmount : state.restaurant.freeDeliveryMinAmount,
+        freeDeliveryDistanceEnabled: p.freeDeliveryDistanceEnabled !== undefined ? p.freeDeliveryDistanceEnabled : state.restaurant.freeDeliveryDistanceEnabled,
+        freeDeliveryMinAmountEnabled: p.freeDeliveryMinAmountEnabled !== undefined ? p.freeDeliveryMinAmountEnabled : state.restaurant.freeDeliveryMinAmountEnabled,
+        indiningRadius: p.indiningRadius !== undefined ? p.indiningRadius : state.restaurant.indiningRadius,
+        takeawayRadius: p.takeawayRadius !== undefined ? p.takeawayRadius : state.restaurant.takeawayRadius,
+        verificationRadius: p.verificationRadius !== undefined ? p.verificationRadius : state.restaurant.verificationRadius,
+        upiId: p.upiId !== undefined ? p.upiId : state.restaurant.upiId,
+        latitude: p.latitude !== undefined ? p.latitude : state.restaurant.latitude,
+        longitude: p.longitude !== undefined ? p.longitude : state.restaurant.longitude,
+      };
+
+      return {
+        ...state,
         restaurantAccounts: updatedAccounts,
-        restaurant: { ...state.restaurant, ...updatedPayload } 
+        restaurant: updatedRestaurant,
       };
     }
     case 'TOGGLE_RESTAURANT_LISTING': {
