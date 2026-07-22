@@ -723,10 +723,10 @@ export default function CustomerLayout({ tableId }: Props) {
         payload: {
           id: o.id,
           ratings: mealRatings,
-          deliveryBoyRating: o.orderType === 'delivery' ? riderRating : undefined,
-          deliveryBoyReview: o.orderType === 'delivery' ? riderReview : undefined,
-          foodRating: o.orderType === 'delivery' ? foodRating : undefined,
-          foodReview: o.orderType === 'delivery' ? foodReview : undefined
+          deliveryBoyRating: o.orderType === 'delivery' && riderRating > 0 ? riderRating : undefined,
+          deliveryBoyReview: o.orderType === 'delivery' && riderReview.trim() ? riderReview : undefined,
+          foodRating: foodRating > 0 ? foodRating : undefined,
+          foodReview: foodReview.trim() ? foodReview : undefined
         }
       });
     });
@@ -1016,79 +1016,79 @@ export default function CustomerLayout({ tableId }: Props) {
                     })()}
                   </div>
 
-                  {/* Delivery Order Specific Ratings */}
+                  {/* Overall Restaurant & Food Rating (For ALL Order Types) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, padding: 12, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, textAlign: 'left' }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      🏪 Rate Restaurant &amp; Food Experience
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[1, 2, 3, 4, 5].map(starNum => (
+                        <button
+                          key={starNum}
+                          type="button"
+                          onClick={() => setFoodRating(starNum)}
+                          style={{
+                            background: 'none', border: 'none', padding: 2, cursor: 'pointer',
+                            color: starNum <= foodRating ? '#fbbf24' : 'var(--text-muted)',
+                            transition: 'transform 0.1s ease',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.2)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1.0)'; }}
+                        >
+                          <Star size={20} fill={starNum <= foodRating ? '#fbbf24' : 'none'} />
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Write feedback for the restaurant (optional)..."
+                      value={foodReview}
+                      onChange={e => setFoodReview(e.target.value)}
+                      style={{ height: 34, fontSize: 11.5 }}
+                    />
+                  </div>
+
+                  {/* Delivery Rider Specific Rating */}
                   {unratedServedOrders.some(o => o.orderType === 'delivery') && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 16, padding: 12, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12 }}>
-                      
-                      {/* Rider Rating */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'left' }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🛵 Rate Delivery Rider</div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {[1, 2, 3, 4, 5].map(starNum => (
-                            <button
-                              key={starNum}
-                              type="button"
-                              onClick={() => setRiderRating(starNum)}
-                              style={{
-                                background: 'none', border: 'none', padding: 2, cursor: 'pointer',
-                                color: starNum <= riderRating ? '#fbbf24' : 'var(--text-muted)',
-                              }}
-                            >
-                              <Star size={18} fill={starNum <= riderRating ? '#fbbf24' : 'none'} />
-                            </button>
-                          ))}
-                        </div>
-                        <input
-                          className="input"
-                          type="text"
-                          placeholder="Write rider review (optional)..."
-                          value={riderReview}
-                          onChange={e => setRiderReview(e.target.value)}
-                          style={{ height: 32, fontSize: 11.5, marginTop: 4 }}
-                        />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, padding: 12, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, textAlign: 'left' }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>🛵 Rate Delivery Rider</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[1, 2, 3, 4, 5].map(starNum => (
+                          <button
+                            key={starNum}
+                            type="button"
+                            onClick={() => setRiderRating(starNum)}
+                            style={{
+                              background: 'none', border: 'none', padding: 2, cursor: 'pointer',
+                              color: starNum <= riderRating ? '#fbbf24' : 'var(--text-muted)',
+                            }}
+                          >
+                            <Star size={18} fill={starNum <= riderRating ? '#fbbf24' : 'none'} />
+                          </button>
+                        ))}
                       </div>
-
-                      {/* Overall Food Rating */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px dashed var(--border)', paddingTop: 10, textAlign: 'left' }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🍔 Overall Food Rating</div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {[1, 2, 3, 4, 5].map(starNum => (
-                            <button
-                              key={starNum}
-                              type="button"
-                              onClick={() => setFoodRating(starNum)}
-                              style={{
-                                background: 'none', border: 'none', padding: 2, cursor: 'pointer',
-                                color: starNum <= foodRating ? '#fbbf24' : 'var(--text-muted)',
-                              }}
-                            >
-                              <Star size={18} fill={starNum <= foodRating ? '#fbbf24' : 'none'} />
-                            </button>
-                          ))}
-                        </div>
-                        <input
-                          className="input"
-                          type="text"
-                          placeholder="Write overall food feedback (optional)..."
-                          value={foodReview}
-                          onChange={e => setFoodReview(e.target.value)}
-                          style={{ height: 32, fontSize: 11.5, marginTop: 4 }}
-                        />
-                      </div>
-
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Write rider review (optional)..."
+                        value={riderReview}
+                        onChange={e => setRiderReview(e.target.value)}
+                        style={{ height: 32, fontSize: 11.5 }}
+                      />
                     </div>
                   )}
 
-                  {/* Conditional Google Maps review button */}
-                  {Object.values(mealRatings).some(r => r === 4 || r === 5) && (
+                  {/* Conditional Google Maps review button (Shown ONLY if 4 or 5 star rating given to any meal or restaurant) */}
+                  {(Object.values(mealRatings).some(r => r === 4 || r === 5) || foodRating === 4 || foodRating === 5) && (
                     <div style={{ 
-                      background: 'rgba(34,197,94,0.06)', 
-                      border: '1px solid rgba(34,197,94,0.2)', 
-                      borderRadius: 8, padding: 12, marginBottom: 16,
+                      background: 'rgba(34,197,94,0.08)', 
+                      border: '1px solid rgba(34,197,94,0.3)', 
+                      borderRadius: 12, padding: 12, marginBottom: 16,
                       animation: 'fadeIn 0.3s ease'
                     }}>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>
-                        We are glad you loved the food! Could you support us with a Google Maps review?
+                      <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>
+                        🌟 Thank you for your 4/5-star rating! Would you please share your review on Google Maps as well?
                       </div>
                       <a
                         href={restaurant?.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((restaurant?.name || 'Restaurant') + ' ' + (restaurant?.address || ''))}`}
@@ -1099,10 +1099,10 @@ export default function CustomerLayout({ tableId }: Props) {
                           background: '#fff',
                           color: '#1f2937',
                           border: '1px solid #d1d5db',
-                          fontWeight: 700,
+                          fontWeight: 800,
                           fontSize: 12.5,
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                         }}
                       >
                         <span style={{ display: 'flex', gap: 1 }}>
@@ -1113,7 +1113,7 @@ export default function CustomerLayout({ tableId }: Props) {
                           <span style={{ color: '#34A853', fontWeight: 900 }}>l</span>
                           <span style={{ color: '#EA4335', fontWeight: 900 }}>e</span>
                         </span>
-                        Review us on Google Maps
+                        Review Us on Google Maps 🗺️
                       </a>
                     </div>
                   )}
@@ -1121,25 +1121,11 @@ export default function CustomerLayout({ tableId }: Props) {
                   {/* Submit ratings button */}
                   <button
                     className="btn btn-primary btn-full"
-                    style={{ padding: '12px', fontWeight: 800 }}
+                    style={{ padding: '12px', fontWeight: 800, marginTop: 4 }}
                     onClick={handleRateMeals}
-                    disabled={(() => {
-                      const uniqueItemIds: string[] = [];
-                      unratedServedOrders.forEach(o => {
-                        o.items.forEach(i => {
-                          if (!uniqueItemIds.includes(i.menuItemId)) {
-                            uniqueItemIds.push(i.menuItemId);
-                          }
-                        });
-                      });
-                      const isDelivery = unratedServedOrders.some(o => o.orderType === 'delivery');
-                      if (isDelivery) {
-                        return riderRating === 0 || foodRating === 0;
-                      }
-                      return uniqueItemIds.some(id => !mealRatings[id]);
-                    })()}
+                    disabled={!Object.values(mealRatings).some(r => r > 0) && foodRating === 0 && riderRating === 0}
                   >
-                    Submit Feedback
+                    Submit Rating &amp; Feedback ❤️
                   </button>
                 </div>
               )
