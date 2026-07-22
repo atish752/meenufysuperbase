@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useStore, getActiveRestaurantId, getActiveRestaurantInfo } from '../../context/RealtimeStore';
 
 function isRestaurantClosed(
@@ -462,15 +462,30 @@ export default function CustomerLayout({ tableId }: Props) {
   // Determine current active payment method if waiting
   const currentPaymentMethod = activeOrders.find(o => o.paymentStatus === 'waiting_confirmation')?.paymentMethod || 'none';
 
-  // Find served orders for this table in the last 10 minutes that don't have ratings yet, specifically for this customer
-  const unratedServedOrders = state.orders.filter(o => 
-    (o.tableId === tableId || o.orderType === 'delivery') && 
-    o.status === 'served' && 
-    !o.ratings && 
-    o.customerPhone === myPhoneIdentifier &&
-    Date.now() - o.updatedAt < 600000 && // 10 minutes
-    !dismissedFeedbacks.includes(o.id)
-  );
+  // Set of order IDs placed on this device
+  const myOrderIdsSet = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('meenufy_my_order_ids');
+      return new Set<string>(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set<string>();
+    }
+  }, [state.orders.length]);
+
+  // Find completed/served/paid orders for ALL order types (in_dining, take_away, delivery) that don't have ratings yet
+  const unratedServedOrders = state.orders.filter(o => {
+    if (o.ratings) return false;
+    if (dismissedFeedbacks.includes(o.id)) return false;
+
+    const belongsToMe = myOrderIdsSet.has(o.id) ||
+      (myPhoneIdentifier && o.customerPhone === myPhoneIdentifier) ||
+      (tableId && o.tableId === tableId);
+
+    if (!belongsToMe) return false;
+
+    const isCompleted = o.status === 'served' || (o.paymentStatus === 'paid' && o.status !== 'pending');
+    return isCompleted;
+  });
 
   // Auto open/reset rating modal to success screen when payment is confirmed
   useEffect(() => {
