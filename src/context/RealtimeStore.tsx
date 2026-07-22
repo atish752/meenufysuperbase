@@ -2999,12 +2999,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // listeners on every dispatch — causing menu items to briefly clear and the customer menu
   // to flash/vanish repeatedly especially for large menus like Hideout Cafe (150+ items).
   const targetRestaurantId = useMemo(() => {
-    const isUrlAdmin = typeof window !== 'undefined' && (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/superadmin') || window.location.search.includes('view=admin'));
-    if (isUrlAdmin && (state.admin?.restaurantId || state.admin?.id)) {
-      return state.admin.restaurantId || state.admin.id;
-    }
     const urlParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('restaurant') : null;
-    return urlParam || state.activeCustomerRestaurantId || state.admin?.restaurantId || state.admin?.id || 'admin-1';
+    let rId = urlParam || state.activeCustomerRestaurantId || state.admin?.restaurantId || state.admin?.id;
+    if (!rId || rId === 'admin-1' || rId === 'super-admin' || rId === 'super-admin-atish') {
+      rId = 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84';
+    }
+    return rId;
   }, [state.activeCustomerRestaurantId, state.admin?.restaurantId, state.admin?.id]);
 
   // 1. Global Supabase sync listeners (Subscribed once on app load)

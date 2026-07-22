@@ -33,3 +33,6 @@ temp_*.json
 temp_acc.json
 temp_rest.json
 test_save.cjs
+
+# Local Netlify folder
+.netlify

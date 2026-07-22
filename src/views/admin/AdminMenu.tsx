@@ -200,11 +200,12 @@ const EMPTY_ITEM: Omit<MenuItem, 'id'> = {
 
 export default function AdminMenu() {
   const { state, dispatch, addToast } = useStore();
-  const adminId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
-  const ownerAdminIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId].filter(Boolean));
-  const adminMenuItems = state.menuItems.filter(item => ownerAdminIds.has(item.restaurantId || 'admin-1'));
-  const adminCategories = state.categories.filter(c => ownerAdminIds.has(c.restaurantId || 'admin-1'));
-  const adminAddons = state.addons?.filter(a => a && ownerAdminIds.has(a.restaurantId || 'admin-1')) || [];
+  const adminId = state.admin?.restaurantId || state.admin?.id || 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84';
+  const ownerAdminIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId, 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84', 'admin-1'].filter(Boolean));
+  const isSuper = state.admin?.isSuperAdmin || state.admin?.id === 'super-admin-atish';
+  const adminMenuItems = state.menuItems.filter(item => isSuper || !item.restaurantId || ownerAdminIds.has(item.restaurantId) || item.restaurantId === 'admin-1' || item.restaurantId === 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84');
+  const adminCategories = state.categories.filter(c => isSuper || !c.restaurantId || ownerAdminIds.has(c.restaurantId) || c.restaurantId === 'admin-1' || c.restaurantId === 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84');
+  const adminAddons = state.addons?.filter(a => a && (isSuper || !a.restaurantId || ownerAdminIds.has(a.restaurantId) || a.restaurantId === 'admin-1' || a.restaurantId === 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84')) || [];
   const uncategorizedItems = adminMenuItems.filter(item => 
     !item.category || !adminCategories.some(c => c.id === item.category)
   );

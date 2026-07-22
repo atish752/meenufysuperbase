@@ -142,7 +142,7 @@ export default function AdminAuth() {
           id: 'super-admin-atish',
           name: 'Atish (Super Admin)',
           email: 'atish752',
-          restaurantId: 'super-admin',
+          restaurantId: 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84',
           isLoggedIn: true,
           isSuperAdmin: true,
         };

@@ -524,9 +524,9 @@ export default function AdminHome() {
 
 
 
-  const adminId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
-  const ownerIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId].filter(Boolean));
-  const isMyRest = (rId?: string) => !rId || ownerIds.has(rId) || rId === 'admin-1';
+  const adminId = state.admin?.restaurantId || state.admin?.id || 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84';
+  const ownerIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId, 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84', 'admin-1'].filter(Boolean));
+  const isMyRest = (rId?: string) => state.admin?.isSuperAdmin || !rId || ownerIds.has(rId) || rId === 'admin-1' || rId === 'b92eabc0-d08a-40ac-bd1a-e2ff086f9a84';
 
   const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && isMyRest(r.restaurantId));
   const resolvedWaiterRequests = state.waiterRequests.filter(r => r.resolved && isMyRest(r.restaurantId) && (time - (r.resolvedAt || r.createdAt || 0) < 5000));
