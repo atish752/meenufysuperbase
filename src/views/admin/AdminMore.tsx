@@ -1500,9 +1500,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
 
               {/* ORDER SETTINGS — Order Types + Customization merged */}
               {outletSubSection === 'order_settings' && (() => {
-                const plan = state.subscriptionPlan || 'free';
-                const isAdvance = plan === 'advance';
-                const isStandardOrAbove = plan === 'standard' || plan === 'advance';
                 // current enabled state
                 const diningEnabled = restaurantForm.supportedOrderTypes
                   ? restaurantForm.supportedOrderTypes.includes('in-dining')
