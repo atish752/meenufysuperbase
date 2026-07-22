@@ -765,6 +765,16 @@ export default function CustomerCart({ tableId }: { tableId?: string }) {
         }
       }
     }
+    // Enforce unique gift coupon: can only be used once globally by anyone
+    if (found.isUniqueGift) {
+      const alreadyRedeemed = state.orders.some(
+        o => o.couponCodeApplied === found.code && o.restaurantId === restaurantId
+      );
+      if (alreadyRedeemed) {
+        setCouponError('This gift coupon has already been redeemed and is no longer valid.');
+        return;
+      }
+    }
     // Check global usage limit
     if (found.usageLimit && (found.usageCount || 0) >= found.usageLimit) {
       setCouponError('This coupon has reached its usage limit.');

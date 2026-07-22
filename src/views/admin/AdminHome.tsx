@@ -366,6 +366,7 @@ export default function AdminHome() {
     value: '',
     minOrderAmount: '',
     isOneTime: false,
+    isUniqueGift: false,
     showInDeals: false,
     isActive: true,
     appliesToType: 'all' as 'all' | 'categories',
@@ -395,6 +396,7 @@ export default function AdminHome() {
       value: val,
       minOrderAmount: isNaN(minOrder) ? undefined : minOrder,
       isOneTime: couponForm.isOneTime,
+      isUniqueGift: couponForm.isUniqueGift || undefined,
       showInDeals: couponForm.showInDeals,
       isActive: couponForm.isActive,
       createdAt: Date.now(),
@@ -433,6 +435,7 @@ export default function AdminHome() {
       value: '',
       minOrderAmount: '',
       isOneTime: false,
+      isUniqueGift: false,
       showInDeals: false,
       isActive: true,
       appliesToType: 'all',
@@ -450,6 +453,7 @@ export default function AdminHome() {
       value: String(coupon.value),
       minOrderAmount: coupon.minOrderAmount ? String(coupon.minOrderAmount) : '',
       isOneTime: !!coupon.isOneTime,
+      isUniqueGift: !!(coupon as any).isUniqueGift,
       showInDeals: !!coupon.showInDeals,
       isActive: !!coupon.isActive,
       appliesToType: Array.isArray(coupon.appliesTo) ? 'categories' : 'all',
@@ -470,6 +474,7 @@ export default function AdminHome() {
           value: '',
           minOrderAmount: '',
           isOneTime: false,
+          isUniqueGift: false,
           showInDeals: false,
           isActive: true,
           appliesToType: 'all',
@@ -1518,47 +1523,6 @@ export default function AdminHome() {
               🏷️ Coupon & Offers Manager
             </h3>
 
-            {/* Live Scrolling Offer Marquee Toggle */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(255, 125, 0, 0.08) 0%, rgba(255, 125, 0, 0.02) 100%)',
-              border: '1px solid rgba(255, 125, 0, 0.2)',
-              borderRadius: 12,
-              padding: '12px 16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 20
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', marginRight: 16 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)' }}>✨ Scrolling Offer Marquee Banner</span>
-                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Show a live scrolling banner of active offers on customer home page</span>
-              </div>
-              <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer', flexShrink: 0 }}>
-                <input
-                  type="checkbox"
-                  checked={!!state.restaurant.offersMarqueeEnabled}
-                  onChange={e => dispatch({
-                    type: 'UPDATE_RESTAURANT',
-                    payload: { offersMarqueeEnabled: e.target.checked }
-                  })}
-                  style={{ opacity: 0, width: 0, height: 0 }}
-                />
-                <span style={{
-                  position: 'absolute', inset: 0, borderRadius: 24,
-                  background: state.restaurant.offersMarqueeEnabled ? 'var(--brand)' : 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  transition: '0.2s',
-                }}>
-                  <span style={{
-                    position: 'absolute', left: 2, bottom: 1, width: 20, height: 20, borderRadius: '50%',
-                    background: state.restaurant.offersMarqueeEnabled ? '#000' : '#fff',
-                    transform: state.restaurant.offersMarqueeEnabled ? 'translateX(20px)' : 'translateX(0)',
-                    transition: '0.2s',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                  }} />
-                </span>
-              </label>
-            </div>
 
             {/* Create/Edit Coupon Form */}
             <form onSubmit={handleSaveCoupon} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
@@ -1701,7 +1665,7 @@ export default function AdminHome() {
                   <input
                     type="checkbox"
                     checked={couponForm.isOneTime}
-                    onChange={e => setCouponForm({ ...couponForm, isOneTime: e.target.checked })}
+                    onChange={e => setCouponForm({ ...couponForm, isOneTime: e.target.checked, isUniqueGift: e.target.checked ? false : couponForm.isUniqueGift })}
                   />
                   <span>👤 One-time use per customer</span>
                 </label>
@@ -1725,6 +1689,30 @@ export default function AdminHome() {
                 </label>
               </div>
 
+              {/* Unique Gift Coupon option */}
+              <div style={{
+                marginTop: 10,
+                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.02) 100%)',
+                border: '1px solid rgba(251, 191, 36, 0.3)',
+                borderRadius: 10,
+                padding: '10px 14px',
+              }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={couponForm.isUniqueGift}
+                    onChange={e => setCouponForm({ ...couponForm, isUniqueGift: e.target.checked, isOneTime: e.target.checked ? false : couponForm.isOneTime })}
+                    style={{ marginTop: 2, flexShrink: 0 }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b' }}>🎁 Unique Single-Use Gift Coupon</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.5 }}>
+                      This coupon can be used <strong>only once, by one customer</strong> (globally). Use this for complimentary gifts, issue resolutions, or special rewards. Once used, the coupon becomes permanently invalid for everyone.
+                    </div>
+                  </div>
+                </label>
+              </div>
+
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                 <button
                   type="submit"
@@ -1745,6 +1733,7 @@ export default function AdminHome() {
                         value: '',
                         minOrderAmount: '',
                         isOneTime: false,
+                        isUniqueGift: false,
                         showInDeals: false,
                         isActive: true,
                         appliesToType: 'all',
@@ -1795,11 +1784,17 @@ export default function AdminHome() {
                             👤 1-Time/Customer
                           </span>
                         )}
+                        {(coupon as any).isUniqueGift && (
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(251,191,36,0.15)', color: '#f59e0b' }}>
+                            🎁 Unique Gift
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                         {coupon.type === 'percentage' ? `${coupon.value}% Off` : `₹${coupon.value} Off`}
                         {coupon.minOrderAmount ? ` • Min. order ₹${coupon.minOrderAmount}` : ''}
-                        {coupon.isOneTime ? ` • One-time` : ''}
+                        {coupon.isOneTime ? ` • One-time/customer` : ''}
+                        {(coupon as any).isUniqueGift ? ` • One-time globally (Gift)` : ''}
                       </div>
                       {coupon.label && (
                         <div style={{ fontSize: 10, color: 'var(--brand)', marginTop: 2, fontStyle: 'italic' }}>

@@ -259,6 +259,7 @@ export type Coupon = {
   value: number;
   minOrderAmount?: number;
   isOneTime?: boolean;
+  isUniqueGift?: boolean;
   isActive: boolean;
   createdAt: number;
   usageCount?: number;
