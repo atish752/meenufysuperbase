@@ -322,17 +322,33 @@ export default function CustomerHome() {
     return list;
   }, [activeRestaurants, coords, selectedCity, searchQuery]);
 
-  // Fetch meals from all nearby restaurants in parallel when coordinates are active
+  // Fetch meals from all listed restaurants in parallel when category filter or search query changes
   useEffect(() => {
-    const q = selectedCuisine || searchQuery.trim().toLowerCase();
-    if (!q || !coords || processedRestaurants.length === 0) {
+    const q = (selectedCuisine || searchQuery).trim().toLowerCase();
+    if (!q || processedRestaurants.length === 0) {
       setNearbyMeals([]);
       return;
     }
 
     setLoadingMeals(true);
 
-    // Fetch meals from nearby restaurants for the cuisine/search filter section
+    // 1. Immediately use existing store menuItems if available for instant display
+    const storeMeals = (state.menuItems || []).filter((m: any) => m && m.restaurantId);
+    if (storeMeals.length > 0) {
+      const mappedStoreMeals = storeMeals.map((meal: any) => {
+        const rest = processedRestaurants.find(r => r.id === meal.restaurantId);
+        return {
+          ...meal,
+          restaurantName: rest?.restaurantName || meal.restaurantName || 'Restaurant',
+          restaurantLogo: rest?.logo,
+          restaurantRating: rest?.rating,
+          distance: rest?.distance || 0
+        };
+      });
+      setNearbyMeals(mappedStoreMeals);
+    }
+
+    // 2. Fetch fresh meals from database for all displayed restaurants
     const mealPromises = processedRestaurants.map(rest => {
       return dbGet(`menuItems/${rest.id}`)
         .then(data => {
@@ -353,10 +369,13 @@ export default function CustomerHome() {
     });
 
     Promise.all(mealPromises).then(mealResults => {
-      setNearbyMeals(mealResults.flat());
+      const fetched = mealResults.flat();
+      if (fetched.length > 0) {
+        setNearbyMeals(fetched);
+      }
       setLoadingMeals(false);
-    });
-  }, [coords, processedRestaurants.map(r => r.id).join(',')]);
+    }).catch(() => setLoadingMeals(false));
+  }, [selectedCuisine, searchQuery, processedRestaurants.map(r => r.id).join(',')]);
 
   // Filter meals matching the selected cuisine filter or search
   const filteredMeals = nearbyMeals.filter(meal => {

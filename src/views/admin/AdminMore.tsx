@@ -1517,42 +1517,18 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                     (restaurantForm.supportedOrderTypes as any) || ['in-dining', 'take-away'];
 
                   if (type === 'home-delivery') {
-                    // Standard: enabling delivery disables dining+takeaway
-                    if (enable && !isAdvance) {
-                      updateRestaurantForm(prev => ({
-                        ...prev,
-                        deliveryEnabled: true,
-                        supportedOrderTypes: ['home-delivery'],
-                      }));
-                    } else if (enable && isAdvance) {
-                      updateRestaurantForm(prev => ({
-                        ...prev,
-                        deliveryEnabled: true,
-                        supportedOrderTypes: [...current.filter(t => t !== 'home-delivery'), 'home-delivery'],
-                      }));
-                    } else {
-                      updateRestaurantForm(prev => ({
-                        ...prev,
-                        deliveryEnabled: false,
-                        supportedOrderTypes: current.filter(t => t !== 'home-delivery'),
-                      }));
-                    }
+                    updateRestaurantForm(prev => ({
+                      ...prev,
+                      deliveryEnabled: enable,
+                      supportedOrderTypes: enable
+                        ? [...current.filter(t => t !== 'home-delivery'), 'home-delivery']
+                        : current.filter(t => t !== 'home-delivery')
+                    }));
                   } else {
-                    // in-dining or take-away: enabling these on standard disables delivery
                     let next = enable
                       ? [...current.filter(t => t !== type), type]
                       : current.filter(t => t !== type);
-                    if (enable && !isAdvance) {
-                      // Disable home delivery when enabling dining/takeaway on standard
-                      next = next.filter(t => t !== 'home-delivery');
-                      updateRestaurantForm(prev => ({
-                        ...prev,
-                        deliveryEnabled: false,
-                        supportedOrderTypes: next,
-                      }));
-                    } else {
-                      updateRestaurantForm(prev => ({ ...prev, supportedOrderTypes: next }));
-                    }
+                    updateRestaurantForm(prev => ({ ...prev, supportedOrderTypes: next }));
                   }
                 };
 
@@ -1564,25 +1540,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
                       Configure which order types your restaurant accepts and other ordering preferences.
                     </p>
-
-                    {/* Plan notice */}
-                    {!isAdvance && (
-                      <div style={{
-                        background: 'rgba(255, 125, 0, 0.08)',
-                        border: '1px solid rgba(255, 125, 0, 0.25)',
-                        borderRadius: 10,
-                        padding: '10px 14px',
-                        marginBottom: 14,
-                        fontSize: 11,
-                        color: 'var(--text-secondary)',
-                        lineHeight: 1.5,
-                      }}>
-                        <strong style={{ color: 'var(--brand)' }}>
-                          {isStandardOrAbove ? '📦 Standard Plan' : '🎁 Free / Base Plan'}
-                        </strong>
-                        {' '}— On Standard, you can enable either <strong>Home Delivery</strong> OR <strong>In-Dining + Takeaway</strong>, not both simultaneously. Upgrade to <strong>Advance</strong> to enable all order types together.
-                      </div>
-                    )}
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
                       {/* In-Dining Toggle */}
@@ -1759,7 +1716,13 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                           </div>
                           <div
                             className={`toggle ${restaurantForm.locationVerificationEnabled ? 'on' : ''}`}
-                            onClick={() => updateRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: !prev.locationVerificationEnabled }))}
+                            onClick={() => {
+                              const nextState = !restaurantForm.locationVerificationEnabled;
+                              updateRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: nextState }));
+                              if (nextState && !restaurantForm.googleMapsUrl && !restaurantForm.latitude) {
+                                addToast('warning', 'Please add your Google Maps link in Outlet Information to save outlet location!');
+                              }
+                            }}
                             style={{ cursor: 'pointer' }}
                           >
                             <div className="toggle-thumb" />
@@ -1768,66 +1731,73 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
 
                         {restaurantForm.locationVerificationEnabled && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4, borderLeft: '3px solid var(--brand)', paddingLeft: 12 }}>
-                            <div className="input-group">
-                              <label className="input-label">Google Maps Link</label>
-                              <input
-                                className="input"
-                                type="text"
-                                placeholder="Paste share link"
-                                value={restaurantForm.googleMapsUrl || ''}
-                                onChange={e => {
-                                  const url = e.target.value;
-                                  const parsed = parseCoordsFromGmaps(url);
-                                  if (parsed) {
-                                    updateRestaurantForm(prev => ({
-                                      ...prev,
-                                      googleMapsUrl: url,
-                                      latitude: parseFloat(parsed.lat.toFixed(6)),
-                                      longitude: parseFloat(parsed.lng.toFixed(6)),
-                                    }));
-                                    addToast('success', 'Coordinates auto-extracted!');
-                                  } else {
-                                    updateRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                              <div className="input-group" style={{ flex: 1 }}>
-                                <label className="input-label">Latitude</label>
-                                <input
-                                  className="input"
-                                  type="number"
-                                  step="any"
-                                  value={restaurantForm.latitude ?? ''}
-                                  onChange={e => updateRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
-                                />
+                            {(!restaurantForm.googleMapsUrl && !restaurantForm.latitude) ? (
+                              <div style={{
+                                background: 'rgba(239, 68, 68, 0.08)',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                borderRadius: 10,
+                                padding: '10px 14px',
+                                fontSize: 11,
+                                color: 'var(--text-primary)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 6
+                              }}>
+                                <strong style={{ color: 'var(--error)' }}>⚠️ Google Maps Link Required</strong>
+                                <span>Please add your restaurant's Google Maps link in <strong>Outlet Information</strong> to save your outlet location for verification.</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setOutletSubSection('info')}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ alignSelf: 'flex-start', marginTop: 4, fontSize: 11, fontWeight: 700 }}
+                                >
+                                  👉 Go to Outlet Information
+                                </button>
                               </div>
-                              <div className="input-group" style={{ flex: 1 }}>
-                                <label className="input-label">Longitude</label>
-                                <input
-                                  className="input"
-                                  type="number"
-                                  step="any"
-                                  value={restaurantForm.longitude ?? ''}
-                                  onChange={e => updateRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                className="btn btn-primary"
-                                onClick={() => {
-                                  const defaultLat = restaurantForm.latitude || 26.29855;
-                                  const defaultLng = restaurantForm.longitude || 84.43531;
-                                  setAdminMapLat(defaultLat);
-                                  setAdminMapLng(defaultLng);
-                                  setShowAdminMapModal(true);
-                                }}
-                                style={{ height: 38, padding: '0 14px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
-                              >
-                                🗺️ Select Location on Map
-                              </button>
-                            </div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                  📍 Saved Outlet Location: <strong style={{ color: 'var(--brand)' }}>{restaurantForm.latitude}, {restaurantForm.longitude}</strong>
+                                </div>
+                                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                                  <div className="input-group" style={{ flex: 1 }}>
+                                    <label className="input-label">Latitude</label>
+                                    <input
+                                      className="input"
+                                      type="number"
+                                      step="any"
+                                      value={restaurantForm.latitude ?? ''}
+                                      onChange={e => updateRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
+                                    />
+                                  </div>
+                                  <div className="input-group" style={{ flex: 1 }}>
+                                    <label className="input-label">Longitude</label>
+                                    <input
+                                      className="input"
+                                      type="number"
+                                      step="any"
+                                      value={restaurantForm.longitude ?? ''}
+                                      onChange={e => updateRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={() => {
+                                      const defaultLat = restaurantForm.latitude || 26.29855;
+                                      const defaultLng = restaurantForm.longitude || 84.43531;
+                                      setAdminMapLat(defaultLat);
+                                      setAdminMapLng(defaultLng);
+                                      setShowAdminMapModal(true);
+                                    }}
+                                    style={{ height: 38, padding: '0 14px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+                                  >
+                                    🗺️ Select Location on Map
+                                  </button>
+                                </div>
+                              </>
+                            )}
+
                             <div className="input-group">
                               <label className="input-label">Allowed Perimeter Radius (meters)</label>
                               <input
