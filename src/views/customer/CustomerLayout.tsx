@@ -1076,7 +1076,7 @@ export default function CustomerLayout({ tableId }: Props) {
                         We are glad you loved the food! Could you support us with a Google Maps review?
                       </div>
                       <a
-                        href="https://www.google.com/maps/search/?api=1&query=Hideout+Cafe+Koramangala+Bengaluru"
+                        href={restaurant?.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((restaurant?.name || 'Restaurant') + ' ' + (restaurant?.address || ''))}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-full"

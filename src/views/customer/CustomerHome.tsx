@@ -702,70 +702,89 @@ export default function CustomerHome() {
           </div>
 
           {/* Cuisines circular list */}
-          {state.popularCuisines && state.popularCuisines.length > 0 && (
-            <div style={{ padding: '16px 20px 8px' }}>
-              <h3 style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 12, color: 'var(--text-secondary)' }}>
-                WHAT'S ON YOUR MIND? 🍕
-              </h3>
-              <div style={{
-                display: 'flex',
-                gap: 16,
-                overflowX: 'auto',
-                paddingBottom: 6
-              }} className="hide-scrollbar">
-                {(state.popularCuisines || []).map((cuisine) => {
-                const isSelected = selectedCuisine === cuisine.query;
-                return (
-                  <button
-                    key={cuisine.name}
-                    onClick={() => setSelectedCuisine(isSelected ? null : cuisine.query)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 6,
-                      cursor: 'pointer',
-                      flexShrink: 0
-                    }}
-                  >
-                    <div style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      border: isSelected ? '3px solid var(--brand)' : '1px solid var(--border)',
-                      boxShadow: isSelected ? 'var(--shadow-brand)' : 'none',
-                      transition: 'all 0.2s',
-                      background: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <img
-                        src={cuisine.image}
-                        alt={cuisine.name}
+          {(() => {
+            const categoriesList = (state.popularCuisines && state.popularCuisines.length > 0)
+              ? state.popularCuisines
+              : [
+                  { name: 'Paneer', query: 'paneer', image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=120&auto=format&fit=crop&q=60' },
+                  { name: 'Chicken', query: 'chicken', image: 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=120&auto=format&fit=crop&q=60' },
+                  { name: 'Biryani', query: 'biryani', image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=120&auto=format&fit=crop&q=60' },
+                  { name: 'Chinese', query: 'chinese', image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=120&auto=format&fit=crop&q=60' },
+                  { name: 'Pizza', query: 'pizza', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=120&auto=format&fit=crop&q=60' },
+                  { name: 'Burger', query: 'burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=120&auto=format&fit=crop&q=60' },
+                  { name: 'Soup', query: 'soup', image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=120&auto=format&fit=crop&q=60' },
+                  { name: 'Tandoori', query: 'tandoori', image: 'https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=120&auto=format&fit=crop&q=60' },
+                ];
+
+            return (
+              <div style={{ padding: '16px 20px 8px' }}>
+                <h3 style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 12, color: 'var(--text-secondary)' }}>
+                  WHAT'S ON YOUR MIND? 🍕
+                </h3>
+                <div style={{
+                  display: 'flex',
+                  gap: 16,
+                  overflowX: 'auto',
+                  paddingBottom: 6
+                }} className="hide-scrollbar">
+                  {categoriesList.map((cuisine) => {
+                    const isSelected = selectedCuisine === cuisine.query;
+                    return (
+                      <button
+                        key={cuisine.name}
+                        onClick={() => setSelectedCuisine(isSelected ? null : cuisine.query)}
                         style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          transform: `scale(${1 + (cuisine.zoom || 0) / 100})`,
-                          transformOrigin: 'center'
+                          background: 'none',
+                          border: 'none',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 6,
+                          cursor: 'pointer',
+                          flexShrink: 0
                         }}
-                      />
-                    </div>
-                    <span style={{
-                      fontSize: 11,
-                      fontWeight: isSelected ? 800 : 600,
-                      color: isSelected ? 'var(--brand)' : 'var(--text-secondary)'
-                    }}>{cuisine.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          )}
+                      >
+                        <div style={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          border: isSelected ? '3px solid var(--brand)' : '1px solid var(--border)',
+                          boxShadow: isSelected ? 'var(--shadow-brand)' : 'none',
+                          transition: 'all 0.2s',
+                          background: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {cuisine.image ? (
+                            <img
+                              src={cuisine.image}
+                              alt={cuisine.name}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                transform: `scale(${1 + (cuisine.zoom || 0) / 100})`,
+                                transformOrigin: 'center'
+                              }}
+                            />
+                          ) : (
+                            <span style={{ fontSize: 24 }}>🍽️</span>
+                          )}
+                        </div>
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: isSelected ? 800 : 600,
+                          color: isSelected ? 'var(--brand)' : 'var(--text-secondary)'
+                        }}>{cuisine.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Search Input */}
           <div style={{ padding: '16px 20px 8px' }}>

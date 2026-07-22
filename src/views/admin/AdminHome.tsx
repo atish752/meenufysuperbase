@@ -3294,37 +3294,41 @@ function OrderCard({
       </div>
 
       {/* Payment details or live action requests */}
-      {(order.status === 'bill_pay' || order.paymentStatus === 'waiting_confirmation') && (
+      {(order.status === 'bill_pay' || order.paymentStatus === 'waiting_confirmation' || order.paymentMethod === 'upi' || order.paymentStatus === 'pending') && (
         <div style={{ marginBottom: 10, padding: 8, borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
-          {order.paymentStatus === 'waiting_confirmation' ? (
+          {order.paymentStatus === 'waiting_confirmation' || order.paymentMethod === 'upi' ? (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: 'var(--brand)', marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: order.paymentMethod === 'upi' ? '#22c55e' : 'var(--brand)', marginBottom: 6 }}>
                 {order.paymentMethod === 'upi' ? <QrCode size={13} /> : order.paymentMethod === 'cash' ? <Coins size={13} /> : <CreditCard size={13} />}
-                {order.paymentMethod === 'upi' ? 'UPI Payment Received' : order.paymentMethod === 'cash' ? 'Requested Cash Bill' : 'Requested Card Bill'}
+                {order.paymentMethod === 'upi' ? '⚡ UPI Payment Claimed by Customer' : order.paymentMethod === 'cash' ? 'Requested Cash Bill' : 'Requested Card Bill'}
               </div>
               {order.upiTxnId && (
                 <div style={{ fontSize: 10, fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '4px 6px', borderRadius: 4, marginBottom: 6, border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
                   UTR Ref: {order.upiTxnId}
                 </div>
               )}
-              {order.paymentMethod === 'upi' && (
+              {(order.paymentMethod === 'upi' || !order.paymentMethod) && (
                 <button
                   className="btn btn-full"
                   style={{
-                    background: 'var(--success)',
+                    background: '#22c55e',
                     color: '#fff',
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
+                    padding: '8px 10px',
+                    fontSize: 11.5,
+                    fontWeight: 800,
                     width: '100%',
                     border: 'none',
-                    borderRadius: 4,
+                    borderRadius: 6,
                     cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(34,197,94,0.3)'
+                    boxShadow: '0 2px 8px rgba(34,197,94,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
                   }}
                   onClick={() => onConfirmUpi(order.id)}
                 >
-                  Confirm {currency}{order.totalAmount} received from UPI
+                  <Check size={14} /> Confirm {currency}{order.totalAmount} received from UPI
                 </button>
               )}
               {order.paymentMethod === 'cash' && (
@@ -3333,12 +3337,12 @@ function OrderCard({
                   style={{
                     background: 'var(--brand)',
                     color: '#000',
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
+                    padding: '8px 10px',
+                    fontSize: 11.5,
+                    fontWeight: 800,
                     width: '100%',
                     border: 'none',
-                    borderRadius: 4,
+                    borderRadius: 6,
                     cursor: 'pointer',
                   }}
                   onClick={() => onConfirmCash(order.id)}
@@ -3352,12 +3356,12 @@ function OrderCard({
                   style={{
                     background: '#3b82f6',
                     color: '#fff',
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
+                    padding: '8px 10px',
+                    fontSize: 11.5,
+                    fontWeight: 800,
                     width: '100%',
                     border: 'none',
-                    borderRadius: 4,
+                    borderRadius: 6,
                     cursor: 'pointer',
                   }}
                   onClick={() => onConfirmCard(order.id)}
@@ -3372,21 +3376,21 @@ function OrderCard({
               <div style={{ display: 'flex', gap: 4 }}>
                 <button 
                   onClick={() => onConfirmCash(order.id)} 
-                  style={{ flex: 1, padding: '4px 6px', fontSize: 10, background: 'var(--border)', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '5px 6px', fontSize: 10, fontWeight: 700, background: 'var(--border)', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer' }}
                 >
                   Cash
                 </button>
                 <button 
                   onClick={() => onConfirmCard(order.id)} 
-                  style={{ flex: 1, padding: '4px 6px', fontSize: 10, background: 'var(--border)', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '5px 6px', fontSize: 10, fontWeight: 700, background: 'var(--border)', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer' }}
                 >
                   Card
                 </button>
                 <button 
                   onClick={() => onConfirmUpi(order.id)} 
-                  style={{ flex: 1, padding: '4px 6px', fontSize: 10, background: 'var(--border)', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '5px 6px', fontSize: 10, fontWeight: 800, background: '#22c55e', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer' }}
                 >
-                  UPI
+                  Confirm UPI
                 </button>
               </div>
             </div>
