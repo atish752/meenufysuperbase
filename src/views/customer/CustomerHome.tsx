@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../context/RealtimeStore';
-import { Search, Star, Award, ArrowRight, X, AlertCircle } from 'lucide-react';
+import { Search, Star, Award, ArrowRight, X, AlertCircle, MapPin, Info } from 'lucide-react';
 import { dbGet } from '../../utils/supabase';
 
 // Haversine formula to calculate distance in km between two sets of coordinates
@@ -64,6 +64,7 @@ export default function CustomerHome() {
     return localStorage.getItem('meenufy_customer_selected_city') || 'Patna';
   });
   const [showSwitchRestModal, setShowSwitchRestModal] = useState(false);
+  const [showLocationGuideModal, setShowLocationGuideModal] = useState(false);
   const [pendingRestId, setPendingRestId] = useState<string | null>(null);
   const [cartRestId, setCartRestId] = useState<string | null>(null);
 
@@ -442,34 +443,71 @@ export default function CustomerHome() {
 
         {/* Right Side Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
-          {/* Restaurateur Dashboard Redirect Button */}
-          <button
-            onClick={() => {
-              window.location.href = '/admin';
-            }}
-            style={{
-              padding: '5px 8px',
-              fontSize: '10px',
-              fontWeight: 800,
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, var(--brand), #ff7d00)',
-              color: '#ffffff',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '2px',
-              boxShadow: '0 2px 8px rgba(255, 125, 0, 0.2)',
-              transition: 'opacity 0.2s',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            <span>👨‍🍳</span>
-            <span>Restaurateur</span>
-          </button>
+          {/* Location Enable/Disable & Info Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedCity === 'gps' && coords) {
+                  handleCityChange('Patna');
+                  addToast('info', '📍 Location disabled. Switched to Patna.');
+                } else {
+                  handleCityChange('gps');
+                }
+              }}
+              disabled={gpsLoading}
+              style={{
+                padding: '4px 8px',
+                fontSize: '10px',
+                fontWeight: 800,
+                borderRadius: '8px',
+                background: selectedCity === 'gps' && coords 
+                  ? 'rgba(34, 197, 94, 0.15)' 
+                  : 'var(--bg-primary)',
+                color: selectedCity === 'gps' && coords 
+                  ? 'var(--success)' 
+                  : 'var(--text-secondary)',
+                border: selectedCity === 'gps' && coords 
+                  ? '1px solid rgba(34, 197, 94, 0.4)' 
+                  : '1px solid var(--border)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                height: 28
+              }}
+              title={selectedCity === 'gps' && coords ? 'Location Enabled (Click to disable)' : 'Click to enable location'}
+            >
+              <MapPin size={12} color={selectedCity === 'gps' && coords ? 'var(--success)' : 'var(--text-muted)'} />
+              <span>{gpsLoading ? 'GPS...' : (selectedCity === 'gps' && coords ? 'GPS ON' : 'GPS OFF')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowLocationGuideModal(true)}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: '8px',
+                background: 'rgba(255, 125, 0, 0.12)',
+                color: 'var(--brand)',
+                border: '1px solid rgba(255, 125, 0, 0.3)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                transition: 'all 0.2s ease',
+                padding: 0
+              }}
+              title="How to enable location in browser"
+            >
+              <Info size={14} />
+            </button>
+          </div>
 
           <select
             value={selectedCity}
@@ -547,6 +585,23 @@ export default function CustomerHome() {
             style={{ width: '100%', background: 'var(--brand)', color: '#000000', fontWeight: 800 }}
           >
             {gpsLoading ? 'Acquiring GPS...' : 'Enable Location Services'}
+          </button>
+          <button
+            onClick={() => setShowLocationGuideModal(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--brand)',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              marginTop: 12,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            <Info size={13} /> Need help enabling location in browser?
           </button>
         </div>
       ) : (
@@ -1710,6 +1765,108 @@ export default function CustomerHome() {
                 Go Back to Current Restro
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Location Permission Guide Pop-up Modal */}
+      {showLocationGuideModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: '20px',
+            maxWidth: '440px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '20px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px'
+          }}>
+            {/* Close Button */}
+            <button
+              onClick={() => setShowLocationGuideModal(false)}
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 10
+              }}
+            >
+              <X size={16} />
+            </button>
+
+            {/* Header */}
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: 900, color: 'var(--brand)', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                📍 How to Enable Location Access
+              </div>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
+                Follow these 3 simple steps in your browser address bar for <strong>meenufy.in</strong>:
+              </p>
+            </div>
+
+            {/* Screenshot Image */}
+            <div style={{
+              borderRadius: '12px',
+              overflow: 'hidden',
+              border: '1.5px solid var(--border)',
+              background: '#000',
+              textAlign: 'center'
+            }}>
+              <img
+                src="/location_guide.png"
+                alt="How to enable location on meenufy.in"
+                style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain', maxHeight: '55vh' }}
+              />
+            </div>
+
+            {/* Step details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: 'var(--bg-primary)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-primary)', fontWeight: 700 }}>
+                1️⃣ Tap the settings/lock icon in browser address bar (top left of meenufy.in).
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-primary)', fontWeight: 700 }}>
+                2️⃣ Tap "Permissions".
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-primary)', fontWeight: 700 }}>
+                3️⃣ Toggle "Location" to ON & refresh page!
+              </div>
+            </div>
+
+            {/* Got it / Close Action Button */}
+            <button
+              onClick={() => setShowLocationGuideModal(false)}
+              className="btn btn-primary"
+              style={{ width: '100%', height: 40, fontWeight: 800, fontSize: 13 }}
+            >
+              Got it! Close
+            </button>
           </div>
         </div>
       )}
