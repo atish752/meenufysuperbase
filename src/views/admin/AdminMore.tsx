@@ -400,16 +400,16 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
     setDboyPayoutPerKm(12);
   };
 
-  // Deep-link redirect & fallback initialization
+  // Deep-link redirect only — do NOT auto-select a section when in More tab mode (forceSection is null)
   useEffect(() => {
     const targetSection = localStorage.getItem('meenufy_admin_more_section');
     if (targetSection && sections.some(s => s.id === targetSection)) {
       localStorage.removeItem('meenufy_admin_more_section');
       setActiveSection(targetSection);
-    } else if (!activeSection && forceSection !== 'outlet' && sections.length > 0) {
-      setActiveSection(sections[0].id);
     }
-  }, [sections, activeSection]);
+    // Only auto-select when we have an explicit forceSection (Outlet Settings tab)
+    // When forceSection is null (More tab), keep activeSection as null to show the hub grid
+  }, [sections]);
 
   const [selectedInstructionDevice, setSelectedInstructionDevice] = useState<'android' | 'ios' | 'windows' | 'mac' | 'pos'>('android');
   const [showInstructions, setShowInstructions] = useState(false);
@@ -1272,7 +1272,9 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
     }
   };
 
-  const isOnlyOutlet = forceSection === 'outlet' || forceSection === 'restaurant' || activeSection === 'restaurant';
+  // isOnlyOutlet = true only when the Outlet Settings sidebar tab is active (forceSection set by AdminLayout)
+  // When user clicks 'Outlet Settings' card inside the More hub, it should render inline — not full-screen outlet
+  const isOnlyOutlet = forceSection === 'outlet' || forceSection === 'restaurant';
 
   return (
     <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
@@ -1431,7 +1433,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
       )}
 
       {/* Outlet Settings */}
-      {isOnlyOutlet && (
+      {(isOnlyOutlet || (!isOnlyOutlet && activeSection === 'restaurant')) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16, animation: 'fadeIn 0.2s ease' }}>
           
           {/* Sub-sections grid - horizontally styled at the top */}
