@@ -48,6 +48,7 @@ function AppInner() {
   if (state.isLoading) return <SplashScreen />;
 
   // Explicitly check for admin routes (/admin, /superadmin, /onboarding, ?view=admin)
+  const savedRole = typeof window !== 'undefined' ? localStorage.getItem('meenufy_auth_role') : null;
   const isAdminRoute =
     pathname === '/admin' ||
     pathname === '/admin/' ||
@@ -59,7 +60,8 @@ function AppInner() {
     pathname === '/onboarding/' ||
     viewParam === 'admin' ||
     viewParam === 'superadmin' ||
-    viewParam === 'onboarding';
+    viewParam === 'onboarding' ||
+    (state.isAdminLoggedIn && savedRole === 'admin');
 
   if (isAdminRoute) {
     const adminEmail = state.admin?.email?.trim().toLowerCase();

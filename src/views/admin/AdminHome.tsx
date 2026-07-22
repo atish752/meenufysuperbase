@@ -531,8 +531,9 @@ export default function AdminHome() {
   const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && isMyRest(r.restaurantId));
   const resolvedWaiterRequests = state.waiterRequests.filter(r => r.resolved && isMyRest(r.restaurantId) && (time - (r.resolvedAt || r.createdAt || 0) < 5000));
   const activeOrders = state.orders.filter(o => {
-    const isActive = ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status);
-    return isActive && isMyRest(o.restaurantId);
+    const isPendingStatus = ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status);
+    const isPaidOrServed = o.status === 'served' || o.status === 'cancelled' || o.paymentStatus === 'paid';
+    return isPendingStatus && !isPaidOrServed && isMyRest(o.restaurantId);
   });
 
   // Unique months in orders for filter dropdown

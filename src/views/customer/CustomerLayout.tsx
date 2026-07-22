@@ -478,8 +478,7 @@ export default function CustomerLayout({ tableId }: Props) {
     if (dismissedFeedbacks.includes(o.id)) return false;
 
     const belongsToMe = myOrderIdsSet.has(o.id) ||
-      (myPhoneIdentifier && o.customerPhone === myPhoneIdentifier) ||
-      (tableId && o.tableId === tableId);
+      (myPhoneIdentifier && o.customerPhone && o.customerPhone === myPhoneIdentifier);
 
     if (!belongsToMe) return false;
 

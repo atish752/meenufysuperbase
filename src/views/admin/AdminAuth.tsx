@@ -320,7 +320,7 @@ export default function AdminAuth() {
       const { error: oauthError } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + window.location.pathname + window.location.search
+          redirectTo: window.location.origin + '/admin'
         }
       });
       if (oauthError) throw oauthError;
