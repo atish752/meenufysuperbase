@@ -253,6 +253,15 @@ export default function AdminLayout() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.isAdminLoggedIn, state.admin?.restaurantId]);
 
+  // Sync clean URL bar to /admin when logged into Admin Panel
+  useEffect(() => {
+    if (typeof window !== 'undefined' && state.isAdminLoggedIn && !state.admin?.isSuperAdmin && !state.admin?.isDeliveryBoy) {
+      if (window.location.pathname !== '/admin' && !window.location.pathname.startsWith('/admin')) {
+        window.history.replaceState({}, '', '/admin');
+      }
+    }
+  }, [state.isAdminLoggedIn, state.admin?.isSuperAdmin, state.admin?.isDeliveryBoy]);
+
   if (!state.isAdminLoggedIn) {
     return <AdminAuth />;
   }
@@ -280,11 +289,11 @@ export default function AdminLayout() {
       case 'menu': 
         return isMenuAllowed ? <AdminMenu /> : <LockedScreen tabName="Menu Management" />;
       case 'outlet': 
-        return isOutletAllowed ? <AdminMore forceSection="outlet" /> : <LockedScreen tabName="Outlet Settings" />;
+        return isOutletAllowed ? <AdminMore key="outlet" forceSection="outlet" /> : <LockedScreen tabName="Outlet Settings" />;
       case 'analysis': 
         return isAnalysisAllowed ? <AdminAnalysis /> : <LockedScreen tabName="Sales Analysis" />;
       case 'more': 
-        return <AdminMore />;
+        return <AdminMore key="more" forceSection={null} />;
       default: 
         return <AdminHome />;
     }

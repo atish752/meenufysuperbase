@@ -119,9 +119,14 @@ function cropImageSource(base64Src: string, ratio: '1:1' | '3:4' | '9:16', maxDi
   });
 }
 
-export default function AdminMore({ forceSection }: { forceSection?: string } = {}) {
+export default function AdminMore({ forceSection }: { forceSection?: string | null } = {}) {
   const { state, dispatch, addToast } = useStore();
   const [googleLinking, setGoogleLinking] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(forceSection || null);
+
+  useEffect(() => {
+    setActiveSection(forceSection || null);
+  }, [forceSection]);
 
   const isFirebaseUser = !!state.admin?.isFirebaseUser;
   const canConnectGoogle = !isFirebaseUser && hasFirebaseConfig && !!supabaseClient && !state.admin?.isSuperAdmin && !state.admin?.isStaff;
@@ -216,7 +221,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string } = 
   });
   const [feedbackText, setFeedbackText] = useState('');
   const [ticketType, setTicketType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
-  const [activeSection, setActiveSection] = useState<string | null>(forceSection || null);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
   const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
