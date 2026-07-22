@@ -222,7 +222,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
   const [ticketType, setTicketType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'free' | 'base' | 'standard' | 'advance' | null>(null);
-  const [outletSubSection, setOutletSubSection] = useState<'menu' | 'delivery' | 'upi' | 'customization' | 'info' | 'logo_image'>('delivery');
+  const [outletSubSection, setOutletSubSection] = useState<'order_settings' | 'upi_images' | 'info'>('order_settings');
   const [showAdminMapModal, setShowAdminMapModal] = useState(false);
   const [adminMapLat, setAdminMapLat] = useState<number>(26.29855);
   const [adminMapLng, setAdminMapLng] = useState<number>(84.43531);
@@ -1443,11 +1443,9 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
             marginBottom: 20
           }}>
             {[
-              { id: 'delivery', label: 'Home Delivery', icon: '🏠' },
-              { id: 'upi', label: 'UPI ID & QR Code', icon: '💳' },
-              { id: 'customization', label: 'Additional Customization', icon: '🎨' },
+              { id: 'order_settings', label: 'Order Settings', icon: '📋' },
+              { id: 'upi_images', label: 'UPI & Images', icon: '🖼️' },
               { id: 'info', label: 'Outlet Information', icon: 'ℹ️' },
-              { id: 'logo_image', label: 'Logo & Image', icon: '🖼️' },
             ].map(sub => {
               const isActive = outletSubSection === sub.id;
               return (
@@ -1500,157 +1498,365 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
 
           <div>
 
-              {/* 1. Home Delivery Sub-section */}
-              {outletSubSection === 'delivery' && (
-                <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
-                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    🏠 Home Delivery Configuration
-                  </h3>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Home Delivery</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Allow customers to order for home delivery from the app</div>
+              {/* ORDER SETTINGS — Order Types + Customization merged */}
+              {outletSubSection === 'order_settings' && (() => {
+                const plan = state.subscriptionPlan || 'free';
+                const isAdvance = plan === 'advance';
+                const isStandardOrAbove = plan === 'standard' || plan === 'advance';
+                // current enabled state
+                const diningEnabled = restaurantForm.supportedOrderTypes
+                  ? restaurantForm.supportedOrderTypes.includes('in-dining')
+                  : true;
+                const takeawayEnabled = restaurantForm.supportedOrderTypes
+                  ? restaurantForm.supportedOrderTypes.includes('take-away')
+                  : true;
+                const deliveryEnabled = !!restaurantForm.deliveryEnabled;
+
+                const toggleOrderType = (type: 'in-dining' | 'take-away' | 'home-delivery', enable: boolean) => {
+                  let current: Array<'in-dining' | 'take-away' | 'home-delivery'> =
+                    (restaurantForm.supportedOrderTypes as any) || ['in-dining', 'take-away'];
+
+                  if (type === 'home-delivery') {
+                    // Standard: enabling delivery disables dining+takeaway
+                    if (enable && !isAdvance) {
+                      updateRestaurantForm(prev => ({
+                        ...prev,
+                        deliveryEnabled: true,
+                        supportedOrderTypes: ['home-delivery'],
+                      }));
+                    } else if (enable && isAdvance) {
+                      updateRestaurantForm(prev => ({
+                        ...prev,
+                        deliveryEnabled: true,
+                        supportedOrderTypes: [...current.filter(t => t !== 'home-delivery'), 'home-delivery'],
+                      }));
+                    } else {
+                      updateRestaurantForm(prev => ({
+                        ...prev,
+                        deliveryEnabled: false,
+                        supportedOrderTypes: current.filter(t => t !== 'home-delivery'),
+                      }));
+                    }
+                  } else {
+                    // in-dining or take-away: enabling these on standard disables delivery
+                    let next = enable
+                      ? [...current.filter(t => t !== type), type]
+                      : current.filter(t => t !== type);
+                    if (enable && !isAdvance) {
+                      // Disable home delivery when enabling dining/takeaway on standard
+                      next = next.filter(t => t !== 'home-delivery');
+                      updateRestaurantForm(prev => ({
+                        ...prev,
+                        deliveryEnabled: false,
+                        supportedOrderTypes: next,
+                      }));
+                    } else {
+                      updateRestaurantForm(prev => ({ ...prev, supportedOrderTypes: next }));
+                    }
+                  }
+                };
+
+                return (
+                  <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
+                    <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 4, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      📋 Order Settings
+                    </h3>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+                      Configure which order types your restaurant accepts and other ordering preferences.
+                    </p>
+
+                    {/* Plan notice */}
+                    {!isAdvance && (
+                      <div style={{
+                        background: 'rgba(255, 125, 0, 0.08)',
+                        border: '1px solid rgba(255, 125, 0, 0.25)',
+                        borderRadius: 10,
+                        padding: '10px 14px',
+                        marginBottom: 14,
+                        fontSize: 11,
+                        color: 'var(--text-secondary)',
+                        lineHeight: 1.5,
+                      }}>
+                        <strong style={{ color: 'var(--brand)' }}>
+                          {isStandardOrAbove ? '📦 Standard Plan' : '🎁 Free / Base Plan'}
+                        </strong>
+                        {' '}— On Standard, you can enable either <strong>Home Delivery</strong> OR <strong>In-Dining + Takeaway</strong>, not both simultaneously. Upgrade to <strong>Advance</strong> to enable all order types together.
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => updateRestaurantForm(prev => ({ ...prev, deliveryEnabled: !prev.deliveryEnabled }))}
-                        style={{
-                          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                          background: restaurantForm.deliveryEnabled ? 'var(--brand)' : 'var(--border)',
-                          position: 'relative', transition: 'background 0.2s', flexShrink: 0
-                        }}
-                      >
-                        <div style={{
-                          position: 'absolute', top: 3, left: restaurantForm.deliveryEnabled ? 22 : 3,
-                          width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                          transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
-                        }} />
-                      </button>
-                    </div>
-
-                    {restaurantForm.deliveryEnabled && (
-                      <>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
-                          <div className="input-group">
-                            <label className="input-label">Delivery Radius (KM)</label>
-                            <input
-                              className="input"
-                              type="number"
-                              min={1}
-                              max={100}
-                              value={restaurantForm.deliveryRadius || 10}
-                              onChange={e => updateRestaurantForm({ ...restaurantForm, deliveryRadius: parseFloat(e.target.value) || 0 })}
-                            />
-                          </div>
-
-                          <div className="input-group">
-                            <label className="input-label">Standard Delivery Charge (₹)</label>
-                            <input
-                              className="input"
-                              type="number"
-                              min={0}
-                              value={restaurantForm.deliveryCharge !== undefined ? restaurantForm.deliveryCharge : 40}
-                              onChange={e => updateRestaurantForm({ ...restaurantForm, deliveryCharge: parseFloat(e.target.value) || 0 })}
-                              placeholder="e.g. 40"
-                            />
-                          </div>
-                        </div>
-
-                        <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 10 }}>
-                          <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10 }}>Free Delivery Criteria</h4>
-                          
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                            <div className="input-group">
-                              <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Distance Limit (KM)</label>
-                              <input
-                                className="input"
-                                type="number"
-                                min={0}
-                                value={restaurantForm.freeDeliveryDistance || ''}
-                                onChange={e => updateRestaurantForm({ ...restaurantForm, freeDeliveryDistance: parseFloat(e.target.value) || 0 })}
-                                placeholder="e.g. 5"
-                              />
-                            </div>
-                            
-                            <div className="input-group">
-                              <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Min Order Amount (₹)</label>
-                              <input
-                                className="input"
-                                type="number"
-                                min={0}
-                                value={restaurantForm.freeDeliveryMinAmount || ''}
-                                onChange={e => updateRestaurantForm({ ...restaurantForm, freeDeliveryMinAmount: parseFloat(e.target.value) || 0 })}
-                                placeholder="e.g. 500"
-                              />
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                              <div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Free Delivery by Distance</div>
-                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Waive fee if customer is within the distance limit</div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => updateRestaurantForm(prev => ({ ...prev, freeDeliveryDistanceEnabled: prev.freeDeliveryDistanceEnabled !== undefined ? !prev.freeDeliveryDistanceEnabled : false }))}
-                                style={{
-                                  width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
-                                  background: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 'var(--brand)' : 'var(--border)',
-                                  position: 'relative', transition: 'background 0.2s', flexShrink: 0
-                                }}
-                              >
-                                <div style={{
-                                  position: 'absolute', top: 2, left: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 20 : 2,
-                                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                                  transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                                }} />
-                              </button>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                              <div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Free Delivery by Min Amount</div>
-                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Waive fee if order subtotal exceeds the minimum amount</div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => updateRestaurantForm(prev => ({ ...prev, freeDeliveryMinAmountEnabled: prev.freeDeliveryMinAmountEnabled !== undefined ? !prev.freeDeliveryMinAmountEnabled : false }))}
-                                style={{
-                                  width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
-                                  background: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 'var(--brand)' : 'var(--border)',
-                                  position: 'relative', transition: 'background 0.2s', flexShrink: 0
-                                }}
-                              >
-                                <div style={{
-                                  position: 'absolute', top: 2, left: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 20 : 2,
-                                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                                  transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                                }} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </>
                     )}
 
-                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
-                      <Save size={15} /> Save Delivery Settings
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                      {/* In-Dining Toggle */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: `1px solid ${diningEnabled ? 'var(--brand)' : 'var(--border)'}` }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🍽️ In-Dining Orders</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Customers can place orders while dining at your restaurant</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleOrderType('in-dining', !diningEnabled)}
+                          style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: diningEnabled ? 'var(--brand)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                        >
+                          <div style={{ position: 'absolute', top: 3, left: diningEnabled ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+                        </button>
+                      </div>
+
+                      {/* Takeaway Toggle */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: `1px solid ${takeawayEnabled ? 'var(--brand)' : 'var(--border)'}` }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🛍️ Takeaway Orders</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Customers can order and collect at the counter</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleOrderType('take-away', !takeawayEnabled)}
+                          style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: takeawayEnabled ? 'var(--brand)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                        >
+                          <div style={{ position: 'absolute', top: 3, left: takeawayEnabled ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+                        </button>
+                      </div>
+
+                      {/* Home Delivery Toggle */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: `1px solid ${deliveryEnabled ? 'var(--brand)' : 'var(--border)'}` }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🏠 Home Delivery</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Allow customers to order for home delivery from the app</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleOrderType('home-delivery', !deliveryEnabled)}
+                          style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: deliveryEnabled ? 'var(--brand)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                        >
+                          <div style={{ position: 'absolute', top: 3, left: deliveryEnabled ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+                        </button>
+                      </div>
+
+                      {/* Home Delivery Config (if enabled) */}
+                      {deliveryEnabled && (
+                        <div style={{ marginLeft: 0, padding: '14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px dashed var(--brand)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand)', marginBottom: 4 }}>🚚 Delivery Configuration</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+                            <div className="input-group">
+                              <label className="input-label">Delivery Radius (KM)</label>
+                              <input
+                                className="input"
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={restaurantForm.deliveryRadius || 10}
+                                onChange={e => updateRestaurantForm({ ...restaurantForm, deliveryRadius: parseFloat(e.target.value) || 0 })}
+                              />
+                            </div>
+                            <div className="input-group">
+                              <label className="input-label">Standard Delivery Charge (₹)</label>
+                              <input
+                                className="input"
+                                type="number"
+                                min={0}
+                                value={restaurantForm.deliveryCharge !== undefined ? restaurantForm.deliveryCharge : 40}
+                                onChange={e => updateRestaurantForm({ ...restaurantForm, deliveryCharge: parseFloat(e.target.value) || 0 })}
+                                placeholder="e.g. 40"
+                              />
+                            </div>
+                          </div>
+                          <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
+                            <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10 }}>Free Delivery Criteria</h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                              <div className="input-group">
+                                <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Distance Limit (KM)</label>
+                                <input
+                                  className="input"
+                                  type="number"
+                                  min={0}
+                                  value={restaurantForm.freeDeliveryDistance || ''}
+                                  onChange={e => updateRestaurantForm({ ...restaurantForm, freeDeliveryDistance: parseFloat(e.target.value) || 0 })}
+                                  placeholder="e.g. 5"
+                                />
+                              </div>
+                              <div className="input-group">
+                                <label className="input-label" style={{ fontSize: 11 }}>Free Delivery Min Order Amount (₹)</label>
+                                <input
+                                  className="input"
+                                  type="number"
+                                  min={0}
+                                  value={restaurantForm.freeDeliveryMinAmount || ''}
+                                  onChange={e => updateRestaurantForm({ ...restaurantForm, freeDeliveryMinAmount: parseFloat(e.target.value) || 0 })}
+                                  placeholder="e.g. 500"
+                                />
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                                <div>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Free Delivery by Distance</div>
+                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Waive fee if customer is within the distance limit</div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => updateRestaurantForm(prev => ({ ...prev, freeDeliveryDistanceEnabled: prev.freeDeliveryDistanceEnabled !== undefined ? !prev.freeDeliveryDistanceEnabled : false }))}
+                                  style={{ width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', background: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 'var(--brand)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                                >
+                                  <div style={{ position: 'absolute', top: 2, left: (restaurantForm.freeDeliveryDistanceEnabled ?? true) ? 20 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                </button>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                                <div>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Free Delivery by Min Amount</div>
+                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Waive fee if order subtotal exceeds the minimum amount</div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => updateRestaurantForm(prev => ({ ...prev, freeDeliveryMinAmountEnabled: prev.freeDeliveryMinAmountEnabled !== undefined ? !prev.freeDeliveryMinAmountEnabled : false }))}
+                                  style={{ width: 38, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', background: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 'var(--brand)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                                >
+                                  <div style={{ position: 'absolute', top: 2, left: (restaurantForm.freeDeliveryMinAmountEnabled ?? true) ? 20 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Additional Customization (merged) */}
+                    <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 16, marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>🎨 Additional Customization</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {/* Customer Must Login */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Customer Must Login</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Force sign in before checking out</div>
+                          </div>
+                          <div
+                            className={`toggle ${restaurantForm.mustLoginBeforeOrder ? 'on' : ''}`}
+                            onClick={() => updateRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className="toggle-thumb" />
+                          </div>
+                        </div>
+
+                        {/* Overlay Logo on Meals */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Overlay Logo on Meals</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Show restaurant logo watermark overlay on meal photos</div>
+                          </div>
+                          <div
+                            className={`toggle ${restaurantForm.overlayLogoOnMeals ? 'on' : ''}`}
+                            onClick={() => updateRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className="toggle-thumb" />
+                          </div>
+                        </div>
+
+                        {/* Live Location Verification */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Live Location Verification</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Customers must be at coordinates to place order</div>
+                          </div>
+                          <div
+                            className={`toggle ${restaurantForm.locationVerificationEnabled ? 'on' : ''}`}
+                            onClick={() => updateRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: !prev.locationVerificationEnabled }))}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className="toggle-thumb" />
+                          </div>
+                        </div>
+
+                        {restaurantForm.locationVerificationEnabled && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4, borderLeft: '3px solid var(--brand)', paddingLeft: 12 }}>
+                            <div className="input-group">
+                              <label className="input-label">Google Maps Link</label>
+                              <input
+                                className="input"
+                                type="text"
+                                placeholder="Paste share link"
+                                value={restaurantForm.googleMapsUrl || ''}
+                                onChange={e => {
+                                  const url = e.target.value;
+                                  const parsed = parseCoordsFromGmaps(url);
+                                  if (parsed) {
+                                    updateRestaurantForm(prev => ({
+                                      ...prev,
+                                      googleMapsUrl: url,
+                                      latitude: parseFloat(parsed.lat.toFixed(6)),
+                                      longitude: parseFloat(parsed.lng.toFixed(6)),
+                                    }));
+                                    addToast('success', 'Coordinates auto-extracted!');
+                                  } else {
+                                    updateRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                              <div className="input-group" style={{ flex: 1 }}>
+                                <label className="input-label">Latitude</label>
+                                <input
+                                  className="input"
+                                  type="number"
+                                  step="any"
+                                  value={restaurantForm.latitude ?? ''}
+                                  onChange={e => updateRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
+                                />
+                              </div>
+                              <div className="input-group" style={{ flex: 1 }}>
+                                <label className="input-label">Longitude</label>
+                                <input
+                                  className="input"
+                                  type="number"
+                                  step="any"
+                                  value={restaurantForm.longitude ?? ''}
+                                  onChange={e => updateRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={() => {
+                                  const defaultLat = restaurantForm.latitude || 26.29855;
+                                  const defaultLng = restaurantForm.longitude || 84.43531;
+                                  setAdminMapLat(defaultLat);
+                                  setAdminMapLng(defaultLng);
+                                  setShowAdminMapModal(true);
+                                }}
+                                style={{ height: 38, padding: '0 14px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+                              >
+                                🗺️ Select Location on Map
+                              </button>
+                            </div>
+                            <div className="input-group">
+                              <label className="input-label">Allowed Perimeter Radius (meters)</label>
+                              <input
+                                className="input"
+                                type="number"
+                                value={restaurantForm.verificationRadius ?? 50}
+                                onChange={e => updateRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 16 }}>
+                      <Save size={15} /> Save Order Settings
                     </button>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
-              {/* 2. UPI ID & QR Code Sub-section */}
-              {outletSubSection === 'upi' && (
+              {/* UPI & Images (merged UPI + Logo/Image) */}
+              {outletSubSection === 'upi_images' && (
                 <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
                   <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    💳 UPI ID & QR Code Settings
+                    🖼️ UPI & Images
                   </h3>
-                  
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* UPI ID */}
                     <div className="input-group">
                       <label className="input-label">UPI ID</label>
                       <div className="input-icon-wrap">
@@ -1661,6 +1867,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                       </div>
                     </div>
 
+                    {/* UPI QR Code */}
                     <div className="input-group">
                       <label className="input-label">UPI QR Code Image</label>
                       <div style={{ display: 'flex', gap: 10 }}>
@@ -1675,15 +1882,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                           <label
                             htmlFor="upi-qr-upload-input"
                             className="btn btn-secondary btn-full"
-                            style={{
-                              height: 38,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              borderRadius: 10,
-                              fontSize: 12
-                            }}
+                            style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 10, fontSize: 12 }}
                           >
                             {uploadingUpiQr ? 'Uploading...' : '📁 Upload QR Code Image'}
                           </label>
@@ -1694,18 +1893,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                     {restaurantForm.upiQrCode && (
                       <div style={{ marginTop: 10, marginBottom: 14, textAlign: 'center' }}>
                         <label className="input-label" style={{ textAlign: 'left', display: 'block', marginBottom: 6 }}>QR Code Preview</label>
-                        <div style={{
-                          margin: '0 auto',
-                          width: 150,
-                          height: 150,
-                          borderRadius: 8,
-                          border: '2px solid var(--brand)',
-                          background: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 6
-                        }}>
+                        <div style={{ margin: '0 auto', width: 150, height: 150, borderRadius: 8, border: '2px solid var(--brand)', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 6 }}>
                           <img src={restaurantForm.upiQrCode} alt="UPI QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         </div>
                         <button
@@ -1718,148 +1906,64 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                       </div>
                     )}
 
+                    <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 14, marginTop: 4 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>Restaurant Logo & Images</div>
+
+                      {/* Logo */}
+                      <div className="input-group">
+                        <label className="input-label">Restaurant Logo</label>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <input
+                            type="file"
+                            id="logo-upload-input"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            style={{ display: 'none' }}
+                          />
+                          <label htmlFor="logo-upload-input" className="btn btn-secondary btn-full" style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12 }}>
+                            {uploadingLogo ? 'Uploading...' : '📁 Upload Restaurant Logo'}
+                          </label>
+                        </div>
+                      </div>
+
+                      {restaurantForm.logo && (
+                        <div style={{ textAlign: 'center', marginBottom: 10, marginTop: 8 }}>
+                          <img src={restaurantForm.logo} alt="Logo" style={{ width: 80, height: 80, borderRadius: '50%', border: '2px solid var(--brand)', objectFit: 'cover' }} />
+                        </div>
+                      )}
+
+                      {/* Poster Image */}
+                      <div className="input-group" style={{ marginTop: 12 }}>
+                        <label className="input-label">Restaurant Poster Image (Visible in browsing list)</label>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <input
+                            type="file"
+                            id="poster-upload-input"
+                            accept="image/*"
+                            onChange={handlePosterUpload}
+                            style={{ display: 'none' }}
+                          />
+                          <label htmlFor="poster-upload-input" className="btn btn-secondary btn-full" style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12 }}>
+                            {uploadingPoster ? 'Uploading...' : '📁 Upload Poster Image'}
+                          </label>
+                        </div>
+                      </div>
+
+                      {restaurantForm.posterImage && (
+                        <div style={{ textAlign: 'center', marginBottom: 10, marginTop: 8 }}>
+                          <img src={restaurantForm.posterImage} alt="Poster" style={{ width: 120, height: 120, borderRadius: 12, border: '2px solid var(--brand)', objectFit: 'cover' }} />
+                        </div>
+                      )}
+                    </div>
+
                     <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
-                      <Save size={15} /> Save UPI Settings
+                      <Save size={15} /> Save UPI & Images
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* 3. Additional Customization Sub-section */}
-              {outletSubSection === 'customization' && (
-                <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
-                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>🎨 Additional Customization</h3>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {/* Customer Must Login */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Customer Must Login</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Force sign in before checking out</div>
-                      </div>
-                      <div 
-                        className={`toggle ${restaurantForm.mustLoginBeforeOrder ? 'on' : ''}`}
-                        onClick={() => updateRestaurantForm(prev => ({ ...prev, mustLoginBeforeOrder: !prev.mustLoginBeforeOrder }))}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div className="toggle-thumb" />
-                      </div>
-                    </div>
-
-                    {/* Overlay Logo on Meals */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Overlay Logo on Meals</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Show restaurant logo watermark overlay on meal photos</div>
-                      </div>
-                      <div 
-                        className={`toggle ${restaurantForm.overlayLogoOnMeals ? 'on' : ''}`}
-                        onClick={() => updateRestaurantForm(prev => ({ ...prev, overlayLogoOnMeals: !prev.overlayLogoOnMeals }))}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div className="toggle-thumb" />
-                      </div>
-                    </div>
-
-                    {/* Live Location Verification */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Live Location Verification</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Customers must be at coordinates to place order</div>
-                      </div>
-                      <div 
-                        className={`toggle ${restaurantForm.locationVerificationEnabled ? 'on' : ''}`}
-                        onClick={() => updateRestaurantForm(prev => ({ ...prev, locationVerificationEnabled: !prev.locationVerificationEnabled }))}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div className="toggle-thumb" />
-                      </div>
-                    </div>
-
-                    {restaurantForm.locationVerificationEnabled && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12, borderLeft: '3px solid var(--brand)', paddingLeft: 12 }}>
-                        <div className="input-group">
-                          <label className="input-label">Google Maps Link</label>
-                          <input
-                            className="input"
-                            type="text"
-                            placeholder="Paste share link"
-                            value={restaurantForm.googleMapsUrl || ''}
-                            onChange={e => {
-                              const url = e.target.value;
-                              const parsed = parseCoordsFromGmaps(url);
-                              if (parsed) {
-                                updateRestaurantForm(prev => ({
-                                  ...prev,
-                                  googleMapsUrl: url,
-                                  latitude: parseFloat(parsed.lat.toFixed(6)),
-                                  longitude: parseFloat(parsed.lng.toFixed(6)),
-                                }));
-                                addToast('success', 'Coordinates auto-extracted!');
-                              } else {
-                                updateRestaurantForm(prev => ({ ...prev, googleMapsUrl: url }));
-                              }
-                            }}
-                          />
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                          <div className="input-group" style={{ flex: 1 }}>
-                            <label className="input-label">Latitude</label>
-                            <input
-                              className="input"
-                              type="number"
-                              step="any"
-                              value={restaurantForm.latitude ?? ''}
-                              onChange={e => updateRestaurantForm({ ...restaurantForm, latitude: parseFloat(e.target.value) || undefined })}
-                            />
-                          </div>
-                          <div className="input-group" style={{ flex: 1 }}>
-                            <label className="input-label">Longitude</label>
-                            <input
-                              className="input"
-                              type="number"
-                              step="any"
-                              value={restaurantForm.longitude ?? ''}
-                              onChange={e => updateRestaurantForm({ ...restaurantForm, longitude: parseFloat(e.target.value) || undefined })}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => {
-                              const defaultLat = restaurantForm.latitude || 26.29855;
-                              const defaultLng = restaurantForm.longitude || 84.43531;
-                              setAdminMapLat(defaultLat);
-                              setAdminMapLng(defaultLng);
-                              setShowAdminMapModal(true);
-                            }}
-                            style={{ height: 38, padding: '0 14px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
-                          >
-                            🗺️ Select Location on Map
-                          </button>
-                        </div>
-
-                        <div className="input-group">
-                          <label className="input-label">Allowed Perimeter Radius (meters)</label>
-                          <input
-                            className="input"
-                            type="number"
-                            value={restaurantForm.verificationRadius ?? 50}
-                            onChange={e => updateRestaurantForm({ ...restaurantForm, verificationRadius: parseInt(e.target.value) || undefined })}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
-                      <Save size={15} /> Save Customization
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 4. Outlet Information Sub-section */}
+              {/* Outlet Information Sub-section */}
               {outletSubSection === 'info' && (
                 <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
                   <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>ℹ️ Outlet Information</h3>
@@ -2097,65 +2201,6 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
 
                     <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
                       <Save size={15} /> Save Info Details
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 5. Logo & Image Sub-section */}
-              {outletSubSection === 'logo_image' && (
-                <div className="card" style={{ padding: '16px', animation: 'fadeIn 0.2s ease' }}>
-                  <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 16, fontWeight: 800 }}>🖼️ Logo & Image Settings</h3>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {/* Logo */}
-                    <div className="input-group">
-                      <label className="input-label">Restaurant Logo</label>
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <input
-                          type="file"
-                          id="logo-upload-input"
-                          accept="image/*"
-                          onChange={handleLogoUpload}
-                          style={{ display: 'none' }}
-                        />
-                        <label htmlFor="logo-upload-input" className="btn btn-secondary btn-full" style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12 }}>
-                          {uploadingLogo ? 'Uploading...' : '📁 Upload Restaurant Logo'}
-                        </label>
-                      </div>
-                    </div>
-
-                    {restaurantForm.logo && (
-                      <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                        <img src={restaurantForm.logo} alt="Logo" style={{ width: 80, height: 80, borderRadius: '50%', border: '2px solid var(--brand)', objectFit: 'cover' }} />
-                      </div>
-                    )}
-
-                    {/* Profile Photo */}
-                    <div className="input-group">
-                      <label className="input-label">Restaurant Poster Image (Visible in browsing list)</label>
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <input
-                          type="file"
-                          id="poster-upload-input"
-                          accept="image/*"
-                          onChange={handlePosterUpload}
-                          style={{ display: 'none' }}
-                        />
-                        <label htmlFor="poster-upload-input" className="btn btn-secondary btn-full" style={{ height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12 }}>
-                          {uploadingPoster ? 'Uploading...' : '📁 Upload Poster Image'}
-                        </label>
-                      </div>
-                    </div>
-
-                    {restaurantForm.posterImage && (
-                      <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                        <img src={restaurantForm.posterImage} alt="Poster" style={{ width: 120, height: 120, borderRadius: 12, border: '2px solid var(--brand)', objectFit: 'cover' }} />
-                      </div>
-                    )}
-
-                    <button className="btn btn-primary btn-full" onClick={handleSaveRestaurant} style={{ marginTop: 8 }}>
-                      <Save size={15} /> Save Logo & Poster
                     </button>
                   </div>
                 </div>
@@ -3963,3 +4008,4 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
     </div>
   );
 }
+
