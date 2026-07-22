@@ -3228,7 +3228,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         const freshPending = ordsWithId.find(o => {
           const alreadyExists = currentOrders.some(existing => existing.id === o.id);
-          const isFresh = o.status === 'pending' && (Date.now() - (o.createdAt || 0)) < 45000;
+          const isFresh = o.status === 'pending' && (Date.now() - (o.createdAt || 0)) < 15 * 60 * 1000;
           return !alreadyExists && isFresh && !dismissedSet.has(o.id) && !o.isManualOrder;
         });
 
@@ -3242,6 +3242,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         payload: { restaurantId: targetRestaurantId, orders: ordsWithId } 
       });
     });
+
+    // Fast 2-second polling fallback to ensure instant order sync under all network conditions
+    const fastPollOrdersTimer = setInterval(() => {
+      if (!targetRestaurantId) return;
+      dbGet(`orders/${targetRestaurantId}`).then(data => {
+        if (!data) return;
+        const ords: Order[] = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Order[];
+        const ordsWithId = ords.map(o => ({
+          ...o,
+          restaurantId: o.restaurantId || targetRestaurantId
+        }));
+        
+        const currentAdmin = stateRef.current.admin;
+        const currentOrders = stateRef.current.orders;
+        
+        if (currentAdmin && (currentAdmin.restaurantId === targetRestaurantId || currentAdmin.id === targetRestaurantId)) {
+          let dismissedSet = new Set<string>();
+          try {
+            const raw = localStorage.getItem('meenufy_dismissed_alert_orders');
+            if (raw) dismissedSet = new Set(JSON.parse(raw));
+          } catch {}
+
+          const freshPending = ordsWithId.find(o => {
+            const alreadyExists = currentOrders.some(existing => existing.id === o.id);
+            const isFresh = o.status === 'pending' && (Date.now() - (o.createdAt || 0)) < 15 * 60 * 1000;
+            return !alreadyExists && isFresh && !dismissedSet.has(o.id) && !o.isManualOrder;
+          });
+
+          if (freshPending) {
+            dispatch({ type: 'SET_STATE', payload: { newOrderAlert: freshPending } });
+          }
+        }
+
+        dispatch({ 
+          type: 'SYNC_ORDERS', 
+          payload: { restaurantId: targetRestaurantId, orders: ordsWithId } 
+        });
+      }).catch(() => {});
+    }, 2000);
 
     // Listen to waiterRequests
     const unsubscribeWaiter = dbSubscribe(`waiterRequests/${targetRestaurantId}`, (data) => {
@@ -3318,6 +3357,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeOrder();
       unsubscribeWaiter();
       unsubscribeTables();
+      clearInterval(fastPollOrdersTimer);
       unsubscribeSchedules();
       unsubscribeCustomers();
       unsubscribeCoupons();
