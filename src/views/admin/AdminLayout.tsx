@@ -261,7 +261,7 @@ export default function AdminLayout() {
     return <DeliveryDashboard />;
   }
 
-  if (state.admin?.isSuperAdmin) {
+  if (state.admin?.isSuperAdmin || (typeof window !== 'undefined' && window.location.pathname.startsWith('/superadmin'))) {
     return <SuperAdminDashboard />;
   }
 

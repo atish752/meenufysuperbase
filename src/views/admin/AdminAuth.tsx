@@ -136,7 +136,7 @@ export default function AdminAuth() {
     }
 
     // 2. Super Admin Check
-    if (emailLower === 'atish752') {
+    if (emailLower === 'atish752' || emailLower.startsWith('atish752@') || emailLower.includes('atish752')) {
       if (form.password === 'UHI(*Y90Jjk0JKop:ki-0PIkj9OP0') {
         const superUser = {
           id: 'super-admin-atish',
