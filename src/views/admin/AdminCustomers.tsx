@@ -23,8 +23,9 @@ export default function AdminCustomers() {
   // state.customers is replaced wholesale by SYNC_CUSTOMERS on Firebase sync,
   // but before Firebase responds, the initial mock data (restaurantId: admin-1) may show.
   // We filter out mock-restaurant customers for non-admin-1 accounts.
-  const adminId = state.admin?.restaurantId || 'admin-1';
-  const adminOrders = state.orders.filter(o => (o.restaurantId || 'admin-1') === adminId);
+  const adminId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+  const ownerIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId].filter(Boolean));
+  const adminOrders = state.orders.filter(o => !o.restaurantId || ownerIds.has(o.restaurantId) || o.restaurantId === 'admin-1');
   const adminCustomerPhones = new Set(adminOrders.map(o => o.customerPhone).filter(Boolean));
   // If the admin is admin-1 OR if Firebase hasn't synced yet (no orders from any restaurant),
   // show state.customers as-is. Otherwise only show customers whose phone appears in our orders.

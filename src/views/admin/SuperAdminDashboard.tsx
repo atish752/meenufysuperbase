@@ -6,20 +6,7 @@ import {
 } from 'lucide-react';
 import { dbGet, dbUpdate, dbSet } from '../../utils/supabase';
 
-const DEFAULT_POPULAR_CUISINES = [
-  { name: 'Biryani', query: 'biryani', image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Paneer', query: 'paneer', image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Chicken', query: 'chicken', image: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Burger', query: 'burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Pizza', query: 'pizza', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Roll', query: 'roll', image: 'https://images.unsplash.com/photo-1626700051175-6518c4793f4f?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Noodles', query: 'noodles', image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Chilli', query: 'chilli', image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Fried Rice', query: 'fried rice', image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Momo', query: 'momo', image: 'https://images.unsplash.com/photo-1625220194771-7ebedd0b4869?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Dosa', query: 'dosa', image: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Manchurian', query: 'manchurian', image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=150&auto=format&fit=crop&q=60' }
-];
+const DEFAULT_POPULAR_CUISINES: { name: string; query: string; image: string; zoom?: number; originalQuality?: boolean }[] = [];
 
 function compressImage(dataUrl: string, maxWidth: number = 500, maxHeight: number = 500, quality: number = 0.9): Promise<string> {
   return new Promise((resolve) => {

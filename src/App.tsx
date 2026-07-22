@@ -47,14 +47,18 @@ function AppInner() {
 
   if (state.isLoading) return <SplashScreen />;
 
-  // Explicitly check for admin routes (/admin, /onboarding, ?view=admin)
+  // Explicitly check for admin routes (/admin, /superadmin, /onboarding, ?view=admin)
   const isAdminRoute =
     pathname === '/admin' ||
     pathname === '/admin/' ||
     pathname.startsWith('/admin/') ||
+    pathname === '/superadmin' ||
+    pathname === '/superadmin/' ||
+    pathname.startsWith('/superadmin/') ||
     pathname === '/onboarding' ||
     pathname === '/onboarding/' ||
     viewParam === 'admin' ||
+    viewParam === 'superadmin' ||
     viewParam === 'onboarding';
 
   if (isAdminRoute) {

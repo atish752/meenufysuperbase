@@ -47,18 +47,7 @@ export async function dbGet(path: string): Promise<any> {
   if (!supabase) return null;
 
   try {
-    // 1. Try exact key match
-    const { data: exactRow, error: exactErr } = await supabase
-      .from('app_store')
-      .select('data')
-      .eq('key', path)
-      .maybeSingle();
-
-    if (!exactErr && exactRow) {
-      return exactRow.data;
-    }
-
-    // 2. Try prefix match for nested collections (e.g. orders/rest123/order1)
+    // 1. Try prefix match for nested collections (e.g. orders/rest123/order1)
     const { data: prefixRows, error: prefixErr } = await supabase
       .from('app_store')
       .select('key, data')
@@ -84,6 +73,17 @@ export async function dbGet(path: string): Promise<any> {
         }
       }
       return result;
+    }
+
+    // 2. Try exact key match
+    const { data: exactRow, error: exactErr } = await supabase
+      .from('app_store')
+      .select('data')
+      .eq('key', path)
+      .maybeSingle();
+
+    if (!exactErr && exactRow) {
+      return exactRow.data;
     }
 
     return null;

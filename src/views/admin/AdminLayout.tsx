@@ -93,8 +93,9 @@ export default function AdminLayout() {
     if (state.admin?.isStaff && !state.admin.permissions?.includes('orders')) {
       return;
     }
-    const adminId = state.admin?.restaurantId || 'admin-1';
-    const myOrders = state.orders.filter(o => (o.restaurantId || 'admin-1') === adminId);
+    const adminId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+    const ownerIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId].filter(Boolean));
+    const myOrders = state.orders.filter(o => !o.restaurantId || ownerIds.has(o.restaurantId) || o.restaurantId === 'admin-1');
 
     let dismissedOrderIds: Set<string> = new Set();
     try {
@@ -185,8 +186,9 @@ export default function AdminLayout() {
     if (state.admin?.isStaff && !state.admin.permissions?.includes('qr_tables')) {
       return;
     }
-    const adminId = state.admin?.restaurantId || 'admin-1';
-    const myRequests = state.waiterRequests.filter(r => (r.restaurantId || 'admin-1') === adminId);
+    const adminId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+    const ownerIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId].filter(Boolean));
+    const myRequests = state.waiterRequests.filter(r => !r.restaurantId || ownerIds.has(r.restaurantId) || r.restaurantId === 'admin-1');
 
     if (isWaiterMount.current) {
       const initialRequests: Record<string, boolean> = {};

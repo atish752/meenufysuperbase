@@ -16,20 +16,7 @@ import {
   signOutUser
 } from '../utils/supabase';
 
-const DEFAULT_POPULAR_CUISINES = [
-  { name: 'Biryani', query: 'biryani', image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Paneer', query: 'paneer', image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Chicken', query: 'chicken', image: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Burger', query: 'burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Pizza', query: 'pizza', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Roll', query: 'roll', image: 'https://images.unsplash.com/photo-1626700051175-6518c4793f4f?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Noodles', query: 'noodles', image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Chilli', query: 'chilli', image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Fried Rice', query: 'fried rice', image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Momo', query: 'momo', image: 'https://images.unsplash.com/photo-1625220194771-7ebedd0b4869?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Dosa', query: 'dosa', image: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Manchurian', query: 'manchurian', image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=150&auto=format&fit=crop&q=60' }
-];
+const DEFAULT_POPULAR_CUISINES: { name: string; query: string; image: string; zoom?: number; originalQuality?: boolean }[] = [];
 
 export function detectBillingCountry(): 'IN' | 'global' {
   try {
@@ -1297,19 +1284,16 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'SYNC_ORDERS': {
-      const { orders } = action.payload;
-      const updatedOrders = [...state.orders];
-      orders.forEach(newOrder => {
-        const idx = updatedOrders.findIndex(o => o.id === newOrder.id);
-        if (idx >= 0) {
-          updatedOrders[idx] = newOrder;
-        } else {
-          updatedOrders.push(newOrder);
-        }
-      });
+      const { restaurantId, orders } = action.payload;
+      const otherOrders = restaurantId ? state.orders.filter(o => o.restaurantId && o.restaurantId !== restaurantId) : state.orders;
+      
+      const newOrdersMap = new Map<string, Order>();
+      otherOrders.forEach(o => newOrdersMap.set(o.id, o));
+      (orders || []).forEach(o => newOrdersMap.set(o.id, o));
+
       return {
         ...state,
-        orders: updatedOrders
+        orders: Array.from(newOrdersMap.values())
       };
     }
     case 'SYNC_CUSTOMERS': {
@@ -3015,6 +2999,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // listeners on every dispatch — causing menu items to briefly clear and the customer menu
   // to flash/vanish repeatedly especially for large menus like Hideout Cafe (150+ items).
   const targetRestaurantId = useMemo(() => {
+    const isUrlAdmin = typeof window !== 'undefined' && (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/superadmin') || window.location.search.includes('view=admin'));
+    if (isUrlAdmin && (state.admin?.restaurantId || state.admin?.id)) {
+      return state.admin.restaurantId || state.admin.id;
+    }
     const urlParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('restaurant') : null;
     return urlParam || state.activeCustomerRestaurantId || state.admin?.restaurantId || state.admin?.id || 'admin-1';
   }, [state.activeCustomerRestaurantId, state.admin?.restaurantId, state.admin?.id]);

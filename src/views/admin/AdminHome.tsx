@@ -386,7 +386,7 @@ export default function AdminHome() {
     }
     const minOrder = parseFloat(couponForm.minOrderAmount);
 
-    const targetRestaurantId = state.admin?.restaurantId || 'admin-1';
+    const targetRestaurantId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
 
     const couponData: Coupon = {
       id: editingCouponId || `coup-${Date.now()}`,
@@ -524,19 +524,22 @@ export default function AdminHome() {
 
 
 
-  const adminId = state.admin?.restaurantId || 'admin-1';
-  const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && (r.restaurantId || 'admin-1') === adminId);
-  const resolvedWaiterRequests = state.waiterRequests.filter(r => r.resolved && (r.restaurantId || 'admin-1') === adminId && (time - (r.resolvedAt || r.createdAt || 0) < 5000));
+  const adminId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+  const ownerIds = new Set([adminId, state.admin?.id, state.admin?.restaurantId].filter(Boolean));
+  const isMyRest = (rId?: string) => !rId || ownerIds.has(rId) || rId === 'admin-1';
+
+  const activeWaiterRequests = state.waiterRequests.filter(r => !r.resolved && isMyRest(r.restaurantId));
+  const resolvedWaiterRequests = state.waiterRequests.filter(r => r.resolved && isMyRest(r.restaurantId) && (time - (r.resolvedAt || r.createdAt || 0) < 5000));
   const activeOrders = state.orders.filter(o => {
     const isActive = ['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status);
     const isUnder180Min = Date.now() - o.createdAt < 180 * 60 * 1000;
-    return isActive && isUnder180Min && (o.restaurantId || 'admin-1') === adminId;
+    return isActive && isUnder180Min && isMyRest(o.restaurantId);
   });
 
   // Unique months in orders for filter dropdown
   const uniqueMonths: string[] = []; // format "YYYY-MM"
   state.orders
-    .filter(o => (o.restaurantId || 'admin-1') === adminId)
+    .filter(o => isMyRest(o.restaurantId))
     .forEach(o => {
       const d = new Date(o.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -550,7 +553,7 @@ export default function AdminHome() {
   const filteredHistoryOrders = [...state.orders]
     .filter(order => {
       // 1. Restaurant ownership match
-      if ((order.restaurantId || 'admin-1') !== adminId) return false;
+      if (!isMyRest(order.restaurantId)) return false;
 
       // 2. Time Filter Match
       const orderDate = new Date(order.createdAt);
@@ -2443,8 +2446,8 @@ function TableMap() {
     setShowReserveForm(true);
   };
 
-  const adminRestaurantId = state.admin?.restaurantId || 'admin-1';
-  const myOrders = orders.filter(o => (o.restaurantId || 'admin-1') === adminRestaurantId);
+  const adminRestaurantId = state.admin?.restaurantId || state.admin?.id || 'admin-1';
+  const myOrders = orders.filter(o => !o.restaurantId || o.restaurantId === adminRestaurantId || o.restaurantId === state.admin?.id || o.restaurantId === state.admin?.restaurantId || o.restaurantId === 'admin-1');
   const occupiedMap: Record<string, { customerName: string; orderCount: number }> = {};
   myOrders.forEach(o => {
     if (['pending', 'preparing', 'ready', 'bill_pay'].includes(o.status) && (Date.now() - o.createdAt < 180 * 60 * 1000)) {
