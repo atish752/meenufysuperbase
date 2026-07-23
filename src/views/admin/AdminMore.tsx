@@ -8,6 +8,7 @@ import {
 import { hasFirebaseConfig } from '../../utils/firebase';
 import { dbUpdate, supabase as supabaseClient, signOutUser } from '../../utils/supabase';
 import { connectBluetoothPrinter, disconnectBluetoothPrinter, printThermalReceipt } from '../../utils/printReceipt';
+import { compressImageFile } from '../../utils/imageCompressor';
 
 const loadLeaflet = (): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -59,64 +60,6 @@ function parseCoordsFromGmaps(url: string): { lat: number; lng: number } | null 
     }
   } catch {}
   return null;
-}
-
-function cropImageSource(base64Src: string, ratio: '1:1' | '3:4' | '9:16', maxDim = 800, targetKb = 150): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.src = base64Src;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      
-      let targetRatio = 1.0;
-      if (ratio === '3:4') targetRatio = 3 / 4;
-      if (ratio === '9:16') targetRatio = 9 / 16;
-
-      // Calculate cropping bounds to match target aspect ratio
-      let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
-      const currentRatio = img.width / img.height;
-
-      if (currentRatio > targetRatio) {
-        sWidth = img.height * targetRatio;
-        sx = (img.width - sWidth) / 2;
-      } else if (currentRatio < targetRatio) {
-        sHeight = img.width / targetRatio;
-        sy = (img.height - sHeight) / 2;
-      }
-
-      let targetWidth, targetHeight;
-      if (targetRatio >= 1.0) {
-        targetWidth = Math.min(sWidth, maxDim);
-        targetHeight = targetWidth / targetRatio;
-      } else {
-        targetHeight = Math.min(sHeight, maxDim);
-        targetWidth = targetHeight * targetRatio;
-      }
-
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        resolve(base64Src);
-        return;
-      }
-
-      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
-
-      let quality = 0.85;
-      let dataUrl = canvas.toDataURL('image/jpeg', quality);
-      const maxBase64Length = Math.round(targetKb * 1024 * 1.34);
-
-      while (dataUrl.length > maxBase64Length && quality > 0.3) {
-        quality -= 0.08;
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
-      }
-
-      resolve(dataUrl);
-    };
-    img.onerror = (err) => reject(err);
-  });
 }
 
 export default function AdminMore({ forceSection }: { forceSection?: string | null } = {}) {
@@ -214,10 +157,23 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
   const activeAccount = state.restaurantAccounts?.find(acc => acc.id === (state.admin?.restaurantId || state.admin?.id));
   const currentRestName = activeAccount?.restaurantName || state.restaurant.name;
 
-  const [restaurantForm, _setRestaurantForm] = useState({ 
+  const [restaurantForm, _setRestaurantForm] = useState<Record<string, any>>(() => ({ 
     ...state.restaurant,
-    name: currentRestName
-  });
+    ...activeAccount,
+    name: currentRestName,
+    upiQrCode: (activeAccount as any)?.upiQrCode || state.restaurant?.upiQrCode || (state.restaurant as any)?.upiQr || ''
+  }));
+
+  useEffect(() => {
+    if (activeAccount && !isFormDirtyRef.current) {
+      updateRestaurantForm(prev => ({
+        ...prev,
+        upiQrCode: (activeAccount as any)?.upiQrCode || prev.upiQrCode || '',
+        logo: activeAccount.logo || prev.logo || '',
+        posterImage: activeAccount.posterImage || prev.posterImage || ''
+      }));
+    }
+  }, [(activeAccount as any)?.upiQrCode, activeAccount?.logo, activeAccount?.posterImage]);
   const [feedbackText, setFeedbackText] = useState('');
   const [ticketType, setTicketType] = useState<'feedback' | 'bug' | 'feature' | 'other'>('feedback');
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
@@ -310,7 +266,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
     addToast('success', `📍 Location set to (${adminMapLat}, ${adminMapLng})! Click "Save Info Details" to update.`);
   };
   const isFormDirtyRef = useRef(false);
-  const updateRestaurantForm = (action: React.SetStateAction<typeof restaurantForm>) => {
+  const updateRestaurantForm = (action: React.SetStateAction<Record<string, any>>) => {
     isFormDirtyRef.current = true;
     _setRestaurantForm(action);
   };
@@ -449,17 +405,16 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
 
     setUploadingLogo(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async (event) => {
-        const base64Src = event.target?.result as string;
-        
-        // Logo is always cropped to 1:1 ratio
-        const cropped = await cropImageSource(base64Src, '1:1');
-        updateRestaurantForm(prev => ({ ...prev, logo: cropped }));
-        dispatch({ type: 'UPDATE_RESTAURANT', payload: { logo: cropped } });
-        addToast('success', '✨ Restaurant logo uploaded & saved live to cloud! 📸');
-      };
+      // Auto-compress Logo: square 1:1, max 400px, strict 50 KB max
+      const cropped = await compressImageFile(file, {
+        maxKb: 50,
+        maxDimension: 400,
+        aspectRatio: '1:1',
+        format: 'image/jpeg'
+      });
+      updateRestaurantForm(prev => ({ ...prev, logo: cropped }));
+      dispatch({ type: 'UPDATE_RESTAURANT', payload: { logo: cropped } });
+      addToast('success', '✨ Restaurant logo uploaded & compressed to < 50 KB! 📸');
     } catch (err: any) {
       console.error(err);
       addToast('error', `❌ Logo upload failed: ${err.message || err}`);
@@ -479,17 +434,16 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
 
     setUploadingPoster(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async (event) => {
-        const base64Src = event.target?.result as string;
-        
-        // Enforce square (1:1) crop for the profile image
-        const cropped = await cropImageSource(base64Src, '1:1', 1200, 300);
-        updateRestaurantForm(prev => ({ ...prev, posterImage: cropped, posterRatio: '1:1' }));
-        dispatch({ type: 'UPDATE_RESTAURANT', payload: { posterImage: cropped, posterRatio: '1:1' } });
-        addToast('success', '✨ Restaurant poster image uploaded & saved live to cloud! 📸');
-      };
+      // Auto-compress Poster/Profile: square 1:1, max 800px, strict 200 KB max
+      const cropped = await compressImageFile(file, {
+        maxKb: 200,
+        maxDimension: 800,
+        aspectRatio: '1:1',
+        format: 'image/jpeg'
+      });
+      updateRestaurantForm(prev => ({ ...prev, posterImage: cropped, posterRatio: '1:1' }));
+      dispatch({ type: 'UPDATE_RESTAURANT', payload: { posterImage: cropped, posterRatio: '1:1' } });
+      addToast('success', '✨ Restaurant poster image uploaded & compressed to < 200 KB! 📸');
     } catch (err: any) {
       console.error(err);
       addToast('error', `❌ Poster upload failed: ${err.message || err}`);
@@ -509,17 +463,19 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
     }
     setUploadingUpiQr(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const base64Src = event.target?.result as string;
-        updateRestaurantForm(prev => ({ ...prev, upiQrCode: base64Src }));
-        addToast('success', 'UPI QR Code uploaded successfully! 📱');
-        setUploadingUpiQr(false);
-      };
+      // Auto-compress UPI QR Code: square 1:1, max 400px, strict 50 KB max
+      const compressedQr = await compressImageFile(file, {
+        maxKb: 50,
+        maxDimension: 400,
+        aspectRatio: '1:1',
+        format: 'image/jpeg'
+      });
+      updateRestaurantForm(prev => ({ ...prev, upiQrCode: compressedQr }));
+      addToast('success', '⚡ UPI QR Code uploaded & compressed to < 50 KB! 📱');
     } catch (err: any) {
       console.error(err);
       addToast('error', `❌ UPI QR upload failed: ${err.message || err}`);
+    } finally {
       setUploadingUpiQr(false);
     }
   };
@@ -973,6 +929,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
           takeawayRadius: Number(restaurantForm.takeawayRadius || 10),
           verificationRadius: Number(restaurantForm.verificationRadius || 50),
           upiId: restaurantForm.upiId ?? '',
+          upiQrCode: restaurantForm.upiQrCode ?? '',
           googleMapsUrl: restaurantForm.googleMapsUrl ?? '',
           cuisines: restaurantForm.cuisines ?? '',
           logo: currentLogo || '',
@@ -2491,7 +2448,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                     updatedAt: Date.now(),
                     specialNote: 'Make it spicy'
                   };
-                  printThermalReceipt(mockOrder, 'kot', restaurantForm).then(r => {
+                  printThermalReceipt(mockOrder, 'kot', restaurantForm as any).then(r => {
                     if (r.error) addToast('info', r.error);
                     else addToast('success', '🖨️ Test KOT sent to printer!');
                   });
@@ -2521,7 +2478,7 @@ export default function AdminMore({ forceSection }: { forceSection?: string | nu
                     updatedAt: Date.now(),
                     specialNote: 'Make it spicy'
                   };
-                  printThermalReceipt(mockOrder, 'bill', restaurantForm).then(r => {
+                  printThermalReceipt(mockOrder, 'bill', restaurantForm as any).then(r => {
                     if (r.error) addToast('info', r.error);
                     else addToast('success', '🖨️ Test Bill sent to printer!');
                   });

@@ -151,12 +151,17 @@ export default function CustomerHome() {
             localStorage.setItem('meenufy_customer_address_name', 'Current GPS Location');
             setGpsLoading(false);
           },
-          () => {
+          (err) => {
+            console.error('GPS error:', err);
             setGpsLoading(false);
-            setCoords(null);
-            localStorage.removeItem('meenufy_customer_coords');
-            setAddressName('Location Disabled');
-            localStorage.setItem('meenufy_customer_address_name', 'Location Disabled');
+            const patnaCoords = { latitude: 25.5941, longitude: 85.1376 };
+            setSelectedCity('Patna');
+            setCoords(patnaCoords);
+            localStorage.setItem('meenufy_customer_selected_city', 'Patna');
+            localStorage.setItem('meenufy_customer_coords', JSON.stringify(patnaCoords));
+            setAddressName('City: Patna');
+            localStorage.setItem('meenufy_customer_address_name', 'City: Patna');
+            addToast('info', '📍 GPS access denied/failed. Showing Patna restaurants.');
           }
         );
       }
@@ -199,9 +204,16 @@ export default function CustomerHome() {
         setGpsLoading(false);
       },
       (err) => {
-        console.error(err);
-        addToast('error', 'Location access denied. Please enable GPS.');
+        console.error('GPS request error:', err);
         setGpsLoading(false);
+        const patnaCoords = { latitude: 25.5941, longitude: 85.1376 };
+        setSelectedCity('Patna');
+        setCoords(patnaCoords);
+        localStorage.setItem('meenufy_customer_selected_city', 'Patna');
+        localStorage.setItem('meenufy_customer_coords', JSON.stringify(patnaCoords));
+        setAddressName('City: Patna');
+        localStorage.setItem('meenufy_customer_address_name', 'City: Patna');
+        addToast('info', '📍 Location permission denied/failed. Showing Patna restaurants.');
       }
     );
   };
@@ -289,7 +301,7 @@ export default function CustomerHome() {
         }
 
         // 2. Haversine outlet delivery radius limit or city address fallback
-        const maxRadius = acc.deliveryRadius || 50;
+        const maxRadius = selectedCity === 'gps' ? 15 : (acc.deliveryRadius || 50);
         const isNearby = acc.distance <= maxRadius;
         const isAddressMatch = selectedCity !== 'all' && selectedCity !== 'gps' && 
                                !!acc.address && acc.address.toLowerCase().includes(selectedCity.toLowerCase());

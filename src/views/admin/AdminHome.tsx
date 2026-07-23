@@ -766,15 +766,54 @@ export default function AdminHome() {
 
   const handleConfirmUpiPayment = (orderId: string) => {
     const o = state.orders.find(ord => ord.id === orderId);
+    const orderRestId = o?.restaurantId || state.admin?.restaurantId || state.restaurant.id;
     if (o && o.orderType === 'delivery') {
-      dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, status: 'paid' } });
-      dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status: 'preparing' } });
-      addToast('success', 'UPI Payment Confirmed! Order moved to Preparing.');
+      const nextStatus = ((o.status as string) === 'pending' || o.status === 'bill_pay') ? 'preparing' : o.status;
+      if (orderRestId && hasFirebaseConfig) {
+        dbUpdate(`orders/${orderRestId}/${orderId}`, {
+          paymentStatus: 'paid',
+          paymentMethod: 'upi',
+          status: nextStatus,
+          updatedAt: Date.now()
+        }).catch(e => console.error('Failed to update DB UPI payment:', e));
+      }
+      dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, method: 'upi', status: 'paid' } });
+      dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status: nextStatus } });
+      addToast('success', '⚡ UPI Payment Confirmed! Delivery order moved to Preparing.');
     } else {
+      if (orderRestId && hasFirebaseConfig) {
+        dbUpdate(`orders/${orderRestId}/${orderId}`, {
+          paymentStatus: 'paid',
+          paymentMethod: 'upi',
+          status: 'served',
+          updatedAt: Date.now()
+        }).catch(e => console.error('Failed to update DB UPI payment:', e));
+      }
       dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status: 'served' } });
-      dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, status: 'paid' } });
-      addToast('success', 'UPI Payment Confirmed! Order marked as completed.');
+      dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, method: 'upi', status: 'paid' } });
+      addToast('success', '⚡ UPI Payment Confirmed! Order marked as Completed.');
     }
+  };
+
+  const handleAdminManualOtpDelivery = (orderId: string, otpProvided?: string) => {
+    const o = state.orders.find(ord => ord.id === orderId);
+    if (!o) return;
+    if (otpProvided && o.deliveryOtp && otpProvided.trim() !== o.deliveryOtp) {
+      addToast('error', '❌ Incorrect OTP code! Check with customer.');
+      return;
+    }
+    const orderRestId = o.restaurantId || state.admin?.restaurantId || state.restaurant.id;
+    if (orderRestId && hasFirebaseConfig) {
+      dbUpdate(`orders/${orderRestId}/${orderId}`, {
+        status: 'served',
+        paymentStatus: 'paid',
+        updatedAt: Date.now()
+      }).catch(e => console.error('Failed to mark delivery order as served:', e));
+    }
+
+    dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: orderId, status: 'served' } });
+    dispatch({ type: 'UPDATE_ORDER_PAYMENT', payload: { id: orderId, status: 'paid' } });
+    addToast('success', '🚚 Home Delivery Order verified & marked as Delivered!');
   };
 
   const handleConfirmCashPayment = (orderId: string) => {
@@ -1366,6 +1405,7 @@ export default function AdminHome() {
                     onConfirmUpi={handleConfirmUpiPayment}
                     onConfirmCash={handleConfirmCashPayment}
                     onConfirmCard={handleConfirmCardPayment}
+                    onManualOtpDelivery={handleAdminManualOtpDelivery}
                     currency={state.restaurant.currency}
                   />
                 ))
@@ -3455,8 +3495,7 @@ function TabularOrderRow({
   order,
   onStatusChange,
   onConfirmUpi,
-  onConfirmCash,
-  onConfirmCard,
+  onManualOtpDelivery,
   currency
 }: {
   order: Order;
@@ -3464,6 +3503,7 @@ function TabularOrderRow({
   onConfirmUpi: (id: string) => void;
   onConfirmCash: (id: string) => void;
   onConfirmCard: (id: string) => void;
+  onManualOtpDelivery: (id: string, otp?: string) => void;
   currency: string;
 }) {
   const { state, dispatch } = useStore();
@@ -3766,73 +3806,38 @@ function TabularOrderRow({
         </div>
 
         {/* Actions Section */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(order.status === 'bill_pay' || order.paymentStatus === 'waiting_confirmation') ? (
-            order.paymentStatus === 'waiting_confirmation' ? (
-              <div style={{ display: 'flex', gap: 6 }}>
-                {order.paymentMethod === 'upi' && (
-                  <button
-                    onClick={() => onConfirmUpi(order.id)}
-                    className="btn btn-sm"
-                    style={{ background: 'var(--success)', color: '#fff', fontSize: 11, padding: '4px 10px', height: 28, borderRadius: 6 }}
-                  >
-                    Confirm UPI
-                  </button>
-                )}
-                {order.paymentMethod === 'cash' && (
-                  <button
-                    onClick={() => onConfirmCash(order.id)}
-                    className="btn btn-sm"
-                    style={{ background: 'var(--success)', color: '#fff', fontSize: 11, padding: '4px 10px', height: 28, borderRadius: 6 }}
-                  >
-                    Confirm Cash
-                  </button>
-                )}
-                {order.paymentMethod === 'card' && (
-                  <button
-                    onClick={() => onConfirmCard(order.id)}
-                    className="btn btn-sm"
-                    style={{ background: 'var(--success)', color: '#fff', fontSize: 11, padding: '4px 10px', height: 28, borderRadius: 6 }}
-                  >
-                    Confirm Card
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  onClick={() => onConfirmCash(order.id)}
-                  className="btn btn-secondary btn-sm"
-                  style={{ fontSize: 10, padding: '2px 8px', height: 26, borderRadius: 6 }}
-                >
-                  💵 Cash Paid
-                </button>
-                <button
-                  onClick={() => onConfirmCard(order.id)}
-                  className="btn btn-secondary btn-sm"
-                  style={{ fontSize: 10, padding: '2px 8px', height: 26, borderRadius: 6 }}
-                >
-                  💳 Card Paid
-                </button>
-              </div>
-            )
-          ) : (
-            nextStatus && (
-              <button
-                onClick={() => onStatusChange(order.id, nextStatus)}
-                className="btn btn-primary btn-sm"
-                style={{
-                  fontSize: 11,
-                  padding: '4px 12px',
-                  height: 28,
-                  borderRadius: 6,
-                  color: '#000',
-                  fontWeight: 700
-                }}
-              >
-                {order.status === 'pending' ? '🍳 Accept Order' : order.status === 'preparing' ? '🛵 Mark Ready' : 'Served'}
-              </button>
-            )
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {(order.paymentStatus === 'waiting_confirmation' || (order.paymentMethod === 'upi' && order.paymentStatus !== 'paid')) && (
+            <button
+              onClick={() => onConfirmUpi(order.id)}
+              className="btn btn-sm"
+              style={{ background: 'var(--success)', color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', height: 28, borderRadius: 6, boxShadow: '0 2px 6px rgba(34,197,94,0.3)' }}
+            >
+              ⚡ Confirm UPI
+            </button>
+          )}
+          {order.orderType === 'delivery' && order.status !== 'served' && order.status !== 'cancelled' && (
+            <button
+              onClick={() => {
+                const otp = window.prompt(`🔑 Enter 4-digit OTP from customer (Registered OTP: ${order.deliveryOtp || 'None'}) to mark delivered:`);
+                if (otp !== null) {
+                  onManualOtpDelivery(order.id, otp);
+                }
+              }}
+              className="btn btn-sm"
+              style={{ background: '#3b82f6', color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 8px', height: 28, borderRadius: 6 }}
+            >
+              🔑 OTP Deliver
+            </button>
+          )}
+          {nextStatus && order.status !== 'bill_pay' && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => onStatusChange(order.id, nextStatus)}
+              style={{ fontSize: 10, padding: '4px 8px', height: 28 }}
+            >
+              Next
+            </button>
           )}
           
 

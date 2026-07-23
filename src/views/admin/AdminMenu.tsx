@@ -4,6 +4,7 @@ import type { MenuItem, MealSchedule, NutritionInfo, MenuCategory, AddonConfig }
 import { Plus, Pencil, Trash2, Search, Tag, X, Sparkles, Camera, UploadCloud, Loader2, Check, CalendarClock, FlaskConical } from 'lucide-react';
 import { hasFirebaseConfig } from '../../utils/firebase';
 import { dbUpdate } from '../../utils/supabase';
+import { compressImageFile } from '../../utils/imageCompressor';
 
 function CategoryRow({ cat, onUpdate, onDelete, isDeleting, onManageMeals }: { 
   cat: any; 
@@ -901,55 +902,6 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
     setNewCat({ name: '', icon: '🍽️' });
   };
 
-  const compressImage = (file: File, maxDim = 500, targetKb = 100): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          
-          // Center-crop to a perfect square
-          const size = Math.min(img.width, img.height);
-          const sx = (img.width - size) / 2;
-          const sy = (img.height - size) / 2;
-
-          // Target dimension (at most maxDim)
-          const targetSize = Math.min(size, maxDim);
-          canvas.width = targetSize;
-          canvas.height = targetSize;
-
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(event.target?.result as string);
-            return;
-          }
-
-          // Crop and draw
-          ctx.drawImage(img, sx, sy, size, size, 0, 0, targetSize, targetSize);
-
-          let quality = 0.85;
-          let dataUrl = canvas.toDataURL('image/jpeg', quality);
-
-          // Base64 size is roughly 1.34 times binary size. 100KB binary is ~137,000 chars.
-          const maxBase64Length = Math.round(targetKb * 1024 * 1.34);
-
-          // Iteratively decrease quality if image size exceeds our target limit
-          while (dataUrl.length > maxBase64Length && quality > 0.3) {
-            quality -= 0.08;
-            dataUrl = canvas.toDataURL('image/jpeg', quality);
-          }
-
-          resolve(dataUrl);
-        };
-        img.onerror = (err) => reject(err);
-      };
-      reader.onerror = (err) => reject(err);
-    });
-  };
-
   const handleItemImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -961,10 +913,15 @@ Ensure the response contains ONLY the raw JSON object, without any markdown form
 
     setUploadingImage(true);
     try {
-      // Compress the image to a square and convert to Base64 data URL directly (~100kb target size)
-      const compressedDataUrl = await compressImage(file, 500, 100);
+      // Auto-compress food photo to square 1:1, max 450px dimension, strict 50 KB max size
+      const compressedDataUrl = await compressImageFile(file, {
+        maxKb: 50,
+        maxDimension: 450,
+        aspectRatio: '1:1',
+        format: 'image/jpeg'
+      });
       setNewItem(prev => ({ ...prev, image: compressedDataUrl }));
-      addToast('success', 'Image auto-cropped to square, compressed to ~100kb, and saved! 📸');
+      addToast('success', '📸 Food photo auto-cropped to square and compressed to < 50 KB!');
     } catch (err: any) {
       console.error(err);
       addToast('error', `❌ Image processing failed: ${err.message || err}`);

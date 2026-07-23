@@ -47,7 +47,18 @@ export async function dbGet(path: string): Promise<any> {
   if (!supabase) return null;
 
   try {
-    // 1. Try prefix match for nested collections (e.g. orders/rest123/order1)
+    // 1. Try exact key match FIRST (fastest, saves 50% database query traffic)
+    const { data: exactRow, error: exactErr } = await supabase
+      .from('app_store')
+      .select('data')
+      .eq('key', path)
+      .maybeSingle();
+
+    if (!exactErr && exactRow) {
+      return exactRow.data;
+    }
+
+    // 2. Try prefix match ONLY for collection folder paths (e.g. orders/rest123 or categories/rest123)
     const { data: prefixRows, error: prefixErr } = await supabase
       .from('app_store')
       .select('key, data')
@@ -73,17 +84,6 @@ export async function dbGet(path: string): Promise<any> {
         }
       }
       return result;
-    }
-
-    // 2. Try exact key match
-    const { data: exactRow, error: exactErr } = await supabase
-      .from('app_store')
-      .select('data')
-      .eq('key', path)
-      .maybeSingle();
-
-    if (!exactErr && exactRow) {
-      return exactRow.data;
     }
 
     return null;
@@ -157,16 +157,18 @@ export async function dbRemove(path: string): Promise<void> {
 }
 
 /**
- * Subscribes to real-time updates for a given path.
+ * Subscribes to real-time updates for a given path with minimal egress overhead.
  */
 export function dbSubscribe(path: string, callback: (data: any) => void): () => void {
   if (!supabase) return () => {};
 
-  // Fetch initial data
+  // Fetch initial data once
   dbGet(path).then(data => callback(data)).catch(() => {});
 
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
   // Set up real-time postgres changes subscription
-  const channelId = `app_store_${path.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}`;
+  const channelId = `app_store_${path.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   const channel = supabase.channel(channelId)
     .on(
       'postgres_changes',
@@ -177,14 +179,27 @@ export function dbSubscribe(path: string, callback: (data: any) => void): () => 
       },
       (payload) => {
         const updatedKey = (payload.new as any)?.key || (payload.old as any)?.key;
-        if (updatedKey && (updatedKey === path || updatedKey.startsWith(path + '/'))) {
-          dbGet(path).then(data => callback(data)).catch(() => {});
+        if (!updatedKey) return;
+
+        // Direct payload update if exact key match (zero extra network egress!)
+        if (updatedKey === path && payload.new && (payload.new as any).data !== undefined) {
+          callback((payload.new as any).data);
+          return;
+        }
+
+        // Collection prefix match: debounced re-fetch to avoid spam
+        if (updatedKey.startsWith(path + '/')) {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            dbGet(path).then(data => callback(data)).catch(() => {});
+          }, 300);
         }
       }
     )
     .subscribe();
 
   return () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
     supabase.removeChannel(channel);
   };
 }

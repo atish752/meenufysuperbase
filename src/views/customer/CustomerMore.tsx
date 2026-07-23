@@ -114,8 +114,6 @@ export default function CustomerMore() {
     };
 
     fetchTickets();
-    const interval = setInterval(fetchTickets, 25000);
-    return () => clearInterval(interval);
   }, [isLoggedIn, savedPhone]);
 
 

@@ -427,17 +427,18 @@ export default function AdminAuth() {
       <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 1 }}>
         
         {/* Brand Header */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28, textAlign: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24, textAlign: 'center' }}>
           <div style={{
-            width: 72, height: 72, borderRadius: 18,
+            width: 80, height: 80, borderRadius: 20,
             overflow: 'hidden',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'var(--bg-elevated)',
-            boxShadow: '0 8px 30px rgba(255, 125, 0, 0.15)',
-            border: '1px solid var(--border)',
-            marginBottom: 14
+            background: '#ffffff',
+            boxShadow: '0 8px 30px rgba(255, 125, 0, 0.25)',
+            border: '2px solid var(--brand)',
+            marginBottom: 12,
+            padding: 8
           }}>
-            <img src="/meenufy_logo_dark.png" alt="Meenufy Logo" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+            <img src="/meenufy_logo_transparent.png" alt="Meenufy Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/meenufy_logo_full.png'; }} />
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--brand)', margin: 0, fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.02em' }}>
             Meenufy
@@ -625,28 +626,60 @@ export default function AdminAuth() {
               </>
             )}
 
-            {/* Bottom Actions Switchers */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-              
+            {/* Bottom Actions Box */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              marginTop: 16,
+              background: 'var(--bg-elevated)',
+              border: '1.5px solid var(--border-brand)',
+              borderRadius: 14,
+              padding: '14px',
+              textAlign: 'center',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.06)'
+            }}>
               {(mode === 'login' || mode === 'signup') && (
                 <>
                   <button
                     type="button"
                     onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                    style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, outline: 'none' }}
+                    style={{
+                      background: 'rgba(255, 125, 0, 0.12)',
+                      border: '1px solid var(--border-brand)',
+                      borderRadius: 10,
+                      color: 'var(--brand)',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 800,
+                      padding: '10px 14px',
+                      width: '100%',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    {mode === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                    {mode === 'login' ? "✨ Don't have an account? Sign Up" : "🔑 Already have an account? Sign In"}
                   </button>
                   
                   <button
                     type="button"
                     onClick={() => handlePortalSwitch('staff')}
                     style={{
-                      background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer',
-                      fontSize: 12.5, fontWeight: 700, outline: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '9px 12px',
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6
                     }}
                   >
-                    👤 Staff or Rider Login Portal &rarr;
+                    👤 Staff or Rider Login Portal &rrarr;
                   </button>
                 </>
               )}
@@ -656,14 +689,20 @@ export default function AdminAuth() {
                   type="button"
                   onClick={() => setMode('login')}
                   style={{
-                    background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer',
-                    fontSize: 12.5, fontWeight: 700, outline: 'none'
+                    background: 'rgba(255, 125, 0, 0.12)',
+                    border: '1px solid var(--border-brand)',
+                    borderRadius: 10,
+                    color: 'var(--brand)',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    padding: '10px 14px',
+                    width: '100%'
                   }}
                 >
-                  ← Back to Owner Sign In
+                  &larr; Back to Owner Sign In
                 </button>
               )}
-
             </div>
           </form>
         </div>

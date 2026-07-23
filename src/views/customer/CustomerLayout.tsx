@@ -168,21 +168,29 @@ export default function CustomerLayout({ tableId }: Props) {
     const isRootOrHome = currentPath === '/' || currentPath === '/home' || currentPath === '/home/';
     const restaurantParam = urlParams.get('restaurant');
 
-    // If on root path with no restaurant param, always reset to home browse screen
-    if (isRootOrHome && !restaurantParam) {
+    const hasCartItems = state.cart.length > 0;
+    const storedActiveRest = localStorage.getItem('meenufy_active_restaurant_id') || state.activeCustomerRestaurantId;
+
+    // If on root path with no restaurant param, and user has NO cart items & NO stored active restaurant, reset to home browse screen
+    if (isRootOrHome && !restaurantParam && !hasCartItems && !storedActiveRest) {
       dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: null });
       localStorage.removeItem('meenufy_active_restaurant_id');
       return;
     }
 
     // Otherwise restore / set the restaurant from URL param or stored state
-    const rId = restaurantParam || getActiveRestaurantId(state);
-    const prevRestaurantId = localStorage.getItem('meenufy_active_restaurant_id');
-    if (prevRestaurantId && prevRestaurantId !== rId) {
-      dispatch({ type: 'CLEAR_CART' });
-      addToast('info', 'Switched restaurant. Cart has been reset.');
+    const rId = restaurantParam || storedActiveRest || getActiveRestaurantId(state);
+    if (rId) {
+      const prevRestaurantId = localStorage.getItem('meenufy_active_restaurant_id');
+      if (prevRestaurantId && prevRestaurantId !== rId && !restaurantParam) {
+        // Keep existing cart if same restaurant
+      }
+      dispatch({ type: 'SET_ACTIVE_CUSTOMER_RESTAURANT', payload: rId });
+      localStorage.setItem('meenufy_active_restaurant_id', rId);
+      if (hasCartItems && (state.customerTab === 'home' || !state.customerTab)) {
+        dispatch({ type: 'SET_CUSTOMER_TAB', payload: 'menu' });
+      }
     }
-    localStorage.setItem('meenufy_active_restaurant_id', rId);
 
     const restaurant = getActiveRestaurantInfo(state, rId);
     if (isViewOnly && !restaurant?.deliveryEnabled) {

@@ -2688,6 +2688,7 @@ function saveState(state: AppState) {
     // Don't persist transient UI state or tab-local states
     const { toasts, isLoading, newOrderAlert, cart, currentView, adminTab, customerTab, ...rest } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+    localStorage.setItem('meenufy_customer_cart', JSON.stringify(cart || []));
     
     if (state.admin?.restaurantId) {
       localStorage.setItem('meenufy_active_restaurant_id', state.admin.restaurantId);
@@ -2731,7 +2732,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     toasts: [],
     isLoading: false,
     newOrderAlert: null,
-    cart: [],
+    cart: (() => {
+      try {
+        const savedCart = localStorage.getItem('meenufy_customer_cart');
+        return savedCart ? JSON.parse(savedCart) : [];
+      } catch {
+        return [];
+      }
+    })(),
     currentView: 'admin', // always start admin
     adminTab: initialAdminTab,
   });
@@ -3182,8 +3190,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hasFirebaseConfig || !targetRestaurantId) return;
 
-    const isCustomer = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'customer';
-
     // Sync restaurant profile details
     const unsubscribeRestaurant = dbSubscribe(`restaurants/${targetRestaurantId}`, (data) => {
       if (data) {
@@ -3244,45 +3250,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // Fast 2-second polling fallback to ensure instant order sync under all network conditions
-    const fastPollOrdersTimer = setInterval(() => {
-      if (!targetRestaurantId) return;
-      dbGet(`orders/${targetRestaurantId}`).then(data => {
-        if (!data) return;
-        const ords: Order[] = (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as Order[];
-        const ordsWithId = ords.map(o => ({
-          ...o,
-          restaurantId: o.restaurantId || targetRestaurantId
-        }));
-        
-        const currentAdmin = stateRef.current.admin;
-        const currentOrders = stateRef.current.orders;
-        
-        if (currentAdmin && (currentAdmin.restaurantId === targetRestaurantId || currentAdmin.id === targetRestaurantId)) {
-          let dismissedSet = new Set<string>();
-          try {
-            const raw = localStorage.getItem('meenufy_dismissed_alert_orders');
-            if (raw) dismissedSet = new Set(JSON.parse(raw));
-          } catch {}
-
-          const freshPending = ordsWithId.find(o => {
-            const alreadyExists = currentOrders.some(existing => existing.id === o.id);
-            const isFresh = o.status === 'pending' && (Date.now() - (o.createdAt || 0)) < 15 * 60 * 1000;
-            return !alreadyExists && isFresh && !dismissedSet.has(o.id) && !o.isManualOrder;
-          });
-
-          if (freshPending) {
-            dispatch({ type: 'SET_STATE', payload: { newOrderAlert: freshPending } });
-          }
-        }
-
-        dispatch({ 
-          type: 'SYNC_ORDERS', 
-          payload: { restaurantId: targetRestaurantId, orders: ordsWithId } 
-        });
-      }).catch(() => {});
-    }, 2000);
-
     // Listen to waiterRequests
     const unsubscribeWaiter = dbSubscribe(`waiterRequests/${targetRestaurantId}`, (data) => {
       const reqs: WaiterRequest[] = data ? (Array.isArray(data) ? data.filter(Boolean) : Object.values(data)).filter(Boolean) as WaiterRequest[] : [];
@@ -3304,7 +3271,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           type: 'SET_STATE',
           payload: { tables: tbls }
         });
-      } else if (!isCustomer && stateRef.current.tables.length > 0) {
+      } else if (stateRef.current.tables.length > 0) {
         dbSet(`tables/${targetRestaurantId}`, stateRef.current.tables);
       }
     });
@@ -3358,7 +3325,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubscribeOrder();
       unsubscribeWaiter();
       unsubscribeTables();
-      clearInterval(fastPollOrdersTimer);
       unsubscribeSchedules();
       unsubscribeCustomers();
       unsubscribeCoupons();
